@@ -384,8 +384,8 @@ public class DocumentProcessor : IDocumentProcessor
 
         parsingOptions ??= new DocumentParsingOptions();
 
-        _logger?.LogDebug("Starting document parsing. UseLlm: {UseLlm}, Level: {Level}",
-            parsingOptions.UseLlm, parsingOptions.StructuringLevel);
+        _logger?.LogDebug("Starting document parsing. UseAdvancedParsing: {UseAdvancedParsing}, Level: {Level}",
+            parsingOptions.UseAdvancedParsing, parsingOptions.StructuringLevel);
 
         try
         {

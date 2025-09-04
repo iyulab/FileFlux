@@ -238,7 +238,7 @@ public class WordDocumentReaderTests
     }
 
     [Fact]
-    public void ExtractedContent_ShouldPreserveStructure()
+    public void ExtractedContent_ShouldMaintainDocumentHierarchy()
     {
         // This test ensures that extracted content maintains document structure
         // like headers, paragraphs, and tables in a readable format

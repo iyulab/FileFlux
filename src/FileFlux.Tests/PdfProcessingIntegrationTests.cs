@@ -89,12 +89,11 @@ public class PdfProcessingIntegrationTests : IDisposable
                 Strategy = "Intelligent",
                 MaxChunkSize = 400,  // 임베딩 모델 최적화 (256 토큰 목표)
                 OverlapSize = 60,    // 15% overlap 확보
-                PreserveStructure = true
             };
 
             var parsingOptions = new DocumentParsingOptions
             {
-                UseLlm = false,  // LLM 없이 테스트
+                UseAdvancedParsing = false, // Using basic rule-based parsing for PDF test
                 StructuringLevel = StructuringLevel.Medium
             };
 

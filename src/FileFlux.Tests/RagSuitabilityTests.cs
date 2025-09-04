@@ -59,12 +59,11 @@ public class RagSuitabilityTests : IDisposable
             Strategy = "Intelligent",
             MaxChunkSize = 400,  // 임베딩 모델 최적화 (256 토큰 목표)
             OverlapSize = 60,    // 15% overlap 확보
-            PreserveStructure = true
         };
 
         var parsingOptions = new DocumentParsingOptions
         {
-            UseLlm = false,
+            UseAdvancedParsing = false, // Using basic parsing for performance testing
             StructuringLevel = StructuringLevel.Medium
         };
 
@@ -131,7 +130,6 @@ public class RagSuitabilityTests : IDisposable
             Strategy = "Intelligent",
             MaxChunkSize = 150, // 더 작은 크기로 분할하여 오버랩 효과 확인
             OverlapSize = 30,
-            PreserveStructure = true
         };
 
         var strategy = new Infrastructure.Strategies.IntelligentChunkingStrategy();

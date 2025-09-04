@@ -256,10 +256,7 @@ public class SemanticChunkingStrategy : IChunkingStrategy
 
     private static T GetStrategyOption<T>(ChunkingOptions options, string key, T defaultValue)
     {
-        if (options.StrategyOptions.TryGetValue(key, out var value) && value is T typedValue)
-        {
-            return typedValue;
-        }
+        // 옵션 단순화: 항상 기본값 사용 (최고 품질 기본 설정)
         return defaultValue;
     }
 }

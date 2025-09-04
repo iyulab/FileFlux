@@ -375,7 +375,7 @@ public class FileFluxApp
 
             var parsingOptions = new DocumentParsingOptions
             {
-                UseLlm = false, // LLM 비활성화로 빠른 처리
+                UseAdvancedParsing = false, // Using fast rule-based processing for batch operations
                 StructuringLevel = StructuringLevel.Medium
             };
 

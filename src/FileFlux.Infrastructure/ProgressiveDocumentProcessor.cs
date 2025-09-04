@@ -566,7 +566,7 @@ public class ProgressiveDocumentProcessor : IProgressiveDocumentProcessor
         var parser = _parserFactory.GetParser(fileName);
         ParsedDocumentContent parsedContent;
 
-        if (parser != null && parsingOptions.UseLlm)
+        if (parser != null && parsingOptions.UseAdvancedParsing)
         {
             // LLM 기반 파싱 사용
             parsedContent = await parser.ParseAsync(rawContent, parsingOptions, cancellationToken);

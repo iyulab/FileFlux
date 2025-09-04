@@ -96,12 +96,11 @@ public class MarkdownProcessingIntegrationTests : IDisposable
                 Strategy = "Intelligent",
                 MaxChunkSize = 400,  // 임베딩 모델 최적화
                 OverlapSize = 60,    // 15% overlap 확보
-                PreserveStructure = true
             };
 
             var parsingOptions = new DocumentParsingOptions
             {
-                UseLlm = true,  // 지능형 MockTextCompletionService 테스트
+                // Using default settings with MockTextCompletionService
                 StructuringLevel = StructuringLevel.Medium
             };
 
@@ -225,12 +224,11 @@ public class MarkdownProcessingIntegrationTests : IDisposable
             Strategy = "Paragraph",  // Markdown 구조 보존에 더 적합
             MaxChunkSize = 800,
             OverlapSize = 100,
-            PreserveStructure = true
         };
 
         var parsingOptions = new DocumentParsingOptions
         {
-            UseLlm = true,  // 지능형 MockTextCompletionService 테스트
+            // Using default settings with MockTextCompletionService
             StructuringLevel = StructuringLevel.Medium
         };
 

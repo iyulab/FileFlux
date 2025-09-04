@@ -94,7 +94,7 @@ public class ProgressiveProcessingTests : IDisposable
             await foreach (var result in processor.ProcessWithProgressAsync(
                 tempPath,
                 new ChunkingOptions { Strategy = "Paragraph", MaxChunkSize = 300 },
-                new DocumentParsingOptions { UseLlm = false },
+                new DocumentParsingOptions { UseAdvancedParsing = false }, // Basic parsing settings
                 CancellationToken.None))
             {
                 progressUpdates.Add(result.Progress);
@@ -385,7 +385,7 @@ while still providing meaningful content for testing the chunking algorithms.";
             await foreach (var result in processor.ProcessWithProgressAsync(
                 smallDocumentPath,
                 new ChunkingOptions { Strategy = "Intelligent", MaxChunkSize = 256, OverlapSize = 32 },
-                new DocumentParsingOptions { UseLlm = false },
+                new DocumentParsingOptions { UseAdvancedParsing = false }, // Basic parsing settings
                 CancellationToken.None))
             {
                 progressUpdates.Add(result.Progress);

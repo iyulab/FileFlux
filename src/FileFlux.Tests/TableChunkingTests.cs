@@ -66,14 +66,12 @@ namespace FileFlux.Tests
                     Strategy = "Intelligent",
                     MaxChunkSize = 400,
                     OverlapSize = 60,
-                    PreserveStructure = true
                 };
 
                 // Act
                 DocumentChunk[]? finalResult = null;
                 var parsingOptions = new DocumentParsingOptions
                 {
-                    UseLlm = true,
                     StructuringLevel = StructuringLevel.Medium
                 };
 
@@ -160,14 +158,12 @@ namespace FileFlux.Tests
                     Strategy = "Intelligent",
                     MaxChunkSize = 400,
                     OverlapSize = 60,
-                    PreserveStructure = true
                 };
 
                 // Act
                 DocumentChunk[]? finalResult = null;
                 var parsingOptions = new DocumentParsingOptions
                 {
-                    UseLlm = true,
                     StructuringLevel = StructuringLevel.Medium
                 };
 
@@ -219,14 +215,12 @@ namespace FileFlux.Tests
                     Strategy = "Intelligent",
                     MaxChunkSize = 300, // 작게 설정하여 분할 유도
                     OverlapSize = 30,
-                    PreserveStructure = true
                 };
 
                 // Act
                 DocumentChunk[]? finalResult = null;
                 var parsingOptions = new DocumentParsingOptions
                 {
-                    UseLlm = true,
                     StructuringLevel = StructuringLevel.Medium
                 };
 
