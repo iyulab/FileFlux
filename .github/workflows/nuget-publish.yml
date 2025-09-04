@@ -116,6 +116,9 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: 📦 Restore Dependencies
+        run: dotnet restore src/
+
       - name: 📦 Create NuGet Package
         run: |
           dotnet pack src/FileFlux.Infrastructure/FileFlux.Infrastructure.csproj \
