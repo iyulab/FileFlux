@@ -1,0 +1,29 @@
+FileFlux Document Processing Test
+
+This is a small test document for FileFlux progressive processing.
+It contains multiple paragraphs to demonstrate the chunking functionality.
+
+Key Features:
+- Progressive document processing with real-time progress tracking
+- Multiple document format support (PDF, DOCX, TXT, etc.)
+- Advanced chunking strategies for optimal RAG performance
+- Clean architecture with dependency injection
+
+Technical Implementation:
+The system follows a clean architecture pattern with separate concerns for:
+1. Document reading and text extraction
+2. Content parsing and structure analysis  
+3. Intelligent chunking for downstream processing
+4. Progress reporting and error handling
+
+This document is designed to be small enough to avoid context limits
+while still providing meaningful content for testing the chunking algorithms.
+
+Performance Considerations:
+- Memory-efficient streaming for large files
+- Configurable chunk sizes and overlap
+- Support for different document types
+- Extensible reader and parser architecture
+
+The FileFlux SDK provides a zero-dependency solution for document processing
+that integrates seamlessly with any RAG (Retrieval-Augmented Generation) pipeline.
