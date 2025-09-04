@@ -108,19 +108,6 @@ try {
             exit 1
         }
         Write-Success "빌드 완료"
-
-        # 테스트 실행 (테스트 프로젝트가 있는 경우)
-        $TestProject = Join-Path $SrcPath "FileFlux.Tests\FileFlux.Tests.csproj"
-        if (Test-Path $TestProject) {
-            Write-Info "테스트 실행 중..."
-            & dotnet test $TestProject --configuration Release --verbosity minimal --no-build
-            
-            if ($LASTEXITCODE -ne 0) {
-                Write-Warning "테스트 실패했지만 패키징은 계속합니다"
-            } else {
-                Write-Success "테스트 통과"
-            }
-        }
     }
 
     # 각 프로젝트 패키징

@@ -116,10 +116,15 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: 🔨 Build & Pack
+      - name: 📦 Create NuGet Package
         run: |
-          chmod +x scripts/build-and-pack.ps1
-          pwsh scripts/build-and-pack.ps1 -Version "${{ needs.detect-version.outputs.version }}" -CleanFirst
+          dotnet pack src/FileFlux.Infrastructure/FileFlux.Infrastructure.csproj \
+            --configuration Release \
+            --output nupkg/ \
+            --no-build \
+            -p:PackageVersion=${{ needs.detect-version.outputs.version }} \
+            -p:AssemblyVersion=${{ needs.detect-version.outputs.version }} \
+            -p:FileVersion=${{ needs.detect-version.outputs.version }}
 
       - name: 📋 List Generated Packages
         run: ls -la nupkg/
