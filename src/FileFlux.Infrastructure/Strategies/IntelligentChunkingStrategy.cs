@@ -208,7 +208,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
     }
 
     /// <summary>
-    /// 테이블 라인인지 확인
+    /// 테이블 라인 또는 테이블 마커인지 확인
     /// </summary>
     private static bool IsTableLine(string line)
     {
@@ -216,55 +216,94 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
         var trimmed = line.Trim();
         if (string.IsNullOrEmpty(trimmed)) return false;
 
+        // TABLE_START 마커인지 확인
+        if (trimmed.Contains("<!-- TABLE_START -->")) return true;
+
         // |를 2개 이상 포함하는 라인이면 테이블 라인으로 판단
         return trimmed.Contains("|") && trimmed.Count(c => c == '|') >= 2;
     }
 
     /// <summary>
-    /// 연속된 테이블 라인들을 하나의 SemanticUnit으로 추출
+    /// 테이블 마커를 포함한 완전한 테이블 블록을 하나의 SemanticUnit으로 추출
+    /// TABLE_START부터 TABLE_END까지의 모든 내용을 포함
     /// </summary>
     private static SemanticUnit? ExtractTableUnit(string[] lines, int startIndex, int startPosition, out int endIndex, out int nextPosition)
     {
         var tableLines = new List<string>();
         endIndex = startIndex;
         nextPosition = startPosition;
-
-        // 연속된 테이블 라인 수집
-        for (int i = startIndex; i < lines.Length; i++)
+        // 현재 라인이 TABLE_START인지 확인
+        if (lines[startIndex].Contains("<!-- TABLE_START -->"))
         {
-            var line = lines[i].TrimEnd();
+            tableLines.Add(lines[startIndex]);
+            nextPosition += lines[startIndex].Length + 1;
 
-            if (IsTableLine(line))
+            // TABLE_END까지 모든 라인 수집
+            for (int i = startIndex + 1; i < lines.Length; i++)
             {
+                var line = lines[i];
                 tableLines.Add(line);
                 endIndex = i;
                 nextPosition += lines[i].Length + 1;
+
+                if (line.Contains("<!-- TABLE_END -->"))
+                {
+                    break; // 테이블 블록 완료
+                }
             }
-            else if (string.IsNullOrWhiteSpace(line) && tableLines.Any())
+
+            // 완전한 테이블 블록이 수집되었으면 SemanticUnit 생성
+            if (tableLines.Any() && tableLines.Last().Contains("<!-- TABLE_END -->"))
             {
-                // 테이블 내의 빈 줄은 허용하지만 테이블에 포함시키지 않음
-                nextPosition += lines[i].Length + 1;
-            }
-            else if (tableLines.Any()) // 테이블 라인이 있었는데 테이블이 아닌 라인을 만나면 종료
-            {
-                break;
-            }
-            else // 첫 번째 라인이 테이블이 아니면 null 반환
-            {
-                return null;
+                return new SemanticUnit
+                {
+                    Content = string.Join("\n", tableLines),
+                    Position = startPosition,
+                    SemanticWeight = 1.0, // 테이블은 높은 가중치
+                    ContextualRelevance = 1.0,
+                    Importance = 0.9
+                };
             }
         }
-
-        if (tableLines.Count >= 2) // 헤더 + 최소 1개 행 이상일 때만 테이블로 처리
+        else
         {
-            return new SemanticUnit
+            // 기존 로직: 연속된 테이블 라인 수집 (마커가 없는 경우)
+            for (int i = startIndex; i < lines.Length; i++)
             {
-                Content = string.Join("\n", tableLines),
-                Position = startPosition,
-                SemanticWeight = 1.0, // 테이블은 높은 가중치
-                ContextualRelevance = 1.0,
-                Importance = 0.9
-            };
+                var line = lines[i].TrimEnd();
+
+                if (IsTableLine(line))
+                {
+                    tableLines.Add(line);
+                    endIndex = i;
+                    nextPosition += lines[i].Length + 1;
+                }
+                else if (string.IsNullOrWhiteSpace(line) && tableLines.Any())
+                {
+                    // 테이블 내의 빈 줄은 허용하지만 테이블에 포함시키지 않음
+                    nextPosition += lines[i].Length + 1;
+                }
+                else if (tableLines.Any()) // 테이블 라인이 있었는데 테이블이 아닌 라인을 만나면 종료
+                {
+                    break;
+                }
+                else // 첫 번째 라인이 테이블이 아니면 null 반환
+                {
+                    return null;
+                }
+            }
+
+            if (tableLines.Count >= 2) // 헤더 + 최소 1개 행 이상일 때만 테이블로 처리
+            {
+                return new SemanticUnit
+                {
+                    Content = string.Join("\n", tableLines),
+                    Position = startPosition,
+                    SemanticWeight = 1.0, // 테이블은 높은 가중치
+                    ContextualRelevance = 1.0,
+                    Importance = 0.9
+                };
+            }
         }
 
         return null;
@@ -452,6 +491,11 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             }
         };
 
+        // 품질 점수 실제 계산
+        chunk.QualityScore = CalculateRealQualityScore(content, contextQuality);
+        chunk.RelevanceScore = CalculateRelevanceScore(content, globalTechKeywords, globalDocumentDomain);
+        chunk.InformationDensity = CalculateInformationDensity(content);
+        
         // LLM 최적화 메타데이터 자동 생성 (전역 컨텍스트 사용)
         EnhanceChunkForLlm(chunk, globalTechKeywords, globalDocumentDomain);
 
@@ -1032,5 +1076,262 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
         public double SemanticWeight { get; set; }
         public double ContextualRelevance { get; set; }
         public double Importance { get; set; }
+    }
+
+    /// <summary>
+    /// 실제 품질 점수 계산 (Mock이 아닌 실제 알고리즘)
+    /// </summary>
+    private static double CalculateRealQualityScore(string content, double contextQuality)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return 0.0;
+
+        var scores = new List<double>();
+
+        // 1. 텍스트 완성도 점수 (0.0-1.0)
+        var completenessScore = CalculateCompletenessScore(content);
+        scores.Add(completenessScore);
+
+        // 2. 구조적 일관성 점수 (0.0-1.0) 
+        var structuralScore = CalculateStructuralConsistency(content);
+        scores.Add(structuralScore);
+
+        // 3. 정보 밀도 적합성 점수 (0.0-1.0)
+        var densityScore = Math.Min(CalculateInformationDensity(content), 1.0);
+        scores.Add(densityScore);
+
+        // 4. 컨텍스트 품질 점수 (이미 계산된 값)
+        scores.Add(Math.Min(contextQuality, 1.0));
+
+        // 가중 평균 계산
+        var qualityScore = scores.Average();
+        
+        return Math.Max(0.0, Math.Min(1.0, qualityScore));
+    }
+
+    /// <summary>
+    /// 문서 맥락 관련성 점수 계산
+    /// </summary>
+    private static double CalculateRelevanceScore(string content, List<string> globalTechKeywords, string documentDomain)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return 0.0;
+
+        var scores = new List<double>();
+
+        // 1. 기술 키워드 관련성 (0.0-1.0)
+        var keywordRelevance = CalculateKeywordRelevance(content, globalTechKeywords);
+        scores.Add(keywordRelevance);
+
+        // 2. 도메인 적합성 (0.0-1.0)
+        var domainRelevance = CalculateDomainRelevance(content, documentDomain);
+        scores.Add(domainRelevance);
+
+        // 3. 의미적 일관성 (0.0-1.0)
+        var semanticCoherence = CalculateSemanticCoherence(content);
+        scores.Add(semanticCoherence);
+
+        return scores.Average();
+    }
+
+    /// <summary>
+    /// 정보 밀도 계산 (단위 길이당 정보량)
+    /// </summary>
+    private static double CalculateInformationDensity(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return 0.0;
+
+        var contentLength = content.Length;
+        if (contentLength == 0) return 0.0;
+
+        // 정보 요소 계산
+        var sentences = ExtractSentences(content).Count;
+        var technicalTerms = CountTechnicalTerms(content);
+        var structuralElements = CountStructuralElements(content);
+        var uniqueWords = content.ToLowerInvariant()
+            .Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 3)
+            .Distinct()
+            .Count();
+
+        // 정보 밀도 = (문장수 + 기술용어 + 구조요소 + 고유단어수) / 문자수 * 1000
+        var informationScore = (sentences + technicalTerms + structuralElements + uniqueWords) * 1000.0 / contentLength;
+
+        // 0.0-1.0 범위로 정규화 (경험적 기준: 50 이상은 1.0)
+        return Math.Min(informationScore / 50.0, 1.0);
+    }
+
+    /// <summary>
+    /// 텍스트 완성도 점수 계산
+    /// </summary>
+    private static double CalculateCompletenessScore(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return 0.0;
+
+        var scores = new List<double>();
+
+        // 1. 문장 완성도 - 문장이 완전한지 확인
+        var sentences = ExtractSentences(content);
+        var completeSentences = sentences.Count(s => s.Trim().EndsWith(".") || s.Trim().EndsWith("!") || s.Trim().EndsWith("?"));
+        var sentenceCompleteness = sentences.Count > 0 ? (double)completeSentences / sentences.Count : 0.0;
+        scores.Add(sentenceCompleteness);
+
+        // 2. 구조적 완성도 - 표, 리스트 등이 완전한지 확인
+        var structuralCompleteness = CalculateStructuralCompleteness(content);
+        scores.Add(structuralCompleteness);
+
+        // 3. 길이 적합성 - 너무 짧거나 길지 않은지 확인
+        var lengthApproppriateness = CalculateLengthAppropriateness(content.Length);
+        scores.Add(lengthApproppriateness);
+
+        return scores.Average();
+    }
+
+    /// <summary>
+    /// 구조적 일관성 점수 계산
+    /// </summary>
+    private static double CalculateStructuralConsistency(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return 0.0;
+
+        var scores = new List<double>();
+
+        // 1. 헤더 계층 일관성
+        var headerConsistency = CalculateHeaderConsistency(content);
+        scores.Add(headerConsistency);
+
+        // 2. 리스트 구조 일관성  
+        var listConsistency = CalculateListConsistency(content);
+        scores.Add(listConsistency);
+
+        // 3. 테이블 구조 일관성
+        var tableConsistency = CalculateTableConsistency(content);
+        scores.Add(tableConsistency);
+
+        return scores.Average();
+    }
+
+    // 보조 메서드들
+    private static double CalculateKeywordRelevance(string content, List<string> keywords)
+    {
+        if (keywords == null || !keywords.Any()) return 0.5;
+
+        var contentLower = content.ToLowerInvariant();
+        var matchedKeywords = keywords.Count(k => contentLower.Contains(k.ToLowerInvariant()));
+        
+        return (double)matchedKeywords / keywords.Count;
+    }
+
+    private static double CalculateDomainRelevance(string content, string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain)) return 0.5;
+
+        var domainKeywords = GetDomainSpecificKeywords(domain);
+        return CalculateKeywordRelevance(content, domainKeywords);
+    }
+
+    private static List<string> GetDomainSpecificKeywords(string domain)
+    {
+        return domain.ToLowerInvariant() switch
+        {
+            "technical" => new List<string> { "system", "technology", "implementation", "architecture", "design", "development" },
+            "business" => new List<string> { "requirement", "process", "workflow", "business", "stakeholder", "objective" },
+            "academic" => new List<string> { "research", "analysis", "methodology", "conclusion", "hypothesis", "evidence" },
+            _ => new List<string> { "information", "content", "data", "process", "system" }
+        };
+    }
+
+    private static int CountTechnicalTerms(string content)
+    {
+        var technicalPatterns = new[] { 
+            @"\b[A-Z]{2,}\b", // 약어 (API, HTTP 등)
+            @"\b\w+\.\w+\b", // 네임스페이스/도메인 형태
+            @"\b\w*(?:Service|Manager|Controller|Repository|Factory|Builder|Strategy)\b" // 일반적인 패턴
+        };
+
+        return technicalPatterns.Sum(pattern => System.Text.RegularExpressions.Regex.Matches(content, pattern).Count);
+    }
+
+    private static double CalculateStructuralCompleteness(string content)
+    {
+        var scores = new List<double>();
+
+        // 테이블 완성도
+        if (content.Contains("|"))
+        {
+            var tableComplete = content.Contains("TABLE_START") && content.Contains("TABLE_END") ? 1.0 : 0.8;
+            scores.Add(tableComplete);
+        }
+
+        // 리스트 완성도
+        if (content.Contains("•") || content.Contains("-") || System.Text.RegularExpressions.Regex.IsMatch(content, @"^\d+\."))
+        {
+            var listComplete = content.Contains("LIST_START") && content.Contains("LIST_END") ? 1.0 : 0.8;
+            scores.Add(listComplete);
+        }
+
+        // 코드 블록 완성도
+        if (content.Contains("```"))
+        {
+            var codeComplete = content.Contains("CODE_START") && content.Contains("CODE_END") ? 1.0 : 0.8;
+            scores.Add(codeComplete);
+        }
+
+        return scores.Any() ? scores.Average() : 1.0; // 구조적 요소가 없으면 완전하다고 간주
+    }
+
+    private static double CalculateLengthAppropriateness(int length)
+    {
+        // 적절한 청크 길이 범위: 200-1500자
+        if (length < 100) return 0.3; // 너무 짧음
+        if (length < 200) return 0.6; // 짧음
+        if (length <= 1500) return 1.0; // 적절함
+        if (length <= 2000) return 0.8; // 다소 길음
+        return 0.6; // 너무 길음
+    }
+
+    private static double CalculateHeaderConsistency(string content)
+    {
+        var headerMatches = System.Text.RegularExpressions.Regex.Matches(content, @"^#{1,6}\s+", System.Text.RegularExpressions.RegexOptions.Multiline);
+        if (headerMatches.Count <= 1) return 1.0;
+
+        // 헤더 레벨의 일관성 확인 (큰 폭의 레벨 점프가 없는지)
+        var levels = headerMatches.Cast<System.Text.RegularExpressions.Match>()
+            .Select(m => m.Value.Count(c => c == '#'))
+            .ToList();
+
+        var levelJumps = levels.Zip(levels.Skip(1), (a, b) => Math.Abs(a - b)).ToList();
+        var avgJump = levelJumps.Any() ? levelJumps.Average() : 0;
+
+        return Math.Max(0.0, 1.0 - (avgJump / 3.0)); // 3단계 이상 점프는 일관성 낮음
+    }
+
+    private static double CalculateListConsistency(string content)
+    {
+        var lines = content.Split('\n');
+        var listLines = lines.Where(line => 
+            System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^[-•*]\s+") ||
+            System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^\d+\.\s+")
+        ).ToList();
+
+        if (listLines.Count <= 1) return 1.0;
+
+        // 리스트 마커의 일관성 확인
+        var hasUnorderedMarkers = listLines.Any(line => System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^[-•*]\s+"));
+        var hasOrderedMarkers = listLines.Any(line => System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^\d+\.\s+"));
+
+        // 혼재하지 않으면 일관성 높음
+        return (hasUnorderedMarkers && hasOrderedMarkers) ? 0.7 : 1.0;
+    }
+
+    private static double CalculateTableConsistency(string content)
+    {
+        var tableLines = content.Split('\n').Where(line => line.Contains("|")).ToList();
+        if (tableLines.Count <= 1) return 1.0;
+
+        // 테이블 행의 컬럼 수 일관성 확인
+        var columnCounts = tableLines.Select(line => line.Split('|', StringSplitOptions.RemoveEmptyEntries).Length).ToList();
+        var avgColumns = columnCounts.Average();
+        var maxDeviation = columnCounts.Max(c => Math.Abs(c - avgColumns));
+
+        return Math.Max(0.0, 1.0 - (maxDeviation / avgColumns));
     }
 }
