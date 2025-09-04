@@ -7,9 +7,9 @@ namespace FileFlux.Infrastructure.Strategies;
 /// <summary>
 /// 의미적 청킹 전략 - 문장과 문단 경계를 고려한 지능적 분할
 /// </summary>
-public class SemanticChunkingStrategy : IChunkingStrategy
+public partial class SemanticChunkingStrategy : IChunkingStrategy
 {
-    private static readonly Regex SentenceEndRegex = new(@"[.!?]+\s+", RegexOptions.Compiled);
+    private static readonly Regex SentenceEndRegex = MyRegex();
     private static readonly Regex ParagraphRegex = new(@"\n\s*\n", RegexOptions.Compiled);
     private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
 
@@ -29,8 +29,7 @@ public class SemanticChunkingStrategy : IChunkingStrategy
         ChunkingOptions options,
         CancellationToken cancellationToken = default)
     {
-        if (content == null)
-            throw new ArgumentNullException(nameof(content));
+        ArgumentNullException.ThrowIfNull(content);
 
         if (string.IsNullOrWhiteSpace(content.Text))
             return Enumerable.Empty<DocumentChunk>();
@@ -47,7 +46,7 @@ public class SemanticChunkingStrategy : IChunkingStrategy
 
         // 문장 단위로 분할
         var sentences = ExtractSentences(text, sentenceMinLength);
-        if (!sentences.Any())
+        if (sentences.Count == 0)
         {
             return Enumerable.Empty<DocumentChunk>();
         }
@@ -67,7 +66,7 @@ public class SemanticChunkingStrategy : IChunkingStrategy
             var tooManySentences = currentChunk.Count >= maxSentences;
 
             // 청크 완료 조건 확인
-            if (currentChunk.Any() && (wouldExceedMaxSize || tooManySentences))
+            if (currentChunk.Count != 0 && (wouldExceedMaxSize || tooManySentences))
             {
                 if (hasEnoughSentences || !preferCompleteSentences)
                 {
@@ -103,7 +102,7 @@ public class SemanticChunkingStrategy : IChunkingStrategy
         }
 
         // 마지막 청크 처리
-        if (currentChunk.Any())
+        if (currentChunk.Count != 0)
         {
             var chunkContent = string.Join(" ", currentChunk);
             var chunk = CreateChunk(chunkContent, content.Metadata, chunkIndex, globalPosition, options);
@@ -259,4 +258,7 @@ public class SemanticChunkingStrategy : IChunkingStrategy
         // 옵션 단순화: 항상 기본값 사용 (최고 품질 기본 설정)
         return defaultValue;
     }
+
+    [GeneratedRegex(@"[.!?]+\s+", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

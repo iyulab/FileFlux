@@ -7,9 +7,9 @@ namespace FileFlux.Infrastructure.Strategies;
 /// <summary>
 /// 고정 크기 청킹 전략 구현
 /// </summary>
-public class FixedSizeChunkingStrategy : IChunkingStrategy
+public partial class FixedSizeChunkingStrategy : IChunkingStrategy
 {
-    private static readonly Regex WordBoundaryRegex = new(@"\b", RegexOptions.Compiled);
+    private static readonly Regex WordBoundaryRegex = MyRegex();
 
     public string StrategyName => ChunkingStrategies.FixedSize;
 
@@ -25,8 +25,7 @@ public class FixedSizeChunkingStrategy : IChunkingStrategy
         ChunkingOptions options,
         CancellationToken cancellationToken = default)
     {
-        if (content == null)
-            throw new ArgumentNullException(nameof(content));
+        ArgumentNullException.ThrowIfNull(content);
 
         if (string.IsNullOrWhiteSpace(content.Text))
             return Enumerable.Empty<DocumentChunk>();
@@ -143,4 +142,7 @@ public class FixedSizeChunkingStrategy : IChunkingStrategy
         // 옵션 단순화: 항상 기본값 사용 (최고 품질 기본 설정)
         return defaultValue;
     }
+
+    [GeneratedRegex(@"\b", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

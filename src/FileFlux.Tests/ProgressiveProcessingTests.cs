@@ -70,7 +70,7 @@ public class ProgressiveProcessingTests : IDisposable
         await File.WriteAllTextAsync(tempPath, testText);
 
         var fileName = Path.GetFileName(tempPath);
-        var fileHash = await _resultStorage.ComputeFileHashAsync(tempPath);
+        var fileHash = await FileSystemResultStorage.ComputeFileHashAsync(tempPath);
 
         try
         {
@@ -172,7 +172,7 @@ public class ProgressiveProcessingTests : IDisposable
         try
         {
             // Act
-            var fileHash = await _resultStorage.ComputeFileHashAsync(tempPath);
+            var fileHash = await FileSystemResultStorage.ComputeFileHashAsync(tempPath);
             var resultDirectory = _resultStorage.GetResultDirectory(fileHash);
 
             // 가짜 결과 데이터 생성
@@ -287,7 +287,7 @@ public class ProgressiveProcessingTests : IDisposable
 
         try
         {
-            var fileHash = await _resultStorage.ComputeFileHashAsync(tempPath);
+            var fileHash = await FileSystemResultStorage.ComputeFileHashAsync(tempPath);
 
             var rawContent = new RawDocumentContent
             {
@@ -379,7 +379,7 @@ while still providing meaningful content for testing the chunking algorithms.";
 
             var progressUpdates = new List<ProcessingProgress>();
             DocumentChunk[]? finalResult = null;
-            var fileHash = await _resultStorage.ComputeFileHashAsync(smallDocumentPath);
+            var fileHash = await FileSystemResultStorage.ComputeFileHashAsync(smallDocumentPath);
 
             // Act - 작은 청크 크기로 처리
             await foreach (var result in processor.ProcessWithProgressAsync(
@@ -439,7 +439,7 @@ while still providing meaningful content for testing the chunking algorithms.";
             for (int i = 0; i < Math.Min(3, finalResult.Length); i++)
             {
                 var preview = finalResult[i].Content.Length > 50
-                    ? finalResult[i].Content.Substring(0, 50) + "..."
+                    ? string.Concat(finalResult[i].Content.AsSpan(0, 50), "...")
                     : finalResult[i].Content;
                 _output.WriteLine($"Chunk {i + 1}: {finalResult[i].Content.Length} chars - '{preview}'");
             }

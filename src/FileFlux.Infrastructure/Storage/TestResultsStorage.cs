@@ -120,7 +120,7 @@ public class TestResultsStorage
         }
 
         // 섹션 구조 저장
-        if (parsedContent.Structure.Sections.Any())
+        if (parsedContent.Structure.Sections.Count != 0)
         {
             var sectionsPath = Path.Combine(_baseDirectory, "parsing-results", $"{sanitizedName}_{timestamp}_sections.json");
             await File.WriteAllTextAsync(sectionsPath, JsonSerializer.Serialize(parsedContent.Structure.Sections, _jsonOptions), Encoding.UTF8);

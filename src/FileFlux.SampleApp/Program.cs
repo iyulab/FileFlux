@@ -24,6 +24,7 @@ class Program
         var listCommand = CreateListCommand();
         var historyCommand = CreateHistoryCommand();
         var readersCommand = CreateReadersTestCommand();
+        var benchmarkCommand = CreateBenchmarkCommand();
 
         rootCommand.AddCommand(processCommand);
         rootCommand.AddCommand(processProgressCommand);
@@ -31,6 +32,7 @@ class Program
         rootCommand.AddCommand(listCommand);
         rootCommand.AddCommand(historyCommand);
         rootCommand.AddCommand(readersCommand);
+        rootCommand.AddCommand(benchmarkCommand);
 
         return await rootCommand.InvokeAsync(args);
     }
@@ -190,6 +192,26 @@ class Program
         }, folderPathArgument);
 
         return readersCommand;
+    }
+
+    private static Command CreateBenchmarkCommand()
+    {
+        var testDirOption = new Option<string>(
+            name: "--test-dir",
+            description: "테스트 파일이 있는 디렉토리 경로",
+            getDefaultValue: () => @"D:\data\FileFlux\test");
+
+        var benchmarkCommand = new Command("benchmark", "종합 벤치마크 실행 - 모든 테스트 파일에 대한 성능 측정")
+        {
+            testDirOption
+        };
+
+        benchmarkCommand.SetHandler(async (testDir) =>
+        {
+            await BenchmarkProgram.RunBenchmarkAsync(new[] { testDir });
+        }, testDirOption);
+
+        return benchmarkCommand;
     }
 
     private static IHost CreateHost()

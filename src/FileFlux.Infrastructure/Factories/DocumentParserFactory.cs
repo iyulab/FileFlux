@@ -52,8 +52,7 @@ public class DocumentParserFactory : IDocumentParserFactory
 
     public void RegisterParser(IDocumentParser parser)
     {
-        if (parser == null)
-            throw new ArgumentNullException(nameof(parser));
+        ArgumentNullException.ThrowIfNull(parser);
 
         _parsers.AddOrUpdate(parser.ParserType.ToLowerInvariant(), parser, (key, existingParser) => parser);
     }
@@ -72,7 +71,7 @@ public class DocumentParserFactory : IDocumentParserFactory
         RegisterParser(new BasicDocumentParser(textCompletionService));
     }
 
-    private string InferDocumentType(RawDocumentContent rawContent, string extension)
+    private static string InferDocumentType(RawDocumentContent rawContent, string extension)
     {
         var text = rawContent.Text.ToLowerInvariant();
         var hints = rawContent.StructuralHints;

@@ -186,7 +186,7 @@ public class PdfProcessingIntegrationTests : IDisposable
             {
                 var chunk = finalResult[i];
                 var preview = chunk.Content.Length > 100
-                    ? chunk.Content.Substring(0, 100) + "..."
+                    ? string.Concat(chunk.Content.AsSpan(0, 100), "...")
                     : chunk.Content;
                 _output.WriteLine($"Chunk {i + 1} ({chunk.Content.Length} chars): {preview}");
             }

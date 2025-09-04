@@ -1,9 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+  <!-- All common properties inherited from Directory.Build.props -->
+  <!-- Project-specific properties are defined in Directory.Build.props based on MSBuildProjectName -->
 
 </Project>

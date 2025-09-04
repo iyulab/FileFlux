@@ -50,8 +50,7 @@ public static class ServiceCollectionExtensions
     /// <returns>서비스 컬렉션</returns>
     public static IServiceCollection AddFileFlux(this IServiceCollection services, ITextCompletionService textCompletionService)
     {
-        if (textCompletionService == null)
-            throw new ArgumentNullException(nameof(textCompletionService));
+        ArgumentNullException.ThrowIfNull(textCompletionService);
 
         // 텍스트 완성 서비스 등록
         services.AddSingleton(textCompletionService);

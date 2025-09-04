@@ -175,7 +175,7 @@ public class MarkdownProcessingIntegrationTests : IDisposable
                 _output.WriteLine($"   전략: {statistics.Strategy}");
 
                 // 청킹 품질 검증 - 테이블이 있을 경우 동적 크기 조정 허용
-                var hasTable = finalResult.Any(chunk => chunk.Content.Contains("|") && chunk.Content.Contains("---"));
+                var hasTable = finalResult.Any(chunk => chunk.Content.Contains('|') && chunk.Content.Contains("---"));
                 var effectiveMaxSize = hasTable ? chunkingOptions.MaxChunkSize * 2 : chunkingOptions.MaxChunkSize;
                 Assert.True(statistics.MaxChunkSize <= effectiveMaxSize,
                     $"최대 청크 크기가 제한을 초과했습니다: {statistics.MaxChunkSize} > {effectiveMaxSize} (테이블 포함: {hasTable})");
@@ -252,7 +252,7 @@ public class MarkdownProcessingIntegrationTests : IDisposable
         var content = await File.ReadAllTextAsync(markdownFilePath);
         var hasHeaders = content.Contains("# ") || content.Contains("## ") || content.Contains("### ");
         var hasCodeBlocks = content.Contains("```");
-        var hasLinks = content.Contains("[") && content.Contains("](");
+        var hasLinks = content.Contains('[') && content.Contains("](");
 
         _output.WriteLine($"Markdown 특성 분석:");
         _output.WriteLine($"  헤더 포함: {hasHeaders}");

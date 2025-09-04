@@ -239,7 +239,7 @@ public class FileFluxApp
                 .Where(file => supportedExtensions.Contains(Path.GetExtension(file).ToLowerInvariant()))
                 .ToList();
 
-            if (!testFiles.Any())
+            if (testFiles.Count == 0)
             {
                 Console.WriteLine($"❌ 지원되는 문서 파일을 찾을 수 없습니다.");
                 Console.WriteLine($"지원 형식: {string.Join(", ", supportedExtensions)}");
@@ -295,7 +295,7 @@ public class FileFluxApp
                     {
                         var firstChunk = chunks[0];
                         var preview = firstChunk.Content.Length > 100
-                            ? firstChunk.Content.Substring(0, 100) + "..."
+                            ? string.Concat(firstChunk.Content.AsSpan(0, 100), "...")
                             : firstChunk.Content;
                         Console.WriteLine($"   📝 미리보기: {preview.Replace('\n', ' ').Replace('\r', ' ')}");
                     }
@@ -473,7 +473,7 @@ public class FileFluxApp
             {
                 var firstChunk = finalResult[0];
                 var preview = firstChunk.Content.Length > 200
-                    ? firstChunk.Content.Substring(0, 200) + "..."
+                    ? string.Concat(firstChunk.Content.AsSpan(0, 200), "...")
                     : firstChunk.Content;
 
                 Console.WriteLine($"\n📄 첫 번째 청크 미리보기:");

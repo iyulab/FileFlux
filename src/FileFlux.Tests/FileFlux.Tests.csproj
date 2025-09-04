@@ -1,5 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- All common properties inherited from Directory.Build.props -->
+  <!-- Test-specific properties are automatically applied in Directory.Build.props -->
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" />
     <ProjectReference Include="..\FileFlux.Infrastructure\FileFlux.Infrastructure.csproj" />
@@ -9,20 +16,9 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.8" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="OpenAI" Version="2.3.0" />
-    <PackageReference Include="xunit" Version="2.9.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
+    <!-- Test packages are automatically included from Directory.Build.props -->
   </ItemGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="Legacy\**\*" />

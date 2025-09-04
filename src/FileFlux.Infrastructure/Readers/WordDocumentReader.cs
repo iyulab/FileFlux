@@ -49,8 +49,7 @@ public class WordDocumentReader : IDocumentReader
 
     public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ArgumentNullException.ThrowIfNull(stream);
 
         if (!CanRead(fileName))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
@@ -84,8 +83,10 @@ public class WordDocumentReader : IDocumentReader
 
             var textBuilder = new StringBuilder();
 
-            // 문서 제목 추출 (built-in document properties)
+            // 문서 제목 및 메타데이터 추출
             var documentTitle = ExtractDocumentTitle(wordDocument);
+            ExtractDocumentMetadata(wordDocument, structuralHints);
+            
             if (!string.IsNullOrEmpty(documentTitle))
             {
                 structuralHints["document_title"] = documentTitle;
@@ -167,8 +168,10 @@ public class WordDocumentReader : IDocumentReader
 
             var textBuilder = new StringBuilder();
 
-            // 문서 제목 추출
+            // 문서 제목 및 메타데이터 추출
             var documentTitle = ExtractDocumentTitle(wordDocument);
+            ExtractDocumentMetadata(wordDocument, structuralHints);
+            
             if (!string.IsNullOrEmpty(documentTitle))
             {
                 structuralHints["document_title"] = documentTitle;
@@ -302,16 +305,68 @@ public class WordDocumentReader : IDocumentReader
     private static string ExtractParagraphContent(Paragraph paragraph)
     {
         var textBuilder = new StringBuilder();
+        var hasImportantFormatting = false;
 
         foreach (var run in paragraph.Elements<Run>())
         {
+            var runProperties = run.RunProperties;
+            var isBold = runProperties?.Bold?.Val?.Value == true || runProperties?.Bold?.Val == null && runProperties?.Bold != null;
+            var isItalic = runProperties?.Italic?.Val?.Value == true || runProperties?.Italic?.Val == null && runProperties?.Italic != null;
+            
             foreach (var text in run.Elements<Text>())
             {
-                textBuilder.Append(text.Text);
+                var textContent = text.Text;
+                
+                if (isBold || isItalic)
+                {
+                    hasImportantFormatting = true;
+                    if (isBold && isItalic)
+                    {
+                        textContent = $"***{textContent}***"; // Bold + Italic
+                    }
+                    else if (isBold)
+                    {
+                        textContent = $"**{textContent}**"; // Bold
+                    }
+                    else if (isItalic)
+                    {
+                        textContent = $"*{textContent}*"; // Italic
+                    }
+                }
+                
+                textBuilder.Append(textContent);
+            }
+            
+            // Handle footnote references
+            foreach (var footnoteRef in run.Elements<FootnoteReference>())
+            {
+                var id = footnoteRef.Id?.Value;
+                if (id.HasValue)
+                {
+                    textBuilder.Append($"[^{id.Value}]");
+                }
+            }
+            
+            // Handle endnote references  
+            foreach (var endnoteRef in run.Elements<EndnoteReference>())
+            {
+                var id = endnoteRef.Id?.Value;
+                if (id.HasValue)
+                {
+                    textBuilder.Append($"[^end{id.Value}]");
+                }
             }
         }
 
-        return textBuilder.ToString().Trim();
+        var result = textBuilder.ToString().Trim();
+        
+        // Add formatting importance hint as a suffix if detected
+        if (hasImportantFormatting && !string.IsNullOrWhiteSpace(result))
+        {
+            result += " [!IMPORTANT]";
+        }
+
+        return result;
     }
 
     private static string ExtractTableContent(Table table)
@@ -331,7 +386,7 @@ public class WordDocumentReader : IDocumentReader
                     if (!string.IsNullOrWhiteSpace(paragraphText))
                     {
                         cellText.Append(paragraphText);
-                        cellText.Append(" ");
+                        cellText.Append(' ');
                     }
                 }
                 cellTexts.Add(cellText.ToString().Trim());
@@ -356,6 +411,41 @@ public class WordDocumentReader : IDocumentReader
         catch
         {
             return string.Empty;
+        }
+    }
+
+    private static void ExtractDocumentMetadata(WordprocessingDocument document, Dictionary<string, object> structuralHints)
+    {
+        try
+        {
+            var coreProperties = document.PackageProperties;
+            if (coreProperties != null)
+            {
+                if (!string.IsNullOrWhiteSpace(coreProperties.Creator))
+                    structuralHints["author"] = coreProperties.Creator;
+                    
+                if (!string.IsNullOrWhiteSpace(coreProperties.Subject))
+                    structuralHints["subject"] = coreProperties.Subject;
+                    
+                if (!string.IsNullOrWhiteSpace(coreProperties.Keywords))
+                    structuralHints["keywords"] = coreProperties.Keywords.Split(',', ';').Select(k => k.Trim()).Where(k => !string.IsNullOrWhiteSpace(k)).ToArray();
+                    
+                if (!string.IsNullOrWhiteSpace(coreProperties.Description))
+                    structuralHints["description"] = coreProperties.Description;
+                    
+                if (coreProperties.Created.HasValue)
+                    structuralHints["created_date"] = coreProperties.Created.Value;
+                    
+                if (coreProperties.Modified.HasValue)
+                    structuralHints["modified_date"] = coreProperties.Modified.Value;
+                    
+                if (!string.IsNullOrWhiteSpace(coreProperties.LastModifiedBy))
+                    structuralHints["last_modified_by"] = coreProperties.LastModifiedBy;
+            }
+        }
+        catch
+        {
+            // 메타데이터 추출 실패는 무시
         }
     }
 
@@ -421,12 +511,96 @@ public class WordDocumentReader : IDocumentReader
         // Heading1, Heading2, ... 에서 레벨 추출
         if (styleId.StartsWith("Heading") && styleId.Length > 7)
         {
-            if (int.TryParse(styleId.Substring(7), out var level) && level >= 1 && level <= 6)
+            if (int.TryParse(styleId.AsSpan(7), out var level) && level >= 1 && level <= 6)
             {
                 return level;
             }
         }
         return 1; // 기본 레벨
+    }
+
+    private static string ExtractFootnotes(WordprocessingDocument document)
+    {
+        var textBuilder = new StringBuilder();
+        
+        try
+        {
+            var footnotesPart = document.MainDocumentPart?.FootnotesPart;
+            if (footnotesPart?.Footnotes != null)
+            {
+                foreach (var footnote in footnotesPart.Footnotes.Elements<Footnote>())
+                {
+                    var id = footnote.Id?.Value;
+                    if (id.HasValue)
+                    {
+                        var footnoteText = new StringBuilder();
+                        foreach (var paragraph in footnote.Elements<Paragraph>())
+                        {
+                            var paragraphText = ExtractParagraphContent(paragraph);
+                            if (!string.IsNullOrWhiteSpace(paragraphText))
+                            {
+                                footnoteText.Append(paragraphText);
+                                footnoteText.Append(' ');
+                            }
+                        }
+                        
+                        var content = footnoteText.ToString().Trim();
+                        if (!string.IsNullOrWhiteSpace(content))
+                        {
+                            textBuilder.AppendLine($"[^{id.Value}]: {content}");
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // 각주 추출 실패는 무시
+        }
+        
+        return textBuilder.ToString().Trim();
+    }
+
+    private static string ExtractEndnotes(WordprocessingDocument document)
+    {
+        var textBuilder = new StringBuilder();
+        
+        try
+        {
+            var endnotesPart = document.MainDocumentPart?.EndnotesPart;
+            if (endnotesPart?.Endnotes != null)
+            {
+                foreach (var endnote in endnotesPart.Endnotes.Elements<Endnote>())
+                {
+                    var id = endnote.Id?.Value;
+                    if (id.HasValue)
+                    {
+                        var endnoteText = new StringBuilder();
+                        foreach (var paragraph in endnote.Elements<Paragraph>())
+                        {
+                            var paragraphText = ExtractParagraphContent(paragraph);
+                            if (!string.IsNullOrWhiteSpace(paragraphText))
+                            {
+                                endnoteText.Append(paragraphText);
+                                endnoteText.Append(' ');
+                            }
+                        }
+                        
+                        var content = endnoteText.ToString().Trim();
+                        if (!string.IsNullOrWhiteSpace(content))
+                        {
+                            textBuilder.AppendLine($"[^end{id.Value}]: {content}");
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // 미주 추출 실패는 무시
+        }
+        
+        return textBuilder.ToString().Trim();
     }
 
     private static RawDocumentContent CreateEmptyResult(FileInfo fileInfo, List<string> warnings, Dictionary<string, object> structuralHints)

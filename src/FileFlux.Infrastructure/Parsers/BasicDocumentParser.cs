@@ -8,7 +8,7 @@ namespace FileFlux.Infrastructure.Parsers;
 /// <summary>
 /// 기본 문서 Parser - 텍스트 완성 서비스를 필수로 사용하는 구조화 파서
 /// </summary>
-public class BasicDocumentParser : IDocumentParser
+public partial class BasicDocumentParser : IDocumentParser
 {
     private readonly ITextCompletionService _textCompletionService;
 
@@ -21,6 +21,7 @@ public class BasicDocumentParser : IDocumentParser
         ["Technical", "Business", "Academic", "General", "Markdown"];
 
     public string ParserType => "BasicParser";
+    private static readonly string[] separator = new[] { "\n\n", "\r\n\r\n" };
 
     public bool CanParse(RawDocumentContent rawContent)
     {
@@ -144,7 +145,7 @@ public class BasicDocumentParser : IDocumentParser
         };
     }
 
-    private string InferDocumentType(RawDocumentContent rawContent)
+    private static string InferDocumentType(RawDocumentContent rawContent)
     {
         var text = rawContent.Text.ToLowerInvariant();
         var extension = rawContent.FileInfo.FileExtension.ToLowerInvariant();
@@ -167,7 +168,7 @@ public class BasicDocumentParser : IDocumentParser
         var sections = new List<DocumentSection>();
 
         // 마크다운 헤더 기반 섹션 분할
-        if (hints.ContainsKey("has_headers") && (bool)hints["has_headers"])
+        if (hints.TryGetValue("has_headers", out object? value) && (bool)value)
         {
             sections.AddRange(ExtractMarkdownSections(text));
         }
@@ -180,7 +181,7 @@ public class BasicDocumentParser : IDocumentParser
         return sections;
     }
 
-    private List<DocumentSection> ExtractMarkdownSections(string text)
+    private static List<DocumentSection> ExtractMarkdownSections(string text)
     {
         var sections = new List<DocumentSection>();
         var lines = text.Split('\n');
@@ -201,7 +202,7 @@ public class BasicDocumentParser : IDocumentParser
                 }
 
                 // 새 섹션 시작
-                var headerMatch = Regex.Match(line, @"^(\s*)(#+)\s*(.*)");
+                var headerMatch = MyRegex().Match(line);
                 if (headerMatch.Success)
                 {
                     currentSection = new DocumentSection
@@ -231,10 +232,10 @@ public class BasicDocumentParser : IDocumentParser
         return sections;
     }
 
-    private List<DocumentSection> ExtractParagraphSections(string text)
+    private static List<DocumentSection> ExtractParagraphSections(string text)
     {
         var sections = new List<DocumentSection>();
-        var paragraphs = text.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var paragraphs = text.Split(separator, StringSplitOptions.RemoveEmptyEntries);
 
         for (int i = 0; i < paragraphs.Length; i++)
         {
@@ -255,7 +256,7 @@ public class BasicDocumentParser : IDocumentParser
         return sections;
     }
 
-    private DocumentMetadata CreateBasicMetadata(RawDocumentContent rawContent, string documentType)
+    private static DocumentMetadata CreateBasicMetadata(RawDocumentContent rawContent, string documentType)
     {
         return new DocumentMetadata
         {
@@ -273,7 +274,7 @@ public class BasicDocumentParser : IDocumentParser
     /// <summary>
     /// 텍스트에서 기술 키워드 자동 추출
     /// </summary>
-    private List<string> ExtractTechnicalKeywords(string text)
+    private static List<string> ExtractTechnicalKeywords(string text)
     {
         var keywords = new List<string>();
         var content = text.ToLowerInvariant();
@@ -308,7 +309,7 @@ public class BasicDocumentParser : IDocumentParser
     /// <summary>
     /// 문서 도메인 자동 탐지 (Technical, Business, Academic, General)
     /// </summary>
-    private string DetectDocumentDomain(string text, List<string> technicalKeywords)
+    private static string DetectDocumentDomain(string text, List<string> technicalKeywords)
     {
         var content = text.ToLowerInvariant();
 
@@ -349,7 +350,7 @@ public class BasicDocumentParser : IDocumentParser
         return (double)koreanChars / totalChars > 0.3 ? "ko" : "en";
     }
 
-    private List<string> ExtractKeywords(string text, int maxKeywords)
+    private static List<string> ExtractKeywords(string text, int maxKeywords)
     {
         // 단순 빈도 기반 키워드 추출
         var words = text.ToLowerInvariant()
@@ -364,14 +365,14 @@ public class BasicDocumentParser : IDocumentParser
         return words;
     }
 
-    private string GenerateBasicSummary(string text, List<DocumentSection> sections)
+    private static string GenerateBasicSummary(string text, List<DocumentSection> sections)
     {
         // 첫 번째 문단이나 제목 기반 요약
-        if (sections.Any())
+        if (sections.Count != 0)
         {
             var firstSection = sections.First();
             var summary = firstSection.Content.Length > 200
-                ? firstSection.Content.Substring(0, 200) + "..."
+                ? string.Concat(firstSection.Content.AsSpan(0, 200), "...")
                 : firstSection.Content;
             return summary.Replace('\n', ' ').Trim();
         }
@@ -382,7 +383,7 @@ public class BasicDocumentParser : IDocumentParser
             : text.Replace('\n', ' ').Trim();
     }
 
-    private string FormatStructuredText(List<DocumentSection> sections)
+    private static string FormatStructuredText(List<DocumentSection> sections)
     {
         return string.Join("\n\n", sections.Select(s =>
         {
@@ -402,9 +403,9 @@ public class BasicDocumentParser : IDocumentParser
         }));
     }
 
-    private QualityMetrics CalculateQualityMetrics(string originalText, List<DocumentSection> sections, bool usedLlm)
+    private static QualityMetrics CalculateQualityMetrics(string originalText, List<DocumentSection> sections, bool usedLlm)
     {
-        var structureConfidence = sections.Any() ? 0.8 : 0.3;
+        var structureConfidence = sections.Count != 0 ? 0.8 : 0.3;
         var completenessScore = Math.Min(1.0, sections.Sum(s => s.Content.Length) / (double)originalText.Length);
         var metadataAccuracy = usedLlm ? 0.9 : 0.6;
 
@@ -418,7 +419,7 @@ public class BasicDocumentParser : IDocumentParser
             DetailedMetrics = new Dictionary<string, object>
             {
                 ["section_count"] = sections.Count,
-                ["avg_section_length"] = sections.Any() ? sections.Average(s => s.Content.Length) : 0,
+                ["avg_section_length"] = sections.Count != 0 ? sections.Average(s => s.Content.Length) : 0,
                 ["used_llm"] = usedLlm
             }
         };
@@ -448,7 +449,7 @@ public class BasicDocumentParser : IDocumentParser
         }
     }
 
-    private string BuildStructuringPrompt(string text, DocumentStructure basicStructure, DocumentParsingOptions options)
+    private static string BuildStructuringPrompt(string text, DocumentStructure basicStructure, DocumentParsingOptions options)
     {
         return $"""
         문서 구조화 작업:
@@ -473,7 +474,7 @@ public class BasicDocumentParser : IDocumentParser
         """;
     }
 
-    private DocumentStructure ParseTextCompletionResponse(string response, DocumentStructure fallback)
+    private static DocumentStructure ParseTextCompletionResponse(string response, DocumentStructure fallback)
     {
         try
         {
@@ -518,4 +519,7 @@ public class BasicDocumentParser : IDocumentParser
             return fallback;
         }
     }
+
+    [GeneratedRegex(@"^(\s*)(#+)\s*(.*)")]
+    private static partial Regex MyRegex();
 }

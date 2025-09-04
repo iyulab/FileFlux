@@ -84,7 +84,7 @@ public class RealDocumentProcessingTests
         _output.WriteLine($"Technical 도메인으로 분류된 청크: {technicalChunks.Length}개");
 
         // 기술 키워드 검출 확인
-        var chunksWithKeywords = chunks.Where(c => c.TechnicalKeywords.Any()).ToArray();
+        var chunksWithKeywords = chunks.Where(c => c.TechnicalKeywords.Count != 0).ToArray();
         Assert.NotEmpty(chunksWithKeywords);
 
         _output.WriteLine($"기술 키워드가 검출된 청크: {chunksWithKeywords.Length}개");

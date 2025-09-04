@@ -81,7 +81,7 @@ public class ManualReaderTest
                 // 텍스트 미리보기
                 if (result.Text.Length > 0)
                 {
-                    var preview = result.Text.Length > 300 ? result.Text.Substring(0, 300) + "..." : result.Text;
+                    var preview = result.Text.Length > 300 ? string.Concat(result.Text.AsSpan(0, 300), "...") : result.Text;
                     _logger.LogInformation("   📝 Content Preview:");
                     _logger.LogInformation("      {Preview}", preview.Replace("\n", "\\n").Replace("\r", ""));
                 }

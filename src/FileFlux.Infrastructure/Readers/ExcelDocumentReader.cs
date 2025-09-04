@@ -48,8 +48,7 @@ public class ExcelDocumentReader : IDocumentReader
 
     public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ArgumentNullException.ThrowIfNull(stream);
 
         if (!CanRead(fileName))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));

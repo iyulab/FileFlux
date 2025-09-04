@@ -381,7 +381,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
     {
         var structure = new CoreDocumentStructure();
 
-        if (sections.Any())
+        if (sections.Count != 0)
         {
             structure.AllSections = sections;
 
@@ -398,7 +398,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
                     .Select(s => s.Title)
                     .ToList();
 
-                if (children.Any())
+                if (children.Count != 0)
                 {
                     structure.SectionRelations[section.Title] = children;
                 }

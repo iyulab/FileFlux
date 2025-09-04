@@ -69,8 +69,7 @@ public class DocumentProcessor : IDocumentProcessor
         DocumentParsingOptions? parsingOptions = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ArgumentNullException.ThrowIfNull(stream);
 
         if (string.IsNullOrWhiteSpace(fileName))
             throw new ArgumentException("File name cannot be null or empty", nameof(fileName));
@@ -358,7 +357,7 @@ public class DocumentProcessor : IDocumentProcessor
             var rawContent = await reader.ExtractAsync(filePath, cancellationToken);
 
             // 추출 경고 로깅
-            if (rawContent.ExtractionWarnings.Any())
+            if (rawContent.ExtractionWarnings.Count != 0)
             {
                 foreach (var warning in rawContent.ExtractionWarnings)
                 {
@@ -379,8 +378,7 @@ public class DocumentProcessor : IDocumentProcessor
         DocumentParsingOptions? parsingOptions = null,
         CancellationToken cancellationToken = default)
     {
-        if (rawContent == null)
-            throw new ArgumentNullException(nameof(rawContent));
+        ArgumentNullException.ThrowIfNull(rawContent);
 
         parsingOptions ??= new DocumentParsingOptions();
 
@@ -397,7 +395,7 @@ public class DocumentProcessor : IDocumentProcessor
             var parsedContent = await parser.ParseAsync(rawContent, parsingOptions, cancellationToken);
 
             // 파싱 경고 로깅
-            if (parsedContent.ParsingInfo.Warnings.Any())
+            if (parsedContent.ParsingInfo.Warnings.Count != 0)
             {
                 foreach (var warning in parsedContent.ParsingInfo.Warnings)
                 {
@@ -418,8 +416,7 @@ public class DocumentProcessor : IDocumentProcessor
         ChunkingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (parsedContent == null)
-            throw new ArgumentNullException(nameof(parsedContent));
+        ArgumentNullException.ThrowIfNull(parsedContent);
 
         options ??= new ChunkingOptions();
 
@@ -453,7 +450,7 @@ public class DocumentProcessor : IDocumentProcessor
     /// ParsedDocumentContent를 기존 DocumentContent로 변환
     /// 기존 ChunkingStrategy와의 호환성을 위해 필요
     /// </summary>
-    private DocumentContent ConvertToDocumentContent(ParsedDocumentContent parsedContent)
+    private static DocumentContent ConvertToDocumentContent(ParsedDocumentContent parsedContent)
     {
         return new DocumentContent
         {

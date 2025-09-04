@@ -16,6 +16,7 @@ public class ProgressiveDocumentProcessor : IProgressiveDocumentProcessor
     private readonly IDocumentParserFactory _parserFactory;
     private readonly IChunkingStrategyFactory _chunkingStrategyFactory;
     private readonly ILogger<ProgressiveDocumentProcessor> _logger;
+    private static readonly char[] separator = new[] { '.', '!', '?', '\n' };
 
     /// <summary>
     /// ProgressiveDocumentProcessor 인스턴스를 초기화합니다
@@ -259,7 +260,7 @@ public class ProgressiveDocumentProcessor : IProgressiveDocumentProcessor
 
             try
             {
-                bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                bytesRead = await stream.ReadAsync(buffer, cancellationToken);
                 if (bytesRead == 0) break;
             }
             catch (Exception ex)
@@ -329,10 +330,10 @@ public class ProgressiveDocumentProcessor : IProgressiveDocumentProcessor
     /// <summary>
     /// 텍스트를 간단한 청킹 규칙으로 분할
     /// </summary>
-    private IEnumerable<DocumentChunk> SplitTextIntoChunks(string text, string fileName, int batchIndex, ChunkingOptions options)
+    private static IEnumerable<DocumentChunk> SplitTextIntoChunks(string text, string fileName, int batchIndex, ChunkingOptions options)
     {
         var chunks = new List<DocumentChunk>();
-        var sentences = text.Split(new[] { '.', '!', '?', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var sentences = text.Split(separator, StringSplitOptions.RemoveEmptyEntries);
 
         var currentChunk = new StringBuilder();
         var chunkIndex = 0;
@@ -650,7 +651,7 @@ public class ProgressiveDocumentProcessor : IProgressiveDocumentProcessor
         };
     }
 
-    private async Task<ProcessingStepResult> ProcessValidationStageAsync(DocumentChunk[] chunks, CancellationToken cancellationToken)
+    private static async Task<ProcessingStepResult> ProcessValidationStageAsync(DocumentChunk[] chunks, CancellationToken cancellationToken)
     {
         await Task.Delay(50, cancellationToken); // 시뮬레이션
 
@@ -664,7 +665,7 @@ public class ProgressiveDocumentProcessor : IProgressiveDocumentProcessor
         };
     }
 
-    private async Task<ProcessingStepResult> ProcessCompletionStageAsync(DocumentChunk[] chunks, CancellationToken cancellationToken)
+    private static async Task<ProcessingStepResult> ProcessCompletionStageAsync(DocumentChunk[] chunks, CancellationToken cancellationToken)
     {
         await Task.Delay(10, cancellationToken); // 시뮬레이션
 

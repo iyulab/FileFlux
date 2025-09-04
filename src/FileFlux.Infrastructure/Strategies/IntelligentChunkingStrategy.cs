@@ -7,9 +7,9 @@ namespace FileFlux.Infrastructure.Strategies;
 /// <summary>
 /// 지능형 청킹 전략 - RAG 시스템에 최적화된 컨텍스트 인식 분할
 /// </summary>
-public class IntelligentChunkingStrategy : IChunkingStrategy
+public partial class IntelligentChunkingStrategy : IChunkingStrategy
 {
-    private static readonly Regex SentenceEndRegex = new(@"[.!?]+\s+", RegexOptions.Compiled);
+    private static readonly Regex SentenceEndRegex = MyRegex();
     private static readonly Regex ParagraphRegex = new(@"\n\s*\n+", RegexOptions.Compiled);
     private static readonly Regex HeaderRegex = new(@"^#{1,6}\s+.+$|^.+\n[=\-]+\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex ListItemRegex = new(@"^\s*[-*+]\s+|^\s*\d+\.\s+", RegexOptions.Compiled | RegexOptions.Multiline);
@@ -31,14 +31,14 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
         "AdaptiveOverlap",        // 적응형 겹침 크기
         "QualityThreshold"        // 품질 임계값
     };
+    private static readonly char[] separator = new[] { ' ', '\n', '\r', '\t' };
 
     public async Task<IEnumerable<DocumentChunk>> ChunkAsync(
         DocumentContent content,
         ChunkingOptions options,
         CancellationToken cancellationToken = default)
     {
-        if (content == null)
-            throw new ArgumentNullException(nameof(content));
+        ArgumentNullException.ThrowIfNull(content);
 
         if (string.IsNullOrWhiteSpace(content.Text))
             return Enumerable.Empty<DocumentChunk>();
@@ -220,7 +220,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
         if (trimmed.Contains("<!-- TABLE_START -->")) return true;
 
         // |를 2개 이상 포함하는 라인이면 테이블 라인으로 판단
-        return trimmed.Contains("|") && trimmed.Count(c => c == '|') >= 2;
+        return trimmed.Contains('|') && trimmed.Count(c => c == '|') >= 2;
     }
 
     /// <summary>
@@ -253,7 +253,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             }
 
             // 완전한 테이블 블록이 수집되었으면 SemanticUnit 생성
-            if (tableLines.Any() && tableLines.Last().Contains("<!-- TABLE_END -->"))
+            if (tableLines.Count != 0 && tableLines.Last().Contains("<!-- TABLE_END -->"))
             {
                 return new SemanticUnit
                 {
@@ -278,12 +278,12 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
                     endIndex = i;
                     nextPosition += lines[i].Length + 1;
                 }
-                else if (string.IsNullOrWhiteSpace(line) && tableLines.Any())
+                else if (string.IsNullOrWhiteSpace(line) && tableLines.Count != 0)
                 {
                     // 테이블 내의 빈 줄은 허용하지만 테이블에 포함시키지 않음
                     nextPosition += lines[i].Length + 1;
                 }
-                else if (tableLines.Any()) // 테이블 라인이 있었는데 테이블이 아닌 라인을 만나면 종료
+                else if (tableLines.Count != 0) // 테이블 라인이 있었는데 테이블이 아닌 라인을 만나면 종료
                 {
                     break;
                 }
@@ -326,13 +326,13 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
 
             // 테이블 SemanticUnit 감지 - ExtractSemanticUnits에서 생성된 테이블 단위를 보존
             var isTableUnit = unit.SemanticWeight >= 1.0 && unit.ContextualRelevance >= 1.0 &&
-                              unit.Content.Contains("|") && unit.Content.Count(c => c == '|') >= 4; // 완전한 테이블 판단
+                              unit.Content.Contains('|') && unit.Content.Count(c => c == '|') >= 4; // 완전한 테이블 판단
 
 
             if (isTableUnit)
             {
                 // 현재 청크가 있고 테이블을 추가하면 크기 초과인 경우 현재 청크 완료
-                if (currentChunk.Any() && currentSize + unitSize > maxSize)
+                if (currentChunk.Count != 0 && currentSize + unitSize > maxSize)
                 {
                     var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap);
                     chunks.Add(chunkContent);
@@ -353,7 +353,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
                     var tableParts = SplitLargeTable(singleTableUnits, maxSize);
                     foreach (var part in tableParts)
                     {
-                        if (currentChunk.Any())
+                        if (currentChunk.Count != 0)
                         {
                             chunks.Add(CreateCoherentChunk(currentChunk, baseOverlap));
                             currentChunk.Clear();
@@ -367,7 +367,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
 
             // 섹션 헤더 감지 - 섹션 경계에서 청킹
             var isSectionHeader = MarkdownSectionRegex.IsMatch(unit.Content);
-            if (isSectionHeader && currentChunk.Any() && currentSize > maxSize * 0.3) // 30% 이상일 때만 분할
+            if (isSectionHeader && currentChunk.Count != 0 && currentSize > maxSize * 0.3) // 30% 이상일 때만 분할
             {
                 var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap);
                 chunks.Add(chunkContent);
@@ -379,7 +379,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             var containsTableRow = ContainsTableRow(currentChunk) || IsTableRow(unit.Content);
 
             // 일반적인 크기 기반 청킹 (기존 로직)
-            if (currentChunk.Any() &&
+            if (currentChunk.Count != 0 &&
                 currentSize + unitSize > maxSize &&
                 !isSectionHeader && // 섹션 헤더는 강제로 포함
                 !containsTableRow && // 테이블 행은 보호
@@ -398,7 +398,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
         }
 
         // 마지막 청크 처리
-        if (currentChunk.Any())
+        if (currentChunk.Count != 0)
         {
             var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap);
             chunks.Add(chunkContent);
@@ -438,7 +438,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
 
     private static bool ShouldStartNewChunk(List<SemanticUnit> currentChunk, SemanticUnit newUnit, double coherenceThreshold)
     {
-        if (!currentChunk.Any())
+        if (currentChunk.Count == 0)
             return false;
 
         var lastUnit = currentChunk.Last();
@@ -522,7 +522,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             contextParts.Add($"Structure: {structuralRole}");
 
         // 전역 기술 키워드 사용 (전체 문서 기반)
-        if (globalTechKeywords.Any())
+        if (globalTechKeywords.Count != 0)
         {
             contextParts.Add($"Tech: {string.Join(", ", globalTechKeywords.Take(3))}");
             chunk.TechnicalKeywords = globalTechKeywords;
@@ -534,7 +534,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             contextParts.Add($"Domain: {chunk.DocumentDomain}");
 
         // ContextualHeader 생성
-        if (contextParts.Any())
+        if (contextParts.Count != 0)
         {
             chunk.ContextualHeader = $"[{string.Join(" | ", contextParts)}]";
         }
@@ -740,7 +740,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
     /// </summary>
     private static bool IsTableRow(string content)
     {
-        return content.Contains("|") && content.Count(c => c == '|') >= 2;
+        return content.Contains('|') && content.Count(c => c == '|') >= 2;
     }
 
     /// <summary>
@@ -812,7 +812,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
 
         foreach (var sentence in sentences)
         {
-            if (currentLength + sentence.Length > maxSize && currentPart.Any())
+            if (currentLength + sentence.Length > maxSize && currentPart.Count != 0)
             {
                 result.Add(string.Join(" ", currentPart));
                 currentPart.Clear();
@@ -823,7 +823,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             currentLength += sentence.Length;
         }
 
-        if (currentPart.Any())
+        if (currentPart.Count != 0)
         {
             result.Add(string.Join(" ", currentPart));
         }
@@ -880,7 +880,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             if (sentence.Length > maxSize)
             {
                 // 현재 누적된 부분이 있으면 먼저 추가
-                if (currentPart.Any())
+                if (currentPart.Count != 0)
                 {
                     result.Add(string.Join(" ", currentPart));
                     currentPart.Clear();
@@ -891,7 +891,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
                 var wordChunks = SplitByWords(sentence, maxSize);
                 result.AddRange(wordChunks);
             }
-            else if (currentLength + sentence.Length + 1 > maxSize && currentPart.Any()) // +1 for space
+            else if (currentLength + sentence.Length + 1 > maxSize && currentPart.Count != 0) // +1 for space
             {
                 // 현재 누적 분량이 초과될 경우
                 result.Add(string.Join(" ", currentPart));
@@ -961,7 +961,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
     /// </summary>
     private static bool IsTableStart(string content)
     {
-        return TableRegex.IsMatch(content) || content.Contains("|") && content.Count(c => c == '|') >= 3;
+        return TableRegex.IsMatch(content) || content.Contains('|') && content.Count(c => c == '|') >= 3;
     }
 
     /// <summary>
@@ -977,7 +977,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             var content = units[i].Content;
 
             // 테이블 행인지 확인 (|로 구분되는 구조)
-            if (content.Contains("|") && (content.Count(c => c == '|') >= 2 || TableSeparatorRegex.IsMatch(content)))
+            if (content.Contains('|') && (content.Count(c => c == '|') >= 2 || TableSeparatorRegex.IsMatch(content)))
             {
                 tableUnits.Add(units[i]);
                 endIndex = i;
@@ -1144,7 +1144,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
         var technicalTerms = CountTechnicalTerms(content);
         var structuralElements = CountStructuralElements(content);
         var uniqueWords = content.ToLowerInvariant()
-            .Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(separator, StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length > 3)
             .Distinct()
             .Count();
@@ -1209,7 +1209,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
     // 보조 메서드들
     private static double CalculateKeywordRelevance(string content, List<string> keywords)
     {
-        if (keywords == null || !keywords.Any()) return 0.5;
+        if (keywords == null || keywords.Count == 0) return 0.5;
 
         var contentLower = content.ToLowerInvariant();
         var matchedKeywords = keywords.Count(k => contentLower.Contains(k.ToLowerInvariant()));
@@ -1252,14 +1252,14 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
         var scores = new List<double>();
 
         // 테이블 완성도
-        if (content.Contains("|"))
+        if (content.Contains('|'))
         {
             var tableComplete = content.Contains("TABLE_START") && content.Contains("TABLE_END") ? 1.0 : 0.8;
             scores.Add(tableComplete);
         }
 
         // 리스트 완성도
-        if (content.Contains("•") || content.Contains("-") || System.Text.RegularExpressions.Regex.IsMatch(content, @"^\d+\."))
+        if (content.Contains('•') || content.Contains('-') || System.Text.RegularExpressions.Regex.IsMatch(content, @"^\d+\."))
         {
             var listComplete = content.Contains("LIST_START") && content.Contains("LIST_END") ? 1.0 : 0.8;
             scores.Add(listComplete);
@@ -1272,7 +1272,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             scores.Add(codeComplete);
         }
 
-        return scores.Any() ? scores.Average() : 1.0; // 구조적 요소가 없으면 완전하다고 간주
+        return scores.Count != 0 ? scores.Average() : 1.0; // 구조적 요소가 없으면 완전하다고 간주
     }
 
     private static double CalculateLengthAppropriateness(int length)
@@ -1296,7 +1296,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
             .ToList();
 
         var levelJumps = levels.Zip(levels.Skip(1), (a, b) => Math.Abs(a - b)).ToList();
-        var avgJump = levelJumps.Any() ? levelJumps.Average() : 0;
+        var avgJump = levelJumps.Count != 0 ? levelJumps.Average() : 0;
 
         return Math.Max(0.0, 1.0 - (avgJump / 3.0)); // 3단계 이상 점프는 일관성 낮음
     }
@@ -1321,7 +1321,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
 
     private static double CalculateTableConsistency(string content)
     {
-        var tableLines = content.Split('\n').Where(line => line.Contains("|")).ToList();
+        var tableLines = content.Split('\n').Where(line => line.Contains('|')).ToList();
         if (tableLines.Count <= 1) return 1.0;
 
         // 테이블 행의 컬럼 수 일관성 확인
@@ -1331,4 +1331,7 @@ public class IntelligentChunkingStrategy : IChunkingStrategy
 
         return Math.Max(0.0, 1.0 - (maxDeviation / avgColumns));
     }
+
+    [GeneratedRegex(@"[.!?]+\s+", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

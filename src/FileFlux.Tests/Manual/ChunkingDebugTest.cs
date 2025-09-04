@@ -73,7 +73,7 @@ public class ChunkingDebugTest
         {
             _logger.LogInformation("📋 Chunk {Index}: {Preview}...", 
                 chunk.ChunkIndex, 
-                chunk.Content.Length > 100 ? chunk.Content.Substring(0, 100) + "..." : chunk.Content);
+                chunk.Content.Length > 100 ? string.Concat(chunk.Content.AsSpan(0, 100), "...") : chunk.Content);
         }
     }
 
@@ -128,7 +128,7 @@ public class ChunkingDebugTest
         {
             _logger.LogInformation("📋 Chunk {Index}: {Preview}...", 
                 chunk.ChunkIndex, 
-                chunk.Content.Length > 100 ? chunk.Content.Substring(0, 100) + "..." : chunk.Content);
+                chunk.Content.Length > 100 ? string.Concat(chunk.Content.AsSpan(0, 100), "...") : chunk.Content);
         }
     }
 }

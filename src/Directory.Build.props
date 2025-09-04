@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+
+  <!-- Global Properties for all FileFlux projects -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <WarningsNotAsErrors />
+  </PropertyGroup>
+
+  <!-- Common Package Information -->
+  <PropertyGroup>
+    <Authors>iyulab</Authors>
+    <Company>iyulab</Company>
+    <Product>FileFlux</Product>
+    <Copyright>Copyright © $([System.DateTime]::Now.ToString("yyyy")) iyulab</Copyright>
+
+    <!-- Repository Information -->
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/iyulab/FileFlux</RepositoryUrl>
+    <RepositoryBranch>main</RepositoryBranch>
+    <PackageProjectUrl>https://github.com/iyulab/FileFlux</PackageProjectUrl>
+    
+    <!-- License and Legal -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    
+    <!-- Common Tags -->
+    <PackageTagsBase>rag;document;processing;chunking;ai;llm;fileflux</PackageTagsBase>
+  </PropertyGroup>
+
+  <!-- Build Configuration -->
+  <PropertyGroup>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    
+    <!-- Assembly Information -->
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <GenerateAssemblyVersionAttribute>true</GenerateAssemblyVersionAttribute>
+    <GenerateAssemblyFileVersionAttribute>true</GenerateAssemblyFileVersionAttribute>
+    <GenerateAssemblyInformationalVersionAttribute>true</GenerateAssemblyInformationalVersionAttribute>
+  </PropertyGroup>
+
+  <!-- Version Information (can be overridden by build scripts) -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix Condition="'$(Configuration)' == 'Debug'">-dev</VersionSuffix>
+    <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
+    <FileVersion>$(VersionPrefix)</FileVersion>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">$(VersionPrefix)$(VersionSuffix)</PackageVersion>
+  </PropertyGroup>
+
+  <!-- Code Quality and Analysis -->
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Default</AnalysisMode>
+    <CodeAnalysisRuleSet Condition="Exists('$(MSBuildThisFileDirectory)FileFlux.ruleset')">$(MSBuildThisFileDirectory)FileFlux.ruleset</CodeAnalysisRuleSet>
+    
+    <!-- Performance optimizations -->
+    <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
+    <DebugType Condition="'$(Configuration)' == 'Release'">portable</DebugType>
+    <DebugType Condition="'$(Configuration)' == 'Debug'">full</DebugType>
+  </PropertyGroup>
+
+  <!-- Documentation and Warnings -->
+  <PropertyGroup>
+    <!-- Suppress common warnings for auto-generated files -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Missing XML comment for publicly visible type or member -->
+    
+    <!-- Enable additional warnings -->
+    <WarningsAsErrors Condition="'$(Configuration)' == 'Release'">$(WarningsAsErrors);CS8600;CS8601;CS8602;CS8603</WarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Source Link for debugging -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Common Dependencies -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <!-- Project-specific overrides using conditions -->
+  
+  <!-- Domain Project - Internal use only, not packaged -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.Domain'">
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Core Project - Internal use only, not packaged -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.Core'">
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Infrastructure Project - Main NuGet package -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.Infrastructure'">
+    <PackageId>FileFlux</PackageId>
+    <Title>FileFlux - Document Processing SDK for RAG</Title>
+    <Description>Complete document processing SDK optimized for RAG systems. Transform PDF, DOCX, Excel, PowerPoint, Markdown and other formats into high-quality chunks with intelligent semantic boundary detection. Includes advanced chunking strategies, metadata extraction, and performance optimization.</Description>
+    <PackageTags>$(PackageTagsBase);complete;sdk;readers;pdf;docx;excel;powerpoint;markdown;semantic;intelligent</PackageTags>
+    <PackageReleaseNotes>Complete FileFlux SDK with document readers, intelligent chunking strategies, and RAG optimization</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <!-- Tests Project -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.Tests'">
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Sample App Project -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.SampleApp'">
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!-- Common item groups for specific project types -->
+  <ItemGroup Condition="$(MSBuildProjectName.Contains('Tests'))">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="7.0.0" />
+  </ItemGroup>
+
+  <!-- Global AssemblyInfo -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>FileFlux.Tests</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.CLSCompliantAttribute">
+      <_Parameter1>true</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- Global using statements -->
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <!-- Test-specific global usings -->
+  <ItemGroup Condition="$(MSBuildProjectName.Contains('Tests'))">
+    <Using Include="Xunit" />
+    <Using Include="FluentAssertions" />
+  </ItemGroup>
+
+  <!-- Performance and optimization settings -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Deterministic>true</Deterministic>
+    <PathMap>$(MSBuildProjectDirectory)=.</PathMap>
+  </PropertyGroup>
+
+  <!-- Directory structure validation -->
+  <Target Name="ValidateDirectoryStructure" BeforeTargets="Build" Condition="'$(BuildingProject)' == 'true'">
+    <Message Text="Building $(MSBuildProjectName) v$(PackageVersion)" Importance="high" />
+  </Target>
+
+</Project>

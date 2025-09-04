@@ -45,8 +45,7 @@ public class DocumentReaderFactory : IDocumentReaderFactory
 
     public void RegisterReader(IDocumentReader reader)
     {
-        if (reader == null)
-            throw new ArgumentNullException(nameof(reader));
+        ArgumentNullException.ThrowIfNull(reader);
 
         _readers.AddOrUpdate(reader.ReaderType, reader, (key, existingReader) => reader);
     }

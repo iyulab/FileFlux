@@ -97,7 +97,7 @@ public class DocumentReadersIntegrationTests
         _logger.LogInformation("  Extracted text length: {Length:N0} characters", result.Text.Length);
         _logger.LogInformation("  Warnings: {Count}", result.ExtractionWarnings.Count);
         
-        if (result.ExtractionWarnings.Any())
+        if (result.ExtractionWarnings.Count != 0)
         {
             foreach (var warning in result.ExtractionWarnings)
             {
@@ -114,7 +114,7 @@ public class DocumentReadersIntegrationTests
         // 텍스트 미리보기
         if (result.Text.Length > 0)
         {
-            var preview = result.Text.Length > 300 ? result.Text.Substring(0, 300) + "..." : result.Text;
+            var preview = result.Text.Length > 300 ? string.Concat(result.Text.AsSpan(0, 300), "...") : result.Text;
             _logger.LogInformation("  📝 Preview: {Preview}", preview);
         }
 
@@ -148,7 +148,7 @@ public class DocumentReadersIntegrationTests
         _logger.LogInformation("  Extracted text length: {Length:N0} characters", result.Text.Length);
         _logger.LogInformation("  Warnings: {Count}", result.ExtractionWarnings.Count);
         
-        if (result.ExtractionWarnings.Any())
+        if (result.ExtractionWarnings.Count != 0)
         {
             foreach (var warning in result.ExtractionWarnings)
             {
@@ -198,7 +198,7 @@ public class DocumentReadersIntegrationTests
         _logger.LogInformation("  Extracted text length: {Length:N0} characters", result.Text.Length);
         _logger.LogInformation("  Warnings: {Count}", result.ExtractionWarnings.Count);
         
-        if (result.ExtractionWarnings.Any())
+        if (result.ExtractionWarnings.Count != 0)
         {
             foreach (var warning in result.ExtractionWarnings)
             {
@@ -243,12 +243,12 @@ public class DocumentReadersIntegrationTests
         _logger.LogInformation("  Warnings: {Count}", result.ExtractionWarnings.Count);
         
         // 마크다운 특화 구조 확인
-        if (result.StructuralHints.ContainsKey("has_headers") && (bool)result.StructuralHints["has_headers"])
+        if (result.StructuralHints.TryGetValue("has_headers", out object? value) && (bool)value)
         {
             _logger.LogInformation("  ✅ Markdown headers detected: {Count}", result.StructuralHints["header_count"]);
         }
         
-        if (result.StructuralHints.ContainsKey("has_code_blocks") && (bool)result.StructuralHints["has_code_blocks"])
+        if (result.StructuralHints.TryGetValue("has_code_blocks", out object? codeValue) && (bool)codeValue)
         {
             _logger.LogInformation("  ✅ Code blocks detected: {Count}", result.StructuralHints["code_block_count"]);
         }

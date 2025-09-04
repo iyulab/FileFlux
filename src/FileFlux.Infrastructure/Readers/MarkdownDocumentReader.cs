@@ -58,8 +58,7 @@ public class MarkdownDocumentReader : IDocumentReader
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ArgumentNullException.ThrowIfNull(stream);
 
         if (string.IsNullOrWhiteSpace(fileName))
             throw new ArgumentException("File name cannot be null or empty", nameof(fileName));
@@ -198,7 +197,7 @@ public class MarkdownDocumentReader : IDocumentReader
             content.AppendLine();
 
             // 구분자 행 추가
-            content.Append("|");
+            content.Append('|');
             for (int i = 0; i < headerRow.Count; i++)
             {
                 content.Append("---|");

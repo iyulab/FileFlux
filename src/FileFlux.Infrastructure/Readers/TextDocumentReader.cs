@@ -1,6 +1,7 @@
 using FileFlux.Core;
 using FileFlux.Core.Exceptions;
 using FileFlux.Domain;
+using System.Buffers;
 using System.Text;
 
 namespace FileFlux.Infrastructure.Readers;
@@ -15,6 +16,7 @@ public class TextDocumentReader : IDocumentReader, IProgressiveDocumentReader
     public IEnumerable<string> SupportedExtensions => new[] { ".txt", ".md", ".tmp" };
 
     public string ReaderType => "TextReader";
+    private static readonly string[] separator = new[] { "\n\n", "\r\n\r\n" };
 
     public bool CanRead(string fileName)
     {
@@ -77,8 +79,7 @@ public class TextDocumentReader : IDocumentReader, IProgressiveDocumentReader
 
     public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ArgumentNullException.ThrowIfNull(stream);
 
         if (string.IsNullOrWhiteSpace(fileName))
             throw new ArgumentException("Filename cannot be null or empty", nameof(fileName));
@@ -125,23 +126,67 @@ public class TextDocumentReader : IDocumentReader, IProgressiveDocumentReader
 
     private static async Task<string> ReadTextWithEncodingDetectionAsync(string filePath, CancellationToken cancellationToken)
     {
-        // UTF-8 BOM 감지 시도
-        var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
-
-        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
-        {
-            return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
-        }
-
-        // UTF-8로 시도
+        const int bufferSize = 8192; // 8KB 버퍼 사용
+        var charPool = ArrayPool<char>.Shared;
+        var bytePool = ArrayPool<byte>.Shared;
+        
+        var encoding = Encoding.UTF8;
+        var hasBom = false;
+        
+        using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, useAsync: true);
+        
+        // BOM 감지를 위해 처음 몇 바이트 읽기
+        var bomBuffer = bytePool.Rent(4);
         try
         {
-            return Encoding.UTF8.GetString(bytes);
+            var bomBytesRead = await fileStream.ReadAsync(bomBuffer.AsMemory(0, 4), cancellationToken).ConfigureAwait(false);
+            
+            if (bomBytesRead >= 3 && bomBuffer[0] == 0xEF && bomBuffer[1] == 0xBB && bomBuffer[2] == 0xBF)
+            {
+                hasBom = true;
+                encoding = Encoding.UTF8;
+                // BOM 이후부터 읽기 위해 스트림 위치 조정
+                fileStream.Seek(3, SeekOrigin.Begin);
+            }
+            else
+            {
+                // BOM이 없으면 처음부터 다시 읽기
+                fileStream.Seek(0, SeekOrigin.Begin);
+            }
         }
-        catch (DecoderFallbackException)
+        finally
         {
-            // UTF-8 실패 시 시스템 기본 인코딩 사용
-            return Encoding.Default.GetString(bytes);
+            bytePool.Return(bomBuffer);
+        }
+        
+        // 스트리밍 방식으로 텍스트 읽기
+        using var reader = new StreamReader(fileStream, encoding, !hasBom, bufferSize, leaveOpen: false);
+        
+        // StringBuilder 풀링을 통한 메모리 효율성
+        var stringBuilder = new StringBuilder();
+        var charBuffer = charPool.Rent(bufferSize);
+        
+        try
+        {
+            int charsRead;
+            while ((charsRead = await reader.ReadAsync(charBuffer, 0, charBuffer.Length).ConfigureAwait(false)) > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                stringBuilder.Append(charBuffer, 0, charsRead);
+            }
+            
+            return stringBuilder.ToString();
+        }
+        catch (DecoderFallbackException) when (!hasBom && encoding == Encoding.UTF8)
+        {
+            // UTF-8 디코딩 실패 시 시스템 기본 인코딩으로 재시도
+            fileStream.Seek(0, SeekOrigin.Begin);
+            using var fallbackReader = new StreamReader(fileStream, Encoding.Default, false, bufferSize);
+            return await fallbackReader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            charPool.Return(charBuffer);
         }
     }
 
@@ -162,12 +207,12 @@ public class TextDocumentReader : IDocumentReader, IProgressiveDocumentReader
         };
 
         // 마크다운 특화 힌트
-        if (fileExtension.ToLowerInvariant() == ".md")
+        if (fileExtension.Equals(".md", StringComparison.InvariantCultureIgnoreCase))
         {
             var lines = text.Split('\n', StringSplitOptions.None);
             var headerLines = lines.Where(line => line.TrimStart().StartsWith('#')).ToList();
 
-            if (headerLines.Any())
+            if (headerLines.Count != 0)
             {
                 hints["has_headers"] = true;
                 hints["header_count"] = headerLines.Count;
@@ -185,7 +230,7 @@ public class TextDocumentReader : IDocumentReader, IProgressiveDocumentReader
 
         // 일반적인 구조적 패턴
         var lineCount = text.Split('\n').Length;
-        var paragraphCount = text.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries).Length;
+        var paragraphCount = text.Split(separator, StringSplitOptions.RemoveEmptyEntries).Length;
 
         hints["line_count"] = lineCount;
         hints["paragraph_count"] = paragraphCount;
@@ -242,7 +287,7 @@ public class TextDocumentReader : IDocumentReader, IProgressiveDocumentReader
             int totalRead = 0;
             int bytesRead;
 
-            while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
+            while ((bytesRead = await fileStream.ReadAsync(buffer, cancellationToken)) > 0)
             {
                 allBytes.AddRange(buffer.Take(bytesRead));
                 totalRead += bytesRead;
@@ -352,8 +397,7 @@ public class TextDocumentReader : IDocumentReader, IProgressiveDocumentReader
         Action<ProcessingProgress>? progressCallback = null,
         CancellationToken cancellationToken = default)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ArgumentNullException.ThrowIfNull(stream);
 
         if (string.IsNullOrWhiteSpace(fileName))
             throw new ArgumentException("Filename cannot be null or empty", nameof(fileName));

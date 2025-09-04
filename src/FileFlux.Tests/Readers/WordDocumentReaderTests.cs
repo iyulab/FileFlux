@@ -159,7 +159,7 @@ public class WordDocumentReaderTests
         if (result.Text.Length > 0)
         {
             _logger.LogInformation("First 200 characters: {Preview}", 
-                result.Text.Length > 200 ? result.Text.Substring(0, 200) + "..." : result.Text);
+                result.Text.Length > 200 ? string.Concat(result.Text.AsSpan(0, 200), "...") : result.Text);
         }
     }
 

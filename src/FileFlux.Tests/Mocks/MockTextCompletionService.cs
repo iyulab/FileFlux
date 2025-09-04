@@ -15,6 +15,7 @@ public class MockTextCompletionService : ITextCompletionService
         SupportedModels = new[] { "mock-model" },
         MaxContextLength = 4096
     };
+    private static readonly string[] result = new[] { "test", "mock", "sample" };
 
     public Task<StructureAnalysisResult> AnalyzeStructureAsync(
         string prompt,
@@ -54,7 +55,7 @@ public class MockTextCompletionService : ITextCompletionService
         return Task.FromResult(new ContentSummary
         {
             Summary = "Mock summary for testing purposes",
-            Keywords = new[] { "test", "mock", "sample" },
+            Keywords = result,
             Confidence = 0.8,
             OriginalLength = prompt.Length,
             TokensUsed = 50
@@ -117,7 +118,7 @@ public class MockTextCompletionService : ITextCompletionService
         return Task.FromResult($"Mock response to: {prompt.Substring(0, Math.Min(50, prompt.Length))}...");
     }
 
-    private Task<string> GenerateIntelligentStructureResponse(string prompt)
+    private static Task<string> GenerateIntelligentStructureResponse(string prompt)
     {
         // Markdown 내용에서 실제 구조 정보 추출
         var hasRequirements = prompt.Contains("요구사항") || prompt.Contains("FR-");

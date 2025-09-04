@@ -36,7 +36,7 @@ public class FileSystemResultStorage : IDisposable
     /// </summary>
     /// <param name="filePath">파일 경로</param>
     /// <returns>16진수 문자열로 된 해시</returns>
-    public async Task<string> ComputeFileHashAsync(string filePath)
+    public static async Task<string> ComputeFileHashAsync(string filePath)
     {
         using var sha256 = SHA256.Create();
         using var fileStream = File.OpenRead(filePath);
@@ -52,9 +52,8 @@ public class FileSystemResultStorage : IDisposable
     /// <returns>16진수 문자열로 된 해시</returns>
     public static string ComputeContentHash(string content)
     {
-        using var sha256 = SHA256.Create();
         var contentBytes = Encoding.UTF8.GetBytes(content);
-        var hashBytes = sha256.ComputeHash(contentBytes);
+        var hashBytes = SHA256.HashData(contentBytes);
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 

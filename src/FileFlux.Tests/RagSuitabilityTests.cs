@@ -19,6 +19,7 @@ public class RagSuitabilityTests : IDisposable
     private readonly ITestOutputHelper _output;
     private readonly ILogger<ProgressiveDocumentProcessor> _logger;
     private readonly string _testDataPath;
+    private static readonly char[] separator = new[] { ' ', '.', ',', ';', ':', '!', '?', '\n', '\r', '\t' };
 
     public RagSuitabilityTests(ITestOutputHelper output)
     {
@@ -253,18 +254,18 @@ public class RagSuitabilityTests : IDisposable
         return Math.Max(0.3, averageCoherence);
     }
 
-    private double CalculateTextSimilarity(string text1, string text2)
+    private static double CalculateTextSimilarity(string text1, string text2)
     {
         if (string.IsNullOrWhiteSpace(text1) || string.IsNullOrWhiteSpace(text2)) return 0.0;
 
         // 단어 기반 Jaccard 유사도 계산 (개선된 버전)
         var words1 = text1.ToLowerInvariant()
-            .Split(new[] { ' ', '.', ',', ';', ':', '!', '?', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(separator, StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length > 2) // 짧은 단어 제외 (and, the, is 등)
             .ToHashSet();
 
         var words2 = text2.ToLowerInvariant()
-            .Split(new[] { ' ', '.', ',', ';', ':', '!', '?', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(separator, StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length > 2)
             .ToHashSet();
 
@@ -285,7 +286,7 @@ public class RagSuitabilityTests : IDisposable
     /// OpenAI의 cl100k_base 토큰화 규칙을 근사하는 정확한 토큰 추정
     /// GPT-4, GPT-3.5-turbo, text-embedding-ada-002 모델과 호환
     /// </summary>
-    private int EstimateTokenCount(string text)
+    private static int EstimateTokenCount(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return 0;
 
@@ -321,7 +322,7 @@ public class RagSuitabilityTests : IDisposable
         return Math.Max(1, tokenCount);
     }
 
-    private double CalculateOverallQualityScore(double complianceRate, double optimalRate, double maxTokensPerChunk)
+    private static double CalculateOverallQualityScore(double complianceRate, double optimalRate, double maxTokensPerChunk)
     {
         var complianceScore = complianceRate * 40; // 40점 만점
         var optimalScore = optimalRate * 30; // 30점 만점

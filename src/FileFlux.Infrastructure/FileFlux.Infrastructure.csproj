@@ -1,5 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- All common properties inherited from Directory.Build.props -->
+  <!-- Project-specific properties are defined in Directory.Build.props based on MSBuildProjectName -->
+
   <ItemGroup>
     <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" />
   </ItemGroup>
@@ -16,11 +19,5 @@
     <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="Markdig" Version="0.41.3" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
 
 </Project>

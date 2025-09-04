@@ -58,7 +58,7 @@ public class ConsoleProgressBar
 
         if (message.Length > maxMessageLength)
         {
-            message = message.Substring(0, maxMessageLength - 3) + "...";
+            message = string.Concat(message.AsSpan(0, maxMessageLength - 3), "...");
         }
 
         // 진행률 바 라인 구성
@@ -89,7 +89,7 @@ public class ConsoleProgressBar
     /// 진행률 바를 오류 상태로 표시합니다
     /// </summary>
     /// <param name="errorMessage">오류 메시지</param>
-    public void ShowError(string errorMessage)
+    public static void ShowError(string errorMessage)
     {
         // 빨간색으로 오류 표시 (지원되는 경우)
         try

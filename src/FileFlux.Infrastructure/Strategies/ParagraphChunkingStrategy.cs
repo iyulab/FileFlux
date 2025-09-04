@@ -7,9 +7,9 @@ namespace FileFlux.Infrastructure.Strategies;
 /// <summary>
 /// 문단 기반 청킹 전략 - 자연스러운 문단 경계를 기준으로 분할
 /// </summary>
-public class ParagraphChunkingStrategy : IChunkingStrategy
+public partial class ParagraphChunkingStrategy : IChunkingStrategy
 {
-    private static readonly Regex ParagraphSeparatorRegex = new(@"\n\s*\n+", RegexOptions.Compiled);
+    private static readonly Regex ParagraphSeparatorRegex = MyRegex();
     private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
     private static readonly Regex HeaderRegex = new(@"^#{1,6}\s+.+$", RegexOptions.Compiled | RegexOptions.Multiline);
 
@@ -29,8 +29,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
         ChunkingOptions options,
         CancellationToken cancellationToken = default)
     {
-        if (content == null)
-            throw new ArgumentNullException(nameof(content));
+        ArgumentNullException.ThrowIfNull(content);
 
         if (string.IsNullOrWhiteSpace(content.Text))
             return Enumerable.Empty<DocumentChunk>();
@@ -47,7 +46,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
 
         // 문단 추출
         var paragraphs = ExtractParagraphs(text, preserveHeaders);
-        if (!paragraphs.Any())
+        if (paragraphs.Count == 0)
         {
             return Enumerable.Empty<DocumentChunk>();
         }
@@ -79,7 +78,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
             var tooManyParagraphs = currentChunk.Count >= maxParagraphsPerChunk;
 
             // 새로운 청크 시작이 필요한지 확인
-            if (currentChunk.Any() && (wouldExceedMaxSize || tooManyParagraphs))
+            if (currentChunk.Count != 0 && (wouldExceedMaxSize || tooManyParagraphs))
             {
                 var chunk = CreateChunkFromParagraphs(currentChunk, content.Metadata, chunkIndex++, globalPosition, options);
                 chunks.Add(chunk);
@@ -106,7 +105,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
         }
 
         // 마지막 청크 처리
-        if (currentChunk.Any())
+        if (currentChunk.Count != 0)
         {
             var chunk = CreateChunkFromParagraphs(currentChunk, content.Metadata, chunkIndex, globalPosition, options);
             chunks.Add(chunk);
@@ -174,7 +173,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
             if (paragraph.IsHeader)
             {
                 // 현재 결합된 문단들 추가
-                if (currentCombined.Any())
+                if (currentCombined.Count != 0)
                 {
                     result.Add(CombineParagraphs(currentCombined));
                     currentCombined.Clear();
@@ -189,7 +188,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
             if (paragraphLength >= minLength)
             {
                 // 현재 결합된 문단들 추가
-                if (currentCombined.Any())
+                if (currentCombined.Count != 0)
                 {
                     result.Add(CombineParagraphs(currentCombined));
                     currentCombined.Clear();
@@ -203,7 +202,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
             // 짧은 문단 결합
             if (currentLength + paragraphLength > maxChunkSize)
             {
-                if (currentCombined.Any())
+                if (currentCombined.Count != 0)
                 {
                     result.Add(CombineParagraphs(currentCombined));
                     currentCombined.Clear();
@@ -216,7 +215,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
         }
 
         // 마지막 결합된 문단들 추가
-        if (currentCombined.Any())
+        if (currentCombined.Count != 0)
         {
             result.Add(CombineParagraphs(currentCombined));
         }
@@ -247,7 +246,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
 
             foreach (var sentence in sentences)
             {
-                if (currentLength + sentence.Length > maxChunkSize && currentPart.Any())
+                if (currentLength + sentence.Length > maxChunkSize && currentPart.Count != 0)
                 {
                     result.Add(new ParagraphInfo
                     {
@@ -266,7 +265,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
             }
 
             // 마지막 부분 추가
-            if (currentPart.Any())
+            if (currentPart.Count != 0)
             {
                 result.Add(new ParagraphInfo
                 {
@@ -368,4 +367,7 @@ public class ParagraphChunkingStrategy : IChunkingStrategy
         public int StartPosition { get; set; }
         public int Length { get; set; }
     }
+
+    [GeneratedRegex(@"\n\s*\n+", RegexOptions.Compiled)]
+    private static partial Regex MyRegex();
 }

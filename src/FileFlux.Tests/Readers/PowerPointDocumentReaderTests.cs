@@ -153,16 +153,16 @@ public class PowerPointDocumentReaderTests
         Assert.True((int)result.StructuralHints["slide_count"] >= 0);
 
         // 슬라이드와 관련된 힌트들 확인
-        if (result.StructuralHints.ContainsKey("slide_count"))
+        if (result.StructuralHints.TryGetValue("slide_count", out object? value))
         {
-            var slideCount = (int)result.StructuralHints["slide_count"];
+            var slideCount = (int)value;
             _logger.LogInformation("Slide count: {Count}", slideCount);
             Assert.True(slideCount >= 0);
         }
 
-        if (result.StructuralHints.ContainsKey("total_shapes"))
+        if (result.StructuralHints.TryGetValue("total_shapes", out object? shapeValue))
         {
-            var totalShapes = (int)result.StructuralHints["total_shapes"];
+            var totalShapes = (int)shapeValue;
             _logger.LogInformation("Total shapes: {Count}", totalShapes);
         }
 
@@ -171,7 +171,7 @@ public class PowerPointDocumentReaderTests
         if (result.Text.Length > 0)
         {
             _logger.LogInformation("First 400 characters: {Preview}", 
-                result.Text.Length > 400 ? result.Text.Substring(0, 400) + "..." : result.Text);
+                result.Text.Length > 400 ? string.Concat(result.Text.AsSpan(0, 400), "...") : result.Text);
             
             // PowerPoint 구조 확인 - 슬라이드 헤더가 있는지
             if (result.Text.Contains("## Slide"))

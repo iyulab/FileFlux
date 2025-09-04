@@ -10,11 +10,12 @@ namespace FileFlux.Infrastructure.Readers;
 /// PDF 파일 처리를 위한 문서 Reader
 /// PdfPig 라이브러리를 사용하여 텍스트 추출 및 구조 인식
 /// </summary>
-public class PdfDocumentReader : IDocumentReader
+public partial class PdfDocumentReader : IDocumentReader
 {
     public string ReaderType => "PdfReader";
 
     public IEnumerable<string> SupportedExtensions => new[] { ".pdf" };
+    private static readonly char[] separator = new[] { ' ', '\t', '\n', '\r' };
 
     public bool CanRead(string fileName)
     {
@@ -40,8 +41,7 @@ public class PdfDocumentReader : IDocumentReader
 
     public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
-        if (stream == null)
-            throw new ArgumentNullException(nameof(stream));
+        ArgumentNullException.ThrowIfNull(stream);
 
         if (!CanRead(fileName))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
@@ -252,7 +252,7 @@ public class PdfDocumentReader : IDocumentReader
         try
         {
             var words = page.GetWords().ToList();
-            if (!words.Any())
+            if (words.Count == 0)
             {
                 warnings.Add($"페이지 {pageNum}: 텍스트 없음");
                 return "";
@@ -302,7 +302,7 @@ public class PdfDocumentReader : IDocumentReader
         }
     }
 
-    private double EstimateLineHeight(IList<Word> words)
+    private static double EstimateLineHeight(IList<Word> words)
     {
         if (!words.Any()) return 12.0; // 기본값
 
@@ -312,7 +312,7 @@ public class PdfDocumentReader : IDocumentReader
             .Select(w => w.BoundingBox.Height)
             .ToList();
 
-        if (!heights.Any()) return 12.0;
+        if (heights.Count == 0) return 12.0;
 
         // 중간값 사용 (이상치 제거)
         heights.Sort();
@@ -325,12 +325,12 @@ public class PdfDocumentReader : IDocumentReader
     /// <summary>
     /// 추출된 텍스트를 RAG에 최적화된 형태로 정규화
     /// </summary>
-    private string NormalizeText(string text)
+    private static string NormalizeText(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return "";
 
         // 1. 연속된 공백 및 탭 정리
-        text = System.Text.RegularExpressions.Regex.Replace(text, @"[ \t]+", " ");
+        text = MyRegex().Replace(text, " ");
 
         // 2. 연속된 줄바꿈 정리 (3개 이상 → 2개로 제한)
         text = System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n");
@@ -357,12 +357,15 @@ public class PdfDocumentReader : IDocumentReader
         return text;
     }
 
-    private int CountWords(string text)
+    private static int CountWords(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return 0;
 
         return text
-            .Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(separator, StringSplitOptions.RemoveEmptyEntries)
             .Length;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"[ \t]+")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex();
 }

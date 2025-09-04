@@ -147,28 +147,24 @@ public class PdfDocumentReaderTests
         Assert.True(result.FileInfo.FileSize > 0);
 
         // StructuralHints 검증 - PDF 관련
-        if (result.StructuralHints.ContainsKey("PageCount"))
+        if (result.StructuralHints.TryGetValue("PageCount", out object? pageCount))
         {
-            var pageCount = result.StructuralHints["PageCount"];
             _logger.LogInformation("Page count: {Count}", pageCount);
             Assert.True(Convert.ToInt32(pageCount) > 0);
         }
 
-        if (result.StructuralHints.ContainsKey("ProcessedPages"))
+        if (result.StructuralHints.TryGetValue("ProcessedPages", out object? processedPages))
         {
-            var processedPages = result.StructuralHints["ProcessedPages"];
             _logger.LogInformation("Processed pages: {Count}", processedPages);
         }
 
-        if (result.StructuralHints.ContainsKey("TotalCharacters"))
+        if (result.StructuralHints.TryGetValue("TotalCharacters", out object? totalCharacters))
         {
-            var totalCharacters = result.StructuralHints["TotalCharacters"];
             _logger.LogInformation("Total characters: {Count}", totalCharacters);
         }
 
-        if (result.StructuralHints.ContainsKey("WordCount"))
+        if (result.StructuralHints.TryGetValue("WordCount", out object? wordCount))
         {
-            var wordCount = result.StructuralHints["WordCount"];
             _logger.LogInformation("Word count: {Count}", wordCount);
         }
 
@@ -177,7 +173,7 @@ public class PdfDocumentReaderTests
         if (result.Text.Length > 0)
         {
             _logger.LogInformation("First 500 characters: {Preview}", 
-                result.Text.Length > 500 ? result.Text.Substring(0, 500) + "..." : result.Text);
+                result.Text.Length > 500 ? string.Concat(result.Text.AsSpan(0, 500), "...") : result.Text);
         }
 
         // PDF는 보통 많은 텍스트가 있으므로 기본적인 검증

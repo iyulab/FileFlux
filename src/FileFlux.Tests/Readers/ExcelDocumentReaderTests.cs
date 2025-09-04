@@ -164,15 +164,15 @@ public class ExcelDocumentReaderTests
         Assert.True((int)result.StructuralHints["worksheet_count"] >= 0);
 
         // 워크시트와 관련된 힌트들 확인
-        if (result.StructuralHints.ContainsKey("worksheet_count"))
+        if (result.StructuralHints.TryGetValue("worksheet_count", out object? value))
         {
-            var worksheetCount = (int)result.StructuralHints["worksheet_count"];
+            var worksheetCount = (int)value;
             _logger.LogInformation("Worksheet count: {Count}", worksheetCount);
         }
 
-        if (result.StructuralHints.ContainsKey("total_rows"))
+        if (result.StructuralHints.TryGetValue("total_rows", out object? rowValue))
         {
-            var totalRows = (int)result.StructuralHints["total_rows"];
+            var totalRows = (int)rowValue;
             _logger.LogInformation("Total rows: {Count}", totalRows);
         }
 
@@ -181,7 +181,7 @@ public class ExcelDocumentReaderTests
         if (result.Text.Length > 0)
         {
             _logger.LogInformation("First 300 characters: {Preview}", 
-                result.Text.Length > 300 ? result.Text.Substring(0, 300) + "..." : result.Text);
+                result.Text.Length > 300 ? string.Concat(result.Text.AsSpan(0, 300), "...") : result.Text);
         }
     }
 
