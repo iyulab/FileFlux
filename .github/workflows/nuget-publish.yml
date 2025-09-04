@@ -124,7 +124,6 @@ jobs:
           dotnet pack src/FileFlux.Infrastructure/FileFlux.Infrastructure.csproj \
             --configuration Release \
             --output nupkg/ \
-            --no-build \
             -p:PackageVersion=${{ needs.detect-version.outputs.version }} \
             -p:AssemblyVersion=${{ needs.detect-version.outputs.version }} \
             -p:FileVersion=${{ needs.detect-version.outputs.version }}
