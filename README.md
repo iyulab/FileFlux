@@ -5,7 +5,7 @@
 [![Downloads](https://img.shields.io/nuget/dt/FileFlux.svg)](https://www.nuget.org/packages/FileFlux)
 [![.NET 9](https://img.shields.io/badge/.NET-9.0-purple)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![CI/CD](https://github.com/iyulab/FileFlux/workflows/NuGet%20Package%20Build%20%26%20Publish/badge.svg)](https://github.com/iyulab/FileFlux/actions)
+[![📦 NuGet Package Build & Publish](https://github.com/iyulab/FileFlux/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/iyulab/FileFlux/actions/workflows/nuget-publish.yml)
 
 ## 🎯 개요
 
