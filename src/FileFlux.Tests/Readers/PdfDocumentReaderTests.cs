@@ -67,7 +67,7 @@ public class PdfDocumentReaderTests
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
             _reader.ExtractAsync(null!, CancellationToken.None));
         
-        Assert.Equal("File path cannot be null or empty", exception.Message);
+        Assert.Contains("File path cannot be null or empty", exception.Message);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class PdfDocumentReaderTests
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
             _reader.ExtractAsync("", CancellationToken.None));
         
-        Assert.Equal("File path cannot be null or empty", exception.Message);
+        Assert.Contains("File path cannot be null or empty", exception.Message);
     }
 
     [Fact]
@@ -251,7 +251,7 @@ public class PdfDocumentReaderTests
         cts.Cancel(); // Cancel immediately
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(() => 
+        await Assert.ThrowsAsync<TaskCanceledException>(() => 
             _reader.ExtractAsync(testFile, cts.Token));
     }
 

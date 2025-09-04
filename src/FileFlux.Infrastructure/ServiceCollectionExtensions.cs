@@ -29,9 +29,6 @@ public static class ServiceCollectionExtensions
         // 메인 문서 처리기 등록
         services.AddScoped<IDocumentProcessor, DocumentProcessor>();
 
-        // 진행률 추적 가능한 문서 처리기 등록
-        services.AddScoped<IProgressiveDocumentProcessor, ProgressiveDocumentProcessor>();
-
         // 기본 Reader들 등록
         services.AddTransient<IDocumentReader, TextDocumentReader>();
 

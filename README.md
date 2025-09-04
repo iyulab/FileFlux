@@ -43,7 +43,7 @@ var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
 // 방법 1: 파일에서 직접 처리 (권장)
-await foreach (var chunk in processor.ProcessChunksAsync("document.pdf"))
+await foreach (var chunk in processor.ProcessAsync("document.pdf"))
 {
     // 청크 내용과 메타데이터 활용
     var content = chunk.Content;              // 실제 텍스트 내용
@@ -64,7 +64,7 @@ await foreach (var chunk in processor.ProcessChunksAsync("document.pdf"))
 
 // 방법 2: 추출 후 재사용 (캐싱 활용)
 var extractResult = await processor.ExtractAsync("document.pdf");
-await foreach (var chunk in processor.ProcessChunksAsync(extractResult))
+await foreach (var chunk in processor.ProcessAsync(extractResult))
 {
     Console.WriteLine($"청크: {chunk.Content[..50]}...");
 }

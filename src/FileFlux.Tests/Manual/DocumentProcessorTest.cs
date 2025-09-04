@@ -61,10 +61,10 @@ public class DocumentProcessorTest
         _logger.LogInformation("📄 File: {TestFile}", testFile);
         _logger.LogInformation("📋 Strategy: {Strategy}", options.Strategy);
 
-        // Act: 전체 파이프라인 실행 (새로운 ProcessChunksAsync API 사용)
+        // Act: 전체 파이프라인 실행 (새로운 ProcessAsync API 사용)
         var chunks = new List<DocumentChunk>();
         
-        await foreach (var chunk in processor.ProcessChunksAsync(testFile, options))
+        await foreach (var chunk in processor.ProcessAsync(testFile, options))
         {
             chunks.Add(chunk);
             _logger.LogInformation("✅ Added chunk #{Index}: {Length} chars", 

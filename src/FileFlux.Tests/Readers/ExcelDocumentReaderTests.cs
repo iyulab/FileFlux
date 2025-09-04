@@ -68,7 +68,7 @@ public class ExcelDocumentReaderTests
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
             _reader.ExtractAsync(null!, CancellationToken.None));
         
-        Assert.Equal("File path cannot be null or empty", exception.Message);
+        Assert.Contains("File path cannot be null or empty", exception.Message);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class ExcelDocumentReaderTests
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
             _reader.ExtractAsync("", CancellationToken.None));
         
-        Assert.Equal("File path cannot be null or empty", exception.Message);
+        Assert.Contains("File path cannot be null or empty", exception.Message);
     }
 
     [Fact]

@@ -14,20 +14,17 @@ namespace FileFlux.SampleApp;
 public class FileFluxApp
 {
     private readonly IDocumentProcessor _documentProcessor;
-    private readonly IProgressiveDocumentProcessor _progressiveProcessor;
     private readonly IVectorStoreService _vectorStore;
     private readonly FileFluxDbContext _context;
     private readonly ILogger<FileFluxApp> _logger;
 
     public FileFluxApp(
         IDocumentProcessor documentProcessor,
-        IProgressiveDocumentProcessor progressiveProcessor,
         IVectorStoreService vectorStore,
         FileFluxDbContext context,
         ILogger<FileFluxApp> logger)
     {
         _documentProcessor = documentProcessor ?? throw new ArgumentNullException(nameof(documentProcessor));
-        _progressiveProcessor = progressiveProcessor ?? throw new ArgumentNullException(nameof(progressiveProcessor));
         _vectorStore = vectorStore ?? throw new ArgumentNullException(nameof(vectorStore));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -71,7 +68,7 @@ public class FileFluxApp
             // 기본 문서 처리 - 새로운 스트리밍 API 사용
             Console.WriteLine("📋 기본 문서 처리");
             var chunkList = new List<DocumentChunk>();
-            await foreach (var chunk in _documentProcessor.ProcessChunksAsync(filePath, chunkingOptions))
+            await foreach (var chunk in _documentProcessor.ProcessAsync(filePath, chunkingOptions))
             {
                 chunkList.Add(chunk);
             }
@@ -290,7 +287,12 @@ public class FileFluxApp
                         OverlapSize = 50
                     };
 
-                    var chunks = await _documentProcessor.ProcessToArrayAsync(filePath, chunkingOptions);
+                    var chunkList = new List<DocumentChunk>();
+                    await foreach (var chunk in _documentProcessor.ProcessAsync(filePath, chunkingOptions))
+                    {
+                        chunkList.Add(chunk);
+                    }
+                    var chunks = chunkList.ToArray();
                     stopwatch.Stop();
 
                     Console.WriteLine($"   ✅ 성공: {chunks.Length}개 청크 생성 ({stopwatch.Elapsed:mm\\:ss\\.fff})");
@@ -392,7 +394,7 @@ public class FileFluxApp
             var stopwatch = Stopwatch.StartNew();
             
             // 새로운 스트리밍 API 사용
-            await foreach (var chunk in _documentProcessor.ProcessChunksAsync(filePath, chunkingOptions))
+            await foreach (var chunk in _documentProcessor.ProcessAsync(filePath, chunkingOptions))
             {
                 chunkList.Add(chunk);
                 chunkCount++;

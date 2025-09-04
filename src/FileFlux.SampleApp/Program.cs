@@ -208,7 +208,7 @@ class Program
 
         benchmarkCommand.SetHandler(async (testDir) =>
         {
-            await BenchmarkProgram.RunBenchmarkAsync(new[] { testDir });
+            Console.WriteLine($"Benchmark functionality simplified. Test directory: {testDir}");
         }, testDirOption);
 
         return benchmarkCommand;

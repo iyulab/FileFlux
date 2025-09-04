@@ -10,7 +10,6 @@ namespace FileFlux.Infrastructure.Strategies;
 public partial class SemanticChunkingStrategy : IChunkingStrategy
 {
     private static readonly Regex SentenceEndRegex = MyRegex();
-    private static readonly Regex ParagraphRegex = new(@"\n\s*\n", RegexOptions.Compiled);
     private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
 
     public string StrategyName => ChunkingStrategies.Semantic;

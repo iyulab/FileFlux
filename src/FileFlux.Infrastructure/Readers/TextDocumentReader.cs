@@ -11,7 +11,7 @@ namespace FileFlux.Infrastructure.Readers;
 /// LLM 기능 없이 파일 내용을 그대로 추출
 /// 진행률 추적 기능 지원
 /// </summary>
-public class TextDocumentReader : IDocumentReader, IProgressiveDocumentReader
+public class TextDocumentReader : IDocumentReader
 {
     public IEnumerable<string> SupportedExtensions => new[] { ".txt", ".md", ".tmp" };
 

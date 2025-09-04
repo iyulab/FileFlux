@@ -7,10 +7,7 @@
 ### 1. 설치 및 설정
 
 ```bash
-# 프로젝트 클론
-git clone https://github.com/your-org/FileFlux.git
-cd FileFlux
-dotnet build
+dotnet add package FileFlux
 ```
 
 ### 2. 기본 사용법
@@ -28,7 +25,7 @@ var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
 // 문서 처리 - 스트리밍 방식
-await foreach (var chunk in processor.ProcessChunksAsync("document.md", new ChunkingOptions
+await foreach (var chunk in processor.ProcessAsync("document.md", new ChunkingOptions
 {
     Strategy = "Intelligent",    // LLM 기반 지능형
     MaxChunkSize = 512,         // 토큰 제한
@@ -48,7 +45,7 @@ services.AddScoped<ITextCompletionService, YourLlmService>();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
 // 방법 1: 직접 처리 (권장)
-await foreach (var chunk in processor.ProcessChunksAsync("technical-doc.md", new ChunkingOptions 
+await foreach (var chunk in processor.ProcessAsync("technical-doc.md", new ChunkingOptions 
 { 
     Strategy = "Intelligent" 
 }))
@@ -58,35 +55,13 @@ await foreach (var chunk in processor.ProcessChunksAsync("technical-doc.md", new
 
 // 방법 2: 추출 후 처리 (캐싱/재사용 시)
 var extractResult = await processor.ExtractAsync("technical-doc.md");
-await foreach (var chunk in processor.ProcessChunksAsync(extractResult, new ChunkingOptions 
+await foreach (var chunk in processor.ProcessAsync(extractResult, new ChunkingOptions 
 { 
     Strategy = "Intelligent" 
 }))
 {
     Console.WriteLine($"청크 {chunk.ChunkIndex}: {chunk.Content[..50]}...");
 }
-```
-
-### 4. CLI 도구 사용
-
-```bash
-# SampleApp을 사용한 CLI 작업
-cd src/FileFlux.SampleApp
-
-# 문서 처리
-dotnet run -- process "test.md" --strategy Intelligent
-
-# 진행률 추적 처리
-dotnet run -- process-progress "test.md" --strategy Intelligent
-
-# RAG 검색
-dotnet run -- query "기술 문서 관련 질문" --top-k 5
-
-# 저장된 문서 목록
-dotnet run -- list
-
-# 쿼리 히스토리
-dotnet run -- history --limit 10
 ```
 
 ## 🎛️ 청킹 전략
@@ -133,7 +108,7 @@ public class RagService
     
     public async Task IndexDocumentAsync(string filePath)
     {
-        await foreach (var chunk in _processor.ProcessChunksAsync(filePath, new ChunkingOptions
+        await foreach (var chunk in _processor.ProcessAsync(filePath, new ChunkingOptions
         {
             Strategy = "Intelligent",
             MaxChunkSize = 512
@@ -150,16 +125,11 @@ public class RagService
 ## 🎯 RAG 통합
 
 ```csharp
-await foreach (var result in processor.ProcessAsync("document.pdf", options))
+await foreach (var chunk in processor.ProcessAsync("document.pdf", options))
 {
-    if (result.Result != null)
-    {
-        var chunk = result.Result;
-        
-        // 임베딩 생성 + 벡터 저장
-        var embedding = await embeddingService.GenerateAsync(chunk.Content);
-        await vectorStore.StoreAsync(chunk.Id, chunk.Content, embedding);
-    }
+    // 임베딩 생성 + 벡터 저장
+    var embedding = await embeddingService.GenerateAsync(chunk.Content);
+    await vectorStore.StoreAsync(chunk.Id, chunk.Content, embedding);
 }
 ```
 
@@ -185,7 +155,7 @@ await foreach (var result in processor.ProcessAsync("document.pdf", options))
 
 ```csharp
 // 텍스트 추출만
-var rawContent = await processor.ExtractTextAsync("document.pdf");
+var rawContent = await processor.ExtractAsync("document.pdf");
 
 // 구조화 처리
 var parsedContent = await processor.ParseAsync(rawContent);
@@ -199,7 +169,11 @@ var chunks = await processor.ChunkAsync(parsedContent, options);
 ```csharp
 try
 {
-    var chunks = await processor.ProcessToArrayAsync("document.pdf");
+    var chunks = new List<DocumentChunk>();
+    await foreach (var chunk in processor.ProcessAsync("document.pdf"))
+    {
+        chunks.Add(chunk);
+    }
 }
 catch (UnsupportedFileFormatException)
 {

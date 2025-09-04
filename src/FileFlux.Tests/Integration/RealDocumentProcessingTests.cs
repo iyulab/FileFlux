@@ -56,7 +56,7 @@ public class RealDocumentProcessingTests
         var chunks = new List<DocumentChunk>();
 
         // Act
-        await foreach (var chunk in _processor.ProcessChunksAsync(testFilePath, chunkingOptions))
+        await foreach (var chunk in _processor.ProcessAsync(testFilePath, chunkingOptions))
         {
             chunks.Add(chunk);
         }
