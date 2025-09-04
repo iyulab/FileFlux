@@ -68,9 +68,14 @@ public class FileFluxApp
                 OverlapSize = 50
             };
 
-            // 기본 문서 처리
+            // 기본 문서 처리 - 새로운 스트리밍 API 사용
             Console.WriteLine("📋 기본 문서 처리");
-            var chunks = await _documentProcessor.ProcessToArrayAsync(filePath, chunkingOptions);
+            var chunkList = new List<DocumentChunk>();
+            await foreach (var chunk in _documentProcessor.ProcessChunksAsync(filePath, chunkingOptions))
+            {
+                chunkList.Add(chunk);
+            }
+            var chunks = chunkList.ToArray();
             Console.WriteLine($"✅ 청크 생성 완료: {chunks.Length}개 청크");
 
             // 벡터 스토어에 저장
@@ -347,7 +352,7 @@ public class FileFluxApp
     }
 
     /// <summary>
-    /// 진행률 추적과 함께 문서를 처리합니다 (IAsyncEnumerable 활용)
+    /// 스트리밍 방식으로 문서를 처리합니다 (새로운 간소화된 API 사용)
     /// </summary>
     public async Task ProcessDocumentWithProgressAsync(string filePath, string strategy)
     {
@@ -356,7 +361,7 @@ public class FileFluxApp
             // 데이터베이스 초기화
             await _context.Database.EnsureCreatedAsync();
 
-            Console.WriteLine($"🚀 진행률 추적 문서 처리 시작: {filePath}");
+            Console.WriteLine($"🚀 스트리밍 문서 처리 시작: {filePath}");
             Console.WriteLine($"📋 청킹 전략: {strategy}");
             Console.WriteLine();
 
@@ -368,110 +373,60 @@ public class FileFluxApp
 
             var chunkingOptions = new ChunkingOptions
             {
-                Strategy = strategy,
+                Strategy = strategy switch
+                {
+                    "FixedSize" => ChunkingStrategies.FixedSize,
+                    "Semantic" => ChunkingStrategies.Semantic,
+                    "Paragraph" => ChunkingStrategies.Paragraph,
+                    "Intelligent" or _ => ChunkingStrategies.Intelligent
+                },
                 MaxChunkSize = 500,
                 OverlapSize = 50
             };
 
-            var parsingOptions = new DocumentParsingOptions
+            var chunkList = new List<DocumentChunk>();
+            var chunkCount = 0;
+
+            Console.WriteLine("📊 청크 처리 중...");
+
+            var stopwatch = Stopwatch.StartNew();
+            
+            // 새로운 스트리밍 API 사용
+            await foreach (var chunk in _documentProcessor.ProcessChunksAsync(filePath, chunkingOptions))
             {
-                UseAdvancedParsing = false, // Using fast rule-based processing for batch operations
-                StructuringLevel = StructuringLevel.Medium
-            };
-
-            // 진행률 바 초기화
-            var progressBar = new ConsoleProgressBar();
-
-            DocumentChunk[]? finalResult = null;
-            var lastStage = ProcessingStage.Reading;
-
-            Console.WriteLine("📊 실시간 진행률:");
-
-            // IAsyncEnumerable로 진행률 추적
-            await foreach (var result in _progressiveProcessor.ProcessWithProgressAsync(filePath, chunkingOptions, parsingOptions))
-            {
-                // 진행률 바 업데이트
-                progressBar.UpdateProgress(
-                    result.Progress.OverallProgress,
-                    result.Progress.Stage.ToString(),
-                    result.Progress.Message);
-
-                // 단계 변경 시 로그 출력
-                if (result.Progress.Stage != lastStage)
+                chunkList.Add(chunk);
+                chunkCount++;
+                
+                // 진행 상황 표시 (간단한 카운터)
+                if (chunkCount % 10 == 0)
                 {
-                    lastStage = result.Progress.Stage;
-                    Console.WriteLine($"\n🔄 {result.Progress.Stage}: {result.Progress.Message}");
-
-                    // 예상 완료 시간 표시
-                    if (result.Progress.EstimatedCompletion.HasValue)
-                    {
-                        var eta = result.Progress.EstimatedCompletion.Value;
-                        var remaining = eta - DateTime.UtcNow;
-                        if (remaining.TotalSeconds > 0)
-                        {
-                            Console.WriteLine($"   ⏰ 예상 완료: {remaining:mm\\:ss} 남음");
-                        }
-                    }
+                    Console.Write($"\r📦 처리된 청크: {chunkCount}개");
                 }
-
-                // 최종 결과 저장
-                if (result.IsSuccess && result.Result != null)
-                {
-                    finalResult = result.Result;
-                }
-
-                // 오류 발생 시 중단
-                if (result.IsError)
-                {
-                    Console.WriteLine($"\n❌ 오류 발생: {result.Progress.ErrorMessage}");
-                    return;
-                }
-
-                // 완료 시 세부 정보 출력
-                if (result.Progress.Stage == ProcessingStage.Completed)
-                {
-                    progressBar.Complete();
-                    Console.WriteLine($"\n✅ 처리 완료!");
-                    Console.WriteLine($"   📄 처리 시간: {result.Progress.ElapsedTime:mm\\:ss\\.fff}");
-                    Console.WriteLine($"   📦 생성된 청크: {finalResult?.Length ?? 0}개");
-
-                    if (result.Progress.TotalBytes > 0)
-                    {
-                        var bytesPerSecond = result.Progress.TotalBytes / result.Progress.ElapsedTime.TotalSeconds;
-                        Console.WriteLine($"   ⚡ 처리 속도: {bytesPerSecond:N0} bytes/sec");
-                    }
-                    break;
-                }
-
-                // 잠시 대기 (진행률을 보여주기 위해)
-                await Task.Delay(100);
             }
+            
+            stopwatch.Stop();
+            Console.WriteLine($"\r✅ 처리 완료! 총 {chunkCount}개 청크 생성");
+            Console.WriteLine($"⏱️ 처리 시간: {stopwatch.Elapsed:mm\\:ss\\.fff}");
+            
+            // 결과를 배열로 변환
+            var chunks = chunkList.ToArray();
 
-            if (finalResult == null)
-            {
-                Console.WriteLine("\n❌ 문서 처리에 실패했습니다.");
-                return;
-            }
-
-            // 결과 처리 완료
-            Console.WriteLine("\n✅ 문서 처리가 완료되었습니다!");
-
-            // 간단한 문서 ID 생성
-            var documentId = Guid.NewGuid().ToString();
+            // 벡터 스토어에 저장
+            var document = await _vectorStore.StoreDocumentAsync(filePath, chunks, strategy);
 
             // 결과 요약 출력
             Console.WriteLine("\n📊 처리 결과 요약:");
             Console.WriteLine($"   📁 파일: {Path.GetFileName(filePath)}");
             Console.WriteLine($"   📏 파일 크기: {new FileInfo(filePath).Length:N0} bytes");
-            Console.WriteLine($"   🔢 총 청크: {finalResult.Length}개");
-            Console.WriteLine($"   📝 총 문자: {finalResult.Sum(c => c.Content.Length):N0}자");
-            Console.WriteLine($"   📊 평균 청크 크기: {finalResult.Average(c => c.Content.Length):N0}자");
-            Console.WriteLine($"   🆔 문서 ID: {documentId}");
+            Console.WriteLine($"   🔢 총 청크: {chunks.Length}개");
+            Console.WriteLine($"   📝 총 문자: {chunks.Sum(c => c.Content.Length):N0}자");
+            Console.WriteLine($"   📊 평균 청크 크기: {chunks.Average(c => c.Content.Length):N0}자");
+            Console.WriteLine($"   🆔 문서 ID: {document.Id}");
 
             // 첫 번째 청크 미리보기
-            if (finalResult.Length > 0)
+            if (chunks.Length > 0)
             {
-                var firstChunk = finalResult[0];
+                var firstChunk = chunks[0];
                 var preview = firstChunk.Content.Length > 200
                     ? string.Concat(firstChunk.Content.AsSpan(0, 200), "...")
                     : firstChunk.Content;

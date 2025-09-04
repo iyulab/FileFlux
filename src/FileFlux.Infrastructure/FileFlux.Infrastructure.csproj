@@ -4,7 +4,8 @@
   <!-- Project-specific properties are defined in Directory.Build.props based on MSBuildProjectName -->
 
   <ItemGroup>
-    <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" />
+    <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" PrivateAssets="All" />
+    <ProjectReference Include="..\FileFlux.Domain\FileFlux.Domain.csproj" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>

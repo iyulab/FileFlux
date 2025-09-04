@@ -15,7 +15,7 @@ namespace FileFlux.Tests.Integration;
 public class RealDocumentProcessingTests
 {
     private readonly ITestOutputHelper _output;
-    private readonly ProgressiveDocumentProcessor _processor;
+    private readonly IDocumentProcessor _processor;
 
     public RealDocumentProcessingTests(ITestOutputHelper output)
     {
@@ -29,9 +29,7 @@ public class RealDocumentProcessingTests
         var chunkingFactory = new ChunkingStrategyFactory();
         chunkingFactory.RegisterStrategy(() => new Infrastructure.Strategies.IntelligentChunkingStrategy());
 
-        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        var logger = loggerFactory.CreateLogger<ProgressiveDocumentProcessor>();
-        _processor = new ProgressiveDocumentProcessor(readerFactory, parserFactory, chunkingFactory, logger);
+        _processor = new DocumentProcessor(readerFactory, parserFactory, chunkingFactory);
     }
 
     [Fact]
@@ -55,23 +53,18 @@ public class RealDocumentProcessingTests
             OverlapSize = 128
         };
 
-        DocumentChunk[]? chunks = null;
+        var chunks = new List<DocumentChunk>();
 
         // Act
-        await foreach (var result in _processor.ProcessWithProgressAsync(
-            testFilePath, chunkingOptions, new DocumentParsingOptions(), CancellationToken.None))
+        await foreach (var chunk in _processor.ProcessChunksAsync(testFilePath, chunkingOptions))
         {
-            if (result.IsSuccess && result.Result != null)
-            {
-                chunks = result.Result;
-            }
+            chunks.Add(chunk);
         }
 
         // Assert
-        Assert.NotNull(chunks);
         Assert.NotEmpty(chunks);
 
-        _output.WriteLine($"총 {chunks.Length}개의 청크가 생성되었습니다");
+        _output.WriteLine($"총 {chunks.Count}개의 청크가 생성되었습니다");
 
         // LLM 최적화 메타데이터 검증
         var chunksWithOptimization = chunks.Where(c => !string.IsNullOrEmpty(c.ContextualHeader)).ToArray();
@@ -90,7 +83,7 @@ public class RealDocumentProcessingTests
         _output.WriteLine($"기술 키워드가 검출된 청크: {chunksWithKeywords.Length}개");
 
         // 샘플 청크 정보 출력
-        for (int i = 0; i < Math.Min(5, chunks.Length); i++)
+        for (int i = 0; i < Math.Min(5, chunks.Count); i++)
         {
             var chunk = chunks[i];
             _output.WriteLine($"\n=== 청크 {i + 1} ===");

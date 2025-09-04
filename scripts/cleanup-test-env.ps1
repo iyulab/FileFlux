@@ -1,7 +1,7 @@
 # FileFlux Test Environment Cleanup Script
 # Keeps only the PDF file and removes all processing results
 
-$testDir = "D:\data\FileFlux\test\test-a"
+$testDir = "D:\data\FileFlux\test\test-pdf"
 
 Write-Host "🧹 FileFlux Test Environment Cleanup" -ForegroundColor Cyan
 Write-Host "Target Directory: $testDir" -ForegroundColor Yellow
@@ -21,7 +21,8 @@ if ($pdfFiles.Count -eq 0) {
         Write-Host "❌ Cleanup cancelled" -ForegroundColor Red
         exit 0
     }
-} else {
+}
+else {
     Write-Host "📄 PDF files to preserve:" -ForegroundColor Green
     $pdfFiles | ForEach-Object { Write-Host "  • $_" -ForegroundColor White }
 }

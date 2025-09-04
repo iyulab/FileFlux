@@ -42,15 +42,32 @@ services.AddScoped<ITextCompletionService, YourLLMService>();
 var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
-// 문서를 청크로 변환
-var chunks = await processor.ProcessAsync("document.pdf", new ChunkingOptions
+// 방법 1: 파일에서 직접 처리 (권장)
+await foreach (var chunk in processor.ProcessChunksAsync("document.pdf"))
 {
-    Strategy = "Intelligent",    // 지능형 청킹 (권장)
-    MaxChunkSize = 1024,
-    OverlapSize = 128
-});
+    // 청크 내용과 메타데이터 활용
+    var content = chunk.Content;              // 실제 텍스트 내용
+    var fileName = chunk.Metadata.FileName;   // 원본 파일명
+    var pageNum = chunk.Metadata.PageNumber;  // 페이지 번호
+    
+    Console.WriteLine($"청크 {chunk.ChunkIndex}: {content.Length}자 (페이지 {pageNum})");
+    
+    // RAG 파이프라인: 임베딩 생성 → 벡터 저장소 저장
+    var embedding = await embeddingService.GenerateAsync(content);
+    await vectorStore.StoreAsync(new {
+        Id = chunk.Id,
+        Content = content,
+        Metadata = chunk.Metadata,
+        Vector = embedding
+    });
+}
 
-Console.WriteLine($"생성된 청크: {chunks.Length}개");
+// 방법 2: 추출 후 재사용 (캐싱 활용)
+var extractResult = await processor.ExtractAsync("document.pdf");
+await foreach (var chunk in processor.ProcessChunksAsync(extractResult))
+{
+    Console.WriteLine($"청크: {chunk.Content[..50]}...");
+}
 ```
 
 ### 지원 문서 형식

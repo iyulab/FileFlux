@@ -11,7 +11,7 @@ param(
 )
 
 $projectRoot = "D:\data\FileFlux"
-$testDir = "$projectRoot\test\test-b"
+$testDir = "$projectRoot\test\test-markdown"
 $testProject = "$projectRoot\src\FileFlux.Tests\FileFlux.Tests.csproj"
 
 Write-Host "📝 FileFlux Markdown Test Environment Manager" -ForegroundColor Cyan
@@ -38,7 +38,8 @@ function Clean-TestEnvironment {
             Write-Host "❌ Cleanup cancelled" -ForegroundColor Red
             return $false
         }
-    } else {
+    }
+    else {
         Write-Host "📄 Markdown files to preserve:" -ForegroundColor Green
         $preserveFiles | ForEach-Object { Write-Host "  • $_" -ForegroundColor White }
     }
@@ -94,7 +95,8 @@ function Run-MarkdownTests {
             return $false
         }
         Write-Host "✅ Build successful" -ForegroundColor Green
-    } finally {
+    }
+    finally {
         Pop-Location
     }
     
@@ -107,7 +109,8 @@ function Run-MarkdownTests {
         if ($availableFiles.Count -gt 0) {
             $availableFiles | ForEach-Object { Write-Host "  • $($_.Name)" -ForegroundColor White }
             Write-Host "💡 Use -TestFile parameter to specify a different file" -ForegroundColor Yellow
-        } else {
+        }
+        else {
             Write-Host "  No .md files found in test directory" -ForegroundColor Gray
         }
         return $false
@@ -138,14 +141,16 @@ function Run-MarkdownTests {
             --logger "console;verbosity=detailed"
         
         $testExitCode = $LASTEXITCODE
-    } finally {
+    }
+    finally {
         Pop-Location
     }
     
     # 결과 분석
     if ($testExitCode -eq 0) {
         Write-Host "✅ Markdown Processing Tests: PASSED" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "❌ Markdown Processing Tests: FAILED" -ForegroundColor Red
         return $false
     }
@@ -158,7 +163,7 @@ function Run-MarkdownTests {
         
         # 최신 결과 표시
         $latestResults = Get-ChildItem -Path $resultsDir -Directory -ErrorAction SilentlyContinue | 
-                        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($latestResults) {
             Write-Host "`n📄 Latest Test Run:" -ForegroundColor Yellow
             Write-Host "  $($latestResults.FullName)" -ForegroundColor White
@@ -188,7 +193,8 @@ function Run-MarkdownTests {
                             Write-Host "    $($_.Name): $($_.Value) chunks" -ForegroundColor Gray
                         }
                     }
-                } catch {
+                }
+                catch {
                     Write-Host "  (Statistics file could not be parsed)" -ForegroundColor Gray
                 }
             }
@@ -203,11 +209,14 @@ Write-Host "`n🎯 Execution Plan:" -ForegroundColor Cyan
 
 if ($CleanOnly) {
     Write-Host "  • Clean environment only" -ForegroundColor White
-} elseif ($TestOnly) {
+}
+elseif ($TestOnly) {
     Write-Host "  • Run tests only" -ForegroundColor White
-} elseif ($CleanFirst) {
+}
+elseif ($CleanFirst) {
     Write-Host "  • Clean environment first, then run tests" -ForegroundColor White
-} else {
+}
+else {
     Write-Host "  • Run tests with current environment" -ForegroundColor White
 }
 
@@ -244,7 +253,8 @@ if ($success) {
     Write-Host "  -TestOnly      : Only run tests" -ForegroundColor White
     Write-Host "  -TestFile name : Specify different .md file" -ForegroundColor White
     Write-Host "  -Verbose       : Detailed test output" -ForegroundColor White
-} else {
+}
+else {
     Write-Host "💥 Some operations failed - check output above" -ForegroundColor Red
     exit 1
 }

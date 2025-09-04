@@ -31,7 +31,7 @@ public class DocumentProcessorTest
         var parserFactory = new DocumentParserFactory(mockTextCompletion);
         var chunkingFactory = CreateChunkingFactory();
 
-        var processor = new DocumentProcessor(
+        IDocumentProcessor processor = new DocumentProcessor(
             readerFactory,
             parserFactory,
             chunkingFactory);
@@ -61,39 +61,17 @@ public class DocumentProcessorTest
         _logger.LogInformation("📄 File: {TestFile}", testFile);
         _logger.LogInformation("📋 Strategy: {Strategy}", options.Strategy);
 
-        // Act: 전체 파이프라인 실행 (수동으로 결과 추적)
+        // Act: 전체 파이프라인 실행 (새로운 ProcessChunksAsync API 사용)
         var chunks = new List<DocumentChunk>();
-        var totalResults = 0;
-        var successResults = 0;
-        var errorResults = 0;
         
-        await foreach (var result in processor.ProcessAsync(testFile, options, parsingOptions))
+        await foreach (var chunk in processor.ProcessChunksAsync(testFile, options))
         {
-            totalResults++;
-            var logMessage = $"📊 Result #{totalResults}: Stage={result.Progress.Stage}, IsSuccess={result.IsSuccess}, HasResult={result.Result != null}";
-            _logger.LogInformation(logMessage);
-            Console.WriteLine(logMessage);
-
-            if (result.IsSuccess && result.Result != null)
-            {
-                successResults++;
-                chunks.Add(result.Result);
-                _logger.LogInformation("✅ Added chunk #{Index}: {Length} chars", 
-                    result.Result.ChunkIndex, result.Result.Content.Length);
-            }
-            else if (result.IsError)
-            {
-                errorResults++;
-                _logger.LogError("❌ Error result: {Error}", result.ErrorMessage);
-            }
-            else
-            {
-                _logger.LogInformation("⏳ Progress: {Stage} - {Message}", 
-                    result.Progress.Stage, result.Progress.Message);
-            }
+            chunks.Add(chunk);
+            _logger.LogInformation("✅ Added chunk #{Index}: {Length} chars", 
+                chunk.ChunkIndex, chunk.Content.Length);
         }
         
-        var summaryMessage = $"🎉 Pipeline completed: Total={totalResults}, Success={successResults}, Error={errorResults}, Chunks={chunks.Count}";
+        var summaryMessage = $"🎉 Pipeline completed: {chunks.Count} chunks generated";
         _logger.LogInformation(summaryMessage);
         Console.WriteLine(summaryMessage);
 

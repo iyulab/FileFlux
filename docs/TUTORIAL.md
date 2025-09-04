@@ -27,16 +27,13 @@ var provider = services.BuildServiceProvider();
 
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
-// 문서 처리
-var chunks = await processor.ProcessAsync("document.md", new ChunkingOptions
+// 문서 처리 - 스트리밍 방식
+await foreach (var chunk in processor.ProcessChunksAsync("document.md", new ChunkingOptions
 {
     Strategy = "Intelligent",    // LLM 기반 지능형
     MaxChunkSize = 512,         // 토큰 제한
     OverlapSize = 64,          // 청크 간 겹침
-    PreserveStructure = true   // 구조 보존
-});
-
-foreach (var chunk in chunks)
+}))
 {
     Console.WriteLine($"청크 {chunk.ChunkIndex}: {chunk.Content.Length}자");
 }
@@ -45,28 +42,28 @@ foreach (var chunk in chunks)
 ### 3. LLM 통합 지능형 처리
 
 ```csharp
-// OpenAI 설정 (환경변수 필요)
-Environment.SetEnvironmentVariable("OPENAI_API_KEY", "your-api-key");
+// LLM 서비스 주입 (고품질 처리를 위해 필수)
+services.AddScoped<ITextCompletionService, YourLlmService>();
 
-services.AddScoped<ITextCompletionService, OpenAiTextCompletionService>();
+var processor = provider.GetRequiredService<IDocumentProcessor>();
 
-// 진행률 추적 처리
-var progressiveProcessor = provider.GetRequiredService<ProgressiveDocumentProcessor>();
-
-await foreach (var result in progressiveProcessor.ProcessWithProgressAsync(
-    "technical-doc.md",
-    new ChunkingOptions { Strategy = "Intelligent" },
-    new DocumentParsingOptions { UseLlm = true },
-    CancellationToken.None))
+// 방법 1: 직접 처리 (권장)
+await foreach (var chunk in processor.ProcessChunksAsync("technical-doc.md", new ChunkingOptions 
+{ 
+    Strategy = "Intelligent" 
+}))
 {
-    if (result.IsSuccess)
-    {
-        Console.WriteLine($"✅ 처리 완료: {result.Result?.Length}개 청크");
-    }
-    else
-    {
-        Console.WriteLine($"❌ 처리 오류: {result.Error}");
-    }
+    Console.WriteLine($"청크 {chunk.ChunkIndex}: {chunk.Content[..50]}...");
+}
+
+// 방법 2: 추출 후 처리 (캐싱/재사용 시)
+var extractResult = await processor.ExtractAsync("technical-doc.md");
+await foreach (var chunk in processor.ProcessChunksAsync(extractResult, new ChunkingOptions 
+{ 
+    Strategy = "Intelligent" 
+}))
+{
+    Console.WriteLine($"청크 {chunk.ChunkIndex}: {chunk.Content[..50]}...");
 }
 ```
 
@@ -136,14 +133,11 @@ public class RagService
     
     public async Task IndexDocumentAsync(string filePath)
     {
-        var chunks = await _processor.ProcessAsync(filePath, new ChunkingOptions
+        await foreach (var chunk in _processor.ProcessChunksAsync(filePath, new ChunkingOptions
         {
             Strategy = "Intelligent",
-            MaxChunkSize = 512,
-            PreserveStructure = true
-        });
-        
-        foreach (var chunk in chunks)
+            MaxChunkSize = 512
+        }))
         {
             // 임베딩 생성 후 벡터 DB 저장
             var embedding = await GenerateEmbedding(chunk.Content);

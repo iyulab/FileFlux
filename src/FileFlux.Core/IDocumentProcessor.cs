@@ -50,6 +50,59 @@ public interface IDocumentProcessor
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 문서 추출 (ExtractTextAsync의 간편한 별칭)
+    /// </summary>
+    /// <param name="filePath">문서 파일 경로</param>
+    /// <param name="cancellationToken">취소 토큰</param>
+    /// <returns>추출된 원시 텍스트</returns>
+    async Task<RawDocumentContent> ExtractAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+        => await ExtractTextAsync(filePath, cancellationToken);
+
+    /// <summary>
+    /// 간소화된 문서 처리 - 청크를 직접 스트리밍 반환
+    /// </summary>
+    /// <param name="filePath">문서 파일 경로</param>
+    /// <param name="options">청킹 옵션</param>
+    /// <param name="cancellationToken">취소 토큰</param>
+    /// <returns>문서 청크 스트림</returns>
+    async IAsyncEnumerable<DocumentChunk> ProcessChunksAsync(
+        string filePath,
+        ChunkingOptions? options = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var result in ProcessAsync(filePath, options, null, cancellationToken))
+        {
+            if (result.Result != null)
+            {
+                yield return result.Result;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 간소화된 문서 처리 - 추출 결과부터 청크를 직접 스트리밍 반환
+    /// </summary>
+    /// <param name="extractResult">ExtractAsync 결과</param>
+    /// <param name="options">청킹 옵션</param>
+    /// <param name="cancellationToken">취소 토큰</param>
+    /// <returns>문서 청크 스트림</returns>
+    async IAsyncEnumerable<DocumentChunk> ProcessChunksAsync(
+        RawDocumentContent extractResult,
+        ChunkingOptions? options = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var parsedContent = await ParseAsync(extractResult, null, cancellationToken);
+        var chunks = await ChunkAsync(parsedContent, options, cancellationToken);
+        
+        foreach (var chunk in chunks)
+        {
+            yield return chunk;
+        }
+    }
+
+    /// <summary>
     /// 구조화 단계만 실행 (Parser만 사용)
     /// </summary>
     /// <param name="rawContent">Reader가 추출한 원시 텍스트</param>
