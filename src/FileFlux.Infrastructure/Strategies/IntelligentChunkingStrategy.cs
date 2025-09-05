@@ -1,4 +1,4 @@
-using FileFlux.Core;
+using FileFlux;
 using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
@@ -602,8 +602,8 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     /// </summary>
     private static bool ContainsWholeWord(string text, string word)
     {
-        var regex = new System.Text.RegularExpressions.Regex($@"\b{System.Text.RegularExpressions.Regex.Escape(word)}\b",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var regex = new Regex($@"\b{Regex.Escape(word)}\b",
+            RegexOptions.IgnoreCase);
         return regex.IsMatch(text);
     }
 
@@ -1244,7 +1244,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             @"\b\w*(?:Service|Manager|Controller|Repository|Factory|Builder|Strategy)\b" // 일반적인 패턴
         };
 
-        return technicalPatterns.Sum(pattern => System.Text.RegularExpressions.Regex.Matches(content, pattern).Count);
+        return technicalPatterns.Sum(pattern => Regex.Matches(content, pattern).Count);
     }
 
     private static double CalculateStructuralCompleteness(string content)
@@ -1259,7 +1259,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         }
 
         // 리스트 완성도
-        if (content.Contains('•') || content.Contains('-') || System.Text.RegularExpressions.Regex.IsMatch(content, @"^\d+\."))
+        if (content.Contains('•') || content.Contains('-') || Regex.IsMatch(content, @"^\d+\."))
         {
             var listComplete = content.Contains("LIST_START") && content.Contains("LIST_END") ? 1.0 : 0.8;
             scores.Add(listComplete);
@@ -1287,11 +1287,11 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
     private static double CalculateHeaderConsistency(string content)
     {
-        var headerMatches = System.Text.RegularExpressions.Regex.Matches(content, @"^#{1,6}\s+", System.Text.RegularExpressions.RegexOptions.Multiline);
+        var headerMatches = Regex.Matches(content, @"^#{1,6}\s+", RegexOptions.Multiline);
         if (headerMatches.Count <= 1) return 1.0;
 
         // 헤더 레벨의 일관성 확인 (큰 폭의 레벨 점프가 없는지)
-        var levels = headerMatches.Cast<System.Text.RegularExpressions.Match>()
+        var levels = headerMatches.Cast<Match>()
             .Select(m => m.Value.Count(c => c == '#'))
             .ToList();
 
@@ -1305,15 +1305,15 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     {
         var lines = content.Split('\n');
         var listLines = lines.Where(line => 
-            System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^[-•*]\s+") ||
-            System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^\d+\.\s+")
+            Regex.IsMatch(line.Trim(), @"^[-•*]\s+") ||
+            Regex.IsMatch(line.Trim(), @"^\d+\.\s+")
         ).ToList();
 
         if (listLines.Count <= 1) return 1.0;
 
         // 리스트 마커의 일관성 확인
-        var hasUnorderedMarkers = listLines.Any(line => System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^[-•*]\s+"));
-        var hasOrderedMarkers = listLines.Any(line => System.Text.RegularExpressions.Regex.IsMatch(line.Trim(), @"^\d+\.\s+"));
+        var hasUnorderedMarkers = listLines.Any(line => Regex.IsMatch(line.Trim(), @"^[-•*]\s+"));
+        var hasOrderedMarkers = listLines.Any(line => Regex.IsMatch(line.Trim(), @"^\d+\.\s+"));
 
         // 혼재하지 않으면 일관성 높음
         return (hasUnorderedMarkers && hasOrderedMarkers) ? 0.7 : 1.0;

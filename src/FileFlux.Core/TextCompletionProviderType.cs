@@ -1,4 +1,4 @@
-namespace FileFlux.Core;
+namespace FileFlux;
 
 /// <summary>
 /// 텍스트 완성 서비스 제공업체 타입

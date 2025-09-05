@@ -1,6 +1,6 @@
 using FileFlux.Domain;
 
-namespace FileFlux.Core;
+namespace FileFlux;
 
 /// <summary>
 /// LLM을 활용한 문서 구조화 Parser 인터페이스

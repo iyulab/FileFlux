@@ -13,6 +13,7 @@ FileFlux는 문서를 RAG(Retrieval-Augmented Generation) 시스템에 최적화
 
 ### ✨ 핵심 기능
 - **📦 단일 NuGet 패키지**: `dotnet add package FileFlux`로 간편 설치
+- **🎯 단순한 네임스페이스**: `using FileFlux;` 한 줄로 모든 핵심 기능 접근
 - **🤖 LLM 통합**: ITextCompletionService로 지능형 문서 분석
 - **📄 광범위한 포맷 지원**: PDF, DOCX, PPTX, XLSX, MD, TXT, JSON, CSV
 - **🎛️ 4가지 청킹 전략**: Intelligent, Semantic, Paragraph, FixedSize  
@@ -30,7 +31,8 @@ dotnet add package FileFlux
 
 ### 기본 사용법
 ```csharp
-using FileFlux.Infrastructure;
+using FileFlux; // 🎯 단일 네임스페이스로 모든 핵심 인터페이스 접근
+using FileFlux.Infrastructure; // AddFileFlux 확장 메서드용
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();

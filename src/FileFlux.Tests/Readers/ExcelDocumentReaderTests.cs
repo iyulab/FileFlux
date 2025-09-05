@@ -1,5 +1,5 @@
 using FileFlux.Infrastructure.Readers;
-using FileFlux.Core;
+using FileFlux;
 using FileFlux.Domain;
 using Microsoft.Extensions.Logging;
 using Xunit;

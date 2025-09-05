@@ -1,4 +1,4 @@
-using FileFlux.Core;
+using FileFlux;
 using FileFlux.Infrastructure;
 using FileFlux.SampleApp.Data;
 using FileFlux.SampleApp.Services;

@@ -1,6 +1,6 @@
 using FileFlux.Domain;
 
-namespace FileFlux.Core;
+namespace FileFlux;
 
 /// <summary>
 /// 텍스트 완성 서비스 추상화 인터페이스
@@ -102,7 +102,7 @@ public class StructureAnalysisResult
     /// <summary>
     /// 문서 구조 트리
     /// </summary>
-    public DocumentStructure Structure { get; set; } = new();
+    public CoreDocumentStructure Structure { get; set; } = new();
 
     /// <summary>
     /// 분석 신뢰도 (0.0 - 1.0)
@@ -162,9 +162,9 @@ public class SectionInfo
 }
 
 /// <summary>
-/// 문서 구조 트리
+/// 문서 구조 트리 (LLM 분석용)
 /// </summary>
-public class DocumentStructure
+public class CoreDocumentStructure
 {
     /// <summary>
     /// 루트 섹션

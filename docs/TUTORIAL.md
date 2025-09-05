@@ -13,8 +13,8 @@ dotnet add package FileFlux
 ### 2. 기본 사용법
 
 ```csharp
-using FileFlux.Core;
-using FileFlux.Infrastructure;
+using FileFlux; // 🎯 단일 네임스페이스로 모든 핵심 인터페이스 접근
+using FileFlux.Infrastructure; // AddFileFlux 확장 메서드용
 using Microsoft.Extensions.DependencyInjection;
 
 // DI 설정

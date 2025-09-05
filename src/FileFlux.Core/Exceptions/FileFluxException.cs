@@ -1,4 +1,4 @@
-namespace FileFlux.Core.Exceptions;
+namespace FileFlux.Exceptions;
 
 /// <summary>
 /// FileFlux 기본 예외 클래스

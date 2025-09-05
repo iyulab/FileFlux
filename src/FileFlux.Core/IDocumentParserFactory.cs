@@ -1,6 +1,6 @@
 using FileFlux.Domain;
 
-namespace FileFlux.Core;
+namespace FileFlux;
 
 /// <summary>
 /// 문서 유형에 적합한 Document Parser를 생성하는 팩토리 인터페이스

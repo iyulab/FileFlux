@@ -1,4 +1,4 @@
-namespace FileFlux.Core;
+namespace FileFlux;
 
 /// <summary>
 /// 청킹 전략 팩토리 인터페이스

@@ -153,7 +153,7 @@ SECTION_TYPE: METHOD
 TITLE: ProcessAsync Method
 DESCRIPTION: Asynchronously processes documents and returns chunked results
 SOURCE: DocumentProcessor.cs:45-60
-CONTEXT: FileFlux.Core > IDocumentProcessor > ProcessAsync
+CONTEXT: FileFlux > IDocumentProcessor > ProcessAsync
 CONTENT: public async Task<IEnumerable<DocumentChunk>> ProcessAsync(
            string filePath, ChunkingOptions options = null) 
          Processes the specified file and returns document chunks optimized for RAG

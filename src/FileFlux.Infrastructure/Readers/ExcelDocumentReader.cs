@@ -1,7 +1,7 @@
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
-using FileFlux.Core;
-using FileFlux.Core.Exceptions;
+using FileFlux;
+using FileFlux.Exceptions;
 using FileFlux.Domain;
 using System.Text;
 

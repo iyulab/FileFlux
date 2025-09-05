@@ -1,6 +1,6 @@
 using FileFlux.Domain;
 
-namespace FileFlux.Core;
+namespace FileFlux;
 
 /// <summary>
 /// 문서 Reader 인터페이스 - 순수 텍스트 추출에 집중

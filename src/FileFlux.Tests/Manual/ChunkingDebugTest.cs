@@ -1,4 +1,4 @@
-using FileFlux.Core;
+using FileFlux;
 using FileFlux.Infrastructure.Strategies;
 using FileFlux.Domain;
 using Microsoft.Extensions.Logging;

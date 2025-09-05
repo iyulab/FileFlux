@@ -1,7 +1,7 @@
 using FileFlux.Domain;
 using System.Runtime.CompilerServices;
 
-namespace FileFlux.Core;
+namespace FileFlux;
 
 /// <summary>
 /// 문서 처리기 인터페이스 - 간결한 핵심 API만 제공

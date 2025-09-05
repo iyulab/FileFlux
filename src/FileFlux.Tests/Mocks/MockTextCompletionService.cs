@@ -1,4 +1,4 @@
-using FileFlux.Core;
+using FileFlux;
 using FileFlux.Domain;
 
 namespace FileFlux.Tests.Mocks;
@@ -37,7 +37,7 @@ public class MockTextCompletionService : ITextCompletionService
                     Importance = 0.8
                 }
             },
-            Structure = new FileFlux.Core.DocumentStructure
+            Structure = new FileFlux.CoreDocumentStructure
             {
                 Root = new SectionInfo { Type = SectionType.HEADING_L1, Title = "Root" },
                 AllSections = new List<SectionInfo>()

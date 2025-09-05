@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using FileFlux.Core;
+using FileFlux;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;

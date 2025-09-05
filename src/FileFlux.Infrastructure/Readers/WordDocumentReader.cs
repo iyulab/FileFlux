@@ -1,8 +1,8 @@
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using DocumentFormat.OpenXml;
-using FileFlux.Core;
-using FileFlux.Core.Exceptions;
+using FileFlux;
+using FileFlux.Exceptions;
 using FileFlux.Domain;
 using System.Text;
 

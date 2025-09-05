@@ -1,4 +1,4 @@
-using FileFlux.Core;
+using FileFlux;
 
 namespace FileFlux.Infrastructure.Factories;
 

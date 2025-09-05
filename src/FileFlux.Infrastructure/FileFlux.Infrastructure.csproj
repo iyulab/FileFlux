@@ -4,8 +4,28 @@
   <!-- Project-specific properties are defined in Directory.Build.props based on MSBuildProjectName -->
 
   <ItemGroup>
-    <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" PrivateAssets="All" />
-    <ProjectReference Include="..\FileFlux.Domain\FileFlux.Domain.csproj" PrivateAssets="All" />
+    <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj">
+      <PrivateAssets>none</PrivateAssets>
+      <IncludeAssets>all</IncludeAssets>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\FileFlux.Domain\FileFlux.Domain.csproj">
+      <PrivateAssets>none</PrivateAssets>
+      <IncludeAssets>all</IncludeAssets>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  
+  <!-- Include referenced project outputs in the package -->
+  <ItemGroup>
+    <None Include="..\FileFlux.Core\bin\Release\net9.0\FileFlux.Core.dll">
+      <Pack>true</Pack>
+      <PackagePath>lib\net9.0\FileFlux.Core.dll</PackagePath>
+    </None>
+    <None Include="..\FileFlux.Domain\bin\Release\net9.0\FileFlux.Domain.dll">
+      <Pack>true</Pack>
+      <PackagePath>lib\net9.0\FileFlux.Domain.dll</PackagePath>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

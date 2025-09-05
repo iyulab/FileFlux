@@ -1,6 +1,6 @@
-using FileFlux.Core;
+using FileFlux;
 using FileFlux.Domain;
-using CoreDocumentStructure = FileFlux.Core.DocumentStructure;
+using CoreDocumentStructure = FileFlux.CoreDocumentStructure;
 using OpenAI;
 using OpenAI.Chat;
 using System.Text.Json;

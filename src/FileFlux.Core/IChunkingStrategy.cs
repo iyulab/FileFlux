@@ -1,6 +1,6 @@
 using FileFlux.Domain;
 
-namespace FileFlux.Core;
+namespace FileFlux;
 
 /// <summary>
 /// 청킹 전략 인터페이스 - 문서를 청크로 분할하는 다양한 방법 정의
