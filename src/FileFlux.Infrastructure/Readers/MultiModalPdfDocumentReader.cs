@@ -124,7 +124,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             {
                 Text = baseContent.Text,
                 FileInfo = baseContent.FileInfo,
-                StructuralHints = baseContent.StructuralHints,
+                StructuralHints = baseContent.StructuralHints ?? new Dictionary<string, object>(),
                 ExtractionWarnings = warnings
             };
         }

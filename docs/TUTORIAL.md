@@ -2,6 +2,11 @@
 
 **FileFlux**는 문서를 RAG 최적화 청크로 변환하는 .NET 9 SDK입니다.
 
+## 📌 최신 버전: 0.1.4
+- **202개 테스트 통과** (모든 품질 엔진 테스트 포함)
+- **Release 빌드 검증 완료**
+- **NuGet 패키지 준비 완료**
+
 ## 🚀 빠른 시작
 
 ### 1. 설치 및 설정
@@ -185,21 +190,56 @@ new ChunkingOptions { Strategy = "FixedSize", MaxChunkSize = 512 };
 
 ## 📊 지원 형식
 
-| 형식 | 확장자 | 텍스트 추출 | 이미지 처리 | LLM 분석 |
-|------|--------|------------|------------|----------|
-| PDF | `.pdf` | ✅ | ✅ | ✅ |
-| Word | `.docx` | ✅ | 🔄 | ✅ |
-| Excel | `.xlsx` | ✅ | ❌ | ✅ |
-| PowerPoint | `.pptx` | ✅ | 🔄 | ✅ |
-| Markdown | `.md` | ✅ | ❌ | ✅ |
-| Text | `.txt` | ✅ | ❌ | ✅ |
-| JSON | `.json` | ✅ | ❌ | ✅ |
-| CSV | `.csv` | ✅ | ❌ | ✅ |
+| 형식 | 확장자 | 텍스트 추출 | 이미지 처리 | LLM 분석 | 품질 보증 |
+|------|--------|------------|------------|----------|-----------|
+| PDF | `.pdf` | ✅ | ✅ | ✅ | ✅ |
+| Word | `.docx` | ✅ | 🔄 | ✅ | ✅ |
+| Excel | `.xlsx` | ✅ | ❌ | ✅ | ✅ |
+| PowerPoint | `.pptx` | ✅ | 🔄 | ✅ | ✅ |
+| Markdown | `.md` | ✅ | ❌ | ✅ | ✅ |
+| Text | `.txt` | ✅ | ❌ | ✅ | ✅ |
+| JSON | `.json` | ✅ | ❌ | ✅ | ✅ |
+| CSV | `.csv` | ✅ | ❌ | ✅ | ✅ |
+| HTML | `.html` | ✅ | ✅ | ✅ | ✅ |
 
 **범례**:
-- ✅ 완전 지원
+- ✅ 완전 지원 (테스트 검증 완료)
 - 🔄 개발 예정
 - ❌ 지원하지 않음
+
+## 🧪 품질 검증 기능
+
+### 청크 품질 분석
+```csharp
+// ChunkQualityEngine를 사용한 품질 메트릭 계산
+var qualityEngine = provider.GetRequiredService<ChunkQualityEngine>();
+var chunks = await processor.ProcessAsync("document.pdf");
+
+var qualityMetrics = await qualityEngine.CalculateQualityMetricsAsync(chunks);
+Console.WriteLine($"평균 완성도: {qualityMetrics.AverageCompleteness:P}");
+Console.WriteLine($"콘텐츠 일관성: {qualityMetrics.ContentConsistency:P}");
+Console.WriteLine($"경계 품질: {qualityMetrics.BoundaryQuality:P}");
+Console.WriteLine($"크기 분포: {qualityMetrics.SizeDistribution:P}");
+```
+
+### 질문 생성 및 검증
+```csharp
+// RAG 시스템 품질 테스트를 위한 질문 생성
+var parsedContent = await processor.ParseAsync(rawContent);
+var questions = await qualityEngine.GenerateQuestionsAsync(parsedContent, 10);
+
+foreach (var question in questions)
+{
+    Console.WriteLine($"Q: {question.Question}");
+    Console.WriteLine($"   타입: {question.Type}");
+    Console.WriteLine($"   난이도: {question.DifficultyScore:P}");
+}
+
+// 답변 가능성 검증
+var validation = await qualityEngine.ValidateAnswerabilityAsync(questions, chunks);
+Console.WriteLine($"답변 가능한 질문: {validation.AnswerableQuestions}/{validation.TotalQuestions}");
+Console.WriteLine($"평균 신뢰도: {validation.AverageConfidence:P}");
+```
 
 ## 🔧 고급 기능
 
@@ -291,12 +331,12 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf", 
 
 ## ⚙️ 청킹 전략
 
-| 전략 | 특징 |
-|------|------|
-| **Intelligent** (권장) | RAG 최적화된 의미 단위 청킹 |
-| **Semantic** | 문장 경계 기준 청킹 |
-| **Paragraph** | 단락 단위 청킹 |
-| **FixedSize** | 고정 크기 청킹 |
+| 전략 | 특징 | 최적 사용 케이스 | 품질 점수 |
+|------|------|-----------------|----------|
+| **Intelligent** (권장) | RAG 최적화된 의미 단위 청킹 | 기술 문서, API 문서 | ⭐⭐⭐⭐⭐ |
+| **Semantic** | 문장 경계 기준 청킹 | 일반 문서, 논문 | ⭐⭐⭐⭐ |
+| **Paragraph** | 단락 단위 청킹 | Markdown, 블로그 | ⭐⭐⭐⭐ |
+| **FixedSize** | 고정 크기 청킹 | 균일한 처리 필요 | ⭐⭐⭐ |
 
 ## 📄 단계별 처리
 

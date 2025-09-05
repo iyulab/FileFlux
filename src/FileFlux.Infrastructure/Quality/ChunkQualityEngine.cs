@@ -87,29 +87,41 @@ public class ChunkQualityEngine
 
         try
         {
-            // Generate different types of questions for comprehensive evaluation
-            var factualQuestions = await GenerateQuestionsByType(content, QuestionType.Factual, questionCount / 4, cancellationToken);
-            var conceptualQuestions = await GenerateQuestionsByType(content, QuestionType.Conceptual, questionCount / 4, cancellationToken);
-            var analyticalQuestions = await GenerateQuestionsByType(content, QuestionType.Analytical, questionCount / 4, cancellationToken);
-            var proceduralQuestions = await GenerateQuestionsByType(content, QuestionType.Procedural, questionCount / 4, cancellationToken);
+            // Calculate how many questions of each type to generate
+            var typeCounts = new Dictionary<QuestionType, int>();
+            var questionTypes = Enum.GetValues<QuestionType>().ToList();
+            var baseCount = questionCount / questionTypes.Count;
+            var remainder = questionCount % questionTypes.Count;
 
-            questions.AddRange(factualQuestions);
-            questions.AddRange(conceptualQuestions);
-            questions.AddRange(analyticalQuestions);
-            questions.AddRange(proceduralQuestions);
-
-            // Fill remaining slots with mixed question types
-            var remaining = questionCount - questions.Count;
-            if (remaining > 0)
+            // Distribute questions evenly across all types
+            for (int i = 0; i < questionTypes.Count; i++)
             {
-                var mixedQuestions = await GenerateQuestionsByType(content, QuestionType.Factual, remaining, cancellationToken);
-                questions.AddRange(mixedQuestions.Take(remaining));
+                var type = questionTypes[i];
+                typeCounts[type] = baseCount + (i < remainder ? 1 : 0);
+            }
+
+            // Generate questions for each type
+            foreach (var (type, count) in typeCounts)
+            {
+                if (count > 0)
+                {
+                    var typeQuestions = await GenerateQuestionsByType(content, type, count, cancellationToken);
+                    questions.AddRange(typeQuestions);
+                }
+            }
+
+            // If we still don't have enough questions, add more
+            while (questions.Count < questionCount)
+            {
+                var randomType = questionTypes[Random.Shared.Next(questionTypes.Count)];
+                var additionalQuestions = await GenerateQuestionsByType(content, randomType, 1, cancellationToken);
+                questions.AddRange(additionalQuestions);
             }
         }
         catch (Exception ex)
         {
-            // Fallback to basic question generation
-            var basicQuestions = await GenerateBasicQuestions(content, questionCount, cancellationToken);
+            // Fallback to basic question generation with varied types
+            var basicQuestions = await GenerateBasicQuestionsWithTypes(content, questionCount, cancellationToken);
             questions.AddRange(basicQuestions);
         }
 
@@ -452,6 +464,22 @@ public class ChunkQualityEngine
         if (count <= 0) return new List<GeneratedQuestion>();
 
         var questions = new List<GeneratedQuestion>();
+        
+        // If no text completion service is available, use fallback generation
+        if (_textCompletionService == null)
+        {
+            // Generate questions with proper type
+            for (int i = 0; i < count; i++)
+            {
+                var question = GenerateQuestionForType(content, questionType, i);
+                if (question != null)
+                {
+                    questions.Add(question);
+                }
+            }
+            return questions;
+        }
+
         var prompt = CreateQuestionGenerationPrompt(content.StructuredText, questionType, count);
 
         try
@@ -461,11 +489,64 @@ public class ChunkQualityEngine
         }
         catch
         {
-            // Fallback to basic questions if LLM generation fails
-            questions = await GenerateBasicQuestions(content, count, cancellationToken);
+            // Fallback to type-specific generation
+            for (int i = 0; i < count; i++)
+            {
+                var question = GenerateQuestionForType(content, questionType, i);
+                if (question != null)
+                {
+                    questions.Add(question);
+                }
+            }
         }
 
         return questions.Take(count).ToList();
+    }
+
+    private GeneratedQuestion? GenerateQuestionForType(ParsedDocumentContent content, QuestionType questionType, int index)
+    {
+        var contentSnippet = content.StructuredText.Length > 100 
+            ? content.StructuredText.Substring(index * 20 % content.StructuredText.Length, Math.Min(100, content.StructuredText.Length - (index * 20 % content.StructuredText.Length)))
+            : content.StructuredText;
+
+        var keyword = GetKeywordFromContent(contentSnippet);
+        
+        var question = questionType switch
+        {
+            QuestionType.Factual => $"What specific information is provided about {keyword}?",
+            QuestionType.Conceptual => $"How is {keyword} defined or explained in the document?",
+            QuestionType.Analytical => $"What is the significance of {keyword} in this context?",
+            QuestionType.Procedural => $"What process or steps are associated with {keyword}?",
+            QuestionType.Comparative => $"How does {keyword} relate to other concepts in the document?",
+            _ => $"What does the document say about {keyword}?"
+        };
+
+        return new GeneratedQuestion
+        {
+            Question = question,
+            ExpectedAnswer = contentSnippet.Trim(),
+            Type = questionType,
+            ConfidenceScore = 0.7,
+            DifficultyScore = questionType switch
+            {
+                QuestionType.Factual => 0.3,
+                QuestionType.Conceptual => 0.5,
+                QuestionType.Analytical => 0.7,
+                QuestionType.Procedural => 0.6,
+                QuestionType.Comparative => 0.8,
+                _ => 0.5
+            }
+        };
+    }
+
+    private string GetKeywordFromContent(string content)
+    {
+        var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 4 && !IsStopWord(w))
+            .Select(w => w.Trim('.', ',', '!', '?', ';', ':'))
+            .ToList();
+        
+        return words.Any() ? words[Random.Shared.Next(words.Count)] : "this topic";
     }
 
     private string CreateQuestionGenerationPrompt(string content, QuestionType questionType, int count)
@@ -564,6 +645,65 @@ A: [expected answer]
         }
 
         return questions;
+    }
+
+    private async Task<List<GeneratedQuestion>> GenerateBasicQuestionsWithTypes(
+        ParsedDocumentContent content,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        // Fallback: generate simple questions with varied types
+        var questions = new List<GeneratedQuestion>();
+        var sentences = content.StructuredText.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var questionTypes = Enum.GetValues<QuestionType>().ToArray();
+
+        for (int i = 0; i < Math.Min(count, sentences.Length * 2) && questions.Count < count; i++)
+        {
+            var sentenceIndex = i % sentences.Length;
+            var sentence = sentences[sentenceIndex].Trim();
+            if (sentence.Length > 20)
+            {
+                var questionType = questionTypes[i % questionTypes.Length];
+                var question = questionType switch
+                {
+                    QuestionType.Factual => $"What does the document say about {sentence.Substring(0, Math.Min(30, sentence.Length))}...?",
+                    QuestionType.Conceptual => $"How is the concept of {GetKeyword(sentence)} explained?",
+                    QuestionType.Analytical => $"Why is {GetKeyword(sentence)} important in this context?",
+                    QuestionType.Procedural => $"What are the steps related to {GetKeyword(sentence)}?",
+                    QuestionType.Comparative => $"How does {GetKeyword(sentence)} compare to alternatives?",
+                    _ => $"What information is provided about {GetKeyword(sentence)}?"
+                };
+
+                questions.Add(new GeneratedQuestion
+                {
+                    Question = question,
+                    ExpectedAnswer = sentence,
+                    Type = questionType,
+                    ConfidenceScore = 0.6,
+                    DifficultyScore = questionType switch
+                    {
+                        QuestionType.Factual => 0.3,
+                        QuestionType.Conceptual => 0.5,
+                        QuestionType.Analytical => 0.7,
+                        QuestionType.Procedural => 0.6,
+                        QuestionType.Comparative => 0.8,
+                        _ => 0.5
+                    }
+                });
+            }
+        }
+
+        return questions.Take(count).ToList();
+    }
+
+    private string GetKeyword(string sentence)
+    {
+        // Extract a meaningful keyword from the sentence
+        var words = sentence.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 4 && !IsStopWord(w))
+            .ToList();
+        
+        return words.Any() ? words.First() : "this topic";
     }
 
     private async Task<(bool IsAnswerable, bool IsHighQuality, double Confidence)> ValidateQuestionAnswerabilityAsync(

@@ -5,14 +5,6 @@ on:
     branches: [ main, develop ]
     paths:
       - 'src/Directory.Build.props'
-      - 'src/**/*.cs'
-      - 'src/**/*.csproj'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'src/Directory.Build.props'
-      - 'src/**/*.cs'
-      - 'src/**/*.csproj'
   workflow_dispatch:
     inputs:
       force_publish:
@@ -32,8 +24,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract-version.outputs.version }}
-      version_changed: ${{ steps.check-changes.outputs.changed }}
-      should_publish: ${{ steps.determine-publish.outputs.should_publish }}
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
@@ -47,40 +37,10 @@ jobs:
           echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: 🔄 Check Version Changes
-        id: check-changes
+      - name: ℹ️ Version Info
         run: |
-          if git diff HEAD~1 HEAD --name-only | grep -q "src/Directory.Build.props"; then
-            echo "Directory.Build.props has changed"
-            PREV_VERSION=$(git show HEAD~1:src/Directory.Build.props | grep -oP '(?<=<VersionPrefix>)[^<]*' || echo "0.0.0")
-            CURR_VERSION="${{ steps.extract-version.outputs.version }}"
-            echo "Previous version: $PREV_VERSION"
-            echo "Current version: $CURR_VERSION"
-            if [ "$PREV_VERSION" != "$CURR_VERSION" ]; then
-              echo "Version changed from $PREV_VERSION to $CURR_VERSION"
-              echo "changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "Version unchanged"
-              echo "changed=false" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "Directory.Build.props unchanged"
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: 🎯 Determine Publish Strategy
-        id: determine-publish
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_publish }}" == "true" ]]; then
-            echo "Force publish requested"
-            echo "should_publish=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/main" && "${{ steps.check-changes.outputs.changed }}" == "true" ]]; then
-            echo "Main branch with version change - will publish"
-            echo "should_publish=true" >> $GITHUB_OUTPUT
-          else
-            echo "Will not publish"
-            echo "should_publish=false" >> $GITHUB_OUTPUT
-          fi
+          echo "Detected version: ${{ steps.extract-version.outputs.version }}"
+          echo "This workflow will proceed to build and publish the NuGet package."
 
   # 빌드만 수행 (테스트 제외)
   build:
@@ -148,7 +108,6 @@ jobs:
     name: 🚀 Publish to NuGet.org
     runs-on: ubuntu-latest
     needs: [detect-version, build-package]
-    if: needs.detect-version.outputs.should_publish == 'true'
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
@@ -200,7 +159,6 @@ jobs:
     name: 📝 Create GitHub Release
     runs-on: ubuntu-latest
     needs: [detect-version, publish-nuget]
-    if: needs.detect-version.outputs.should_publish == 'true'
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
@@ -257,7 +215,7 @@ jobs:
     name: 📢 Notify Completion
     runs-on: ubuntu-latest
     needs: [detect-version, create-release]
-    if: always() && needs.detect-version.outputs.should_publish == 'true'
+    if: always()
     steps:
       - name: 🎉 Success Notification
         if: needs.create-release.result == 'success'
@@ -265,7 +223,7 @@ jobs:
           echo "🎉 Successfully published FileFlux v${{ needs.detect-version.outputs.version }} to NuGet.org!"
           echo "📦 Package URL: https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }}"
 
-      - name: ❌ Failure Notification
+      - name: ❌ Failure Notification  
         if: needs.create-release.result != 'success'
         run: |
           echo "❌ Failed to publish FileFlux v${{ needs.detect-version.outputs.version }}"
