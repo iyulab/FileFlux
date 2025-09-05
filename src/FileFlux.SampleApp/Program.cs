@@ -25,6 +25,7 @@ class Program
         var historyCommand = CreateHistoryCommand();
         var readersCommand = CreateReadersTestCommand();
         var benchmarkCommand = CreateBenchmarkCommand();
+        var visionTestCommand = CreateVisionTestCommand();
 
         rootCommand.AddCommand(processCommand);
         rootCommand.AddCommand(processProgressCommand);
@@ -33,6 +34,7 @@ class Program
         rootCommand.AddCommand(historyCommand);
         rootCommand.AddCommand(readersCommand);
         rootCommand.AddCommand(benchmarkCommand);
+        rootCommand.AddCommand(visionTestCommand);
 
         return await rootCommand.InvokeAsync(args);
     }
@@ -214,6 +216,29 @@ class Program
         return benchmarkCommand;
     }
 
+    private static Command CreateVisionTestCommand()
+    {
+        var filePathArgument = new Argument<string>(
+            name: "file-path",
+            description: "이미지가 포함된 PDF 파일 경로");
+
+        var visionTestCommand = new Command("test-vision", "OpenAI Vision을 사용한 PDF 이미지 텍스트 추출 테스트")
+        {
+            filePathArgument
+        };
+
+        visionTestCommand.SetHandler(async (filePath) =>
+        {
+            using var host = CreateHost();
+            await host.StartAsync();
+            var app = host.Services.GetRequiredService<FileFluxApp>();
+            await app.TestVisionProcessingAsync(filePath);
+            await host.StopAsync();
+        }, filePathArgument);
+
+        return visionTestCommand;
+    }
+
     private static IHost CreateHost()
     {
         return Host.CreateDefaultBuilder()
@@ -244,6 +269,10 @@ class Program
                 services.AddSingleton(chatClient);
                 // LLM Provider를 직접 등록
                 services.AddScoped<ITextCompletionService, OpenAiTextCompletionService>();
+
+                // Phase 6: OpenAI Vision 서비스 등록 (소비 애플리케이션에서 구현)
+                services.AddScoped<IImageToTextService>(provider => 
+                    new OpenAiImageToTextService(apiKey));
 
                 // Application services
                 services.AddScoped<IVectorStoreService, VectorStoreService>();

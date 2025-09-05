@@ -31,6 +31,9 @@ public static class ServiceCollectionExtensions
 
         // 기본 Reader들 등록
         services.AddTransient<IDocumentReader, TextDocumentReader>();
+        
+        // 이미지 처리 기능이 포함된 PDF Reader 등록
+        services.AddTransient<IDocumentReader, MultiModalPdfDocumentReader>();
 
         // 기본 Parser들 등록
         services.AddTransient<IDocumentParser>(provider =>
@@ -51,6 +54,33 @@ public static class ServiceCollectionExtensions
 
         // 텍스트 완성 서비스 등록
         services.AddSingleton(textCompletionService);
+
+        // FileFlux 서비스들 등록
+        return AddFileFlux(services);
+    }
+
+    /// <summary>
+    /// 텍스트 완성 및 이미지-텍스트 서비스와 함께 FileFlux 서비스 등록
+    /// </summary>
+    /// <param name="services">서비스 컬렉션</param>
+    /// <param name="textCompletionService">텍스트 완성 서비스 인스턴스</param>
+    /// <param name="imageToTextService">이미지-텍스트 변환 서비스 인스턴스 (선택사항)</param>
+    /// <returns>서비스 컬렉션</returns>
+    public static IServiceCollection AddFileFlux(
+        this IServiceCollection services, 
+        ITextCompletionService textCompletionService,
+        IImageToTextService? imageToTextService = null)
+    {
+        ArgumentNullException.ThrowIfNull(textCompletionService);
+
+        // 텍스트 완성 서비스 등록
+        services.AddSingleton(textCompletionService);
+
+        // 이미지-텍스트 서비스 등록 (제공된 경우)
+        if (imageToTextService != null)
+        {
+            services.AddSingleton(imageToTextService);
+        }
 
         // FileFlux 서비스들 등록
         return AddFileFlux(services);

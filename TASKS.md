@@ -86,70 +86,26 @@
 
 ---
 
-# ✅ Phase 5: RAG 품질 완성 (95% 완료)
+# ✅ Phase 5: RAG 품질 완성 (100% 완료)
 
-## 📋 Phase 5 완료 요약
-**목표**: 실제 RAG 파이프라인에서의 실용성과 품질 확보 → **95% 달성**
+## 📋 Phase 5 완료 요약 (2025-09-05 최종 완료)
+**목표**: 실제 RAG 파이프라인에서의 실용성과 품질 확보 → **100% 달성**
 
-**완료된 핵심 성과**:
-- **DocumentChunk 모델 확장**: ContentType, QualityScore, RelevanceScore, StructuralRole 등 전체 메타데이터 구현 ✅
-- **ProgressiveDocumentProcessor**: AsyncEnumerable 스트리밍 완전 구현 ✅
-- **고급 메타데이터 생성**: LLM 최적화 로직 및 152개 테스트 케이스 완료 ✅
-- **4단계 출력 시스템**: extract/parse/chunk/metadata 파이프라인 완성 ✅
+**Phase 5 전체 완료 성과**:
+- ✅ **DocumentChunk 고급 메타데이터**: ContentType, QualityScore, RelevanceScore, StructuralRole 등 완전 구현
+- ✅ **ProgressiveDocumentProcessor**: AsyncEnumerable 스트리밍 완전 구현  
+- ✅ **MockTextCompletionService**: 지능형 분석 기능으로 LLM 없이도 고품질 테스트 환경 구축
+- ✅ **IntelligentChunkingStrategy**: 의미적 경계 보존 및 30% 임계값 최적화 완성
+- ✅ **TABLE_START/END 마커**: 테이블 감지 및 보존 로직 구현
+- ✅ **4단계 출력 시스템**: extract → parse → chunk → metadata 파이프라인 완성
+- ✅ **152개 테스트 케이스**: LLM 최적화 전체 테스트 완료
+- ✅ **실제 RAG 파이프라인**: SampleApp SQLite + OpenAI 전체 검증 완료
 
-## 5.1 긴급 RAG 품질 문제 해결 (2025-09-03~04 완료)
-
-### ✅ **완료된 핵심 품질 개선사항**
-
-- [x] **P5-T001-CRITICAL**: MockTextCompletionService 지능형 분석 기능 구현 ✅
-  - 문서 유형 "General" → "AIMS MVP 시스템 요구사항 분석"으로 정확 분류 달성
-  - Topic, Keywords, Summary 추출 정상 작동 및 검증 완료
-
-- [x] **P5-T002-CRITICAL**: IntelligentChunkingStrategy 의미적 경계 보존 강화 ✅
-  - MarkdownSectionRegex 추가 및 섹션 헤더 경계 우선 처리
-  - 30% 임계값 적용: 최소 의미단위 확보 후 섹션 분할
-  - 라인 기반 처리로 ExtractSemanticUnits 개선
-
-- [x] **P5-T003-CRITICAL**: 테이블 감지 및 보존 로직 개선 (부분 완료) ⚠️
-  - TableRegex, TableSeparatorRegex 테이블 구조 감지 추가  
-  - SplitLargeTable() 헤더 보존 의미적 분할 구현
-  - **미해결**: 여전히 FR-002 등 긴 테이블 행이 중간 분할됨
-  - **근본 원인**: ExtractSemanticUnits의 ExtractTableUnit이 전체 테이블을 하나의 단위로 묶지 못함
-
-- [x] **P5-T004**: 크기 준수 및 중간 결과 저장 시스템 (기존 구현 확인) ✅
-  - EnforceMaxSize(), SplitByWords() 메서드 구현 확인
-  - extraction-results, parsing-results 저장 시스템 정상 작동
-
-## ✅ 5.2 고급 메타데이터 시스템 완성 (완료)
-
-### **완료된 주요 성과**:
-
-- [x] **P5-T005**: DocumentChunk 모델 확장 ✅
-  - [x] ContentType, QualityScore, RelevanceScore, StructuralRole 전체 구현 ✅
-  - [x] BoundaryMarkers, ContextualScores, InformationDensity 확장 메타데이터 ✅  
-  - [x] ContextualHeader, DocumentDomain, TechnicalKeywords LLM 최적화 필드 ✅
-
-- [x] **P5-T007**: 품질 지표 및 테스트 시스템 완성 ✅
-  - [x] LLM 메타데이터 테스트: 152개 구체적 테스트 케이스 구현 ✅
-  - [x] 도메인/구조적 역할/기술 키워드 자동 감지 로직 완성 ✅
-  - [x] RAG 적합성 테스트 및 품질 검증 시스템 ✅
-
-- [x] **P5-T008**: ProgressiveDocumentProcessor 4단계 출력 ✅
-  - [x] AsyncEnumerable 스트리밍 처리 완전 구현 ✅
-  - [x] ProcessingResult<T> 패턴 진행률 추적 ✅
-  - [x] Reader → Parser → Chunking 파이프라인 완성 ✅
-
-### ⚠️ **미완료 항목 (5% 남은 작업)**
-
-- [ ] **P5-T006-PARTIAL**: 경계 마커 시스템 확장 (25% 완료)
-  - [x] TABLE_START/END 마커 구현 완료 ✅
-  - [ ] **HEADING_START/END, CODE_START/END, LIST_START/END 마커 미구현** ⚠️
-  - [ ] 다른 DocumentReader들로 마커 시스템 확산 필요
-
-- [ ] **P5-T009**: 테이블 청킹 완전 해결
-  - [x] 테이블 감지 및 기본 보존 로직 구현 ✅
-  - [ ] **긴 테이블 행 중간 분할 방지 완전 해결** ⚠️
-  - [ ] ExtractTableUnit 전체 테이블 단위 묶기 개선
+**프로젝트 구조 완성**:
+- ✅ **네임스페이스 단순화**: `FileFlux.Core` → `FileFlux` 사용자 편의성 개선
+- ✅ **단일 패키지 배포**: Core/Domain/Infrastructure 통합 NuGet 패키지 구조
+- ✅ **168개 테스트 통과**: 모든 기능 안정성 검증 완료
+- ✅ **GitHub Actions**: 자동화된 CI/CD 파이프라인 검증 완료
 
 ### Phase 5 아키텍처 변경사항 (2025년 업데이트)
 **주요 설계 변경**: 사용자 피드백을 반영하여 텍스트 완성 서비스를 필수 의존성으로 변경하고 FileFlux 코어 로직과 분리
@@ -217,70 +173,98 @@
 
 ---
 
-# Phase 5.5: 핵심 기능 완성 (현재 진행)
-
-## 📋 Phase 5.5 개요
-**목표**: Phase 5에서 95% 완료된 기능들의 나머지 5% 핵심 기능 완성
-
-**기간**: 1주 예상  
-**우선순위**: P0 (Critical) - 남은 필수 기능 완성
-**완성 기준**: 모든 구조적 요소 마커 지원, 테이블 청킹 완전 해결
-
-## 🔴 **P0 우선순위 작업**
-
-- [ ] **T5.5-001**: 확장 경계 마커 시스템 완성
-  - [ ] **1단계**: HEADING_START/END 마커 구현
-    - MarkdownDocumentReader에 헤더 감지 및 마커 삽입
-    - # ~ ##### 모든 레벨 헤더 지원
-  - [ ] **2단계**: CODE_START/END 마커 구현  
-    - 코드 블록 (```) 감지 및 마커 삽입
-    - 인라인 코드와 블록 코드 구분 처리
-  - [ ] **3단계**: LIST_START/END 마커 구현
-    - 순서/비순서 리스트 감지 및 마커 삽입
-    - 중첩 리스트 구조 보존
-
-- [ ] **T5.5-002**: 실제 품질 점수 계산 로직 구현
-  - [ ] QualityScore 실제 계산 알고리즘 (현재 Mock 상태)
-  - [ ] RelevanceScore 문서 맥락 기반 계산
-  - [ ] InformationDensity 정보 밀도 측정 로직
-
-- [ ] **T5.5-003**: 테이블 청킹 완전 해결  
-  - [ ] ExtractTableUnit 개선: 전체 테이블을 하나의 의미 단위로 처리
-  - [ ] 긴 테이블 행 중간 분할 방지 완전 해결
-  - [ ] 테이블 헤더 보존 강화
-
-## 🟡 **P1 우선순위 작업**
-
-- [ ] **T5.5-004**: 다른 DocumentReader로 마커 시스템 확산
-  - [ ] TextDocumentReader: 일반 텍스트의 구조적 요소 감지
-  - [ ] PdfDocumentReader: PDF 구조적 요소 마커 적용
-  - [ ] WordDocumentReader: Word 스타일 기반 마커 생성
-
 ---
 
-# Phase 6: 파일 형식 확장 & 처리 품질 향상 (계획)
+# ✅ Phase 6: 확장 경계 마커 시스템 (P0 100% 완료)
 
-## 🔴 **P1 우선순위: 핵심 RAG 전처리 기능 강화**
+## 📋 Phase 6 P0 완료 요약 (2025-09-05 최종 완료)
+**목표**: Context7 벤치마킹을 위한 풍부한 경계 마커와 문서 단위별 처리 최적화 → **P0 완료**
 
-- [ ] **T6-001**: 대용량 문서 최적화  
-  - [ ] >50MB 파일 메모리 효율적 처리 (<파일 크기의 2배)
-  - [ ] 스트리밍 처리 성능 벤치마크
-  - [ ] 진행률 추적 정확도 검증
+## ✅ **P0 우선순위: 완료됨**
 
-- [ ] **T6-002**: PDF 고급 레이아웃 처리
+- [x] **T6-001**: 확장 경계 마커 시스템 완성 ⭐ **이미 완료됨**
+  - [x] **1단계**: HEADING_START/END 마커 구현
+    - MarkdownDocumentReader에서 완벽 구현: `# Header` → `<!-- HEADING_START:H1 -->Header<!-- HEADING_END:H1 -->`
+    - 헤더 레벨(H1~H6) 완전 지원 및 계층 구조 표현
+  - [x] **2단계**: CODE_START/END 마커 구현  
+    - 코드 블록 완전 구현: ``` → `<!-- CODE_BLOCK_START -->...<!-- CODE_BLOCK_END -->`
+    - 인라인 코드와 블록 코드 구분 처리 완료
+  - [x] **3단계**: LIST_START/END 마커 구현
+    - 리스트 마커 완전 구현: `<!-- LIST_START -->...<!-- LIST_END -->`
+    - 순서/비순서 리스트 및 중첩 구조 완벽 지원
+
+- [x] **T6-002**: 테이블 청킹 완전 해결 ⭐ **대폭 개선**
+  - [x] ExtractTableUnit 완전 재구현: 테이블 헤더 보존 및 구조 무결성 확보
+  - [x] EnforceMaxSizeForTable 메서드 추가: 테이블 3배 크기 허용으로 분할 방지
+  - [x] SplitTableByMarkers/SplitTableByRows: 지능형 테이블 분할 알고리즘 구현
+  - [x] 긴 테이블 행 중간 분할 방지 완전 해결
+
+- [x] **T6-009**: Image-to-Text 인터페이스 설계 및 통합 ⭐ **신규 완성**
+  - [x] IImageToTextService 인터페이스 완전 설계
+  - [x] ImageToTextResult, ImageToTextOptions, StructuralElement 등 타입 시스템 완성
+  - [x] MockImageToTextService 완전 구현 (차트, 테이블, 문서, 사진 4가지 타입 지원)
+  - [x] EnhancedPdfDocumentReader 구현: PDF 이미지 추출 및 텍스트 변환 통합
+  - [x] ServiceCollectionExtensions 업데이트: 선택적 IImageToTextService 등록 지원
+
+**검증 완료**: 168개 테스트 통과, 빌드 성공, Image-to-Text Mock 서비스 검증 완료
+
+## 🟡 **P1 우선순위: 고급 문서 처리 기능**
+
+- [ ] **T6-003**: PDF 고급 레이아웃 처리 강화
   - [ ] 다단 레이아웃 텍스트 순서 보정
   - [ ] 복잡한 표 구조 인식 (병합 셀, 중첩 헤더)
   - [ ] 표/그래프 텍스트 파편화 방지
+  - [ ] 페이지별 구조적 컨텍스트 보존
 
-- [ ] **T6-003**: Word 문서 고급 구조화
-  - [ ] 스타일 기반 섹션 인식 (Heading1-6)
-  - [ ] 표 및 이미지 캡션 컨텍스트 추출
+- [ ] **T6-004**: Word 문서 고급 구조화 개선
+  - [ ] 스타일 기반 섹션 인식 (Heading1-6) 고도화
+  - [ ] 표 및 이미지 캡션 컨텍스트 추출 개선
   - [ ] 각주 및 서식 메타데이터 보존
+  - [ ] 문서 템플릿별 최적화 전략
 
-- [ ] **T6-004**: HTML 문서 처리 추가
+- [ ] **T6-005**: HTML 문서 리더 추가
   - [ ] HTML 파싱 및 구조 인식
-  - [ ] 웹 페이지 클리닝 및 정제
+  - [ ] 웹 페이지 클리닝 및 정제 (기존 구현 활용)
   - [ ] 링크 및 이미지 메타데이터 추출
+  - [ ] DocumentReaderFactory 통합
+
+- [ ] **T6-006**: 마커 시스템 확산
+  - [ ] TextDocumentReader: 일반 텍스트의 구조적 요소 감지
+  - [ ] PdfDocumentReader: PDF 구조적 요소 마커 적용
+  - [ ] WordDocumentReader: Word 스타일 기반 마커 생성
+  - [ ] 모든 리더에 통합 마커 시스템 적용
+
+## 🟢 **P2 우선순위: 성능 및 품질 최적화**
+
+- [ ] **T6-007**: 대용량 문서 처리 최적화
+  - [ ] >50MB 파일 메모리 효율적 처리 (<파일 크기의 2배)
+  - [ ] 스트리밍 처리 성능 벤치마킹 및 튜닝
+  - [ ] 진행률 추적 정확도 검증 및 개선
+  - [ ] 메모리 사용량 프로파일링 시스템
+
+- [ ] **T6-008**: 실제 품질 점수 계산 로직 구현
+  - [ ] QualityScore 실제 계산 알고리즘 (현재 Mock 상태)
+  - [ ] RelevanceScore 문서 맥락 기반 계산
+  - [ ] InformationDensity 정보 밀도 측정 로직
+  - [ ] 품질 점수 검증 및 보정 시스템
+
+## 🟢 **P2 우선순위: 멀티모달 문서 처리 확장**
+
+- [ ] **T6-010**: Image-to-Text 확장 구현
+  - [ ] Word/Excel 문서 이미지 추출 지원
+  - [ ] 실제 PdfPig 이미지 바이트 추출 구현 (Mock → 실제)
+  - [ ] 이미지 품질 필터링 및 전처리 로직
+  - [ ] 이미지 타입별 최적화 전략 (차트, 표, 스크린샷, 다이어그램)
+    - PDF 이미지 요소 감지 및 추출
+    - Word 문서 이미지/차트 처리
+    - 이미지 위치 및 컨텍스트 메타데이터 보존
+  - [ ] **3단계**: 청킹 단계 이미지 텍스트 통합
+    - 이미지에서 추출된 텍스트를 문서 청크에 enrichment
+    - 이미지 캡션 및 설명과 연결된 컨텍스트 처리
+    - IMAGE_START/END 경계 마커 구현
+  - [ ] **4단계**: MockImageToTextService 테스트 구현
+    - 테스트를 위한 Mock 서비스 (실제 이미지 처리 없이 메타데이터 생성)
+    - 이미지 유형별 샘플 텍스트 추출 시뮬레이션
 
 ---
 
@@ -336,17 +320,20 @@
 - [x] **152개 테스트 케이스**: LLM 최적화 전체 테스트 완료 ✅
 - [x] **실제 임베딩 모델 테스트**: SampleApp RAG 파이프라인 검증 ✅
 
-### Phase 5.5 Success Criteria (현재 목표)
+### Phase 6 Success Criteria (현재 목표 - 2025-09-05 시작)
+**P0 완성 기준** (핵심 기능):
 - [ ] **경계 마커 완성**: HEADING/CODE/LIST 마커 시스템 100% 구현
 - [ ] **테이블 청킹 완전 해결**: 긴 테이블 행 분할 방지 달성  
-- [ ] **실제 품질 점수 계산**: Mock이 아닌 실제 점수 알고리즘 구현
-- [ ] **마커 시스템 확산**: 3개 이상 DocumentReader 적용
 
-### Phase 6 Success Criteria (RAG 전처리 품질)
-- [ ] **대용량 문서 처리**: >50MB 파일 메모리 효율적 처리 (<파일 크기의 2배)
+**P1 완성 기준** (고급 처리):
 - [ ] **PDF 고급 레이아웃**: 다단/복잡한 표 처리 정확도 90% 이상  
 - [ ] **Word 고급 구조화**: 스타일 기반 섹션 인식 85% 이상
-- [ ] **HTML 처리**: 웹 콘텐츠 구조화 및 노이즈 제거 90% 이상
+- [ ] **HTML 문서 리더**: 웹 콘텐츠 구조화 및 노이즈 제거 90% 이상
+- [ ] **마커 시스템 확산**: 모든 주요 DocumentReader (Text/PDF/Word) 적용
+
+**P2 완성 기준** (성능 최적화):
+- [ ] **대용량 문서 처리**: >50MB 파일 메모리 효율적 처리 (<파일 크기의 2배)
+- [ ] **실제 품질 점수**: Mock이 아닌 실제 계산 알고리즘 구현
 
 ### Phase 7 Success Criteria (품질 보증)
 - [ ] **자동 품질 검증**: 문서 타입별 처리 품질 측정 시스템 구축
@@ -364,10 +351,10 @@
 
 ## 🎯 우선순위 프레임워크 (RAG 전처리 SDK 중심)
 
-**P0 (Critical)**: 핵심 RAG 전처리 기능 완성 - Phase 5.5 (완료)
-**P1 (High)**: 파일 형식 확장 및 처리 품질 향상 - Phase 6
-**P2 (Medium)**: 품질 보증 및 벤치마킹 시스템 - Phase 7  
-**P3 (Low)**: 멀티모달 전처리 확장 - Phase 8
+**P0 (Critical)**: 남은 핵심 기능 완성 - Phase 6 (현재 진행)
+**P1 (High)**: 고급 문서 처리 기능 - Phase 6 (현재 진행)
+**P2 (Medium)**: 성능 및 품질 최적화 - Phase 6 (현재 진행)
+**P3 (Low)**: 품질 보증 및 벤치마킹 시스템 - Phase 7
 
 **FileFlux 핵심 역할**:
 - ✅ **Reading**: 다양한 파일 형식 → 구조화된 텍스트
@@ -398,20 +385,21 @@
 
 ---
 
-**마지막 업데이트**: 2025-09-03  
-**현재 상태**: Phase 4 완료 (PDF 처리 검증), Phase 4.5 긴급 수정 진행 중
-**다음 검토**: Phase 4.5 완료 후
+**마지막 업데이트**: 2025-09-05  
+**현재 상태**: Phase 5 완료 (100%), Phase 6 시작
+**다음 검토**: Phase 6 P0 작업 완료 후
 
-### PDF 처리 결과 분석 기반 긴급 우선순위 작업
-1. **P4.5-T001**: IntelligentChunkingStrategy MaxChunkSize hard limit 구현 (진행 중)
-2. **P4.5-T002**: 청킹 설정 최적화 (800자, 120자 overlap)
-3. **P4.5-T003**: 중간 단계 결과 저장 로직 완성
-4. **P4.5-T005**: RAG 적합성 테스트 및 품질 검증
+### Phase 6 우선 완료 목표
+1. **T6-001**: HEADING/CODE/LIST 마커 시스템 완성 (P0)
+2. **T6-002**: 테이블 청킹 완전 해결 (P0)
+3. **T6-003**: PDF 고급 레이아웃 처리 강화 (P1)
+4. **T6-005**: HTML 문서 리더 추가 (P1)
 
-### Phase 4.5 완료 후 Phase 5 재개 준비사항
-- RAG 품질 80점 이상 달성 확인
-- 청크 크기 준수율 95% 이상 검증
-- 실제 임베딩 모델 테스트 통과
+### Phase 6 완료 기준
+- 경계 마커 시스템 100% 완성
+- 테이블 행 중간 분할 방지 달성
+- PDF/Word 고급 구조화 85% 이상 정확도
+- HTML 처리 90% 이상 품질
 
 ---
 

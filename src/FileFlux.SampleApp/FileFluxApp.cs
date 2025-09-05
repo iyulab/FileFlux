@@ -3,6 +3,7 @@ using FileFlux.Domain;
 using FileFlux.SampleApp.Data;
 using FileFlux.SampleApp.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 
@@ -446,6 +447,116 @@ public class FileFluxApp
         }
     }
 
+    /// <summary>
+    /// OpenAI Vision을 사용한 이미지 텍스트 추출 테스트
+    /// </summary>
+    public async Task TestVisionProcessingAsync(string filePath)
+    {
+        try
+        {
+            Console.WriteLine($"🖼️  Vision 테스트 시작: {filePath}");
+
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine($"❌ 파일을 찾을 수 없습니다: {filePath}");
+                return;
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+
+            // MultiModalPdfDocumentReader를 직접 생성하여 테스트
+            var serviceProvider = new ServiceCollection()
+                .AddScoped<IImageToTextService>(provider => 
+                    new Services.OpenAiImageToTextService(Environment.GetEnvironmentVariable("OPENAI_API_KEY")!))
+                .BuildServiceProvider();
+
+            var multiModalReader = new FileFlux.Infrastructure.Readers.MultiModalPdfDocumentReader(serviceProvider);
+
+            Console.WriteLine("📄 PDF 텍스트 + 이미지 추출 중...");
+            var rawContent = await multiModalReader.ExtractAsync(filePath);
+
+            stopwatch.Stop();
+
+            Console.WriteLine($"\n✅ Vision 처리 완료!");
+            Console.WriteLine($"⏱️ 처리 시간: {stopwatch.Elapsed:mm\\:ss\\.fff}");
+
+            // 결과 분석
+            var hasImages = rawContent.StructuralHints?.ContainsKey("HasImages") == true 
+                         && (bool)(rawContent.StructuralHints["HasImages"]);
+
+            Console.WriteLine("\n📊 Vision 처리 결과:");
+            Console.WriteLine($"   📁 파일: {Path.GetFileName(filePath)}");
+            Console.WriteLine($"   📏 파일 크기: {new FileInfo(filePath).Length:N0} bytes");
+            Console.WriteLine($"   🖼️  이미지 처리: {(hasImages ? "✅ 있음" : "❌ 없음")}");
+
+            if (hasImages && rawContent.StructuralHints != null)
+            {
+                var imageCount = rawContent.StructuralHints.GetValueOrDefault("ImageCount", 0);
+                Console.WriteLine($"   🔢 처리된 이미지: {imageCount}개");
+
+                if (rawContent.StructuralHints.ContainsKey("ImageProcessingResults") &&
+                    rawContent.StructuralHints["ImageProcessingResults"] is System.Collections.Generic.List<string> results)
+                {
+                    Console.WriteLine("   📋 이미지 처리 상세:");
+                    foreach (var result in results)
+                    {
+                        Console.WriteLine($"      - {result}");
+                    }
+                }
+            }
+
+            Console.WriteLine($"   📝 추출된 텍스트 길이: {rawContent.Text.Length:N0}자");
+
+            // 이미지 마커가 포함된 텍스트 미리보기
+            var imageStartIndex = rawContent.Text.IndexOf("<!-- IMAGE_START", StringComparison.OrdinalIgnoreCase);
+            if (imageStartIndex >= 0)
+            {
+                Console.WriteLine("\n🖼️  이미지 텍스트 추출 예시:");
+                
+                var imageEndIndex = rawContent.Text.IndexOf("<!-- IMAGE_END", imageStartIndex, StringComparison.OrdinalIgnoreCase);
+                if (imageEndIndex >= 0)
+                {
+                    imageEndIndex = rawContent.Text.IndexOf("-->", imageEndIndex) + 3;
+                    var imageSection = rawContent.Text.Substring(imageStartIndex, imageEndIndex - imageStartIndex);
+                    var preview = imageSection.Length > 500 
+                        ? string.Concat(imageSection.AsSpan(0, 500), "...")
+                        : imageSection;
+                    
+                    Console.WriteLine($"   {preview}");
+                }
+            }
+            else
+            {
+                // 일반 텍스트 미리보기
+                Console.WriteLine("\n📄 텍스트 미리보기:");
+                var preview = rawContent.Text.Length > 300
+                    ? string.Concat(rawContent.Text.AsSpan(0, 300), "...")
+                    : rawContent.Text;
+                Console.WriteLine($"   {preview.Replace('\n', ' ').Replace('\r', ' ')}");
+            }
+
+            // 경고사항 출력
+            if (rawContent.ExtractionWarnings?.Any() == true)
+            {
+                Console.WriteLine("\n⚠️  경고사항:");
+                foreach (var warning in rawContent.ExtractionWarnings)
+                {
+                    Console.WriteLine($"   - {warning}");
+                }
+            }
+
+            Console.WriteLine($"\n🎉 Vision 테스트가 성공적으로 완료되었습니다!");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Vision 처리 중 오류 발생: {FilePath}", filePath);
+            Console.WriteLine($"\n❌ 오류: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"   상세: {ex.InnerException.Message}");
+            }
+        }
+    }
 
     private static string TruncateString(string input, int maxLength)
     {

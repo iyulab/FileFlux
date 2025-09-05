@@ -869,6 +869,21 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             return result;
         }
 
+        // 🔥 테이블 보호 로직: TABLE_START/END가 포함된 경우 특별 처리
+        if (chunk.Contains("<!-- TABLE_START -->") && chunk.Contains("<!-- TABLE_END -->"))
+        {
+            return EnforceMaxSizeForTable(chunk, maxSize);
+        }
+
+        // 🔥 다중 테이블 행 보호: | 문자가 많은 경우 (테이블로 추정)
+        var tableRowCount = chunk.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Count(line => line.Contains('|') && line.Count(c => c == '|') >= 2);
+        
+        if (tableRowCount >= 3) // 3개 이상의 테이블 행이 있으면 테이블로 간주
+        {
+            return EnforceMaxSizeForTable(chunk, maxSize);
+        }
+
         // 1단계: 문장 단위로 분할 시도
         var sentences = ExtractSentences(chunk);
         var currentPart = new List<string>();
@@ -945,6 +960,243 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         if (currentChunk.Any())
         {
             result.Add(string.Join(" ", currentChunk));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 테이블 전용 크기 강제 분할 - 테이블 구조와 헤더 보존에 최적화
+    /// </summary>
+    private static List<string> EnforceMaxSizeForTable(string tableChunk, int maxSize)
+    {
+        var result = new List<string>();
+
+        // 테이블이 적절한 크기면 그대로 유지 (최대 3배까지 허용)
+        if (tableChunk.Length <= maxSize * 3)
+        {
+            result.Add(tableChunk);
+            return result;
+        }
+
+        // 테이블 마커를 기준으로 분할
+        if (tableChunk.Contains("<!-- TABLE_START -->") && tableChunk.Contains("<!-- TABLE_END -->"))
+        {
+            return SplitTableByMarkers(tableChunk, maxSize);
+        }
+
+        // 마커가 없는 경우 테이블 행 단위로 분할
+        return SplitTableByRows(tableChunk, maxSize);
+    }
+
+    /// <summary>
+    /// 테이블 마커를 기준으로 테이블을 분할
+    /// </summary>
+    private static List<string> SplitTableByMarkers(string tableChunk, int maxSize)
+    {
+        var result = new List<string>();
+        var lines = tableChunk.Split('\n', StringSplitOptions.None);
+        
+        var headerLines = new List<string>();
+        var currentTableLines = new List<string>();
+        var isInTable = false;
+        var tableStartFound = false;
+
+        foreach (var line in lines)
+        {
+            if (line.Contains("<!-- TABLE_START -->"))
+            {
+                isInTable = true;
+                tableStartFound = true;
+                currentTableLines.Add(line);
+                continue;
+            }
+
+            if (line.Contains("<!-- TABLE_END -->"))
+            {
+                currentTableLines.Add(line);
+                
+                // 전체 테이블 크기 확인
+                var completeTable = string.Join("\n", currentTableLines);
+                if (completeTable.Length <= maxSize * 2) // 2배까지 허용
+                {
+                    result.Add(completeTable);
+                }
+                else
+                {
+                    // 테이블이 너무 크면 행 단위로 분할
+                    var splitTables = SplitLargeTableContent(currentTableLines, maxSize);
+                    result.AddRange(splitTables);
+                }
+                
+                currentTableLines.Clear();
+                isInTable = false;
+                continue;
+            }
+
+            if (isInTable)
+            {
+                currentTableLines.Add(line);
+            }
+            else if (!tableStartFound)
+            {
+                // 테이블 시작 전의 내용
+                headerLines.Add(line);
+            }
+        }
+
+        // 테이블이 완료되지 않은 경우 처리
+        if (currentTableLines.Any())
+        {
+            var incompleteTable = string.Join("\n", currentTableLines);
+            result.Add(incompleteTable);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 마커 없는 테이블을 행 단위로 분할
+    /// </summary>
+    private static List<string> SplitTableByRows(string tableChunk, int maxSize)
+    {
+        var result = new List<string>();
+        var lines = tableChunk.Split('\n', StringSplitOptions.None);
+        
+        // 헤더와 구분자 식별
+        var headerLine = "";
+        var separatorLine = "";
+        var dataLines = new List<string>();
+        
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+            if (line.Contains('|') && line.Count(c => c == '|') >= 2)
+            {
+                if (string.IsNullOrEmpty(headerLine))
+                {
+                    headerLine = line;
+                }
+                else if (string.IsNullOrEmpty(separatorLine) && (line.Contains("---") || line.Contains(":-")))
+                {
+                    separatorLine = line;
+                }
+                else
+                {
+                    dataLines.Add(line);
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(headerLine))
+        {
+            // 테이블이 아닌 것으로 판단하고 일반 분할
+            return SplitByWords(tableChunk, maxSize);
+        }
+
+        // 헤더 + 구분자 크기
+        var headerSize = (headerLine + "\n" + separatorLine).Length;
+        var currentLines = new List<string>();
+        var currentSize = headerSize;
+
+        foreach (var dataLine in dataLines)
+        {
+            if (currentSize + dataLine.Length + 1 > maxSize && currentLines.Any()) // +1 for newline
+            {
+                // 현재 테이블 파트 완성
+                var tableContent = headerLine + "\n" + separatorLine + "\n" + string.Join("\n", currentLines);
+                result.Add(tableContent);
+                
+                // 다음 파트 시작
+                currentLines.Clear();
+                currentSize = headerSize;
+            }
+            
+            currentLines.Add(dataLine);
+            currentSize += dataLine.Length + 1;
+        }
+
+        // 마지막 파트
+        if (currentLines.Any())
+        {
+            var tableContent = headerLine + "\n" + separatorLine + "\n" + string.Join("\n", currentLines);
+            result.Add(tableContent);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 큰 테이블 내용을 분할
+    /// </summary>
+    private static List<string> SplitLargeTableContent(List<string> tableLines, int maxSize)
+    {
+        var result = new List<string>();
+        
+        // TABLE_START와 TABLE_END를 찾기
+        var startIndex = tableLines.FindIndex(line => line.Contains("<!-- TABLE_START -->"));
+        var endIndex = tableLines.FindIndex(line => line.Contains("<!-- TABLE_END -->"));
+        
+        if (startIndex == -1 || endIndex == -1)
+        {
+            // 마커를 찾을 수 없으면 전체 반환
+            result.Add(string.Join("\n", tableLines));
+            return result;
+        }
+
+        var headerAndStart = new List<string>();
+        var dataLines = new List<string>();
+        var endMarker = tableLines[endIndex];
+
+        // 헤더와 구분자 수집 (처음 2-3줄)
+        for (int i = startIndex; i < Math.Min(startIndex + 3, endIndex); i++)
+        {
+            headerAndStart.Add(tableLines[i]);
+        }
+
+        // 데이터 행들 수집
+        for (int i = startIndex + 3; i < endIndex; i++)
+        {
+            if (i < tableLines.Count)
+            {
+                dataLines.Add(tableLines[i]);
+            }
+        }
+
+        var headerSize = string.Join("\n", headerAndStart).Length;
+        var currentLines = new List<string>();
+        var currentSize = headerSize;
+
+        foreach (var dataLine in dataLines)
+        {
+            if (currentSize + dataLine.Length + 1 > maxSize && currentLines.Any())
+            {
+                // 현재 테이블 파트 완성
+                var tablePart = new List<string>();
+                tablePart.AddRange(headerAndStart);
+                tablePart.AddRange(currentLines);
+                tablePart.Add(endMarker);
+                
+                result.Add(string.Join("\n", tablePart));
+                
+                // 다음 파트 시작
+                currentLines.Clear();
+                currentSize = headerSize;
+            }
+            
+            currentLines.Add(dataLine);
+            currentSize += dataLine.Length + 1;
+        }
+
+        // 마지막 파트
+        if (currentLines.Any())
+        {
+            var tablePart = new List<string>();
+            tablePart.AddRange(headerAndStart);
+            tablePart.AddRange(currentLines);
+            tablePart.Add(endMarker);
+            
+            result.Add(string.Join("\n", tablePart));
         }
 
         return result;

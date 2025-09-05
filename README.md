@@ -9,16 +9,30 @@
 
 ## 🎯 개요
 
-FileFlux는 문서를 RAG(Retrieval-Augmented Generation) 시스템에 최적화된 고품질 청크로 변환하는 **.NET 9 SDK**입니다. 다양한 문서 형식을 지원하며 지능적인 청킹 전략으로 최적의 RAG 성능을 제공합니다.
+**FileFlux는 순수 RAG 전처리 SDK입니다** - 문서를 RAG 시스템에 최적화된 구조화된 청크로 변환하는 **.NET 9 SDK**입니다.
 
-### ✨ 핵심 기능
+### 🏗️ 아키텍처 원칙: 인터페이스 제공자
+
+FileFlux는 **인터페이스를 정의하고, 소비 애플리케이션이 구현체를 선택**하는 명확한 책임 분리를 따릅니다:
+
+#### ✅ FileFlux가 제공하는 것:
+- **📄 문서 파싱**: PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV → 구조화된 텍스트
+- **🔌 AI 인터페이스**: ITextCompletionService, IImageToTextService 계약 정의
+- **🎛️ 처리 파이프라인**: Reader → Parser → Chunking 오케스트레이션
+- **🧪 Mock 서비스**: 테스트용 MockTextCompletionService, MockImageToTextService
+
+#### ❌ FileFlux가 제공하지 않는 것:
+- **AI 서비스 구현**: OpenAI, Anthropic, Azure 등 특정 공급자 구현 없음
+- **벡터 생성**: 임베딩 생성은 소비 앱의 책임  
+- **데이터 저장**: Pinecone, Qdrant 등 벡터 DB 구현 없음
+
+### ✨ 핵심 특징
 - **📦 단일 NuGet 패키지**: `dotnet add package FileFlux`로 간편 설치
-- **🎯 단순한 네임스페이스**: `using FileFlux;` 한 줄로 모든 핵심 기능 접근
-- **🤖 LLM 통합**: ITextCompletionService로 지능형 문서 분석
-- **📄 광범위한 포맷 지원**: PDF, DOCX, PPTX, XLSX, MD, TXT, JSON, CSV
+- **🎯 Clean Interface**: AI 공급자에 종속되지 않는 순수한 인터페이스 설계
+- **🖼️ 멀티모달 처리**: 텍스트 + 이미지 → 통합 텍스트 변환
 - **🎛️ 4가지 청킹 전략**: Intelligent, Semantic, Paragraph, FixedSize  
-- **🏗️ Clean Architecture**: 인터페이스 중심 확장 가능 설계
-- **🚀 Production Ready**: A+ 성능 등급, 자동 CI/CD 배포
+- **🏗️ Clean Architecture**: 의존성 역전으로 확장성 보장
+- **🚀 Production Ready**: 168개 테스트 통과, 자동 CI/CD
 
 ---
 
@@ -36,37 +50,50 @@ using FileFlux.Infrastructure; // AddFileFlux 확장 메서드용
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddFileFlux();
 
-// 고품질 처리를 위한 LLM 서비스 주입
+// 필수 LLM 서비스 등록 (소비 애플리케이션에서 구현)
 services.AddScoped<ITextCompletionService, YourLLMService>();
+
+// 선택사항: 이미지-텍스트 서비스 (멀티모달 처리용)
+services.AddScoped<IImageToTextService, YourVisionService>();
+
+// FileFlux 서비스 등록
+services.AddFileFlux();
 
 var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
-// 방법 1: 파일에서 직접 처리 (권장)
-await foreach (var chunk in processor.ProcessAsync("document.pdf"))
+// 방법 1: 스트리밍 처리 (권장 - 메모리 효율적)
+await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
 {
-    // 청크 내용과 메타데이터 활용
-    var content = chunk.Content;              // 실제 텍스트 내용
-    var fileName = chunk.Metadata.FileName;   // 원본 파일명
-    var pageNum = chunk.Metadata.PageNumber;  // 페이지 번호
-    
-    Console.WriteLine($"청크 {chunk.ChunkIndex}: {content.Length}자 (페이지 {pageNum})");
-    
-    // RAG 파이프라인: 임베딩 생성 → 벡터 저장소 저장
-    var embedding = await embeddingService.GenerateAsync(content);
-    await vectorStore.StoreAsync(new {
-        Id = chunk.Id,
-        Content = content,
-        Metadata = chunk.Metadata,
-        Vector = embedding
-    });
+    if (result.IsSuccess && result.Result != null)
+    {
+        foreach (var chunk in result.Result)
+        {
+            Console.WriteLine($"📄 청크 {chunk.ChunkIndex}: {chunk.Content.Length}자");
+            Console.WriteLine($"   품질점수: {chunk.Properties.GetValueOrDefault("QualityScore", "N/A")}");
+            
+            // RAG 파이프라인: 임베딩 생성 → 벡터 저장소 저장
+            var embedding = await embeddingService.GenerateAsync(chunk.Content);
+            await vectorStore.StoreAsync(new {
+                Id = chunk.Id,
+                Content = chunk.Content,
+                Metadata = chunk.Metadata,
+                Vector = embedding
+            });
+        }
+    }
 }
 
-// 방법 2: 추출 후 재사용 (캐싱 활용)
-var extractResult = await processor.ExtractAsync("document.pdf");
-await foreach (var chunk in processor.ProcessAsync(extractResult))
+// 방법 2: 기본 처리
+var chunks = await processor.ProcessAsync("document.pdf", new ChunkingOptions
+{
+    Strategy = "Intelligent",
+    MaxChunkSize = 512,
+    OverlapSize = 64
+});
+
+foreach (var chunk in chunks)
 {
     Console.WriteLine($"청크: {chunk.Content[..50]}...");
 }
