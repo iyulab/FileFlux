@@ -25,6 +25,7 @@ class Program
         var historyCommand = CreateHistoryCommand();
         var readersCommand = CreateReadersTestCommand();
         var benchmarkCommand = CreateBenchmarkCommand();
+        var qualityAnalyzeCommand = CreateQualityAnalyzeCommand();
         var visionTestCommand = CreateVisionTestCommand();
 
         rootCommand.AddCommand(processCommand);
@@ -34,6 +35,7 @@ class Program
         rootCommand.AddCommand(historyCommand);
         rootCommand.AddCommand(readersCommand);
         rootCommand.AddCommand(benchmarkCommand);
+        rootCommand.AddCommand(qualityAnalyzeCommand);
         rootCommand.AddCommand(visionTestCommand);
 
         return await rootCommand.InvokeAsync(args);
@@ -214,6 +216,50 @@ class Program
         }, testDirOption);
 
         return benchmarkCommand;
+    }
+
+    private static Command CreateQualityAnalyzeCommand()
+    {
+        var filePathArgument = new Argument<string>(
+            name: "file-path",
+            description: "품질 분석할 파일 경로");
+
+        var strategyOption = new Option<string>(
+            name: "--strategy",
+            description: "청킹 전략",
+            getDefaultValue: () => "Intelligent")
+        {
+            AllowMultipleArgumentsPerToken = false
+        };
+
+        var benchmarkOption = new Option<bool>(
+            name: "--benchmark",
+            description: "여러 전략 간 품질 벤치마크 실행",
+            getDefaultValue: () => false);
+
+        var qaGenerationOption = new Option<bool>(
+            name: "--qa-generation",
+            description: "QA 벤치마크 생성 및 검증",
+            getDefaultValue: () => false);
+
+        var qualityAnalyzeCommand = new Command("quality-analyze", "문서 품질 분석 - RAG 최적화를 위한 청킹 품질 측정")
+        {
+            filePathArgument,
+            strategyOption,
+            benchmarkOption,
+            qaGenerationOption
+        };
+
+        qualityAnalyzeCommand.SetHandler(async (filePath, strategy, benchmark, qaGeneration) =>
+        {
+            using var host = CreateHost();
+            await host.StartAsync();
+            var app = host.Services.GetRequiredService<FileFluxApp>();
+            await app.AnalyzeDocumentQualityAsync(filePath, strategy, benchmark, qaGeneration);
+            await host.StopAsync();
+        }, filePathArgument, strategyOption, benchmarkOption, qaGenerationOption);
+
+        return qualityAnalyzeCommand;
     }
 
     private static Command CreateVisionTestCommand()

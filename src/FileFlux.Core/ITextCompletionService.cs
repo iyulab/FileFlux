@@ -334,6 +334,16 @@ public class QualityRecommendation
     /// 우선순위 (1-10)
     /// </summary>
     public int Priority { get; set; } = 5;
+
+    /// <summary>
+    /// Expected improvement in quality score if implemented (0.0-1.0)
+    /// </summary>
+    public double ExpectedImprovement { get; set; }
+
+    /// <summary>
+    /// Specific parameters or settings to adjust
+    /// </summary>
+    public Dictionary<string, object> SuggestedParameters { get; set; } = new();
 }
 
 /// <summary>
@@ -369,7 +379,53 @@ public enum RecommendationType
     /// <summary>
     /// 구조화 개선
     /// </summary>
-    STRUCTURE_IMPROVEMENT
+    STRUCTURE_IMPROVEMENT,
+
+    /// <summary>
+    /// 청킹 전략 변경
+    /// </summary>
+    ChunkingStrategy,
+
+    /// <summary>
+    /// 청크 크기 조정
+    /// </summary>
+    ChunkSize,
+
+    /// <summary>
+    /// 오버랩 설정 조정
+    /// </summary>
+    OverlapConfiguration,
+
+    /// <summary>
+    /// 구조 보존 개선
+    /// </summary>
+    StructurePreservation,
+
+    /// <summary>
+    /// 콘텐츠 필터링 적용
+    /// </summary>
+    ContentFiltering,
+
+    /// <summary>
+    /// 경계 감지 개선
+    /// </summary>
+    BoundaryDetection,
+
+    /// <summary>
+    /// 메타데이터 강화
+    /// </summary>
+    MetadataEnhancement
+}
+
+/// <summary>
+/// Priority levels for recommendations
+/// </summary>
+public enum RecommendationPriority
+{
+    Low,
+    Medium,
+    High,
+    Critical
 }
 
 /// <summary>

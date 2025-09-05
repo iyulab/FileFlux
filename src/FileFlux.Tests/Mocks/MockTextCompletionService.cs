@@ -109,6 +109,12 @@ public class MockTextCompletionService : ITextCompletionService
 
     public Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default)
     {
+        // 질문 생성 프롬프트 감지
+        if (prompt.Contains("Generate") && (prompt.Contains("question") || prompt.Contains("Question")))
+        {
+            return GenerateQuestionResponse(prompt);
+        }
+        
         // 실제 LLM처럼 프롬프트를 분석하여 의미있는 응답 생성
         if (prompt.Contains("문서 구조화") || prompt.Contains("TOPIC:") || prompt.Contains("KEYWORDS:"))
         {
@@ -156,5 +162,42 @@ public class MockTextCompletionService : ITextCompletionService
         """;
 
         return Task.FromResult(response);
+    }
+
+    private static Task<string> GenerateQuestionResponse(string prompt)
+    {
+        // ChunkQualityEngine이 파싱할 수 있는 Q:/A: 형식으로 질문 생성
+        var questions = new List<string>();
+        
+        // Factual questions
+        questions.Add("Q: What are the main concepts introduced in the document?");
+        questions.Add("A: The document introduces key concepts that form the foundation of the system.");
+        questions.Add("Q: What is the primary purpose of this document?");
+        questions.Add("A: The document serves to provide comprehensive information about the subject matter.");
+        
+        // Conceptual questions  
+        questions.Add("Q: How do the different concepts relate to each other?");
+        questions.Add("A: The concepts are interconnected through logical relationships and dependencies.");
+        questions.Add("Q: What is the underlying principle behind the described approach?");
+        questions.Add("A: The approach is based on established principles of system design and implementation.");
+        
+        // Analytical questions
+        questions.Add("Q: What are the advantages and disadvantages of this approach?");
+        questions.Add("A: The approach offers benefits but also has certain limitations to consider.");
+        questions.Add("Q: How might this system perform under different conditions?");
+        questions.Add("A: Performance characteristics vary depending on operational conditions and parameters.");
+        
+        // Procedural questions
+        questions.Add("Q: What steps are required to implement this solution?");
+        questions.Add("A: Implementation follows a structured sequence of defined steps and processes.");
+        
+        // Comparative questions (if requested)
+        if (prompt.Contains("Comparative"))
+        {
+            questions.Add("Q: How does this approach compare to alternative solutions?");
+            questions.Add("A: This approach has distinct characteristics when compared to other available solutions.");
+        }
+
+        return Task.FromResult(string.Join("\n", questions));
     }
 }
