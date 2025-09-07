@@ -47,7 +47,7 @@ public partial class BasicDocumentParser : IDocumentParser
         {
             ParsedDocumentContent result;
 
-            if (options.UseAdvancedParsing)
+            if (options.UseLlmParsing)
             {
                 // 텍스트 완성 서비스 기반 고도화 구조화
                 result = await ParseWithTextCompletionAsync(rawContent, options, cancellationToken);
@@ -62,7 +62,7 @@ public partial class BasicDocumentParser : IDocumentParser
             result.ParsingInfo = new ParsingMetadata
             {
                 ParserType = ParserType,
-                UsedLlm = options.UseAdvancedParsing,
+                UsedLlm = options.UseLlmParsing,
                 StartedAt = startTime,
                 CompletedAt = DateTime.UtcNow,
                 Warnings = warnings

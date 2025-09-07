@@ -44,10 +44,10 @@ public interface IDocumentParser
 public class DocumentParsingOptions
 {
     /// <summary>
-    /// 고급 파싱 모드 사용 여부 (false일 경우 기본 규칙 기반 파싱)
+    /// LLM 파싱 모드 사용 여부 (false일 경우 기본 규칙 기반 파싱)
     /// Note: LLM 사용은 consumer application의 책임이며, 이 옵션은 파싱 수준을 제어합니다
     /// </summary>
-    public bool UseAdvancedParsing { get; set; } = true;
+    public bool UseLlmParsing { get; set; } = true;
 
     /// <summary>
     /// 문서 유형 힌트 (자동 감지하지 않고 직접 지정)

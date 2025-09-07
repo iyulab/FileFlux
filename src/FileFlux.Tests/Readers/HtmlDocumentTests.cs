@@ -15,11 +15,11 @@ namespace FileFlux.Tests.Readers;
 /// - 구조화된 콘텐츠 추출 (헤딩 계층, 리스트, 테이블)
 /// - 링크 및 이미지 컨텍스트 보존
 /// </summary>
-public class HtmlDocumentAdvancedTests
+public class HtmlDocumentTests
 {
     private readonly ITestOutputHelper _output;
 
-    public HtmlDocumentAdvancedTests(ITestOutputHelper output)
+    public HtmlDocumentTests(ITestOutputHelper output)
     {
         _output = output;
     }

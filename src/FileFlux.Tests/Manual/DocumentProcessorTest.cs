@@ -53,7 +53,7 @@ public class DocumentProcessorTest
 
         var parsingOptions = new DocumentParsingOptions
         {
-            UseAdvancedParsing = false, // Using basic rule-based parsing
+            UseLlmParsing = false, // Using basic rule-based parsing
             StructuringLevel = StructuringLevel.Low
         };
 
