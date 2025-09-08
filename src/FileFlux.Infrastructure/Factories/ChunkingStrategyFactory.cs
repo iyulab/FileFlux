@@ -1,4 +1,5 @@
 using FileFlux;
+using FileFlux.Infrastructure.Strategies;
 
 namespace FileFlux.Infrastructure.Factories;
 
@@ -12,6 +13,17 @@ public class ChunkingStrategyFactory : IChunkingStrategyFactory
     public ChunkingStrategyFactory()
     {
         _strategyFactories = new Dictionary<string, Func<IChunkingStrategy>>(StringComparer.OrdinalIgnoreCase);
+        
+        // Register default strategies
+        RegisterDefaultStrategies();
+    }
+    
+    private void RegisterDefaultStrategies()
+    {
+        RegisterStrategy(() => new IntelligentChunkingStrategy());
+        RegisterStrategy(() => new SemanticChunkingStrategy());
+        RegisterStrategy(() => new FixedSizeChunkingStrategy());
+        RegisterStrategy(() => new ParagraphChunkingStrategy());
     }
 
     /// <summary>

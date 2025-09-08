@@ -318,6 +318,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         var chunks = new List<string>();
         var currentChunk = new List<SemanticUnit>();
         var currentSize = 0;
+        var previousChunkTail = string.Empty; // Store tail of previous chunk for overlap
 
         for (int i = 0; i < units.Count; i++)
         {
@@ -334,8 +335,16 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 // 현재 청크가 있고 테이블을 추가하면 크기 초과인 경우 현재 청크 완료
                 if (currentChunk.Count != 0 && currentSize + unitSize > maxSize)
                 {
-                    var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap);
+                    var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail);
                     chunks.Add(chunkContent);
+                    
+                    // Save tail for next chunk's overlap
+                    if (baseOverlap > 0 && currentChunk.Count > 0)
+                    {
+                        var overlapUnits = GetOverlapUnits(currentChunk, baseOverlap, 1.0);
+                        previousChunkTail = string.Join(" ", overlapUnits.Select(u => u.Content));
+                    }
+                    
                     currentChunk.Clear();
                     currentSize = 0;
                 }
@@ -355,7 +364,15 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                     {
                         if (currentChunk.Count != 0)
                         {
-                            chunks.Add(CreateCoherentChunk(currentChunk, baseOverlap));
+                            chunks.Add(CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail));
+                            
+                            // Save tail for next chunk's overlap
+                            if (baseOverlap > 0 && currentChunk.Count > 0)
+                            {
+                                var overlapUnits = GetOverlapUnits(currentChunk, baseOverlap, 1.0);
+                                previousChunkTail = string.Join(" ", overlapUnits.Select(u => u.Content));
+                            }
+                            
                             currentChunk.Clear();
                             currentSize = 0;
                         }
@@ -369,8 +386,16 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             var isSectionHeader = MarkdownSectionRegex.IsMatch(unit.Content);
             if (isSectionHeader && currentChunk.Count != 0 && currentSize > maxSize * 0.3) // 30% 이상일 때만 분할
             {
-                var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap);
+                var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail);
                 chunks.Add(chunkContent);
+                
+                // Save tail for next chunk's overlap
+                if (baseOverlap > 0 && currentChunk.Count > 0)
+                {
+                    var overlapUnits = GetOverlapUnits(currentChunk, baseOverlap, 1.0);
+                    previousChunkTail = string.Join(" ", overlapUnits.Select(u => u.Content));
+                }
+                
                 currentChunk.Clear();
                 currentSize = 0;
             }
@@ -385,12 +410,14 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 !containsTableRow && // 테이블 행은 보호
                 ShouldStartNewChunk(currentChunk, unit, coherenceThreshold))
             {
-                var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap);
+                var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail);
                 chunks.Add(chunkContent);
 
+                // Get overlap units for the next chunk
                 var overlapUnits = GetOverlapUnits(currentChunk, baseOverlap, unit.ContextualRelevance);
-                currentChunk = overlapUnits;
-                currentSize = overlapUnits.Sum(u => EstimateTokenCount(u.Content));
+                previousChunkTail = string.Join(" ", overlapUnits.Select(u => u.Content));
+                currentChunk = new List<SemanticUnit>(); // Start fresh, overlap will be added via previousChunkTail
+                currentSize = 0;
             }
 
             currentChunk.Add(unit);
@@ -400,7 +427,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         // 마지막 청크 처리
         if (currentChunk.Count != 0)
         {
-            var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap);
+            var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail);
             chunks.Add(chunkContent);
         }
 
@@ -722,9 +749,21 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         return lines.FirstOrDefault()?.Trim() ?? string.Empty;
     }
 
-    private static string CreateCoherentChunk(List<SemanticUnit> units, int baseOverlap)
+    private static string CreateCoherentChunk(List<SemanticUnit> units, int overlapSize, string previousTail = "")
     {
-        return string.Join(" ", units.Select(u => u.Content));
+        var content = string.Join(" ", units.Select(u => u.Content));
+        
+        // Add overlap from previous chunk if provided
+        if (!string.IsNullOrEmpty(previousTail) && overlapSize > 0)
+        {
+            // Ensure we don't duplicate content that's already in the units
+            if (!content.StartsWith(previousTail))
+            {
+                content = previousTail + " " + content;
+            }
+        }
+        
+        return content;
     }
 
     /// <summary>
@@ -751,10 +790,33 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         return units.Any(unit => IsTableRow(unit.Content));
     }
 
-    private static List<SemanticUnit> GetOverlapUnits(List<SemanticUnit> currentChunk, int baseOverlap, double relevance)
+    private static List<SemanticUnit> GetOverlapUnits(List<SemanticUnit> currentChunk, int targetOverlapSize, double relevance)
     {
-        var overlapSize = Math.Max(1, (int)(baseOverlap * relevance));
-        return currentChunk.TakeLast(overlapSize).ToList();
+        if (targetOverlapSize <= 0 || currentChunk.Count == 0)
+            return new List<SemanticUnit>();
+        
+        // Calculate overlap size based on characters/tokens, not unit count
+        var adjustedOverlapSize = (int)(targetOverlapSize * relevance);
+        var overlapUnits = new List<SemanticUnit>();
+        var currentOverlapSize = 0;
+        
+        // Add units from the end until we reach the target overlap size
+        for (int i = currentChunk.Count - 1; i >= 0; i--)
+        {
+            var unit = currentChunk[i];
+            var unitSize = EstimateTokenCount(unit.Content);
+            
+            if (currentOverlapSize + unitSize > adjustedOverlapSize * 1.5) // Allow 50% overshoot
+                break;
+                
+            overlapUnits.Insert(0, unit); // Insert at beginning to maintain order
+            currentOverlapSize += unitSize;
+            
+            if (currentOverlapSize >= adjustedOverlapSize)
+                break;
+        }
+        
+        return overlapUnits;
     }
 
     private static double CalculateChunkQuality(string chunk)
