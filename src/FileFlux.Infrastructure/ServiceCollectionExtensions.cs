@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using FileFlux;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
+using FileFlux.Infrastructure.Services;
 
 namespace FileFlux.Infrastructure;
 
@@ -38,6 +40,15 @@ public static class ServiceCollectionExtensions
         // 기본 Parser들 등록
         services.AddTransient<IDocumentParser>(provider =>
             new BasicDocumentParser(provider.GetRequiredService<ITextCompletionService>()));
+
+        // Embedding 서비스 관련 등록 (Phase 8)
+        // Note: 실제 IEmbeddingService는 소비 애플리케이션에서 등록해야 함
+        // 여기서는 Mock 서비스를 fallback으로 등록
+        services.TryAddSingleton<IEmbeddingService, MockEmbeddingService>();
+        
+        // Semantic analysis services
+        services.AddSingleton<ISemanticBoundaryDetector, SemanticBoundaryDetector>();
+        services.AddSingleton<IChunkCoherenceAnalyzer, ChunkCoherenceAnalyzer>();
 
         return services;
     }

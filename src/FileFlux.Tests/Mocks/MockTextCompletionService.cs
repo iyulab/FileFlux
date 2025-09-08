@@ -79,6 +79,28 @@ public class MockTextCompletionService : ITextCompletionService
         });
     }
 
+    public Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default)
+    {
+        // Simple mock that returns a score based on prompt content
+        if (prompt.Contains("relevance", StringComparison.OrdinalIgnoreCase))
+        {
+            // Return different scores based on content
+            if (prompt.Contains("machine learning", StringComparison.OrdinalIgnoreCase) ||
+                prompt.Contains("deep learning", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult("0.8");
+            }
+            if (prompt.Contains("weather", StringComparison.OrdinalIgnoreCase) ||
+                prompt.Contains("pizza", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult("0.2");
+            }
+        }
+        
+        // Default response
+        return Task.FromResult("0.5");
+    }
+
     public Task<QualityAssessment> AssessQualityAsync(
         string prompt,
         CancellationToken cancellationToken = default)
@@ -105,23 +127,6 @@ public class MockTextCompletionService : ITextCompletionService
     public Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(true);
-    }
-
-    public Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default)
-    {
-        // 질문 생성 프롬프트 감지
-        if (prompt.Contains("Generate") && (prompt.Contains("question") || prompt.Contains("Question")))
-        {
-            return GenerateQuestionResponse(prompt);
-        }
-        
-        // 실제 LLM처럼 프롬프트를 분석하여 의미있는 응답 생성
-        if (prompt.Contains("문서 구조화") || prompt.Contains("TOPIC:") || prompt.Contains("KEYWORDS:"))
-        {
-            return GenerateIntelligentStructureResponse(prompt);
-        }
-
-        return Task.FromResult($"Mock response to: {prompt.Substring(0, Math.Min(50, prompt.Length))}...");
     }
 
     private static Task<string> GenerateIntelligentStructureResponse(string prompt)

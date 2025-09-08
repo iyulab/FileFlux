@@ -6,7 +6,7 @@ namespace FileFlux;
 
 /// <summary>
 /// Comprehensive quality report for document processing results.
-/// Designed for Context7 compatibility and RAG system optimization.
+/// Designed for advanced metadata tracking and RAG system optimization.
 /// </summary>
 public class DocumentQualityReport
 {
@@ -48,7 +48,7 @@ public class DocumentQualityReport
 
     /// <summary>
     /// Detailed metrics for advanced analysis and debugging
-    /// Context7-compatible key-value pairs
+    /// Extended metadata in key-value pairs for analysis
     /// </summary>
     public Dictionary<string, object> DetailedMetrics { get; set; } = new();
 
