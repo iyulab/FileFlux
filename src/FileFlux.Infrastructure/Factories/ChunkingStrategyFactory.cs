@@ -49,6 +49,20 @@ public class ChunkingStrategyFactory : IChunkingStrategyFactory
                 Performance = new PerformanceCharacteristics { Speed = 3, Quality = 4, MemoryEfficiency = 4, RequiresLLM = true }
             });
 
+        // Phase 10: 메모리 최적화된 Intelligent 전략
+        RegisterStrategy("MemoryOptimizedIntelligent", 
+            () => new MemoryOptimizedIntelligentChunkingStrategy(),
+            new ChunkingStrategyMetadata
+            {
+                StrategyName = "MemoryOptimizedIntelligent",
+                Description = "Memory-optimized intelligent chunking with 50% reduced memory usage",
+                OptimalForDocumentTypes = new[] { "Large Documents", "Technical", "Markdown" },
+                Strengths = new[] { "Low memory footprint", "Structure preservation", "Object pooling" },
+                Limitations = new[] { "Slightly reduced feature set" },
+                PriorityScore = 88,
+                Performance = new PerformanceCharacteristics { Speed = 4, Quality = 4, MemoryEfficiency = 5, RequiresLLM = false }
+            });
+
         RegisterStrategy("Smart",
             () => new SmartChunkingStrategy(),
             new ChunkingStrategyMetadata

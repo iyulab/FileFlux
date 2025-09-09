@@ -7,12 +7,15 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Running;
 using FileFlux;
+using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.Infrastructure;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Optimization;
 using FileFlux.Infrastructure.Caching;
 using FileFlux.Infrastructure.Services;
+using FileFlux.Infrastructure.Strategies;
+using Microsoft.Extensions.DependencyInjection;
 using FileFlux.RealWorldBenchmark.Benchmarks;
 using FileFlux.RealWorldBenchmark.Metrics;
 using FileFlux.RealWorldBenchmark.Services;
@@ -48,6 +51,7 @@ class Program
 
         // Parse command line arguments
         var mode = args.Length > 0 ? args[0].ToLower() : "interactive";
+        var strategyArg = args.Length > 1 ? args[1] : "";
         
         switch (mode)
         {
@@ -65,6 +69,31 @@ class Program
             case "comprehensive":
                 // Comprehensive analysis
                 await RunComprehensiveBenchmarks();
+                break;
+                
+            // Phase 10: New test modes
+            case "memory-test":
+                await RunMemoryOptimizationTest(strategyArg);
+                break;
+                
+            case "auto-strategy-test":
+                await RunAutoStrategyTest();
+                break;
+                
+            case "large-file-test":
+                await RunLargeFileTest(strategyArg);
+                break;
+                
+            case "boundary-quality-test":
+                await RunBoundaryQualityTest();
+                break;
+                
+            case "context-preservation-test":
+                await RunContextPreservationTest();
+                break;
+                
+            case "phase-comparison":
+                await RunPhaseComparisonTest();
                 break;
             
             default:
@@ -1061,9 +1090,17 @@ class Program
             }
         }
         
+        // Phase 10: Create components for Auto strategy support
         var readerFactory = new DocumentReaderFactory();
         var parserFactory = new DocumentParserFactory(textService);
-        var strategyFactory = new ChunkingStrategyFactory();
+        
+        // Create a temporary basic strategy factory
+        var basicStrategyFactory = new ChunkingStrategyFactory();
+        var strategySelector = new AdaptiveStrategySelector(textService, basicStrategyFactory);
+        var serviceProvider = new SimpleServiceProvider(textService, strategySelector);
+        
+        // Create the main strategy factory with DI support
+        var strategyFactory = new ChunkingStrategyFactory(serviceProvider);
         
         return new DocumentProcessor(readerFactory, parserFactory, strategyFactory);
     }
@@ -1389,6 +1426,705 @@ static async Task ExportResults()
     AnsiConsole.MarkupLine("[yellow]Export functionality to be implemented[/]");
     await Task.CompletedTask;
 }
+
+// Phase 10: Memory Optimization Test
+static async Task RunMemoryOptimizationTest(string strategy)
+{
+    AnsiConsole.Write(new Rule("[bold magenta]Memory Optimization Test (Phase 10)[/]"));
+    
+    // Discover test files if needed
+    if (!TestFiles.Any())
+    {
+        DiscoverTestFiles();
+    }
+    
+    var processor = CreateProcessor();
+    var testStrategy = string.IsNullOrEmpty(strategy) ? "MemoryOptimizedIntelligent" : strategy;
+    
+    AnsiConsole.MarkupLine($"[yellow]Testing strategy: {testStrategy}[/]");
+    
+    // Find largest file for memory stress test
+    var largestFile = TestFiles.Values
+        .SelectMany(f => f)
+        .OrderByDescending(f => f.Size)
+        .FirstOrDefault();
+    
+    if (largestFile == null)
+    {
+        AnsiConsole.MarkupLine("[red]No test files found![/]");
+        return;
+    }
+    
+    var options = new ChunkingOptions
+    {
+        Strategy = testStrategy,
+        MaxChunkSize = 512,
+        OverlapSize = 128
+    };
+    
+    // Before processing - collect garbage and measure
+    GC.Collect();
+    GC.WaitForPendingFinalizers();
+    GC.Collect();
+    
+    var memoryBefore = GC.GetTotalMemory(true);
+    var stopwatch = Stopwatch.StartNew();
+    var chunks = new List<DocumentChunk>();
+    
+    await AnsiConsole.Status()
+        .StartAsync("Processing file with memory monitoring...", async ctx =>
+        {
+            await foreach (var chunk in processor.ProcessAsync(largestFile.Path, options))
+            {
+                chunks.Add(chunk);
+            }
+        });
+    
+    stopwatch.Stop();
+    var memoryAfter = GC.GetTotalMemory(false);
+    var memoryUsed = memoryAfter - memoryBefore;
+    var memoryRatio = (double)memoryUsed / largestFile.Size;
+    
+    // Force garbage collection and check final memory
+    GC.Collect();
+    GC.WaitForPendingFinalizers();
+    var finalMemory = GC.GetTotalMemory(true);
+    
+    // Display results
+    var table = new Table();
+    table.AddColumn("Metric");
+    table.AddColumn("Value");
+    table.AddColumn("Phase 10 Target");
+    
+    table.AddRow("Strategy", testStrategy, "MemoryOptimizedIntelligent");
+    table.AddRow("File Size", FormatFileSize(largestFile.Size), "-");
+    table.AddRow("Peak Memory", FormatFileSize(memoryUsed), "≤50% of Phase 9");
+    table.AddRow("Memory Ratio", $"{memoryRatio:P2}", "≤200% of file size");
+    table.AddRow("Chunks Generated", chunks.Count.ToString(), "-");
+    table.AddRow("Processing Time", $"{stopwatch.ElapsedMilliseconds} ms", "-");
+    table.AddRow("Throughput", $"{largestFile.Size / (1024.0 * 1024.0) / stopwatch.Elapsed.TotalSeconds:F2} MB/s", "≥1 MB/s");
+    
+    AnsiConsole.Write(table);
+    
+    // Memory efficiency assessment
+    if (memoryRatio <= 2.0)
+    {
+        AnsiConsole.MarkupLine("[green]✅ Memory efficiency: EXCELLENT (≤200% of file size)[/]");
+    }
+    else if (memoryRatio <= 3.0)
+    {
+        AnsiConsole.MarkupLine("[yellow]⚠️ Memory efficiency: ACCEPTABLE (≤300% of file size)[/]");
+    }
+    else
+    {
+        AnsiConsole.MarkupLine("[red]❌ Memory efficiency: NEEDS IMPROVEMENT (>300% of file size)[/]");
+    }
+    
+    // Check if chunks have memory optimization metadata
+    var optimizedChunks = chunks.Count(c => 
+        c.Metadata.CustomProperties.ContainsKey("MemoryOptimized") &&
+        c.Metadata.CustomProperties["MemoryOptimized"].ToString() == "True");
+    
+    if (optimizedChunks > 0)
+    {
+        AnsiConsole.MarkupLine($"[green]✅ Memory optimization active: {optimizedChunks}/{chunks.Count} chunks[/]");
+    }
+}
+
+// Phase 10: Auto Strategy Test
+static async Task RunAutoStrategyTest()
+{
+    AnsiConsole.Write(new Rule("[bold magenta]Auto Strategy Selection Test (Phase 10)[/]"));
+    
+    if (!TestFiles.Any())
+    {
+        DiscoverTestFiles();
+    }
+    
+    var processor = CreateProcessor();
+    
+    // Test Auto strategy with different document types
+    var results = new List<(string FileType, string SelectedStrategy, int ChunkCount, TimeSpan ProcessingTime)>();
+    
+    await AnsiConsole.Progress()
+        .Columns(new ProgressColumn[]
+        {
+            new TaskDescriptionColumn(),
+            new ProgressBarColumn(),
+            new PercentageColumn(),
+            new SpinnerColumn(),
+        })
+        .StartAsync(async ctx =>
+        {
+            var totalFiles = TestFiles.Sum(ft => ft.Value.Count);
+            var task = ctx.AddTask("[green]Testing Auto strategy[/]", maxValue: totalFiles);
+            
+            foreach (var fileType in TestFiles)
+            {
+                foreach (var file in fileType.Value)
+                {
+                    task.Description = $"Auto-selecting strategy for {file.Name}";
+                    
+                    var options = new ChunkingOptions
+                    {
+                        Strategy = "Auto", // This should trigger automatic selection
+                        MaxChunkSize = 512,
+                        OverlapSize = 128
+                    };
+                    
+                    var stopwatch = Stopwatch.StartNew();
+                    var chunks = new List<DocumentChunk>();
+                    
+                    await foreach (var chunk in processor.ProcessAsync(file.Path, options))
+                    {
+                        chunks.Add(chunk);
+                    }
+                    
+                    stopwatch.Stop();
+                    
+                    // Extract selected strategy from chunk metadata
+                    var selectedStrategy = chunks.FirstOrDefault()?.Metadata.CustomProperties
+                        .ContainsKey("SelectedStrategy") == true
+                        ? chunks.First().Metadata.CustomProperties["SelectedStrategy"].ToString()
+                        : "Unknown";
+                    
+                    results.Add((fileType.Key, selectedStrategy, chunks.Count, stopwatch.Elapsed));
+                    task.Increment(1);
+                }
+            }
+        });
+    
+    // Display results
+    var table = new Table();
+    table.AddColumn("File Type");
+    table.AddColumn("Auto-Selected Strategy");
+    table.AddColumn("Chunks");
+    table.AddColumn("Time (ms)");
+    table.AddColumn("Assessment");
+    
+    foreach (var group in results.GroupBy(r => r.FileType))
+    {
+        var strategies = group.Select(g => g.SelectedStrategy).Distinct();
+        var avgChunks = group.Average(g => g.ChunkCount);
+        var avgTime = group.Average(g => g.ProcessingTime.TotalMilliseconds);
+        
+        var assessment = strategies.Count() == 1 ? "[green]Consistent[/]" : "[yellow]Varies[/]";
+        
+        table.AddRow(
+            group.Key,
+            string.Join(", ", strategies),
+            $"{avgChunks:F0}",
+            $"{avgTime:F0}",
+            assessment
+        );
+    }
+    
+    AnsiConsole.Write(table);
+    
+    // Strategy distribution analysis
+    AnsiConsole.MarkupLine("\n[yellow]Strategy Selection Analysis:[/]");
+    var strategyGroups = results.GroupBy(r => r.SelectedStrategy);
+    
+    foreach (var group in strategyGroups)
+    {
+        var percentage = (double)group.Count() / results.Count * 100;
+        AnsiConsole.MarkupLine($"  {group.Key}: {group.Count()} files ({percentage:F1}%)");
+    }
+}
+
+// Phase 10: Large File Test
+static async Task RunLargeFileTest(string strategy)
+{
+    AnsiConsole.Write(new Rule("[bold magenta]Large File Processing Test (Phase 10)[/]"));
+    
+    if (!TestFiles.Any())
+    {
+        DiscoverTestFiles();
+    }
+    
+    var processor = CreateProcessor();
+    var testStrategy = string.IsNullOrEmpty(strategy) ? "Auto" : strategy;
+    
+    // Find files larger than 1MB
+    var largeFiles = TestFiles.Values
+        .SelectMany(f => f)
+        .Where(f => f.Size > 1024 * 1024) // > 1MB
+        .OrderByDescending(f => f.Size)
+        .Take(3)
+        .ToList();
+    
+    if (!largeFiles.Any())
+    {
+        AnsiConsole.MarkupLine("[yellow]No files larger than 1MB found. Testing with largest available files.[/]");
+        largeFiles = TestFiles.Values
+            .SelectMany(f => f)
+            .OrderByDescending(f => f.Size)
+            .Take(3)
+            .ToList();
+    }
+    
+    var results = new List<(string FileName, long FileSize, int ChunkCount, TimeSpan Time, double MemoryRatio)>();
+    
+    await AnsiConsole.Progress()
+        .Columns(new ProgressColumn[]
+        {
+            new TaskDescriptionColumn(),
+            new ProgressBarColumn(),
+            new PercentageColumn(),
+            new SpinnerColumn(),
+        })
+        .StartAsync(async ctx =>
+        {
+            var task = ctx.AddTask($"[green]Testing large files with {testStrategy}[/]", maxValue: largeFiles.Count);
+            
+            foreach (var file in largeFiles)
+            {
+                task.Description = $"Processing {file.Name} ({FormatFileSize(file.Size)})";
+                
+                var options = new ChunkingOptions
+                {
+                    Strategy = testStrategy,
+                    MaxChunkSize = 1024, // Larger chunks for large files
+                    OverlapSize = 256
+                };
+                
+                GC.Collect();
+                var memoryBefore = GC.GetTotalMemory(true);
+                var stopwatch = Stopwatch.StartNew();
+                var chunks = new List<DocumentChunk>();
+                
+                await foreach (var chunk in processor.ProcessAsync(file.Path, options))
+                {
+                    chunks.Add(chunk);
+                }
+                
+                stopwatch.Stop();
+                var memoryAfter = GC.GetTotalMemory(false);
+                var memoryUsed = memoryAfter - memoryBefore;
+                var memoryRatio = (double)memoryUsed / file.Size;
+                
+                results.Add((file.Name, file.Size, chunks.Count, stopwatch.Elapsed, memoryRatio));
+                task.Increment(1);
+            }
+        });
+    
+    // Display results
+    var table = new Table();
+    table.AddColumn("File Name");
+    table.AddColumn("File Size");
+    table.AddColumn("Chunks");
+    table.AddColumn("Time");
+    table.AddColumn("Memory Ratio");
+    table.AddColumn("Status");
+    
+    foreach (var result in results)
+    {
+        var status = result.MemoryRatio < 3.0 ? "[green]✅[/]" : "[red]❌[/]";
+        var throughput = result.FileSize / (1024.0 * 1024.0) / result.Time.TotalSeconds;
+        
+        table.AddRow(
+            result.FileName,
+            FormatFileSize(result.FileSize),
+            result.ChunkCount.ToString(),
+            $"{result.Time.TotalSeconds:F1}s ({throughput:F2} MB/s)",
+            $"{result.MemoryRatio:F2}x",
+            status
+        );
+    }
+    
+    AnsiConsole.Write(table);
+    
+    // Performance assessment
+    var avgThroughput = results.Average(r => r.FileSize / (1024.0 * 1024.0) / r.Time.TotalSeconds);
+    var avgMemoryRatio = results.Average(r => r.MemoryRatio);
+    
+    AnsiConsole.MarkupLine($"\n[yellow]Large File Performance Summary:[/]");
+    AnsiConsole.MarkupLine($"  Average Throughput: {avgThroughput:F2} MB/s");
+    AnsiConsole.MarkupLine($"  Average Memory Ratio: {avgMemoryRatio:F2}x");
+    
+    if (avgThroughput >= 1.0 && avgMemoryRatio <= 3.0)
+    {
+        AnsiConsole.MarkupLine("[green]✅ Large file processing: EXCELLENT[/]");
+    }
+    else if (avgThroughput >= 0.5 && avgMemoryRatio <= 5.0)
+    {
+        AnsiConsole.MarkupLine("[yellow]⚠️ Large file processing: ACCEPTABLE[/]");
+    }
+    else
+    {
+        AnsiConsole.MarkupLine("[red]❌ Large file processing: NEEDS IMPROVEMENT[/]");
+    }
+}
+
+// Phase 10: Boundary Quality Test
+static async Task RunBoundaryQualityTest()
+{
+    AnsiConsole.Write(new Rule("[bold magenta]Boundary Quality Test (Phase 10)[/]"));
+    
+    if (!TestFiles.Any())
+    {
+        DiscoverTestFiles();
+    }
+    
+    var processor = CreateProcessor();
+    var analyzer = new RAGQualityAnalyzer();
+    
+    // Test boundary quality with different strategies
+    var strategies = new[] { "Smart", "MemoryOptimizedIntelligent", "Intelligent", "Semantic" };
+    var results = new List<(string Strategy, double BoundaryScore, double ConsistencyScore)>();
+    
+    // Use a representative test file
+    var testFile = TestFiles.Values.SelectMany(f => f).FirstOrDefault();
+    if (testFile == null)
+    {
+        AnsiConsole.MarkupLine("[red]No test files found![/]");
+        return;
+    }
+    
+    var originalContent = await File.ReadAllTextAsync(testFile.Path);
+    
+    await AnsiConsole.Progress()
+        .StartAsync(async ctx =>
+        {
+            var task = ctx.AddTask("[green]Testing boundary quality[/]", maxValue: strategies.Length);
+            
+            foreach (var strategy in strategies)
+            {
+                task.Description = $"Testing {strategy} strategy";
+                
+                var chunks = new List<DocumentChunk>();
+                
+                await foreach (var chunk in processor.ProcessAsync(
+                    testFile.Path,
+                    new ChunkingOptions { Strategy = strategy, MaxChunkSize = 512, OverlapSize = 128 }))
+                {
+                    chunks.Add(chunk);
+                }
+                
+                // Analyze boundary quality
+                var qualityReport = analyzer.AnalyzeChunks(chunks, originalContent);
+                var boundaryScore = qualityReport.BoundaryQuality?.OverallScore ?? 0;
+                
+                // Calculate consistency score (how similar are chunk sizes)
+                var chunkSizes = chunks.Select(c => c.Content.Length).ToList();
+                var avgSize = chunkSizes.Average();
+                var variance = chunkSizes.Sum(size => Math.Pow(size - avgSize, 2)) / chunkSizes.Count;
+                var consistencyScore = Math.Max(0, 1.0 - (Math.Sqrt(variance) / avgSize));
+                
+                results.Add((strategy, boundaryScore, consistencyScore));
+                task.Increment(1);
+            }
+        });
+    
+    // Display results
+    var table = new Table();
+    table.AddColumn("Strategy");
+    table.AddColumn("Boundary Quality");
+    table.AddColumn("Size Consistency");
+    table.AddColumn("Overall Assessment");
+    
+    foreach (var result in results.OrderByDescending(r => r.BoundaryScore))
+    {
+        var overall = (result.BoundaryScore + result.ConsistencyScore) / 2;
+        var assessment = overall >= 0.8 ? "[green]Excellent[/]" :
+                        overall >= 0.6 ? "[yellow]Good[/]" : "[red]Needs Work[/]";
+        
+        table.AddRow(
+            result.Strategy,
+            FormatScore(result.BoundaryScore),
+            FormatScore(result.ConsistencyScore),
+            assessment
+        );
+    }
+    
+    AnsiConsole.Write(table);
+    
+    // Phase 10 specific assessment
+    var smartResult = results.FirstOrDefault(r => r.Strategy == "Smart");
+    if (smartResult.Strategy != null)
+    {
+        AnsiConsole.MarkupLine($"\n[yellow]Phase 10 Smart Strategy Assessment:[/]");
+        if (smartResult.BoundaryScore >= 0.8)
+        {
+            AnsiConsole.MarkupLine("[green]✅ Boundary quality target achieved (≥80%)[/]");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[orange1]⚠️ Boundary quality: {smartResult.BoundaryScore:P1} (target: ≥80%)[/]");
+        }
+    }
+}
+
+// Phase 10: Context Preservation Test
+static async Task RunContextPreservationTest()
+{
+    AnsiConsole.Write(new Rule("[bold magenta]Context Preservation Test (Phase 10)[/]"));
+    
+    if (!TestFiles.Any())
+    {
+        DiscoverTestFiles();
+    }
+    
+    var processor = CreateProcessor();
+    var analyzer = new RAGQualityAnalyzer();
+    
+    // Test adaptive overlap with different strategies
+    var strategies = new[] { "Smart", "MemoryOptimizedIntelligent", "Intelligent" };
+    var testFile = TestFiles.Values.SelectMany(f => f).FirstOrDefault();
+    
+    if (testFile == null)
+    {
+        AnsiConsole.MarkupLine("[red]No test files found![/]");
+        return;
+    }
+    
+    var originalContent = await File.ReadAllTextAsync(testFile.Path);
+    var results = new List<(string Strategy, double ContextScore, double AdaptiveOverlapScore)>();
+    
+    await AnsiConsole.Progress()
+        .StartAsync(async ctx =>
+        {
+            var task = ctx.AddTask("[green]Testing context preservation[/]", maxValue: strategies.Length);
+            
+            foreach (var strategy in strategies)
+            {
+                task.Description = $"Analyzing {strategy} context preservation";
+                
+                var chunks = new List<DocumentChunk>();
+                
+                await foreach (var chunk in processor.ProcessAsync(
+                    testFile.Path,
+                    new ChunkingOptions 
+                    { 
+                        Strategy = strategy, 
+                        MaxChunkSize = 512, 
+                        OverlapSize = 128,
+                        // Enable Phase 10 features
+                        CustomProperties = new Dictionary<string, object>
+                        {
+                            ["AdaptiveOverlap"] = true,
+                            ["ContextWindowSize"] = 3000
+                        }
+                    }))
+                {
+                    chunks.Add(chunk);
+                }
+                
+                // Analyze context preservation
+                var qualityReport = analyzer.AnalyzeChunks(chunks, originalContent);
+                var contextScore = qualityReport.ContextPreservation?.OverallScore ?? 0;
+                
+                // Calculate adaptive overlap effectiveness
+                var overlapLengths = new List<int>();
+                for (int i = 1; i < chunks.Count; i++)
+                {
+                    var prevContent = chunks[i - 1].Content;
+                    var currContent = chunks[i].Content;
+                    var overlapLength = GetOverlapLength(prevContent, currContent);
+                    overlapLengths.Add(overlapLength);
+                }
+                
+                var avgOverlap = overlapLengths.Any() ? overlapLengths.Average() : 0;
+                var adaptiveScore = Math.Min(1.0, avgOverlap / 128.0); // Normalize to 128 char target
+                
+                results.Add((strategy, contextScore, adaptiveScore));
+                task.Increment(1);
+            }
+        });
+    
+    // Display results
+    var table = new Table();
+    table.AddColumn("Strategy");
+    table.AddColumn("Context Preservation");
+    table.AddColumn("Adaptive Overlap");
+    table.AddColumn("Phase 10 Status");
+    
+    foreach (var result in results.OrderByDescending(r => r.ContextScore))
+    {
+        var phase10Feature = result.Strategy.Contains("Smart") || result.Strategy.Contains("MemoryOptimized");
+        var status = phase10Feature ? "[green]Phase 10[/]" : "[dim]Legacy[/]";
+        
+        table.AddRow(
+            result.Strategy,
+            FormatScore(result.ContextScore),
+            FormatScore(result.AdaptiveOverlapScore),
+            status
+        );
+    }
+    
+    AnsiConsole.Write(table);
+    
+    // Context preservation assessment
+    var bestContextScore = results.Max(r => r.ContextScore);
+    AnsiConsole.MarkupLine($"\n[yellow]Context Preservation Analysis:[/]");
+    AnsiConsole.MarkupLine($"  Best Context Score: {bestContextScore:P1}");
+    
+    if (bestContextScore >= 0.85)
+    {
+        AnsiConsole.MarkupLine("[green]✅ Context preservation: EXCELLENT (≥85%)[/]");
+    }
+    else if (bestContextScore >= 0.7)
+    {
+        AnsiConsole.MarkupLine("[yellow]⚠️ Context preservation: GOOD (≥70%)[/]");
+    }
+    else
+    {
+        AnsiConsole.MarkupLine("[red]❌ Context preservation: NEEDS IMPROVEMENT (<70%)[/]");
+    }
+}
+
+// Phase 10: Comprehensive Phase Comparison
+static async Task RunPhaseComparisonTest()
+{
+    AnsiConsole.Write(new Rule("[bold magenta]Phase 9 vs Phase 10 Comparison[/]"));
+    
+    if (!TestFiles.Any())
+    {
+        DiscoverTestFiles();
+    }
+    
+    var processor = CreateProcessor();
+    var analyzer = new RAGQualityAnalyzer();
+    
+    // Phase 9 strategies vs Phase 10 strategies
+    var phase9Strategies = new[] { "Intelligent", "Semantic", "Paragraph" };
+    var phase10Strategies = new[] { "Auto", "Smart", "MemoryOptimizedIntelligent" };
+    
+    var testFile = TestFiles.Values.SelectMany(f => f).FirstOrDefault();
+    if (testFile == null)
+    {
+        AnsiConsole.MarkupLine("[red]No test files found![/]");
+        return;
+    }
+    
+    var originalContent = await File.ReadAllTextAsync(testFile.Path);
+    var allResults = new List<(string Phase, string Strategy, RAGQualityReport Quality, TimeSpan ProcessingTime, long MemoryUsed)>();
+    
+    await AnsiConsole.Progress()
+        .StartAsync(async ctx =>
+        {
+            var totalTests = phase9Strategies.Length + phase10Strategies.Length;
+            var task = ctx.AddTask("[green]Running phase comparison[/]", maxValue: totalTests);
+            
+            // Test Phase 9 strategies
+            foreach (var strategy in phase9Strategies)
+            {
+                task.Description = $"Testing Phase 9: {strategy}";
+                
+                GC.Collect();
+                var memoryBefore = GC.GetTotalMemory(true);
+                var stopwatch = Stopwatch.StartNew();
+                var chunks = new List<DocumentChunk>();
+                
+                await foreach (var chunk in processor.ProcessAsync(
+                    testFile.Path,
+                    new ChunkingOptions { Strategy = strategy, MaxChunkSize = 512, OverlapSize = 128 }))
+                {
+                    chunks.Add(chunk);
+                }
+                
+                stopwatch.Stop();
+                var memoryAfter = GC.GetTotalMemory(false);
+                var qualityReport = analyzer.AnalyzeChunks(chunks, originalContent);
+                
+                allResults.Add(("Phase 9", strategy, qualityReport, stopwatch.Elapsed, memoryAfter - memoryBefore));
+                task.Increment(1);
+            }
+            
+            // Test Phase 10 strategies
+            foreach (var strategy in phase10Strategies)
+            {
+                task.Description = $"Testing Phase 10: {strategy}";
+                
+                GC.Collect();
+                var memoryBefore = GC.GetTotalMemory(true);
+                var stopwatch = Stopwatch.StartNew();
+                var chunks = new List<DocumentChunk>();
+                
+                await foreach (var chunk in processor.ProcessAsync(
+                    testFile.Path,
+                    new ChunkingOptions { Strategy = strategy, MaxChunkSize = 512, OverlapSize = 128 }))
+                {
+                    chunks.Add(chunk);
+                }
+                
+                stopwatch.Stop();
+                var memoryAfter = GC.GetTotalMemory(false);
+                var qualityReport = analyzer.AnalyzeChunks(chunks, originalContent);
+                
+                allResults.Add(("Phase 10", strategy, qualityReport, stopwatch.Elapsed, memoryAfter - memoryBefore));
+                task.Increment(1);
+            }
+        });
+    
+    // Display comparison results
+    var table = new Table();
+    table.AddColumn("Phase");
+    table.AddColumn("Strategy");
+    table.AddColumn("Quality Score");
+    table.AddColumn("Context");
+    table.AddColumn("Boundary");
+    table.AddColumn("Time (ms)");
+    table.AddColumn("Memory");
+    
+    foreach (var result in allResults.OrderBy(r => r.Phase).ThenByDescending(r => r.Quality.CompositeScore))
+    {
+        var phaseColor = result.Phase == "Phase 10" ? "[green]" : "[dim]";
+        var qualityColor = result.Quality.CompositeScore >= 0.8 ? "[green]" : 
+                          result.Quality.CompositeScore >= 0.6 ? "[yellow]" : "[red]";
+        
+        table.AddRow(
+            $"{phaseColor}{result.Phase}[/]",
+            result.Strategy,
+            $"{qualityColor}{result.Quality.CompositeScore:P0}[/]",
+            FormatScore(result.Quality.ContextPreservation?.OverallScore ?? 0),
+            FormatScore(result.Quality.BoundaryQuality?.OverallScore ?? 0),
+            $"{result.ProcessingTime.TotalMilliseconds:F0}",
+            FormatFileSize(result.MemoryUsed)
+        );
+    }
+    
+    AnsiConsole.Write(table);
+    
+    // Phase comparison summary
+    var phase9Results = allResults.Where(r => r.Phase == "Phase 9").ToList();
+    var phase10Results = allResults.Where(r => r.Phase == "Phase 10").ToList();
+    
+    if (phase9Results.Any() && phase10Results.Any())
+    {
+        var phase9AvgQuality = phase9Results.Average(r => r.Quality.CompositeScore);
+        var phase10AvgQuality = phase10Results.Average(r => r.Quality.CompositeScore);
+        var qualityImprovement = ((phase10AvgQuality - phase9AvgQuality) / phase9AvgQuality) * 100;
+        
+        var phase9AvgMemory = phase9Results.Average(r => r.MemoryUsed);
+        var phase10AvgMemory = phase10Results.Average(r => r.MemoryUsed);
+        var memoryReduction = ((phase9AvgMemory - phase10AvgMemory) / phase9AvgMemory) * 100;
+        
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule("[bold yellow]Phase 10 Improvement Summary[/]"));
+        
+        AnsiConsole.MarkupLine($"[green]📈 Quality Improvement: {qualityImprovement:+0.1;-0.1;0}%[/]");
+        AnsiConsole.MarkupLine($"[green]🧠 Memory Optimization: {memoryReduction:+0.1;-0.1;0}%[/]");
+        
+        // Check Phase 10 goals
+        if (qualityImprovement > 0)
+        {
+            AnsiConsole.MarkupLine("[green]✅ Phase 10 Quality Goal: ACHIEVED[/]");
+        }
+        
+        if (memoryReduction > 0)
+        {
+            AnsiConsole.MarkupLine("[green]✅ Phase 10 Memory Goal: ACHIEVED[/]");
+        }
+        
+        // Best performing strategy
+        var bestStrategy = allResults.OrderByDescending(r => r.Quality.CompositeScore).First();
+        AnsiConsole.MarkupLine($"\n[lime]🏆 Best Performing Strategy: {bestStrategy.Strategy} ({bestStrategy.Phase})[/]");
+        AnsiConsole.MarkupLine($"   Quality Score: {bestStrategy.Quality.CompositeScore:P1}");
+        AnsiConsole.MarkupLine($"   Processing Time: {bestStrategy.ProcessingTime.TotalMilliseconds:F0} ms");
+        AnsiConsole.MarkupLine($"   Memory Usage: {FormatFileSize(bestStrategy.MemoryUsed)}");
+    }
+}
 }
 
 class RAGQualityResult
@@ -1429,6 +2165,23 @@ class TestFile
         Extension = System.IO.Path.GetExtension(path).TrimStart('.').ToUpper();
         var info = new FileInfo(path);
         Size = info.Exists ? info.Length : 0;
+    }
+}
+
+// Phase 10: Simple Service Provider for Auto strategy support
+public class SimpleServiceProvider : IServiceProvider
+{
+    private readonly Dictionary<Type, object> _services = new();
+    
+    public SimpleServiceProvider(ITextCompletionService textService, IAdaptiveStrategySelector selector)
+    {
+        _services[typeof(ITextCompletionService)] = textService;
+        _services[typeof(IAdaptiveStrategySelector)] = selector;
+    }
+    
+    public object? GetService(Type serviceType)
+    {
+        return _services.TryGetValue(serviceType, out var service) ? service : null;
     }
 }
 

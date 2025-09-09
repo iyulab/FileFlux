@@ -19,6 +19,11 @@ public class ChunkingOptions
     /// 청크 간 겹침 크기 (기본: 128토큰 - 컨텍스트 보존)
     /// </summary>
     public int OverlapSize { get; set; } = 128;
+
+    /// <summary>
+    /// 사용자 정의 속성들 (Phase 10: 고급 설정)
+    /// </summary>
+    public Dictionary<string, object> CustomProperties { get; set; } = new();
 }
 
 /// <summary>
