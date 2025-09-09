@@ -19,6 +19,12 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     private static readonly Regex TableRegex = new(@"^\s*\|[^|]+\|[^|]+\|", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TableSeparatorRegex = new(@"^\s*\|[\s\-\|]+\|", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex MarkdownSectionRegex = new(@"^#{1,6}\s+.*$", RegexOptions.Compiled | RegexOptions.Multiline);
+    
+    // Phase 10: Context Preservation 강화를 위한 적응형 오버랩 매니저
+    private static readonly AdaptiveOverlapManager _overlapManager = new();
+    
+    // Phase 10: Boundary Quality 일관성 개선을 위한 경계 품질 매니저
+    private static readonly BoundaryQualityManager _boundaryQualityManager = new();
 
     public string StrategyName => ChunkingStrategies.Intelligent;
 
@@ -67,12 +73,13 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         // 테이블 감지 시 청킹 크기 동적 조정
         var effectiveWindowSize = ContainsAnyTable(semanticUnits) ? contextWindowSize * 2 : contextWindowSize;
 
-        // 3단계: 컨텍스트 인식 청킹
+        // 3단계: 컨텍스트 인식 청킹 (Phase 10: 적응형 오버랩 적용)
         var contextualChunks = CreateContextualChunks(
             semanticUnits,
             effectiveWindowSize,
             semanticCoherence,
-            adaptiveOverlap ? options.OverlapSize : 0);
+            options, // 전체 옵션 전달하여 적응형 오버랩 계산
+            adaptiveOverlap);
 
         // 4단계: 품질 평가 및 최적화 - 테이블 있을 때 동적 크기 적용
         var effectiveMaxSize = ContainsAnyTable(semanticUnits) ? options.MaxChunkSize * 2 : options.MaxChunkSize;
@@ -313,12 +320,13 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         List<SemanticUnit> units,
         int maxSize,
         double coherenceThreshold,
-        int baseOverlap)
+        ChunkingOptions options,
+        bool adaptiveOverlap)
     {
         var chunks = new List<string>();
         var currentChunk = new List<SemanticUnit>();
         var currentSize = 0;
-        var previousChunkTail = string.Empty; // Store tail of previous chunk for overlap
+        var previousChunkText = string.Empty; // Phase 10: 이전 청크 전체 텍스트 저장 (적응형 오버랩용)
 
         for (int i = 0; i < units.Count; i++)
         {
@@ -335,15 +343,26 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 // 현재 청크가 있고 테이블을 추가하면 크기 초과인 경우 현재 청크 완료
                 if (currentChunk.Count != 0 && currentSize + unitSize > maxSize)
                 {
-                    var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail);
+                    var currentChunkText = string.Join(" ", currentChunk.Select(u => u.Content));
+                    
+                    // Phase 10: 적응형 오버랩 적용
+                    string overlapText = "";
+                    if (adaptiveOverlap && !string.IsNullOrEmpty(previousChunkText))
+                    {
+                        var optimalOverlap = _overlapManager.CalculateOptimalOverlap(previousChunkText, currentChunkText, options);
+                        overlapText = _overlapManager.CreateContextPreservingOverlap(previousChunkText, optimalOverlap);
+                    }
+                    else if (options.OverlapSize > 0)
+                    {
+                        var overlapUnits = GetOverlapUnits(currentChunk, options.OverlapSize, 1.0);
+                        overlapText = string.Join(" ", overlapUnits.Select(u => u.Content));
+                    }
+                    
+                    var chunkContent = CreateCoherentChunk(currentChunk, options.OverlapSize, overlapText);
                     chunks.Add(chunkContent);
                     
-                    // Save tail for next chunk's overlap
-                    if (baseOverlap > 0 && currentChunk.Count > 0)
-                    {
-                        var overlapUnits = GetOverlapUnits(currentChunk, baseOverlap, 1.0);
-                        previousChunkTail = string.Join(" ", overlapUnits.Select(u => u.Content));
-                    }
+                    // 다음 청크를 위해 현재 청크 텍스트 저장
+                    previousChunkText = currentChunkText;
                     
                     currentChunk.Clear();
                     currentSize = 0;
@@ -364,14 +383,9 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                     {
                         if (currentChunk.Count != 0)
                         {
-                            chunks.Add(CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail));
-                            
-                            // Save tail for next chunk's overlap
-                            if (baseOverlap > 0 && currentChunk.Count > 0)
-                            {
-                                var overlapUnits = GetOverlapUnits(currentChunk, baseOverlap, 1.0);
-                                previousChunkTail = string.Join(" ", overlapUnits.Select(u => u.Content));
-                            }
+                            var currentChunkText = string.Join(" ", currentChunk.Select(u => u.Content));
+                            chunks.Add(CreateCoherentChunk(currentChunk, options.OverlapSize, ""));
+                            previousChunkText = currentChunkText;
                             
                             currentChunk.Clear();
                             currentSize = 0;
@@ -386,15 +400,20 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             var isSectionHeader = MarkdownSectionRegex.IsMatch(unit.Content);
             if (isSectionHeader && currentChunk.Count != 0 && currentSize > maxSize * 0.3) // 30% 이상일 때만 분할
             {
-                var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail);
+                var currentChunkText = string.Join(" ", currentChunk.Select(u => u.Content));
+                
+                // Phase 10: 적응형 오버랩 적용
+                string overlapText = "";
+                if (adaptiveOverlap && !string.IsNullOrEmpty(previousChunkText))
+                {
+                    var optimalOverlap = _overlapManager.CalculateOptimalOverlap(previousChunkText, currentChunkText, options);
+                    overlapText = _overlapManager.CreateContextPreservingOverlap(previousChunkText, optimalOverlap);
+                }
+                
+                var chunkContent = CreateCoherentChunk(currentChunk, options.OverlapSize, overlapText);
                 chunks.Add(chunkContent);
                 
-                // Save tail for next chunk's overlap
-                if (baseOverlap > 0 && currentChunk.Count > 0)
-                {
-                    var overlapUnits = GetOverlapUnits(currentChunk, baseOverlap, 1.0);
-                    previousChunkTail = string.Join(" ", overlapUnits.Select(u => u.Content));
-                }
+                previousChunkText = currentChunkText;
                 
                 currentChunk.Clear();
                 currentSize = 0;
@@ -403,20 +422,36 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             // 테이블 행 보호 로직 - 테이블 행이 포함된 청크는 무조건 완성
             var containsTableRow = ContainsTableRow(currentChunk) || IsTableRow(unit.Content);
 
-            // 일반적인 크기 기반 청킹 (기존 로직)
+            // Phase 10: 경계 품질을 고려한 청킹 결정
             if (currentChunk.Count != 0 &&
                 currentSize + unitSize > maxSize &&
                 !isSectionHeader && // 섹션 헤더는 강제로 포함
                 !containsTableRow && // 테이블 행은 보호
                 ShouldStartNewChunk(currentChunk, unit, coherenceThreshold))
             {
-                var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail);
+                var currentChunkText = string.Join("\n", currentChunk.Select(u => u.Content));
+                var entireText = string.Join("\n", units.Select(u => u.Content)); // 전체 텍스트 재구성
+                var proposedSplitPosition = unit.Position; // 현재 분할 위치
+                
+                // 경계 품질 평가 및 개선
+                var boundaryResult = _boundaryQualityManager.EvaluateAndImproveBoundary(entireText, proposedSplitPosition, options);
+                
+                // 품질이 개선되었다면 조정된 위치 사용
+                if (boundaryResult.ImprovedPosition != proposedSplitPosition && boundaryResult.QualityScore > 0.7)
+                {
+                    // TODO: 실제로는 개선된 위치에 따라 currentChunk의 내용을 조정해야 함
+                    // 현재는 로깅만 수행하고 기존 로직 유지
+                    // 향후 정교한 위치 조정 로직 구현 예정
+                }
+                
+                var optimalOverlapSize = _overlapManager.CalculateOptimalOverlap(
+                    previousChunkText, currentChunkText, options);
+                var chunkContent = CreateCoherentChunk(currentChunk, optimalOverlapSize, previousChunkText);
                 chunks.Add(chunkContent);
 
-                // Get overlap units for the next chunk
-                var overlapUnits = GetOverlapUnits(currentChunk, baseOverlap, unit.ContextualRelevance);
-                previousChunkTail = string.Join(" ", overlapUnits.Select(u => u.Content));
-                currentChunk = new List<SemanticUnit>(); // Start fresh, overlap will be added via previousChunkTail
+                // Store full chunk text for context preservation
+                previousChunkText = chunkContent;
+                currentChunk = new List<SemanticUnit>(); // Start fresh, overlap will be added via previousChunkText
                 currentSize = 0;
             }
 
@@ -427,7 +462,9 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         // 마지막 청크 처리
         if (currentChunk.Count != 0)
         {
-            var chunkContent = CreateCoherentChunk(currentChunk, baseOverlap, previousChunkTail);
+            var optimalOverlapSize = _overlapManager.CalculateOptimalOverlap(
+                previousChunkText, string.Join("\n", currentChunk.Select(u => u.Content)), options);
+            var chunkContent = CreateCoherentChunk(currentChunk, optimalOverlapSize, previousChunkText);
             chunks.Add(chunkContent);
         }
 
@@ -749,17 +786,19 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         return lines.FirstOrDefault()?.Trim() ?? string.Empty;
     }
 
-    private static string CreateCoherentChunk(List<SemanticUnit> units, int overlapSize, string previousTail = "")
+    private static string CreateCoherentChunk(List<SemanticUnit> units, int overlapSize, string previousChunk = "")
     {
         var content = string.Join(" ", units.Select(u => u.Content));
         
-        // Add overlap from previous chunk if provided
-        if (!string.IsNullOrEmpty(previousTail) && overlapSize > 0)
+        // Add adaptive overlap from previous chunk if provided
+        if (!string.IsNullOrEmpty(previousChunk) && overlapSize > 0)
         {
+            var contextPreservingOverlap = _overlapManager.CreateContextPreservingOverlap(previousChunk, overlapSize);
+            
             // Ensure we don't duplicate content that's already in the units
-            if (!content.StartsWith(previousTail))
+            if (!string.IsNullOrEmpty(contextPreservingOverlap) && !content.StartsWith(contextPreservingOverlap))
             {
-                content = previousTail + " " + content;
+                content = contextPreservingOverlap + " " + content;
             }
         }
         

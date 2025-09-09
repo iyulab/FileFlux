@@ -11,6 +11,9 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
 {
     private static readonly Regex SentenceEndRegex = MyRegex();
     private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
+    
+    // Phase 10: Boundary Quality 일관성 개선을 위한 경계 품질 매니저
+    private static readonly BoundaryQualityManager _boundaryQualityManager = new();
 
     public string StrategyName => ChunkingStrategies.Semantic;
 

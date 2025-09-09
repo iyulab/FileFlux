@@ -1,11 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using FileFlux.Core;
 using FileFlux.Infrastructure;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
 using FileFlux.Infrastructure.Services;
 using FileFlux.Infrastructure.Processing;
+using FileFlux.Infrastructure.Strategies;
 
 namespace FileFlux;
 
@@ -28,6 +30,9 @@ public static class ServiceCollectionExtensions
 
         // 기본 청킹 전략들을 등록하는 팩토리
         RegisterChunkingStrategies(services);
+        
+        // 적응형 전략 선택기 등록 (Auto 전략 지원)
+        services.AddScoped<IAdaptiveStrategySelector, AdaptiveStrategySelector>();
 
         // 메인 문서 처리기 등록
         services.AddScoped<IDocumentProcessor, DocumentProcessor>();
@@ -131,18 +136,7 @@ public static class ServiceCollectionExtensions
 
     private static void RegisterChunkingStrategies(IServiceCollection services)
     {
-        // 기본 청킹 전략들을 ChunkingStrategyFactory에 등록
-        services.AddSingleton<IChunkingStrategyFactory>(provider =>
-        {
-            var factory = new ChunkingStrategyFactory();
-
-            // 기본 청킹 전략들 등록 (모든 전략 포함)
-            factory.RegisterStrategy(() => new Infrastructure.Strategies.FixedSizeChunkingStrategy());
-            factory.RegisterStrategy(() => new Infrastructure.Strategies.SemanticChunkingStrategy());
-            factory.RegisterStrategy(() => new Infrastructure.Strategies.ParagraphChunkingStrategy());
-            factory.RegisterStrategy(() => new Infrastructure.Strategies.IntelligentChunkingStrategy());
-
-            return factory;
-        });
+        // Auto 전략을 지원하는 팩토리 사용 (DI 지원)
+        services.AddSingleton<IChunkingStrategyFactory, ChunkingStrategyFactory>();
     }
 }

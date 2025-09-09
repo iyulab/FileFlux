@@ -49,6 +49,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
                 object request;
                 if (_model.Contains("gpt-5"))
                 {
+                    // gpt-5 models only support temperature = 1.0 (default)
                     request = new
                     {
                         model = _model,
@@ -57,7 +58,6 @@ public class OpenAiTextCompletionService : ITextCompletionService
                             new { role = "system", content = "You are a helpful assistant that analyzes document structure and content for RAG preprocessing." },
                             new { role = "user", content = prompt }
                         },
-                        temperature = temperature,
                         max_completion_tokens = maxTokens
                     };
                 }

@@ -6,9 +6,9 @@ namespace FileFlux.Domain;
 public class ChunkingOptions
 {
     /// <summary>
-    /// 청킹 전략 (기본: Intelligent - RAG 최적화)
+    /// 청킹 전략 (기본: Auto - 문서 분석 후 자동 선택)
     /// </summary>
-    public string Strategy { get; set; } = ChunkingStrategies.Intelligent;
+    public string Strategy { get; set; } = ChunkingStrategies.Auto;
 
     /// <summary>
     /// 청크 최대 크기 (기본: 1024토큰 - RAG 최적 크기)
@@ -27,7 +27,17 @@ public class ChunkingOptions
 public static class ChunkingStrategies
 {
     /// <summary>
-    /// 지능형 청킹 - RAG 최적화된 의미 단위 분할
+    /// 자동 적응형 청킹 - LLM이 문서를 분석하여 최적 전략 선택 (기본값)
+    /// </summary>
+    public const string Auto = nameof(Auto);
+    
+    /// <summary>
+    /// 스마트 청킹 - 문장 경계 기반 완성도 70% 보장
+    /// </summary>
+    public const string Smart = nameof(Smart);
+
+    /// <summary>
+    /// 지능형 청킹 - 구조 인식 RAG 최적화
     /// </summary>
     public const string Intelligent = nameof(Intelligent);
 
@@ -37,22 +47,17 @@ public static class ChunkingStrategies
     public const string Semantic = nameof(Semantic);
 
     /// <summary>
+    /// 문단 기반 청킹 - 자연스러운 문단 경계
+    /// </summary>
+    public const string Paragraph = nameof(Paragraph);
+    
+    /// <summary>
     /// 고정 크기 청킹 - 일정한 토큰 수로 분할
     /// </summary>
     public const string FixedSize = nameof(FixedSize);
 
     /// <summary>
-    /// 문단 기반 청킹 - 자연스러운 문단 경계
+    /// 지원되는 모든 전략 목록 (우선순위 순)
     /// </summary>
-    public const string Paragraph = nameof(Paragraph);
-
-    /// <summary>
-    /// 스마트 청킹 - 문장 경계 기반 완성도 보장 (NEW)
-    /// </summary>
-    public const string Smart = nameof(Smart);
-
-    /// <summary>
-    /// 지원되는 모든 전략 목록
-    /// </summary>
-    public static readonly string[] All = { Smart, Intelligent, Semantic, FixedSize, Paragraph };
+    public static readonly string[] All = { Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize };
 }

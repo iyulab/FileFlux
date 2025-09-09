@@ -8,8 +8,8 @@
 
 **핵심 목적**: `Input: File` → `Output: RAG-Ready 구조화된 텍스트 청크`
 
-**현재 상태**: Phase 8 완료, 엔터프라이즈급 성능 최적화 달성 (2025-09-09)
-**개발 버전**: v0.1.6 → v0.2.0 준비
+**현재 상태**: Phase 9 RAG 품질 평가 완료, v0.2 개선 방향 확정 (2025-09-09)
+**개발 버전**: v0.1.6 → v0.2.0 준비 (성능 평가 기반)
 
 ---
 
@@ -23,12 +23,19 @@
 - **테스트 인프라**: 235+ 테스트, OpenAI API 통합, Mock 서비스
 - **멀티모달 처리**: PDF 이미지 추출 및 텍스트 변환 파이프라인
 
-### 🚀 Phase 8: 엔터프라이즈급 성능 최적화 (신규)
+### 🚀 Phase 8: 엔터프라이즈급 성능 최적화 (완료)
 - **병렬 처리 엔진**: CPU 코어별 동적 스케일링, 메모리 백프레셔 제어
 - **스트리밍 최적화**: 실시간 청크 반환, 캐시 우선 검사
 - **지능형 캐시**: 파일 해시 기반 LRU 캐시, 자동 만료 관리
 - **Threading.Channels**: 고성능 비동기 채널 기반 백프레셔 시스템
 - **DI 통합**: 모든 새 서비스가 AddFileFlux()로 자동 등록
+
+### 📊 Phase 9: RAG 품질 평가 및 분석 (완료)
+- **실제 API 환경 구축**: OpenAI gpt-5-nano 모델 연동, temperature 호환성 수정
+- **종합 품질 평가**: 4개 전략 × 3개 파일 형식 품질 메트릭 분석
+- **성능 벤치마크**: Mock/실제 API 환경 비교 분석
+- **품질 메트릭 시스템**: Semantic Completeness, Context Preservation, Boundary Quality 등 6개 메트릭
+- **개선 포인트 도출**: Context Preservation (37-52%), Boundary Quality (14-77%) 개선 필요
 
 ### 🎯 주요 성과
 - **테스트 커버리지**: 235/235 테스트 통과 (100%)
@@ -40,53 +47,58 @@
 
 ---
 
-## 🚀 Phase 9: RAG 품질 극대화 (다음 단계)
+## 🚀 Phase 10: RAG 품질 극대화 (실행 중)
 
-### 🔴 P0: 청킹 품질 근본 개선 (즉시 착수)
+### 🔴 P0: 청킹 품질 근본 개선 (데이터 기반)
 
-**T9-001**: 문장 경계 기반 스마트 청킹 [Critical]
-- [ ] 문장 경계 인식 청킹 알고리즘 구현
-- [ ] 의미적 완결성 보장 로직 (최소 70% 완성도)
-- [ ] 단락 무결성 유지 메커니즘
-- [ ] 컨텍스트 오버랩 기능 수정 및 검증
-- **성공 기준**: 청크 완성도 70% 이상, 문장 중단 0%
+**T10-001**: Context Preservation 강화 [Critical - 현재 37-52%]
+- [ ] 적응형 오버랩 크기 알고리즘 구현 (현재 고정 64→동적 조정)
+- [ ] 문장/단락 경계 인식 기반 오버랩 생성
+- [ ] 의미적 연속성 검증 메커니즘
+- [ ] 청크 간 컨텍스트 품질 측정 시스템
+- **현재 상태**: 37-52% → **목표**: 75% 이상
+- **성공 기준**: Context Preservation 75% 이상, 문장 경계 보존 100%
 
-**T9-002**: 실제 API 기반 RAG 품질 벤치마크 [Critical]
-- [ ] samples/FileFlux.RealWorldBenchmark 프로젝트 확장
-- [ ] OpenAI embedding API 통합 (text-embedding-3-small)
-- [ ] 검색 정확도 측정 시스템 (Precision/Recall/F1)
-- [ ] 다양한 문서 타입별 품질 메트릭
-- [ ] A/B 테스트: Mock vs Real API 성능 비교
-- **성공 기준**: 검색 재현율 85% 이상
+**T10-002**: Boundary Quality 일관성 개선 [Critical - 현재 14-77%]
+- [ ] 문서 구조 인식 기반 경계 감지 알고리즘
+- [ ] 전략별 경계 품질 편차 해결 (현재 63% 차이)
+- [ ] 의미적 일관성 기반 분할점 선택
+- [ ] 청크 경계 품질 자동 평가 시스템
+- **현재 상태**: 14-77% → **목표**: 80% 이상 (편차 20% 이내)
+- **성공 기준**: 모든 전략에서 80% 이상, 편차 20% 이내
 
-**T9-003**: 청킹 전략별 실전 검증 [High]
-- [ ] 각 전략별 RAG 검색 품질 측정
-- [ ] 문서 타입별 최적 전략 자동 선택
-- [ ] 청크 크기 vs 검색 정확도 상관관계 분석
-- [ ] 오버랩 크기 최적화 (0, 64, 128, 256 비교)
-- **성공 기준**: 전략별 성능 지표 문서화
+**T10-003**: 전략 자동 선택 시스템 [High - 데이터 기반]
+- [x] 파일 형식별 최적 전략 분석 완료 (PDF→Semantic, DOCX→Intelligent, MD→Semantic)
+- [ ] 파일 형식 자동 감지 및 전략 추천 시스템
+- [ ] 사용자 설정 최소화 (Zero-Config 접근)
+- [ ] 전략 선택 로직 테스트 및 검증
+- **근거**: Phase 9 품질 평가 결과 기반
+- **성공 기준**: 자동 선택 시 평균 품질 점수 10% 향상
 
-### 🟡 P1: 품질 측정 및 개선 시스템
+### 🟡 P1: 성능 및 메모리 최적화 (Phase 9 이슈 기반)
 
-**T11-004**: RAG 품질 자동화 테스트 스위트 [High]
-- [ ] End-to-End RAG 파이프라인 테스트
-- [ ] 실제 쿼리 기반 검색 테스트 (100+ 쿼리)
-- [ ] 청크 품질 점수 자동 계산
-- [ ] 회귀 테스트 자동화
-- **성공 기준**: CI/CD 통합 가능한 품질 테스트
+**T10-004**: 메모리 효율성 개선 [High - Intelligent 전략 27MB 사용]
+- [ ] Intelligent 전략 메모리 사용량 최적화 (현재 27MB)
+- [ ] 스트리밍 처리로 메모리 피크 감소
+- [ ] 메모리 백프레셔 개선 (큰 파일 처리 안정성)
+- [ ] 메모리 사용 패턴 분석 및 최적화
+- **현재 이슈**: Intelligent 27MB vs FixedSize 2.86MB (10배 차이)
+- **성공 기준**: 메모리 사용량 50% 감소, 일관성 향상
 
-**T11-005**: 도메인별 청킹 최적화 [Medium]
-- [ ] 기술 문서: 코드 블록 무결성 우선
-- [ ] 법률 문서: 조항/섹션 구조 보존
-- [ ] 의료 문서: 용어 컨텍스트 유지
-- [ ] 학술 논문: 참조/인용 연결성
-- **성공 기준**: 도메인별 F1 Score 10% 향상
+**T10-005**: 실제 API 환경 성능 검증 [High]
+- [x] OpenAI gpt-5-nano 모델 호환성 수정 완료
+- [ ] 대용량 파일 (10MB+) 실제 API 테스트
+- [ ] API 비용 최적화 (토큰 사용량 분석)
+- [ ] 실제 환경 vs Mock 환경 성능 비교 분석
+- **현재 상태**: 3MB PDF 테스트 완료
+- **성공 기준**: 10MB+ 파일 안정적 처리, API 비용 20% 절감
 
-**T11-006**: 실시간 품질 모니터링 [Medium]
-- [ ] 청킹 품질 실시간 대시보드
-- [ ] 성능 메트릭 수집 (처리 시간, 메모리)
-- [ ] 품질 저하 알림 시스템
-- [ ] 사용 패턴 분석 및 최적화 제안
+**T10-006**: 품질 메트릭 시스템 확장 [Medium]
+- [x] 6개 핵심 메트릭 구현 완료 (Semantic, Context, Density, Structure, Retrieval, Boundary)
+- [ ] 실시간 품질 모니터링 대시보드
+- [ ] 품질 회귀 방지 자동화 테스트
+- [ ] 사용 패턴별 최적화 제안 시스템
+- **기반**: Phase 9에서 구축된 메트릭 시스템 확장
 
 ### 🟢 P2: 프로덕션 준비 및 배포
 
@@ -189,47 +201,58 @@ dotnet test --collect:"XPlat Code Coverage"
 - **API 통합**: OpenAI API 실전 검증 완료
 - **성능**: 3MB PDF → 511청크, 1.3초
 
-### ⚠️ 핵심 품질 이슈 (해결 필요)
-- **청크 완성도**: 현재 20% (목표 70%)
-- **문장 중단**: 빈번한 문장 중간 절단
-- **오버랩 기능**: 동작하지 않음
-- **검색 정확도**: 측정 시스템 부재
+### ⚠️ Phase 9 평가 결과 - 핵심 개선 영역
+- **Context Preservation**: 37-52% (Critical - RAG 성능에 치명적)
+- **Boundary Quality**: 14-77% (High - 일관성 부족, 63% 편차)
+- **메모리 사용량**: Intelligent 27MB vs FixedSize 2.86MB (10배 차이)
+- **전략별 성능 편차**: PDF(Semantic), DOCX(Intelligent), MD(Semantic) 최적화 필요
+- **API 호환성**: gpt-5-nano temperature 이슈 해결 완료
 
-### 🎯 Phase 11 목표
-- **청크 완성도**: 70% 이상 달성
-- **검색 재현율**: 85% 이상
-- **문장 무결성**: 100% 보장
-- **실제 API 벤치마크**: 완전 구축
+### 🎯 Phase 10 목표 (데이터 기반 개선)
+- **Context Preservation**: 37-52% → 75% 이상 달성
+- **Boundary Quality**: 14-77% → 80% 이상 (편차 20% 이내)
+- **메모리 효율성**: Intelligent 전략 메모리 사용량 50% 감소
+- **자동 전략 선택**: 파일 형식별 최적 전략 자동 적용
+- **실제 API 검증**: 10MB+ 파일 안정적 처리
 
 ---
 
-## 🔥 즉시 실행 작업 (Today)
+## 🔥 Phase 10 즉시 실행 작업 (Context Preservation 우선)
 
-### 1. 청킹 품질 근본 개선
+### 1. Context Preservation 강화 [Critical - T10-001]
 ```csharp
-// 문장 경계 인식 청킹 구현
-/src/FileFlux.Infrastructure/Strategies/SmartChunkingStrategy.cs
+// 적응형 오버랩 알고리즘 구현
+/src/FileFlux.Infrastructure/Strategies/AdaptiveOverlapManager.cs
 
-// 기존 IntelligentStrategy 개선
+// Intelligent 전략 개선 (현재 37-52% → 75% 목표)
 /src/FileFlux.Infrastructure/Strategies/IntelligentChunkingStrategy.cs
+
+// Semantic 전략 오버랩 최적화
+/src/FileFlux.Infrastructure/Strategies/SemanticChunkingStrategy.cs
 ```
 
-### 2. 실제 API 벤치마크 구축
+### 2. Boundary Quality 일관성 개선 [Critical - T10-002]
 ```csharp
-// RealWorldBenchmark 확장
-/samples/FileFlux.RealWorldBenchmark/Benchmarks/RAGQualityBenchmark.cs
+// 문서 구조 인식 경계 감지
+/src/FileFlux.Infrastructure/Analysis/StructuralBoundaryDetector.cs
 
-// Embedding API 통합
-/samples/FileFlux.RealWorldBenchmark/Services/OpenAiEmbeddingService.cs
+// 전략별 경계 품질 표준화 (현재 14-77% → 80% 목표)
+/src/FileFlux.Infrastructure/Strategies/BoundaryQualityManager.cs
 ```
 
-### 3. 품질 메트릭 시스템
+### 3. 자동 전략 선택 시스템 [High - T10-003]
 ```csharp
-// 검색 정확도 측정
-/samples/FileFlux.RealWorldBenchmark/Metrics/RetrievalMetrics.cs
+// 파일 형식별 최적 전략 자동 선택 (Phase 9 결과 기반)
+/src/FileFlux.Infrastructure/Selection/AutoStrategySelector.cs
 
-// 청크 품질 분석
-/samples/FileFlux.RealWorldBenchmark/Metrics/ChunkQualityMetrics.cs
+// Zero-Config ChunkingOptions 확장
+/src/FileFlux.Domain/ChunkingOptions.cs
+```
+
+### 4. 메모리 효율성 개선 [High - T10-004]
+```csharp
+// Intelligent 전략 메모리 최적화 (현재 27MB → 13MB 목표)
+/src/FileFlux.Infrastructure/Strategies/MemoryOptimizedIntelligentStrategy.cs
 ```
 
 ---
@@ -261,6 +284,14 @@ docs: 문서 업데이트
 ---
 
 **마지막 업데이트**: 2025-09-09
-**현재 버전**: v0.1.5 → v0.2.0 준비
-**현재 페이즈**: Phase 11 RAG 품질 개선 진행 중
-**다음 마일스톤**: 청킹 품질 70% 달성 → v0.2.0 릴리즈
+**현재 버전**: v0.1.6 → v0.2.0 준비 (Phase 9 평가 결과 기반)
+**현재 페이즈**: Phase 10 RAG 품질 극대화 (Context Preservation 우선)
+**다음 마일스톤**: Context Preservation 75% 달성 → Boundary Quality 개선 → v0.2.0 릴리즈
+
+## 📊 Phase 9 평가 결과 요약
+- **실행 완료**: 2025-09-09
+- **평가 환경**: OpenAI gpt-5-nano, 4개 전략, 3개 파일 형식 
+- **핵심 발견**: Context Preservation (37-52%), Boundary Quality (14-77%) 개선 필요
+- **최적 전략**: PDF→Semantic, DOCX→Intelligent, MD→Semantic
+- **메모리 이슈**: Intelligent 전략 27MB (FixedSize 대비 10배)
+- **다음 단계**: 데이터 기반 Context Preservation 강화 우선 진행
