@@ -5,16 +5,17 @@
 ## 📊 성능 및 품질
 
 ### 테스트 커버리지
-- **202개 테스트 통과** (Release/Debug 모드 모두)
+- **235개 테스트 통과** (Release/Debug 모드 모두)
 - **8가지 파일 형식** 완벽 지원
 - **4가지 청킹 전략** 검증 완료
 - **멀티모달 처리** (PDF 이미지 추출 → 텍스트 변환)
 
-### 처리 성능
+### 엔터프라이즈급 성능 (Phase 8 최적화)
 - **3MB PDF**: 511개 청크, 1.3초 처리
 - **메모리 효율**: 파일 크기 2배 이하 사용
-- **AsyncEnumerable 스트리밍**: 대용량 파일 지원
-- **병렬 처리**: CPU 코어 수만큼 동시 처리
+- **병렬 처리 엔진**: CPU 코어별 동적 스케일링, 메모리 백프레셔 제어
+- **스트리밍 최적화**: 실시간 청크 반환, LRU 캐시 시스템
+- **Threading.Channels**: 고성능 비동기 채널 기반 백프레셔 시스템
 
 ## 🎛️ 청킹 전략
 
@@ -47,13 +48,13 @@ services.AddScoped<ITextCompletionService, YourLLMService>();
 // 선택사항: 이미지-텍스트 서비스 (멀티모달 처리용)
 services.AddScoped<IImageToTextService, YourVisionService>();
 
-// FileFlux 서비스 등록
+// FileFlux 서비스 등록 (병렬 처리 및 스트리밍 엔진 포함)
 services.AddFileFlux();
 var provider = services.BuildServiceProvider();
 
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
-// 방법 1: 스트리밍 처리 (권장 - 메모리 효율적)
+// 방법 1: 스트리밍 처리 (권장 - 메모리 효율적, 병렬 최적화)
 await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
 {
     if (result.IsSuccess && result.Result != null)

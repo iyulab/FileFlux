@@ -24,6 +24,7 @@ public class ChunkingStrategyFactory : IChunkingStrategyFactory
         RegisterStrategy(() => new SemanticChunkingStrategy());
         RegisterStrategy(() => new FixedSizeChunkingStrategy());
         RegisterStrategy(() => new ParagraphChunkingStrategy());
+        RegisterStrategy(() => new SmartChunkingStrategy());
     }
 
     /// <summary>

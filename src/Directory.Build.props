@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
+  <!-- Version Information (can be overridden by build scripts) -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.6</VersionPrefix>
+    <VersionSuffix Condition="'$(Configuration)' == 'Debug'">-dev</VersionSuffix>
+    <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
+    <FileVersion>$(VersionPrefix)</FileVersion>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">$(VersionPrefix)$(VersionSuffix)</PackageVersion>
+  </PropertyGroup>
 
   <!-- Global Properties for all FileFlux projects -->
   <PropertyGroup>
@@ -46,15 +54,6 @@
     <GenerateAssemblyVersionAttribute>true</GenerateAssemblyVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>true</GenerateAssemblyFileVersionAttribute>
     <GenerateAssemblyInformationalVersionAttribute>true</GenerateAssemblyInformationalVersionAttribute>
-  </PropertyGroup>
-
-  <!-- Version Information (can be overridden by build scripts) -->
-  <PropertyGroup>
-    <VersionPrefix>0.1.5</VersionPrefix>
-    <VersionSuffix Condition="'$(Configuration)' == 'Debug'">-dev</VersionSuffix>
-    <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
-    <FileVersion>$(VersionPrefix)</FileVersion>
-    <PackageVersion Condition="'$(PackageVersion)' == ''">$(VersionPrefix)$(VersionSuffix)</PackageVersion>
   </PropertyGroup>
 
   <!-- Code Quality and Analysis -->

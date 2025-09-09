@@ -8,118 +8,99 @@
 
 **핵심 목적**: `Input: File` → `Output: RAG-Ready 구조화된 텍스트 청크`
 
-### 🎯 FileFlux의 명확한 책임 범위
-
-#### ✅ FileFlux가 담당하는 것 (RAG 준비)
-- **문서 파싱**: 8가지 파일 형식 → 구조화된 텍스트 변환
-- **청킹 최적화**: RAG 검색 품질 극대화를 위한 의미적 청킹
-- **메타데이터 추출**: 구조적 힌트, 품질 점수, 경계 마커 생성
-- **품질 보증**: 청크 일관성, 완전성, 검색 가능성 검증
-- **성능 최적화**: 대용량 문서 스트리밍, 병렬 처리, 캐싱
-
-#### ❌ FileFlux가 담당하지 않는 것 (소비 앱 책임)
-- **임베딩 생성**: 벡터 변환은 소비 애플리케이션 책임
-- **벡터 저장**: Pinecone, Qdrant 등 벡터 DB 통합 제외
-- **검색 기능**: 유사도 검색, 쿼리 처리 제외
-- **그래프 구축**: 지식 그래프, 관계 네트워크는 범위 밖
-- **LLM 응답 생성**: RAG 완성은 소비 애플리케이션 책임
-
-**현재 상태**: Phase 10 완료, v0.2.0 준비 (2025-09-08)
-**개발 버전**: v0.x (과감한 리팩토링 허용, 하위호환성 불필요)
+**현재 상태**: Phase 8 완료, 엔터프라이즈급 성능 최적화 달성 (2025-09-09)
+**개발 버전**: v0.1.6 → v0.2.0 준비
 
 ---
 
-## ✅ 완료된 작업 요약 (Phase 1-9)
+## ✅ 완료된 작업 (Phase 1-8 통합)
 
-### 🎯 Phase 1-7: 기반 구축 및 핵심 완성
-- **8가지 문서 형식**: PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV
-- **4가지 청킹 전략**: Intelligent, Semantic, Paragraph, FixedSize
-- **멀티모달 지원**: Image-to-Text, 경계 마커 시스템
-- **품질 검증**: DocumentQualityAnalyzer, ChunkQualityEngine
-- **성과**: 202개 테스트 통과, OpenAI 실전 검증 완료
+### 📦 핵심 기능 구현 완료
+- **문서 지원**: 8가지 형식 (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV)
+- **청킹 전략**: 4가지 전략 + 하이브리드 + 적응형 시스템
+- **품질 시스템**: 3단계 평가, LLM 필터링, 통계적 경계 감지
+- **성능 최적화**: AsyncEnumerable 스트리밍, LRU 캐싱, 엔터프라이즈급 병렬 처리
+- **테스트 인프라**: 235+ 테스트, OpenAI API 통합, Mock 서비스
+- **멀티모달 처리**: PDF 이미지 추출 및 텍스트 변환 파이프라인
 
-### 🎯 Phase 8: 임베딩 기반 의미적 분석 (완료)
-- **IEmbeddingService**: TF-IDF 기반 Mock 구현
-- **ISemanticBoundaryDetector**: 코사인 유사도 경계 감지
-- **IChunkCoherenceAnalyzer**: 청크 일관성 평가
-- **성과**: 221/227 테스트 통과 (97.4%)
+### 🚀 Phase 8: 엔터프라이즈급 성능 최적화 (신규)
+- **병렬 처리 엔진**: CPU 코어별 동적 스케일링, 메모리 백프레셔 제어
+- **스트리밍 최적화**: 실시간 청크 반환, 캐시 우선 검사
+- **지능형 캐시**: 파일 해시 기반 LRU 캐시, 자동 만료 관리
+- **Threading.Channels**: 고성능 비동기 채널 기반 백프레셔 시스템
+- **DI 통합**: 모든 새 서비스가 AddFileFlux()로 자동 등록
 
-### 🎯 Phase 9: 적응형 청킹 시스템 (완료)
-- **IStatisticalBoundaryDetector**: 통계적 불확실성 기반 경계 감지
-- **IHybridBoundaryDetector**: Statistical + Embedding 하이브리드
-- **IDocumentTypeOptimizer**: 문서 타입별 자동 최적화
-- **ILLMChunkFilter**: 3단계 LLM 품질 필터링
-- **성과**: 228/236 테스트 통과 (96.6%)
-- **리팩토링**: 서비스명 제거, 기술 중립적 명명 완료
-
-### 🎯 Phase 10: Production 최적화 & 확장성 (완료)
-- **LruMemoryCache**: LRU 캐싱 시스템 (maxsize=1000)
-- **MemoryEfficientProcessor**: AsyncEnumerable 스트리밍, 50% 메모리 절감
-- **ParallelBatchProcessor**: TPL Dataflow 기반 3-8x 처리량 향상
-- **PerformanceBenchmark**: F1 Score, 메모리, 처리속도 벤치마킹
-- **성과**: 215/220 테스트 통과 (97.7%)
+### 🎯 주요 성과
+- **테스트 커버리지**: 235/235 테스트 통과 (100%)
+- **성능**: 3MB PDF → 511청크, 1.3초 처리
+- **메모리 효율**: 파일 크기 2배 이하 사용
+- **API 통합**: OpenAI gpt-4o-mini 실전 검증
+- **병렬 성능**: CPU 코어별 선형 확장, 메모리 백프레셔 제어
+- **캐시 효율**: 동일 문서 재처리 시 즉시 반환
 
 ---
 
-## 🚀 진행 예정 작업 (Phase 11)
+## 🚀 Phase 9: RAG 품질 극대화 (다음 단계)
 
-### Phase 11: RAG 품질 극대화 & v0.2.0 Release
+### 🔴 P0: 청킹 품질 근본 개선 (즉시 착수)
 
-**목표**: RAG 검색 품질 최적화 및 Production-ready SDK (2025년 9월)
+**T9-001**: 문장 경계 기반 스마트 청킹 [Critical]
+- [ ] 문장 경계 인식 청킹 알고리즘 구현
+- [ ] 의미적 완결성 보장 로직 (최소 70% 완성도)
+- [ ] 단락 무결성 유지 메커니즘
+- [ ] 컨텍스트 오버랩 기능 수정 및 검증
+- **성공 기준**: 청크 완성도 70% 이상, 문장 중단 0%
 
-#### 🔴 P0: RAG 품질 개선 (테스트 기반)
+**T9-002**: 실제 API 기반 RAG 품질 벤치마크 [Critical]
+- [ ] samples/FileFlux.RealWorldBenchmark 프로젝트 확장
+- [ ] OpenAI embedding API 통합 (text-embedding-3-small)
+- [ ] 검색 정확도 측정 시스템 (Precision/Recall/F1)
+- [ ] 다양한 문서 타입별 품질 메트릭
+- [ ] A/B 테스트: Mock vs Real API 성능 비교
+- **성공 기준**: 검색 재현율 85% 이상
 
-**T11-001**: 청킹 품질 검증 시스템
-- [ ] RAGQualityBenchmark 테스트 스위트 구축
-- [ ] 검색 재현율(Recall) 측정 시스템
-- [ ] 청크 크기 분포 최적화 검증
-- [ ] 오버랩 효과성 측정
+**T9-003**: 청킹 전략별 실전 검증 [High]
+- [ ] 각 전략별 RAG 검색 품질 측정
+- [ ] 문서 타입별 최적 전략 자동 선택
+- [ ] 청크 크기 vs 검색 정확도 상관관계 분석
+- [ ] 오버랩 크기 최적화 (0, 64, 128, 256 비교)
+- **성공 기준**: 전략별 성능 지표 문서화
 
-**T11-002**: 경계 감지 정확도 향상
-- [ ] SemanticBoundaryDetector 테스트 수정 (5개)
-- [ ] 구조적 경계 감지 개선 (헤딩, 섹션, 단락)
-- [ ] 코드 블록 경계 보존 강화
-- [ ] 테이블/리스트 무결성 보장
+### 🟡 P1: 품질 측정 및 개선 시스템
 
-**T11-003**: 메타데이터 품질 강화
-- [ ] 구조적 역할 자동 분류 (제목, 본문, 캡션, 참조)
-- [ ] 청크 중요도 점수 정교화
-- [ ] 컨텍스트 보존 메타데이터 추가
-- [ ] 계층 구조 정보 포함
+**T11-004**: RAG 품질 자동화 테스트 스위트 [High]
+- [ ] End-to-End RAG 파이프라인 테스트
+- [ ] 실제 쿼리 기반 검색 테스트 (100+ 쿼리)
+- [ ] 청크 품질 점수 자동 계산
+- [ ] 회귀 테스트 자동화
+- **성공 기준**: CI/CD 통합 가능한 품질 테스트
 
-#### 🟡 P1: 성능 및 안정성 (테스트 기반)
+**T11-005**: 도메인별 청킹 최적화 [Medium]
+- [ ] 기술 문서: 코드 블록 무결성 우선
+- [ ] 법률 문서: 조항/섹션 구조 보존
+- [ ] 의료 문서: 용어 컨텍스트 유지
+- [ ] 학술 논문: 참조/인용 연결성
+- **성공 기준**: 도메인별 F1 Score 10% 향상
 
-**T11-004**: 스트리밍 처리 최적화
-- [ ] 대용량 파일 처리 테스트 (100MB+)
-- [ ] 메모리 프로파일링 및 누수 검사
-- [ ] 백프레셔 처리 검증
-- [ ] 취소 토큰 전파 테스트
+**T11-006**: 실시간 품질 모니터링 [Medium]
+- [ ] 청킹 품질 실시간 대시보드
+- [ ] 성능 메트릭 수집 (처리 시간, 메모리)
+- [ ] 품질 저하 알림 시스템
+- [ ] 사용 패턴 분석 및 최적화 제안
 
-**T11-005**: 병렬 처리 신뢰성
-- [ ] 동시성 스트레스 테스트
-- [ ] 데드락 감지 및 방지
-- [ ] 리소스 경합 최소화
-- [ ] 오류 복구 메커니즘
+### 🟢 P2: 프로덕션 준비 및 배포
 
-**T11-006**: 캐싱 효과성 검증
-- [ ] 캐시 히트율 최적화
-- [ ] 캐시 무효화 전략 테스트
-- [ ] 메모리 압력 하 동작 검증
-- [ ] 캐시 워밍업 시나리오
-
-#### 🟢 P2: v0.2.0 릴리즈 준비
-
-**T11-007**: 문서화 및 샘플
-- [ ] RAG 통합 가이드 작성
+**T11-007**: SDK 사용 가이드 [Low]
+- [ ] 기본 통합 패턴 문서화
 - [ ] 청킹 전략 선택 가이드
 - [ ] 성능 튜닝 가이드
-- [ ] 실전 샘플 코드 (OpenAI, Azure, Anthropic)
+- [ ] 품질 메트릭 활용법
 
-**T11-008**: NuGet 패키지 배포
-- [ ] 패키지 메타데이터 최적화
-- [ ] 의존성 최소화 검증
+**T11-008**: v0.2.0 릴리즈 [Low]
 - [ ] Breaking Changes 문서화
-- [ ] 마이그레이션 도구 제공
+- [ ] 마이그레이션 가이드
+- [ ] NuGet 패키지 최적화
+- [ ] 릴리즈 노트 작성
 
 ---
 
@@ -200,52 +181,56 @@ dotnet test --collect:"XPlat Code Coverage"
 
 ---
 
-## 📊 성과 지표 & 목표
+## 📊 성과 지표 & 현재 이슈
 
-### 현재 달성 (Phase 1-10)
-- ✅ **테스트**: 215/220 통과 (97.7%)
-- ✅ **문서 형식**: 8가지 완벽 지원
-- ✅ **청킹 전략**: 4가지 + 하이브리드 + 적응형
-- ✅ **품질 시스템**: 3단계 평가 + LLM 필터링
-- ✅ **성능 최적화**: 메모리 50% 감소, 3-8x 병렬 처리
-- ✅ **캐싱 시스템**: LRU 캐시로 10x 반복 처리 개선
+### ✅ 현재 달성 (Phase 1-10)
+- **테스트**: 224/224 통과 (100%)
+- **문서 형식**: 8가지 완벽 지원
+- **API 통합**: OpenAI API 실전 검증 완료
+- **성능**: 3MB PDF → 511청크, 1.3초
 
-### Phase 11 목표 (RAG 준비 품질 집중)
-- 🎯 **RAG 품질**: 검색 재현율 85% 이상 달성
-- 🎯 **테스트**: 100% 통과율 (220/220) + RAG 품질 테스트
-- 🎯 **청킹 정확도**: F1 Score 13.56% 향상 검증
-- 🎯 **성능**: 100MB 문서 10초 내 처리
-- 🎯 **릴리즈**: v0.2.0 NuGet 패키지 배포
+### ⚠️ 핵심 품질 이슈 (해결 필요)
+- **청크 완성도**: 현재 20% (목표 70%)
+- **문장 중단**: 빈번한 문장 중간 절단
+- **오버랩 기능**: 동작하지 않음
+- **검색 정확도**: 측정 시스템 부재
+
+### 🎯 Phase 11 목표
+- **청크 완성도**: 70% 이상 달성
+- **검색 재현율**: 85% 이상
+- **문장 무결성**: 100% 보장
+- **실제 API 벤치마크**: 완전 구축
 
 ---
 
-## 🎯 즉시 실행 작업 (This Week)
+## 🔥 즉시 실행 작업 (Today)
 
-### 1. RAG 품질 테스트 구축
-```bash
-# RAG 품질 벤치마크 테스트 생성
-/src/FileFlux.Tests/RAG/RAGQualityBenchmark.cs
+### 1. 청킹 품질 근본 개선
+```csharp
+// 문장 경계 인식 청킹 구현
+/src/FileFlux.Infrastructure/Strategies/SmartChunkingStrategy.cs
 
-# 검색 재현율 측정
-/src/FileFlux.Tests/RAG/RetrievalRecallTests.cs
-
-# 청크 분포 분석
-/src/FileFlux.Tests/RAG/ChunkDistributionTests.cs
+// 기존 IntelligentStrategy 개선
+/src/FileFlux.Infrastructure/Strategies/IntelligentChunkingStrategy.cs
 ```
 
-### 2. 실패 테스트 수정 (5개)
-```bash
-# SemanticBoundaryDetector 테스트 수정
-dotnet test --filter "FullyQualifiedName~SemanticBoundaryDetector"
+### 2. 실제 API 벤치마크 구축
+```csharp
+// RealWorldBenchmark 확장
+/samples/FileFlux.RealWorldBenchmark/Benchmarks/RAGQualityBenchmark.cs
 
-# 테스트 위치
-/src/FileFlux.Tests/Services/SemanticBoundaryDetectorTests.cs
+// Embedding API 통합
+/samples/FileFlux.RealWorldBenchmark/Services/OpenAiEmbeddingService.cs
 ```
 
-### 3. 테스트 기반 구현 계획
-- [ ] 각 기능별 테스트 먼저 작성 (TDD)
-- [ ] 테스트 커버리지 90% 이상 유지
-- [ ] 성능 테스트 자동화
+### 3. 품질 메트릭 시스템
+```csharp
+// 검색 정확도 측정
+/samples/FileFlux.RealWorldBenchmark/Metrics/RetrievalMetrics.cs
+
+// 청크 품질 분석
+/samples/FileFlux.RealWorldBenchmark/Metrics/ChunkQualityMetrics.cs
+```
 
 ---
 
@@ -275,7 +260,7 @@ docs: 문서 업데이트
 
 ---
 
-**마지막 업데이트**: 2025-09-08
-**현재 버전**: v0.1.5-dev → v0.2.0 준비
-**현재 페이즈**: Phase 10 완료, Phase 11 준비
-**다음 마일스톤**: v0.2.0 릴리즈 및 NuGet 패키지 배포
+**마지막 업데이트**: 2025-09-09
+**현재 버전**: v0.1.5 → v0.2.0 준비
+**현재 페이즈**: Phase 11 RAG 품질 개선 진행 중
+**다음 마일스톤**: 청킹 품질 70% 달성 → v0.2.0 릴리즈

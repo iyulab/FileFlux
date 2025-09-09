@@ -8,7 +8,7 @@ namespace FileFlux.Domain;
 /// 파일 시스템 기반 처리 결과 저장소
 /// 파일 해시를 기반으로 디렉토리 구조를 생성하여 결과를 저장합니다
 /// </summary>
-public class FileSystemResultStorage : IDisposable
+public sealed class FileSystemResultStorage : IDisposable
 {
     private readonly string _baseDirectory;
     private readonly JsonSerializerOptions _jsonOptions;

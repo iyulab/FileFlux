@@ -14,10 +14,11 @@
 - 의존성 주입을 통한 느슨한 결합
 - 전략 패턴과 팩토리 패턴 적용
 
-### 3. 성능 우선
-- 스트리밍 처리로 메모리 효율성
-- 비동기 처리와 취소 토큰 지원
-- 대용량 파일 처리 최적화
+### 3. 엔터프라이즈급 성능 우선 (Phase 8)
+- **병렬 처리 엔진**: CPU 코어별 동적 스케일링
+- **스트리밍 최적화**: 실시간 청크 반환, LRU 캐시 시스템
+- **메모리 백프레셔 제어**: Threading.Channels 기반 고성능 비동기 처리
+- **지능형 캐시**: 파일 해시 기반 자동 캐싱 및 만료 관리
 
 ---
 
@@ -27,22 +28,43 @@
 graph TB
     A[Client Application] --> B[IDocumentProcessor]
     B --> C[DocumentProcessor]
+    B --> P[ParallelDocumentProcessor]
+    B --> S[StreamingDocumentProcessor]
+    
     C --> D[IDocumentReaderFactory]
     C --> E[IChunkingStrategyFactory]
+    P --> D
+    P --> E
+    S --> C
+    S --> CACHE[DocumentCacheService]
     
-    D --> F[TextReader]
-    D --> G[JsonReader]  
-    D --> H[CsvReader]
+    D --> F[PdfReader]
+    D --> G[WordReader]  
+    D --> H[ExcelReader]
+    D --> I[PowerPointReader]
+    D --> J[MarkdownReader]
+    D --> K[TextReader]
+    D --> L[JsonReader]
+    D --> N[CsvReader]
     
-    E --> I[FixedSizeStrategy]
-    E --> J[SemanticStrategy]
-    E --> K[ParagraphStrategy]
-    E --> L[IntelligentStrategy]
+    E --> O[FixedSizeStrategy]
+    E --> Q[SemanticStrategy]
+    E --> R[ParagraphStrategy]
+    E --> T[IntelligentStrategy]
+    
+    P --> U[Parallel Processing Engine]
+    S --> V[Streaming Pipeline]
+    U --> W[CPU Core Scaling]
+    V --> X[AsyncEnumerable Output]
+    CACHE --> Y[LRU Cache System]
     
     C --> M[DocumentChunk[]]
     
     style A fill:#e1f5fe
     style B fill:#f3e5f5
+    style P fill:#fff3e0
+    style S fill:#fff3e0
+    style CACHE fill:#f1f8e9
     style M fill:#e8f5e8
 ```
 
@@ -103,21 +125,68 @@ graph TB
 - **ParagraphStrategy**: 단락 단위 분할
 - **IntelligentStrategy**: AI 기반 의미 단위 분할
 
+### 5. ParallelDocumentProcessor (Phase 8 - 병렬 처리 엔진)
+**핵심 기능**:
+- **CPU 코어별 동적 스케일링**: 시스템 리소스에 맞춘 작업 분산
+- **메모리 백프레셔 제어**: Threading.Channels 기반 백프레셔 시스템
+- **지능형 작업 분산**: 파일 크기와 복잡도에 따른 최적 분배
+- **Task.WhenAll 최적화**: 병렬 처리 결과 통합
+
+### 6. StreamingDocumentProcessor (Phase 8 - 스트리밍 최적화)
+**핵심 기능**:
+- **실시간 청크 반환**: AsyncEnumerable 기반 즉시 결과 제공
+- **캐시 우선 검사**: 파일 해시 기반 중복 처리 방지
+- **LRU 캐시 시스템**: 자동 만료 및 메모리 최적화
+- **백프레셔 제어**: 채널 기반 메모리 압력 조절
+
+### 7. DocumentCacheService (Phase 8 - 지능형 캐시)
+**캐시 전략**:
+- **파일 해시 기반 키**: 파일 내용 + 옵션 조합으로 고유 키 생성
+- **LRU 교체 정책**: 메모리 제한 시 최근 미사용 항목 자동 제거
+- **자동 만료**: 설정 가능한 TTL로 캐시 무효화
+- **통계 수집**: 히트율, 메모리 사용률 등 성능 메트릭 제공
+
 ---
 
 ## 🔄 처리 파이프라인
 
-### 기본 처리 흐름
+### Phase 8 향상된 처리 흐름
 
 ```mermaid
-graph LR
-    A[Document Input] --> B[Type Detection]
-    B --> C[Reader Selection]
-    C --> D[Content Extraction]
-    D --> E[Strategy Selection]
-    E --> F[Chunking Process]
-    F --> G[Post Processing]
-    G --> H[DocumentChunk[]]
+graph TB
+    A[Document Input] --> B{Processing Mode}
+    
+    B -->|Parallel| C[ParallelDocumentProcessor]
+    B -->|Streaming| D[StreamingDocumentProcessor]
+    B -->|Standard| E[DocumentProcessor]
+    
+    C --> F[CPU Core Scaling]
+    C --> G[Task Distribution]
+    
+    D --> H[Cache Check]
+    H -->|Hit| I[Cached Results]
+    H -->|Miss| J[Live Processing]
+    
+    E --> K[Type Detection]
+    J --> K
+    G --> K
+    
+    K --> L[Reader Selection]
+    L --> M[Content Extraction]
+    M --> N[Strategy Selection]
+    N --> O[Chunking Process]
+    O --> P[Post Processing]
+    
+    P --> Q[DocumentChunk[]]
+    I --> Q
+    
+    D --> R[LRU Cache Update]
+    P --> R
+    
+    style C fill:#fff3e0
+    style D fill:#fff3e0
+    style H fill:#f1f8e9
+    style R fill:#f1f8e9
 ```
 
 ### 1. 입력 처리

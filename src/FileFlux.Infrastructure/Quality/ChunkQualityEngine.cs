@@ -293,14 +293,14 @@ public class ChunkQualityEngine
 
     #region Private Helper Methods
 
-    private async Task<(double Completeness, double Coherence)> AnalyzeChunkQualityAsync(
+    private Task<(double Completeness, double Coherence)> AnalyzeChunkQualityAsync(
         DocumentChunk chunk, CancellationToken cancellationToken)
     {
         // Analyze chunk completeness and coherence
         var completeness = AnalyzeChunkCompleteness(chunk);
         var coherence = AnalyzeChunkCoherence(chunk);
 
-        return (completeness, coherence);
+        return Task.FromResult((completeness, coherence));
     }
 
     private double AnalyzeChunkCompleteness(DocumentChunk chunk)
@@ -619,7 +619,7 @@ A: [expected answer]
         return questions;
     }
 
-    private async Task<List<GeneratedQuestion>> GenerateBasicQuestions(
+    private Task<List<GeneratedQuestion>> GenerateBasicQuestions(
         ParsedDocumentContent content,
         int count,
         CancellationToken cancellationToken)
@@ -644,10 +644,10 @@ A: [expected answer]
             }
         }
 
-        return questions;
+        return Task.FromResult(questions);
     }
 
-    private async Task<List<GeneratedQuestion>> GenerateBasicQuestionsWithTypes(
+    private Task<List<GeneratedQuestion>> GenerateBasicQuestionsWithTypes(
         ParsedDocumentContent content,
         int count,
         CancellationToken cancellationToken)
@@ -693,7 +693,7 @@ A: [expected answer]
             }
         }
 
-        return questions.Take(count).ToList();
+        return Task.FromResult(questions.Take(count).ToList());
     }
 
     private string GetKeyword(string sentence)
@@ -706,7 +706,7 @@ A: [expected answer]
         return words.Any() ? words.First() : "this topic";
     }
 
-    private async Task<(bool IsAnswerable, bool IsHighQuality, double Confidence)> ValidateQuestionAnswerabilityAsync(
+    private Task<(bool IsAnswerable, bool IsHighQuality, double Confidence)> ValidateQuestionAnswerabilityAsync(
         GeneratedQuestion question,
         List<DocumentChunk> chunks,
         CancellationToken cancellationToken)
@@ -715,14 +715,14 @@ A: [expected answer]
         var relevantChunks = FindRelevantChunks(question, chunks);
         
         if (!relevantChunks.Any())
-            return (false, false, 0.0);
+            return Task.FromResult((false, false, 0.0));
 
         // Simple validation based on content overlap
         var confidence = CalculateAnswerConfidence(question, relevantChunks);
         var isAnswerable = confidence > 0.3;
         var isHighQuality = confidence > 0.6;
 
-        return (isAnswerable, isHighQuality, confidence);
+        return Task.FromResult((isAnswerable, isHighQuality, confidence));
     }
 
     private List<DocumentChunk> FindRelevantChunks(GeneratedQuestion question, List<DocumentChunk> chunks)

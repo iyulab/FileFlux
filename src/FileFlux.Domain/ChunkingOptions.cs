@@ -47,7 +47,12 @@ public static class ChunkingStrategies
     public const string Paragraph = nameof(Paragraph);
 
     /// <summary>
+    /// 스마트 청킹 - 문장 경계 기반 완성도 보장 (NEW)
+    /// </summary>
+    public const string Smart = nameof(Smart);
+
+    /// <summary>
     /// 지원되는 모든 전략 목록
     /// </summary>
-    public static readonly string[] All = { Intelligent, Semantic, FixedSize, Paragraph };
+    public static readonly string[] All = { Smart, Intelligent, Semantic, FixedSize, Paragraph };
 }

@@ -118,8 +118,9 @@ class Program
                 .Title("[yellow]Select benchmark mode:[/]")
                 .AddChoices(
                     "Quick Benchmarks",
-                    "Comprehensive Analysis",
+                    "Comprehensive Analysis", 
                     "RAG Quality Assessment",
+                    "RAG Quality Comparison (NEW)",
                     "Performance Profiling",
                     "BenchmarkDotNet Suite",
                     "Export Results",
@@ -136,6 +137,9 @@ class Program
                 break;
             case "RAG Quality Assessment":
                 await RunRAGQualityAssessment();
+                break;
+            case "RAG Quality Comparison (NEW)":
+                await RunRAGQualityComparison();
                 break;
             case "Performance Profiling":
                 await RunPerformanceProfiling();
@@ -849,6 +853,187 @@ class Program
 
     private static bool _processorMessageShown = false;
     
+    static async Task RunRAGQualityComparison()
+    {
+        AnsiConsole.Write(new Rule("[bold blue]🚀 RAG Quality Comparison - SmartChunking vs Others[/]"));
+        
+        // Check if OpenAI API is configured
+        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        if (string.IsNullOrEmpty(apiKey) || apiKey.Contains("your-") || apiKey.Contains("here"))
+        {
+            AnsiConsole.MarkupLine("[red]❌ OpenAI API key not configured in .env.local[/]");
+            AnsiConsole.MarkupLine("[yellow]This benchmark requires a real OpenAI API key for embedding generation.[/]");
+            return;
+        }
+        
+        // Discover test files if not already done
+        if (!TestFiles.Any())
+        {
+            DiscoverTestFiles();
+        }
+        
+        if (!TestFiles.Any())
+        {
+            AnsiConsole.MarkupLine("[red]❌ No test files found. Please ensure test files exist in D:\\data\\FileFlux\\test[/]");
+            return;
+        }
+        
+        // Select a test document
+        var allFiles = TestFiles.Values.SelectMany(f => f).ToList();
+        var selectedFile = AnsiConsole.Prompt(
+            new SelectionPrompt<TestFile>()
+                .Title("Select test document:")
+                .AddChoices(allFiles.Take(10)) // Limit to first 10 for performance
+                .UseConverter(f => $"{f.Name} ({FormatFileSize(f.Size)})")
+        );
+        
+        // Define test queries for RAG evaluation
+        var testQueries = new List<string>
+        {
+            "What is the main purpose of this document?",
+            "What are the key features described?",
+            "How does this system work?",
+            "What are the benefits mentioned?",
+            "What technical details are provided?"
+        };
+        
+        // Allow user to customize queries
+        if (AnsiConsole.Confirm("Do you want to add custom test queries?"))
+        {
+            var customQuery = AnsiConsole.Ask<string>("Enter your test query:");
+            testQueries.Add(customQuery);
+        }
+        
+        AnsiConsole.MarkupLine($"[green]✅ Selected: {selectedFile.Name}[/]");
+        AnsiConsole.MarkupLine($"[green]✅ Test queries: {testQueries.Count}[/]");
+        AnsiConsole.MarkupLine($"[green]✅ Using OpenAI API for embeddings[/]");
+        
+        // Create services
+        var processor = CreateProcessor();
+        var embeddingService = new OpenAiEmbeddingService(apiKey);
+        var comparison = new RAGQualityComparison(processor, embeddingService);
+        
+        // Run the comparison
+        try
+        {
+            var report = await comparison.RunComparisonAsync(selectedFile.Path, testQueries);
+            
+            // Display results
+            DisplayRAGComparisonResults(report);
+            
+            // Save results to file
+            var reportJson = JsonSerializer.Serialize(report, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+            
+            var reportPath = Path.Combine(Directory.GetCurrentDirectory(), $"rag-comparison-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+            await File.WriteAllTextAsync(reportPath, reportJson);
+            
+            AnsiConsole.MarkupLine($"[green]📊 Report saved to: {reportPath}[/]");
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]❌ Comparison failed: {ex.Message}[/]");
+        }
+        finally
+        {
+            embeddingService.Dispose();
+        }
+    }
+    
+    static void DisplayRAGComparisonResults(ComparisonReport report)
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule("[bold green]📊 Comparison Results[/]"));
+        
+        var table = new Table();
+        table.AddColumn("Strategy");
+        table.AddColumn("Chunks");
+        table.AddColumn("Quality");
+        table.AddColumn("Retrieval");
+        table.AddColumn("Completeness");
+        table.AddColumn("Integrity");
+        table.AddColumn("Status");
+        
+        // Sort by quality score descending
+        var sortedResults = report.StrategyResults
+            .Where(kvp => string.IsNullOrEmpty(kvp.Value.Error))
+            .OrderByDescending(kvp => kvp.Value.AverageQualityScore)
+            .ToList();
+        
+        for (int i = 0; i < sortedResults.Count; i++)
+        {
+            var result = sortedResults[i];
+            var strategy = result.Value;
+            
+            var rank = i == 0 ? "[gold3]🥇[/]" : 
+                      i == 1 ? "[silver]🥈[/]" : 
+                      i == 2 ? "[orange3]🥉[/]" : "";
+            
+            var statusColor = strategy.StrategyName == "Smart" ? "[lime]NEW[/]" : "[dim]---[/]";
+            
+            table.AddRow(
+                $"{rank} {strategy.StrategyName}",
+                strategy.TotalChunks.ToString(),
+                $"{strategy.AverageQualityScore:F3}",
+                $"{strategy.AverageRetrievalScore:F3}",
+                $"{strategy.ChunkCompleteness:F3}",
+                $"{strategy.SentenceIntegrity:F3}",
+                statusColor
+            );
+        }
+        
+        // Add failed strategies
+        var failedResults = report.StrategyResults
+            .Where(kvp => !string.IsNullOrEmpty(kvp.Value.Error))
+            .ToList();
+            
+        foreach (var failed in failedResults)
+        {
+            table.AddRow(
+                failed.Value.StrategyName,
+                "0",
+                "N/A",
+                "N/A", 
+                "N/A",
+                "N/A",
+                $"[red]ERROR[/]"
+            );
+        }
+        
+        AnsiConsole.Write(table);
+        
+        // Highlight improvements
+        var smartResult = report.StrategyResults.FirstOrDefault(kvp => kvp.Key == "Smart").Value;
+        var intelligentResult = report.StrategyResults.FirstOrDefault(kvp => kvp.Key == "Intelligent").Value;
+        
+        if (smartResult != null && intelligentResult != null && string.IsNullOrEmpty(smartResult.Error) && string.IsNullOrEmpty(intelligentResult.Error))
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(new Rule("[bold yellow]📈 Smart vs Intelligent Comparison[/]"));
+            
+            var qualityImprovement = ((smartResult.AverageQualityScore - intelligentResult.AverageQualityScore) / intelligentResult.AverageQualityScore) * 100;
+            var completenessImprovement = ((smartResult.ChunkCompleteness - intelligentResult.ChunkCompleteness) / intelligentResult.ChunkCompleteness) * 100;
+            var integrityImprovement = ((smartResult.SentenceIntegrity - intelligentResult.SentenceIntegrity) / intelligentResult.SentenceIntegrity) * 100;
+            
+            AnsiConsole.MarkupLine($"[green]✨ Quality Score: {qualityImprovement:+0.1;-0.1;0}%[/]");
+            AnsiConsole.MarkupLine($"[green]✨ Completeness: {completenessImprovement:+0.1;-0.1;0}%[/]");
+            AnsiConsole.MarkupLine($"[green]✨ Sentence Integrity: {integrityImprovement:+0.1;-0.1;0}%[/]");
+            
+            if (smartResult.ChunkCompleteness >= 0.7)
+            {
+                AnsiConsole.MarkupLine($"[lime]🎯 SUCCESS: Smart chunking achieved ≥70% completeness ({smartResult.ChunkCompleteness:P1})[/]");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[orange1]⚠️ NEEDS IMPROVEMENT: Completeness is {smartResult.ChunkCompleteness:P1} (target: ≥70%)[/]");
+            }
+        }
+        
+        AnsiConsole.WriteLine();
+    }
+
     static IDocumentProcessor CreateProcessor()
     {
         // Use OpenAI service if API key is configured, otherwise fallback to mock

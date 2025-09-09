@@ -225,7 +225,7 @@ public class LLMChunkFilter : ILLMChunkFilter
         return (finalScore, reasoning, factors);
     }
 
-    private async Task<(double Score, string Reasoning, List<AssessmentFactor> Factors)>
+    private Task<(double Score, string Reasoning, List<AssessmentFactor> Factors)>
         PerformSelfReflectionAsync(
             DocumentChunk chunk,
             string? query,
@@ -278,10 +278,10 @@ public class LLMChunkFilter : ILLMChunkFilter
         var reasoning = $"Self-reflection identified {factors.Count} adjustments. " +
                        $"Score adjusted from {initial.Score:F2} to {reflectedScore:F2}";
 
-        return (reflectedScore, reasoning, factors);
+        return Task.FromResult((reflectedScore, reasoning, factors));
     }
 
-    private async Task<(double Score, string Reasoning, List<AssessmentFactor> Factors)>
+    private Task<(double Score, string Reasoning, List<AssessmentFactor> Factors)>
         PerformCriticValidationAsync(
             DocumentChunk chunk,
             string? query,
@@ -332,7 +332,7 @@ public class LLMChunkFilter : ILLMChunkFilter
         var reasoning = $"Critic validation performed {factors.Count} checks. " +
                        $"Final validation score: {criticScore:F2}";
 
-        return (criticScore, reasoning, factors);
+        return Task.FromResult((criticScore, reasoning, factors));
     }
 
     private async Task<double> GetLLMAssessmentAsync(
