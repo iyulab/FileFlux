@@ -43,16 +43,17 @@ FileFlux는 **인터페이스를 정의하고, 소비 애플리케이션이 구�
 dotnet add package FileFlux
 ```
 
-### 기본 사용법
+### 기본 사용법 (RAG 통합)
 ```csharp
-using FileFlux; // 🎯 단일 네임스페이스로 모든 핵심 인터페이스 접근
-using FileFlux.Infrastructure; // AddFileFlux 확장 메서드용
+using FileFlux;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-// 필수 LLM 서비스 등록 (소비 애플리케이션에서 구현)
-services.AddScoped<ITextCompletionService, YourLLMService>();
+// 필수 서비스 등록 (소비 애플리케이션에서 구현)
+services.AddScoped<ITextCompletionService, YourLLMService>();        // LLM 서비스
+services.AddScoped<IEmbeddingService, YourEmbeddingService>();      // 임베딩 서비스
+services.AddScoped<IVectorStore, YourVectorStore>();                // 벡터 저장소
 
 // 선택사항: 이미지-텍스트 서비스 (멀티모달 처리용)
 services.AddScoped<IImageToTextService, YourVisionService>();
@@ -62,8 +63,10 @@ services.AddFileFlux();
 
 var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
+var embeddingService = provider.GetRequiredService<IEmbeddingService>();
+var vectorStore = provider.GetRequiredService<IVectorStore>();
 
-// 방법 1: 스트리밍 처리 (권장 - 메모리 효율적)
+// 스트리밍 처리 (권장 - 메모리 효율적)
 await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
 {
     if (result.IsSuccess && result.Result != null)
@@ -71,7 +74,6 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
         foreach (var chunk in result.Result)
         {
             Console.WriteLine($"📄 청크 {chunk.ChunkIndex}: {chunk.Content.Length}자");
-            Console.WriteLine($"   품질점수: {chunk.Properties.GetValueOrDefault("QualityScore", "N/A")}");
             
             // RAG 파이프라인: 임베딩 생성 → 벡터 저장소 저장
             var embedding = await embeddingService.GenerateAsync(chunk.Content);
@@ -84,18 +86,40 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
         }
     }
 }
+```
 
-// 방법 2: 기본 처리
-var chunks = await processor.ProcessAsync("document.pdf", new ChunkingOptions
+### 단계별 처리 (고급 사용법)
+```csharp
+// 각 단계를 개별적으로 제어하고 싶을 때 사용
+
+// 1단계: 텍스트 추출 (Reader)
+var rawContent = await processor.ExtractAsync("document.pdf");
+Console.WriteLine($"추출된 텍스트: {rawContent.Content.Length}자");
+
+// 2단계: 구조 분석 (Parser with LLM)
+var parsedContent = await processor.ParseAsync(rawContent);
+Console.WriteLine($"구조화된 섹션: {parsedContent.Sections?.Count ?? 0}개");
+
+// 3단계: 청킹 (Chunking Strategy)
+var chunks = await processor.ChunkAsync(parsedContent, new ChunkingOptions
 {
     Strategy = "Intelligent",
     MaxChunkSize = 512,
     OverlapSize = 64
 });
 
+Console.WriteLine($"생성된 청크: {chunks.Length}개");
+
+// 4단계: RAG 파이프라인 (임베딩 → 저장)
 foreach (var chunk in chunks)
 {
-    Console.WriteLine($"청크: {chunk.Content[..50]}...");
+    var embedding = await embeddingService.GenerateAsync(chunk.Content);
+    await vectorStore.StoreAsync(new {
+        Id = chunk.Id,
+        Content = chunk.Content,
+        Metadata = chunk.Metadata,
+        Vector = embedding
+    });
 }
 ```
 
@@ -106,28 +130,6 @@ foreach (var chunk in chunks)
 - **Excel** (.xlsx)
 - **Markdown** (.md)
 - **Text** (.txt), **JSON** (.json), **CSV** (.csv)
-
-### 청킹 전략
-- **Intelligent**: LLM 기반 지능형 의미 경계 감지 (권장, ITextCompletionService 필요)
-- **Semantic**: 문장 경계 기반 청킹
-- **Paragraph**: 단락 단위 분할  
-- **FixedSize**: 고정 크기 토큰 기반
-
----
-
-## 📊 성능 및 품질
-
-### 테스트 커버리지
-- **202개 테스트 통과** (Release/Debug 모드 모두)
-- **8가지 파일 형식** 완벽 지원
-- **4가지 청킹 전략** 검증 완료
-- **멀티모달 처리** (PDF 이미지 추출 → 텍스트 변환)
-
-### 처리 성능
-- **3MB PDF**: 511개 청크, 1.3초 처리
-- **메모리 효율**: 파일 크기 2배 이하 사용
-- **AsyncEnumerable 스트리밍**: 대용량 파일 지원
-- **병렬 처리**: CPU 코어 수만큼 동시 처리
 
 ---
 

@@ -191,21 +191,35 @@ public class MockEmbeddingService : IEmbeddingService
             ["medical"] = 40,
             ["financial"] = 50,
             ["academic"] = 60,
+            ["ml"] = 70,  // Machine learning specific
+            ["weather"] = 80,  // Weather specific
         };
 
         var topicKeywords = new Dictionary<string, string[]>
         {
-            ["technical"] = new[] { "code", "function", "api", "system", "data", "algorithm", "software" },
+            ["technical"] = new[] { "code", "function", "api", "system", "data", "algorithm", "software", "```", "python", "def", "print" },
             ["legal"] = new[] { "law", "legal", "contract", "agreement", "clause", "liability", "court" },
             ["medical"] = new[] { "patient", "treatment", "diagnosis", "medical", "health", "disease", "symptom" },
             ["financial"] = new[] { "finance", "money", "investment", "market", "profit", "revenue", "cost" },
             ["academic"] = new[] { "research", "study", "analysis", "theory", "hypothesis", "conclusion", "abstract" },
+            ["ml"] = new[] { "machine", "learning", "algorithm", "data", "model", "training", "artificial", "intelligence", "prediction", "analyze", "patterns", "trends" },
+            ["weather"] = new[] { "weather", "sunny", "warm", "outdoor", "temperature", "degrees", "climate", "rain", "snow" },
         };
 
         foreach (var topic in topics)
         {
             var keywords = topicKeywords[topic.Key];
-            var score = words.Count(w => keywords.Contains(w.ToLower())) / (float)Math.Max(1, words.Length);
+            var score = 0f;
+            
+            // Count keyword matches with boost for exact matches
+            foreach (var keyword in keywords)
+            {
+                var count = words.Count(w => w.ToLower().Contains(keyword.ToLower()));
+                score += count > 0 ? (float)count / words.Length : 0;
+            }
+            
+            // Boost score for stronger topic relevance
+            score = Math.Min(1f, score * 2);
             
             if (topic.Value < embedding.Length)
             {

@@ -1,12 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using FileFlux;
+using FileFlux.Infrastructure;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
 using FileFlux.Infrastructure.Services;
 
-namespace FileFlux.Infrastructure;
+namespace FileFlux;
 
 /// <summary>
 /// FileFlux 서비스 등록을 위한 확장 메서드 - 새 Reader/Parser 아키텍처

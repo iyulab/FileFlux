@@ -119,13 +119,7 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
 
     private BoundaryType DetermineBoundaryType(string segment1, string segment2, double similarity)
     {
-        // Very low similarity indicates major topic change
-        if (similarity < 0.3)
-        {
-            return BoundaryType.TopicChange;
-        }
-
-        // Check for structural indicators
+        // Check for structural indicators first (priority)
         if (ContainsHeading(segment2))
         {
             return BoundaryType.Section;
@@ -144,6 +138,12 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
         if (ContainsList(segment1) || ContainsList(segment2))
         {
             return BoundaryType.List;
+        }
+
+        // Very low similarity indicates major topic change (after structural checks)
+        if (similarity < 0.3)
+        {
+            return BoundaryType.TopicChange;
         }
 
         // Check paragraph boundaries

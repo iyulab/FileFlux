@@ -126,34 +126,47 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
     {
         var sentences = new List<string>();
 
-        // 문장 경계로 분할
-        var parts = SentenceEndRegex.Split(text);
-        var currentSentence = string.Empty;
+        // 정규식으로 문장 경계 찾기 (마침표, 느낌표, 물음표 뒤의 공백)
+        var matches = SentenceEndRegex.Matches(text);
+        var lastIndex = 0;
 
-        foreach (var part in parts)
+        foreach (Match match in matches)
         {
-            var cleanPart = part.Trim();
-            if (string.IsNullOrEmpty(cleanPart))
-                continue;
-
-            currentSentence += cleanPart;
-
-            // 문장이 완성되었는지 확인
-            if (currentSentence.Length >= minLength && IsCompleteSentence(currentSentence))
+            // 문장 추출 (문장 종료 부호 포함)
+            var sentence = text.Substring(lastIndex, match.Index + match.Length - lastIndex).Trim();
+            
+            if (!string.IsNullOrWhiteSpace(sentence) && sentence.Length >= minLength)
             {
-                sentences.Add(currentSentence.Trim());
-                currentSentence = string.Empty;
+                sentences.Add(sentence);
             }
-            else if (!string.IsNullOrEmpty(currentSentence))
+            
+            lastIndex = match.Index + match.Length;
+        }
+
+        // 마지막 문장 처리 (문장 부호가 없는 경우)
+        if (lastIndex < text.Length)
+        {
+            var remaining = text.Substring(lastIndex).Trim();
+            if (!string.IsNullOrWhiteSpace(remaining) && remaining.Length >= minLength)
             {
-                currentSentence += " ";
+                sentences.Add(remaining);
             }
         }
 
-        // 마지막 문장 처리
-        if (!string.IsNullOrWhiteSpace(currentSentence))
+        // 문장이 하나도 없으면 전체 텍스트를 청크 크기로 분할
+        if (sentences.Count == 0 && !string.IsNullOrWhiteSpace(text))
         {
-            sentences.Add(currentSentence.Trim());
+            // 기본 청크 크기(약 500자)로 분할
+            const int defaultChunkSize = 500;
+            for (int i = 0; i < text.Length; i += defaultChunkSize)
+            {
+                var length = Math.Min(defaultChunkSize, text.Length - i);
+                var chunk = text.Substring(i, length).Trim();
+                if (!string.IsNullOrWhiteSpace(chunk))
+                {
+                    sentences.Add(chunk);
+                }
+            }
         }
 
         return sentences;

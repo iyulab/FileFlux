@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
+using BenchmarkDotNet.Running;
 using FileFlux;
 using FileFlux.Domain;
 using FileFlux.Infrastructure;
@@ -11,6 +13,9 @@ using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Optimization;
 using FileFlux.Infrastructure.Caching;
 using FileFlux.Infrastructure.Services;
+using FileFlux.RealWorldBenchmark.Benchmarks;
+using FileFlux.RealWorldBenchmark.Metrics;
+using FileFlux.RealWorldBenchmark.Services;
 using Spectre.Console;
 using ConsoleTables;
 using DotNetEnv;
@@ -41,14 +46,115 @@ class Program
                 .LeftJustified()
                 .Color(Color.Blue));
 
+        // Parse command line arguments
+        var mode = args.Length > 0 ? args[0].ToLower() : "interactive";
+        
+        switch (mode)
+        {
+            case "dotnet":
+            case "benchmark":
+                // Run BenchmarkDotNet benchmarks
+                RunDotNetBenchmarks();
+                break;
+            
+            case "quick":
+                // Quick benchmarks
+                await RunQuickBenchmarks();
+                break;
+            
+            case "comprehensive":
+                // Comprehensive analysis
+                await RunComprehensiveBenchmarks();
+                break;
+            
+            default:
+                // Interactive mode
+                await RunInteractiveMode();
+                break;
+        }
+    }
+    
+    static void RunDotNetBenchmarks()
+    {
+        AnsiConsole.MarkupLine("[yellow]Running BenchmarkDotNet benchmarks...[/]");
+        AnsiConsole.MarkupLine("[dim]This will take several minutes for accurate measurements.[/]");
+        
+        var summary = BenchmarkRunner.Run<PerformanceBenchmarker>();
+        
+        AnsiConsole.MarkupLine("[green]Benchmarks complete! Results saved to BenchmarkDotNet.Artifacts[/]");
+    }
+    
+    static async Task RunQuickBenchmarks()
+    {
         // Discover test files
         DiscoverTestFiles();
         
         // Show test file summary
         ShowTestFileSummary();
-
-        // Run benchmarks
+        
+        // Run quick benchmarks
         await RunBenchmarks();
+    }
+    
+    static async Task RunComprehensiveBenchmarks()
+    {
+        // Discover test files
+        DiscoverTestFiles();
+        
+        // Show test file summary
+        ShowTestFileSummary();
+        
+        // Create processor
+        var processor = CreateProcessor();
+        
+        // Run comprehensive analysis
+        await RunComprehensiveAnalysis(processor);
+    }
+    
+    static async Task RunInteractiveMode()
+    {
+        var choice = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("[yellow]Select benchmark mode:[/]")
+                .AddChoices(
+                    "Quick Benchmarks",
+                    "Comprehensive Analysis",
+                    "RAG Quality Assessment",
+                    "Performance Profiling",
+                    "BenchmarkDotNet Suite",
+                    "Export Results",
+                    "Exit"
+                ));
+        
+        switch (choice)
+        {
+            case "Quick Benchmarks":
+                await RunQuickBenchmarks();
+                break;
+            case "Comprehensive Analysis":
+                await RunComprehensiveBenchmarks();
+                break;
+            case "RAG Quality Assessment":
+                await RunRAGQualityAssessment();
+                break;
+            case "Performance Profiling":
+                await RunPerformanceProfiling();
+                break;
+            case "BenchmarkDotNet Suite":
+                RunDotNetBenchmarks();
+                break;
+            case "Export Results":
+                await ExportResults();
+                break;
+            case "Exit":
+                return;
+        }
+        
+        // Ask if user wants to continue
+        if (AnsiConsole.Confirm("Run another benchmark?"))
+        {
+            await RunInteractiveMode();
+        }
     }
 
     static void DiscoverTestFiles()
@@ -249,7 +355,7 @@ class Program
         await TestCacheEffectiveness(processor);
 
         // 4. RAG Quality Test
-        await TestRAGQuality(processor);
+        await RunRAGQualityAssessment();
     }
 
     static async Task TestMemoryEfficiency(IDocumentProcessor processor)
@@ -423,54 +529,143 @@ class Program
         AnsiConsole.Write(table);
     }
 
-    static async Task TestRAGQuality(IDocumentProcessor processor)
+    static async Task RunRAGQualityAssessment()
     {
-        AnsiConsole.MarkupLine("\n[yellow]RAG Quality Assessment[/]");
+        // Discover test files if not already done
+        if (!TestFiles.Any())
+        {
+            DiscoverTestFiles();
+        }
         
-        var mdFile = TestFiles.GetValueOrDefault("MD")?.FirstOrDefault();
-        if (mdFile == null) return;
-
-        var strategies = new[] { "Intelligent", "Semantic", "Paragraph", "FixedSize" };
-        var qualityResults = new List<RAGQualityResult>();
-
-        foreach (var strategy in strategies)
-        {
-            var chunks = new List<DocumentChunk>();
-            await foreach (var chunk in processor.ProcessAsync(
-                mdFile.Path,
-                new ChunkingOptions { Strategy = strategy, MaxChunkSize = 512, OverlapSize = 64 }))
+        var processor = CreateProcessor();
+        var analyzer = new RAGQualityAnalyzer();
+        
+        AnsiConsole.Write(new Rule("[bold blue]RAG Quality Assessment[/]"));
+        
+        // In non-interactive mode, analyze all available file types
+        var fileTypes = TestFiles.Keys.ToList();
+        
+        var results = new Dictionary<string, List<(string Strategy, RAGQualityReport Report)>>();
+        
+        await AnsiConsole.Progress()
+            .Columns(new ProgressColumn[]
             {
-                chunks.Add(chunk);
-            }
-
-            var quality = AssessRAGQuality(chunks);
-            quality.Strategy = strategy;
-            qualityResults.Add(quality);
-        }
-
-        var table = new Table();
-        table.AddColumn("Strategy");
-        table.AddColumn("Chunks");
-        table.AddColumn("Avg Size");
-        table.AddColumn("Completeness");
-        table.AddColumn("Overlap Quality");
-        table.AddColumn("Score");
-
-        foreach (var result in qualityResults.OrderByDescending(r => r.OverallScore))
+                new TaskDescriptionColumn(),
+                new ProgressBarColumn(),
+                new PercentageColumn(),
+                new SpinnerColumn(),
+            })
+            .StartAsync(async ctx =>
+            {
+                var totalFiles = fileTypes.Sum(ft => TestFiles[ft].Count);
+                var task = ctx.AddTask("[green]Analyzing RAG quality[/]", maxValue: totalFiles * 4);
+                
+                foreach (var fileType in fileTypes)
+                {
+                    results[fileType] = new List<(string, RAGQualityReport)>();
+                    
+                    foreach (var file in TestFiles[fileType])
+                    {
+                        task.Description = $"Analyzing {file.Name}";
+                        
+                        // Read original content
+                        var originalContent = await File.ReadAllTextAsync(file.Path);
+                        
+                        foreach (var strategy in new[] { "Intelligent", "Semantic", "Paragraph", "FixedSize" })
+                        {
+                            var chunks = new List<DocumentChunk>();
+                            
+                            await foreach (var chunk in processor.ProcessAsync(
+                                file.Path,
+                                new ChunkingOptions { Strategy = strategy, MaxChunkSize = 512, OverlapSize = 64 }))
+                            {
+                                chunks.Add(chunk);
+                            }
+                            
+                            var report = analyzer.AnalyzeChunks(chunks, originalContent);
+                            results[fileType].Add((strategy, report));
+                            
+                            task.Increment(1);
+                        }
+                    }
+                }
+            });
+        
+        // Display comprehensive results
+        DisplayRAGQualityResults(results);
+    }
+    
+    static void DisplayRAGQualityResults(Dictionary<string, List<(string Strategy, RAGQualityReport Report)>> results)
+    {
+        foreach (var fileType in results.Keys)
         {
-            table.AddRow(
-                result.Strategy,
-                result.ChunkCount.ToString(),
-                result.AvgChunkSize.ToString("F0"),
-                $"{result.CompletenessScore:P0}",
-                $"{result.OverlapQuality:P0}",
-                result.OverallScore >= 0.8 ? $"[green]{result.OverallScore:P0}[/]" : 
-                result.OverallScore >= 0.6 ? $"[yellow]{result.OverallScore:P0}[/]" :
-                $"[red]{result.OverallScore:P0}[/]"
-            );
+            AnsiConsole.Write(new Rule($"[bold yellow]{fileType} Files RAG Quality[/]"));
+            
+            // Group by strategy
+            var byStrategy = results[fileType].GroupBy(r => r.Strategy);
+            
+            var table = new Table();
+            table.AddColumn("Strategy");
+            table.AddColumn("Composite Score");
+            table.AddColumn("Semantic");
+            table.AddColumn("Context");
+            table.AddColumn("Density");
+            table.AddColumn("Structure");
+            table.AddColumn("Retrieval");
+            table.AddColumn("Boundary");
+            
+            foreach (var group in byStrategy)
+            {
+                var avgReport = group.Select(g => g.Report).ToList();
+                var avgComposite = avgReport.Average(r => r.CompositeScore);
+                var avgSemantic = avgReport.Average(r => r.SemanticCompleteness?.OverallScore ?? 0);
+                var avgContext = avgReport.Average(r => r.ContextPreservation?.OverallScore ?? 0);
+                var avgDensity = avgReport.Average(r => r.InformationDensity?.OverallScore ?? 0);
+                var avgStructure = avgReport.Average(r => r.StructuralIntegrity?.OverallScore ?? 0);
+                var avgRetrieval = avgReport.Average(r => r.RetrievalReadiness?.OverallScore ?? 0);
+                var avgBoundary = avgReport.Average(r => r.BoundaryQuality?.OverallScore ?? 0);
+                
+                table.AddRow(
+                    group.Key,
+                    FormatScore(avgComposite),
+                    FormatScore(avgSemantic),
+                    FormatScore(avgContext),
+                    FormatScore(avgDensity),
+                    FormatScore(avgStructure),
+                    FormatScore(avgRetrieval),
+                    FormatScore(avgBoundary)
+                );
+            }
+            
+            AnsiConsole.Write(table);
+            
+            // Show recommendations
+            var bestStrategy = byStrategy.OrderByDescending(g => 
+                g.Select(x => x.Report.CompositeScore).Average()).First();
+            
+            AnsiConsole.MarkupLine($"\n[green]Best strategy for {fileType}: {bestStrategy.Key}[/]");
+            
+            var recommendations = bestStrategy.First().Report.Recommendations.Take(3);
+            if (recommendations.Any())
+            {
+                AnsiConsole.MarkupLine("\n[yellow]Top Recommendations:[/]");
+                foreach (var rec in recommendations)
+                {
+                    AnsiConsole.MarkupLine($"  • {rec}");
+                }
+            }
         }
-
-        AnsiConsole.Write(table);
+    }
+    
+    static string FormatScore(double score)
+    {
+        var percentage = score * 100;
+        if (score >= 0.8)
+            return $"[green]{percentage:F0}%[/]";
+        else if (score >= 0.6)
+            return $"[yellow]{percentage:F0}%[/]";
+        else
+            return $"[red]{percentage:F0}%[/]";
     }
 
     static RAGQualityResult AssessRAGQuality(List<DocumentChunk> chunks)
@@ -660,12 +855,14 @@ class Program
         ITextCompletionService textService;
         
         var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        var model = Environment.GetEnvironmentVariable("OPENAI_MODEL");
+        
         if (!string.IsNullOrEmpty(apiKey) && !apiKey.Contains("your-") && !apiKey.Contains("here"))
         {
-            textService = new OpenAiTextCompletionService(apiKey);
+            textService = new OpenAiTextCompletionService(apiKey, model);
             if (!_processorMessageShown)
             {
-                AnsiConsole.MarkupLine("[green]Using OpenAI API for text completion[/]");
+                AnsiConsole.MarkupLine($"[green]Using OpenAI API for text completion (model: {model ?? "gpt-4o-mini"})[/]");
                 _processorMessageShown = true;
             }
         }
@@ -700,6 +897,337 @@ class Program
         
         return $"{size:F2} {sizes[order]}";
     }
+
+    static async Task RunPerformanceProfiling()
+{
+    // Discover test files if not already done
+    if (!TestFiles.Any())
+    {
+        DiscoverTestFiles();
+    }
+    
+    var processor = CreateProcessor();
+    var profiler = new DetailedPerformanceProfiler(processor);
+    
+    AnsiConsole.Write(new Rule("[bold blue]Performance Profiling[/]"));
+    
+    var file = AnsiConsole.Prompt(
+        new SelectionPrompt<TestFile>()
+            .Title("Select file to profile:")
+            .AddChoices(TestFiles.Values.SelectMany(f => f))
+            .UseConverter(f => $"{f.Name} ({FormatFileSize(f.Size)})")
+    );
+    
+    var strategy = AnsiConsole.Prompt(
+        new SelectionPrompt<string>()
+            .Title("Select chunking strategy:")
+            .AddChoices("Intelligent", "Semantic", "Paragraph", "FixedSize")
+    );
+    
+    var chunkSize = AnsiConsole.Prompt(
+        new SelectionPrompt<int>()
+            .Title("Select chunk size:")
+            .AddChoices(256, 512, 1024, 2048)
+    );
+    
+    var iterations = AnsiConsole.Prompt(
+        new TextPrompt<int>("Number of iterations for profiling:")
+            .DefaultValue(5)
+            .Validate(n => n > 0 && n <= 20)
+    );
+    
+    var options = new ChunkingOptions
+    {
+        Strategy = strategy,
+        MaxChunkSize = chunkSize,
+        OverlapSize = Math.Min(128, chunkSize / 4)
+    };
+    
+    PerformanceProfile profile = null;
+    
+    await AnsiConsole.Status()
+        .StartAsync("Profiling performance...", async ctx =>
+        {
+            profile = await profiler.ProfileAsync(file.Path, options, iterations);
+        });
+    
+    // Display profiling results
+    DisplayPerformanceProfile(profile);
+}
+
+static void DisplayPerformanceProfile(PerformanceProfile profile)
+{
+    AnsiConsole.Write(new Rule("[bold green]Performance Profile Results[/]"));
+    
+    // File information
+    var infoTable = new Table();
+    infoTable.AddColumn("Property");
+    infoTable.AddColumn("Value");
+    
+    infoTable.AddRow("File", Path.GetFileName(profile.FilePath));
+    infoTable.AddRow("Size", FormatFileSize(profile.FileSize));
+    infoTable.AddRow("Strategy", profile.Strategy);
+    infoTable.AddRow("Chunk Size", profile.ChunkSize.ToString());
+    infoTable.AddRow("Iterations", profile.Iterations.ToString());
+    
+    AnsiConsole.Write(infoTable);
+    
+    // Performance statistics
+    AnsiConsole.MarkupLine("\n[yellow]Performance Statistics:[/]");
+    
+    var stats = profile.Statistics;
+    var statsTable = new Table();
+    statsTable.AddColumn("Metric");
+    statsTable.AddColumn("Average");
+    statsTable.AddColumn("Min");
+    statsTable.AddColumn("Max");
+    statsTable.AddColumn("StdDev");
+    
+    statsTable.AddRow(
+        "Total Time",
+        $"{stats.AverageTotalTime.TotalMilliseconds:F1} ms",
+        $"{stats.P50.TotalMilliseconds:F1} ms",
+        $"{stats.P99.TotalMilliseconds:F1} ms",
+        $"{stats.StandardDeviation:F1} ms"
+    );
+    
+    statsTable.AddRow(
+        "Read Time",
+        $"{stats.AverageReadTime.TotalMilliseconds:F1} ms",
+        "-",
+        "-",
+        "-"
+    );
+    
+    statsTable.AddRow(
+        "Parse Time",
+        $"{stats.AverageParseTime.TotalMilliseconds:F1} ms",
+        "-",
+        "-",
+        "-"
+    );
+    
+    statsTable.AddRow(
+        "Chunk Time",
+        $"{stats.AverageChunkTime.TotalMilliseconds:F1} ms",
+        "-",
+        "-",
+        "-"
+    );
+    
+    statsTable.AddRow(
+        "Memory Usage",
+        FormatFileSize(stats.AverageMemoryUsage),
+        FormatFileSize(stats.MinMemoryUsage),
+        FormatFileSize(stats.MaxMemoryUsage),
+        "-"
+    );
+    
+    statsTable.AddRow(
+        "Throughput",
+        $"{stats.AverageThroughput:F2} MB/s",
+        $"{stats.MinThroughput:F2} MB/s",
+        $"{stats.MaxThroughput:F2} MB/s",
+        "-"
+    );
+    
+    AnsiConsole.Write(statsTable);
+    
+    // Percentiles
+    AnsiConsole.MarkupLine("\n[yellow]Latency Percentiles:[/]");
+    AnsiConsole.MarkupLine($"  P50: {stats.P50.TotalMilliseconds:F1} ms");
+    AnsiConsole.MarkupLine($"  P95: {stats.P95.TotalMilliseconds:F1} ms");
+    AnsiConsole.MarkupLine($"  P99: {stats.P99.TotalMilliseconds:F1} ms");
+    
+    // Consistency check
+    if (stats.ConsistentChunkCount)
+    {
+        AnsiConsole.MarkupLine("\n[green]✓ Chunk count consistent across iterations[/]");
+    }
+    else
+    {
+        AnsiConsole.MarkupLine("\n[yellow]⚠ Chunk count varies across iterations[/]");
+    }
+}
+
+static async Task RunComprehensiveAnalysis(IDocumentProcessor processor)
+{
+    AnsiConsole.Write(new Rule("[bold blue]Comprehensive Analysis[/]"));
+    
+    var analyzer = new RAGQualityAnalyzer();
+    var profiler = new DetailedPerformanceProfiler(processor);
+    
+    var comprehensiveResults = new List<ComprehensiveResult>();
+    
+    await AnsiConsole.Progress()
+        .Columns(new ProgressColumn[]
+        {
+            new TaskDescriptionColumn(),
+            new ProgressBarColumn(),
+            new PercentageColumn(),
+            new ElapsedTimeColumn(),
+            new SpinnerColumn(),
+        })
+        .StartAsync(async ctx =>
+        {
+            var strategies = new[] { "Intelligent", "Semantic", "Paragraph", "FixedSize" };
+            var chunkSizes = new[] { 256, 512, 1024 };
+            
+            var totalTests = TestFiles.Sum(f => f.Value.Count) * strategies.Length * chunkSizes.Length;
+            var task = ctx.AddTask("[green]Running comprehensive analysis[/]", maxValue: totalTests);
+            
+            foreach (var fileType in TestFiles)
+            {
+                foreach (var file in fileType.Value.Take(2)) // Limit for time
+                {
+                    var originalContent = await File.ReadAllTextAsync(file.Path);
+                    
+                    foreach (var strategy in strategies)
+                    {
+                        foreach (var chunkSize in chunkSizes)
+                        {
+                            task.Description = $"Analyzing {file.Name} ({strategy} @ {chunkSize})";
+                            
+                            var options = new ChunkingOptions
+                            {
+                                Strategy = strategy,
+                                MaxChunkSize = chunkSize,
+                                OverlapSize = Math.Min(128, chunkSize / 4)
+                            };
+                            
+                            // Collect chunks
+                            var chunks = new List<DocumentChunk>();
+                            await foreach (var chunk in processor.ProcessAsync(file.Path, options))
+                            {
+                                chunks.Add(chunk);
+                            }
+                            
+                            // Quality analysis
+                            var qualityReport = analyzer.AnalyzeChunks(chunks, originalContent);
+                            
+                            // Performance profiling
+                            var perfProfile = await profiler.ProfileAsync(file.Path, options, 3);
+                            
+                            comprehensiveResults.Add(new ComprehensiveResult
+                            {
+                                FileName = file.Name,
+                                FileType = fileType.Key,
+                                FileSize = file.Size,
+                                Strategy = strategy,
+                                ChunkSize = chunkSize,
+                                QualityReport = qualityReport,
+                                PerformanceProfile = perfProfile
+                            });
+                            
+                            task.Increment(1);
+                        }
+                    }
+                }
+            }
+        });
+    
+    // Generate comprehensive report
+    GenerateComprehensiveReport(comprehensiveResults);
+}
+
+static void GenerateComprehensiveReport(List<ComprehensiveResult> results)
+{
+    AnsiConsole.Write(new Rule("[bold green]Comprehensive Analysis Report[/]"));
+    
+    // Best configurations by file type
+    var byFileType = results.GroupBy(r => r.FileType);
+    
+    foreach (var fileTypeGroup in byFileType)
+    {
+        AnsiConsole.MarkupLine($"\n[bold yellow]{fileTypeGroup.Key} Files Analysis:[/]");
+        
+        // Find best configuration
+        var best = fileTypeGroup.OrderByDescending(r => 
+            r.QualityReport.CompositeScore * 0.7 + 
+            (r.PerformanceProfile.Statistics.AverageThroughput / 10) * 0.3)
+            .First();
+        
+        AnsiConsole.MarkupLine($"[green]Optimal Configuration:[/]");
+        AnsiConsole.MarkupLine($"  Strategy: {best.Strategy}");
+        AnsiConsole.MarkupLine($"  Chunk Size: {best.ChunkSize}");
+        AnsiConsole.MarkupLine($"  Quality Score: {best.QualityReport.CompositeScore:P0}");
+        AnsiConsole.MarkupLine($"  Throughput: {best.PerformanceProfile.Statistics.AverageThroughput:F2} MB/s");
+        
+        // Performance comparison table
+        var perfTable = new Table();
+        perfTable.AddColumn("Strategy");
+        perfTable.AddColumn("Chunk Size");
+        perfTable.AddColumn("Quality");
+        perfTable.AddColumn("Speed");
+        perfTable.AddColumn("Memory");
+        perfTable.AddColumn("Overall");
+        
+        foreach (var config in fileTypeGroup.OrderByDescending(r => 
+            r.QualityReport.CompositeScore * 0.7 + 
+            (r.PerformanceProfile.Statistics.AverageThroughput / 10) * 0.3).Take(5))
+        {
+            var overallScore = config.QualityReport.CompositeScore * 0.7 + 
+                              (config.PerformanceProfile.Statistics.AverageThroughput / 10) * 0.3;
+            
+            perfTable.AddRow(
+                config.Strategy,
+                config.ChunkSize.ToString(),
+                FormatScore(config.QualityReport.CompositeScore),
+                $"{config.PerformanceProfile.Statistics.AverageThroughput:F1} MB/s",
+                FormatFileSize(config.PerformanceProfile.Statistics.AverageMemoryUsage),
+                FormatScore(overallScore)
+            );
+        }
+        
+        AnsiConsole.Write(perfTable);
+    }
+    
+    // Overall recommendations
+    AnsiConsole.Write(new Rule("[bold cyan]Overall Recommendations[/]"));
+    
+    var topRecommendations = results
+        .SelectMany(r => r.QualityReport.Recommendations)
+        .GroupBy(r => r)
+        .OrderByDescending(g => g.Count())
+        .Take(5)
+        .Select(g => new { Recommendation = g.Key, Count = g.Count() });
+    
+    AnsiConsole.MarkupLine("\n[yellow]Most Common Improvement Areas:[/]");
+    foreach (var rec in topRecommendations)
+    {
+        AnsiConsole.MarkupLine($"  • {rec.Recommendation} (found in {rec.Count} configurations)");
+    }
+}
+
+static async Task ExportResults()
+{
+    AnsiConsole.MarkupLine("[yellow]Export functionality to be implemented[/]");
+    await Task.CompletedTask;
+}
+}
+
+class RAGQualityResult
+{
+    public string Strategy { get; set; } = "";
+    public int ChunkCount { get; set; }
+    public double AvgChunkSize { get; set; }
+    public double CompletenessScore { get; set; }
+    public double OverlapQuality { get; set; }
+    public double OverallScore { get; set; }
+}
+
+class BenchmarkResult
+{
+    public string FileName { get; set; } = "";
+    public string FileType { get; set; } = "";
+    public long FileSize { get; set; }
+    public string Strategy { get; set; } = "";
+    public int ChunkSize { get; set; }
+    public int ChunkCount { get; set; }
+    public TimeSpan ProcessingTime { get; set; }
+    public long MemoryUsed { get; set; }
+    public double ThroughputMBps { get; set; }
+    public double AvgChunkSize { get; set; }
 }
 
 class TestFile
@@ -719,26 +1247,13 @@ class TestFile
     }
 }
 
-class BenchmarkResult
+class ComprehensiveResult
 {
-    public string FileName { get; set; } = "";
-    public string FileType { get; set; } = "";
+    public string FileName { get; set; }
+    public string FileType { get; set; }
     public long FileSize { get; set; }
-    public string Strategy { get; set; } = "";
+    public string Strategy { get; set; }
     public int ChunkSize { get; set; }
-    public int ChunkCount { get; set; }
-    public TimeSpan ProcessingTime { get; set; }
-    public long MemoryUsed { get; set; }
-    public double ThroughputMBps { get; set; }
-    public double AvgChunkSize { get; set; }
-}
-
-class RAGQualityResult
-{
-    public string Strategy { get; set; } = "";
-    public int ChunkCount { get; set; }
-    public double AvgChunkSize { get; set; }
-    public double CompletenessScore { get; set; }
-    public double OverlapQuality { get; set; }
-    public double OverallScore { get; set; }
+    public RAGQualityReport QualityReport { get; set; }
+    public PerformanceProfile PerformanceProfile { get; set; }
 }

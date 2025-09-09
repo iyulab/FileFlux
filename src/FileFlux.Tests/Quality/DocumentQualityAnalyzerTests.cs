@@ -1,4 +1,5 @@
 using FileFlux;
+using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.Exceptions;
 using FileFlux.Infrastructure;

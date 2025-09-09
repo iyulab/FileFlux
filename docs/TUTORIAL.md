@@ -2,10 +2,27 @@
 
 **FileFlux**는 문서를 RAG 최적화 청크로 변환하는 .NET 9 SDK입니다.
 
-## 📌 최신 버전: 0.1.4
-- **202개 테스트 통과** (모든 품질 엔진 테스트 포함)
-- **Release 빌드 검증 완료**
-- **NuGet 패키지 준비 완료**
+## 📊 성능 및 품질
+
+### 테스트 커버리지
+- **202개 테스트 통과** (Release/Debug 모드 모두)
+- **8가지 파일 형식** 완벽 지원
+- **4가지 청킹 전략** 검증 완료
+- **멀티모달 처리** (PDF 이미지 추출 → 텍스트 변환)
+
+### 처리 성능
+- **3MB PDF**: 511개 청크, 1.3초 처리
+- **메모리 효율**: 파일 크기 2배 이하 사용
+- **AsyncEnumerable 스트리밍**: 대용량 파일 지원
+- **병렬 처리**: CPU 코어 수만큼 동시 처리
+
+## 🎛️ 청킹 전략
+
+### 전략 개요
+- **Intelligent**: LLM 기반 지능형 의미 경계 감지 (권장, ITextCompletionService 필요)
+- **Semantic**: 문장 경계 기반 청킹
+- **Paragraph**: 단락 단위 분할  
+- **FixedSize**: 고정 크기 토큰 기반
 
 ## 🚀 빠른 시작
 
@@ -18,8 +35,7 @@ dotnet add package FileFlux
 ### 2. 기본 사용법
 
 ```csharp
-using FileFlux; // 🎯 단일 네임스페이스로 모든 핵심 인터페이스 접근
-using FileFlux.Infrastructure; // AddFileFlux 확장 메서드용
+using FileFlux; // 🎯 단일 네임스페이스로 모든 핵심 인터페이스 및 AddFileFlux 접근
 using Microsoft.Extensions.DependencyInjection;
 
 // DI 설정
@@ -162,8 +178,6 @@ foreach (var chunk in chunks)
     Console.WriteLine($"청크 {chunk.ChunkIndex}: {chunk.Content[..50]}...");
 }
 ```
-
-## 🎛️ 청킹 전략
 
 ### Intelligent (권장)
 ```csharp
