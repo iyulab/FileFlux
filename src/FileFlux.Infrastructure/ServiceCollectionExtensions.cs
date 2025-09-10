@@ -64,6 +64,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISemanticBoundaryDetector, SemanticBoundaryDetector>();
         services.AddSingleton<IChunkCoherenceAnalyzer, ChunkCoherenceAnalyzer>();
 
+        // Phase 15 성능 최적화 컴포넌트들은 별도로 등록 가능
+
         return services;
     }
 
@@ -105,6 +107,64 @@ public static class ServiceCollectionExtensions
         if (imageToTextService != null)
         {
             services.AddSingleton(imageToTextService);
+            
+            // 이미지 서비스가 있을 때 기본 관련성 평가기 등록 가능
+        }
+
+        // FileFlux 서비스들 등록
+        return AddFileFlux(services);
+    }
+
+    /// <summary>
+    /// 모든 선택적 서비스와 함께 FileFlux 서비스 등록
+    /// </summary>
+    /// <param name="services">서비스 컬렉션</param>
+    /// <param name="textCompletionService">텍스트 완성 서비스 인스턴스</param>
+    /// <param name="imageToTextService">이미지-텍스트 변환 서비스 인스턴스 (선택사항)</param>
+    /// <param name="imageRelevanceEvaluator">이미지 관련성 평가 서비스 인스턴스 (선택사항)</param>
+    /// <returns>서비스 컬렉션</returns>
+    public static IServiceCollection AddFileFlux(
+        this IServiceCollection services, 
+        ITextCompletionService textCompletionService,
+        IImageToTextService? imageToTextService = null,
+        IImageRelevanceEvaluator? imageRelevanceEvaluator = null)
+    {
+        ArgumentNullException.ThrowIfNull(textCompletionService);
+
+        // 텍스트 완성 서비스 등록
+        services.AddSingleton(textCompletionService);
+
+        // 이미지-텍스트 서비스 등록 (제공된 경우)
+        if (imageToTextService != null)
+        {
+            services.AddSingleton(imageToTextService);
+        }
+
+        // 이미지 관련성 평가 서비스 등록
+        if (imageRelevanceEvaluator != null)
+        {
+            services.AddSingleton(imageRelevanceEvaluator);
+        }
+        else if (imageToTextService != null)
+        {
+            // 이미지 서비스는 있지만 평가기가 없는 경우 기본 평가기 사용 가능
+        }
+
+        // FileFlux 서비스들 등록
+        return AddFileFlux(services);
+    }
+
+    /// <summary>
+    /// Mock 서비스들과 함께 FileFlux 서비스 등록 (테스트용)
+    /// </summary>
+    /// <param name="services">서비스 컬렉션</param>
+    /// <param name="useMockServices">Mock 서비스 사용 여부</param>
+    /// <returns>서비스 컬렉션</returns>
+    public static IServiceCollection AddFileFluxWithMocks(this IServiceCollection services, bool useMockServices = true)
+    {
+        if (useMockServices)
+        {
+            services.AddSingleton<IImageToTextService, MockImageToTextService>();
         }
 
         // FileFlux 서비스들 등록

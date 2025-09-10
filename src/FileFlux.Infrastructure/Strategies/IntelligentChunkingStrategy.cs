@@ -25,6 +25,18 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     
     // Phase 10: Boundary Quality 일관성 개선을 위한 경계 품질 매니저
     private static readonly BoundaryQualityManager _boundaryQualityManager = new();
+    
+    // Phase 11: Vector Search Optimization components
+    private static readonly VectorSearchOptimizer _vectorSearchOptimizer = new();
+    private static readonly SearchMetadataEnricher _metadataEnricher = new();
+    private static readonly HybridSearchPreprocessor _hybridPreprocessor = new();
+    private static readonly SearchQualityEvaluator _qualityEvaluator = new();
+    
+    // Phase 12: Graph Search Optimization components
+    private static readonly EntityExtractionSystem _entityExtractor = new();
+    private static readonly GraphStructureGenerator _graphGenerator = new();
+    private static readonly OntologyMapper _ontologyMapper = new();
+    private static readonly GraphQualityAssurance _graphQualityAssurance = new();
 
     public string StrategyName => ChunkingStrategies.Intelligent;
 
@@ -562,6 +574,12 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         
         // LLM 최적화 메타데이터 자동 생성 (전역 컨텍스트 사용)
         EnhanceChunkForLlm(chunk, globalTechKeywords, globalDocumentDomain);
+
+        // Phase 11: Vector Search Optimization
+        ApplyVectorSearchOptimization(chunk, options);
+        
+        // Phase 12: Graph Search Optimization
+        ApplyGraphSearchOptimization(chunk, options);
 
         return chunk;
     }
@@ -1683,6 +1701,301 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         var maxDeviation = columnCounts.Max(c => Math.Abs(c - avgColumns));
 
         return Math.Max(0.0, 1.0 - (maxDeviation / avgColumns));
+    }
+
+    /// <summary>
+    /// Phase 11: Apply vector search optimization to chunk
+    /// </summary>
+    private static void ApplyVectorSearchOptimization(DocumentChunk chunk, ChunkingOptions options)
+    {
+        try
+        {
+            // 1. Vector search optimization
+            var vectorOptions = new VectorSearchOptions
+            {
+                MinSemanticDensity = 0.3,
+                MaxSemanticDensity = 0.8,
+                LowercaseNormalization = false, // Preserve case for technical terms
+                ReplaceUrls = true,
+                NormalizeNumbers = false, // Keep exact numbers for technical content
+                RemoveSpecialCharacters = false,
+                MaxTokensPerChunk = options.MaxChunkSize / 4 // Estimate tokens
+            };
+
+            var optimizedChunk = _vectorSearchOptimizer.OptimizeForVectorSearch(chunk, vectorOptions);
+
+            // Store optimization results in chunk properties
+            chunk.Properties["VectorOptimized"] = true;
+            chunk.Properties["SemanticDensity"] = optimizedChunk.SemanticDensity;
+            chunk.Properties["OptimizationQuality"] = optimizedChunk.OptimizationMetrics.QualityScore;
+            chunk.Properties["EmbeddingHints"] = optimizedChunk.EmbeddingHints;
+
+            // 2. Search metadata enrichment
+            var enrichmentOptions = new EnrichmentOptions
+            {
+                MaxKeywordsPerChunk = 15,
+                MaxPhrasesPerChunk = 8,
+                EnableSemanticTagging = true,
+                EnableRelationshipMapping = false // Skip for performance
+            };
+
+            var enrichedChunk = _metadataEnricher.EnrichWithSearchMetadata(chunk, enrichmentOptions);
+
+            // Store enrichment results
+            chunk.Properties["SearchKeywords"] = enrichedChunk.ExtractedKeywords.TfIdfKeywords.Take(10).Select(k => k.Keyword).ToList();
+            chunk.Properties["SemanticTags"] = enrichedChunk.SemanticTags.Topics;
+            chunk.Properties["ContentType"] = enrichedChunk.SemanticTags.ContentType;
+            chunk.Properties["SearchScores"] = enrichedChunk.SearchScores;
+
+            // 3. Hybrid search preprocessing
+            var hybridOptions = new HybridSearchOptions
+            {
+                BM25Options = new BM25Options
+                {
+                    RemoveStopWords = true,
+                    ApplyStemming = false, // Keep original terms
+                    MinTokenLength = 2,
+                    K1 = 1.2,
+                    B = 0.75
+                },
+                EnableSynonymMapping = false, // Skip for performance
+                EnableQueryExpansion = true,
+                DefaultKeywordWeight = 0.6,
+                DefaultSemanticWeight = 0.4
+            };
+
+            var hybridResult = _hybridPreprocessor.PreprocessForHybridSearch(chunk, hybridOptions);
+
+            // Store hybrid preprocessing results
+            chunk.Properties["HybridPreprocessed"] = true;
+            chunk.Properties["BM25Terms"] = hybridResult.BM25Preprocessing.TermFrequencies.Keys.Take(10).ToList();
+            chunk.Properties["HybridRatio"] = hybridResult.WeightCalculationInfo.RecommendedHybridRatio;
+            chunk.Properties["RerankingHints"] = hybridResult.RerankingHints;
+
+            // 4. Search quality evaluation
+            var qualityOptions = new SearchQualityOptions
+            {
+                MinQualityThreshold = 0.6,
+                EnableABTesting = false, // Skip for performance
+                EvaluationSampleSize = 100,
+                EvaluationPeriod = TimeSpan.FromDays(1)
+            };
+
+            var qualityResult = _qualityEvaluator.EvaluateSearchQuality(chunk, qualityOptions);
+
+            // Store quality evaluation results
+            chunk.Properties["SearchQualityScore"] = qualityResult.OverallQualityScore;
+            chunk.Properties["RetrievalRecall"] = qualityResult.RetrievalRecall?.PredictedRecallScore ?? 0.5;
+            chunk.Properties["DistinctivenessScore"] = qualityResult.DistinctivenessScore?.OverallDistinctiveness ?? 0.5;
+            chunk.Properties["SemanticCompleteness"] = qualityResult.SemanticCompleteness?.SelfContainment ?? 0.5;
+
+            // 5. Update overall quality score with search optimization
+            var originalQuality = chunk.QualityScore;
+            var searchQuality = qualityResult.OverallQualityScore;
+            
+            // Weighted combination: 70% original quality + 30% search quality
+            chunk.QualityScore = (originalQuality * 0.7) + (searchQuality * 0.3);
+
+            // Mark as search-optimized
+            chunk.Properties["SearchOptimized"] = true;
+            chunk.Properties["OptimizationTimestamp"] = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail chunk creation
+            chunk.Properties["SearchOptimizationError"] = ex.Message;
+            chunk.Properties["SearchOptimized"] = false;
+        }
+    }
+
+    /// <summary>
+    /// Phase 12: Apply graph search optimization to chunk
+    /// </summary>
+    private static void ApplyGraphSearchOptimization(DocumentChunk chunk, ChunkingOptions options)
+    {
+        try
+        {
+            // 1. Entity extraction
+            var entityOptions = new EntityExtractionOptions
+            {
+                EnableNER = true,
+                EnableRelationshipExtraction = true,
+                EnableCoreferenceResolution = true,
+                MaxEntitiesPerChunk = 50,
+                MinEntityConfidence = 0.5,
+                ExtractPersons = true,
+                ExtractOrganizations = true,
+                ExtractLocations = true,
+                ExtractDates = true,
+                ExtractConcepts = true
+            };
+
+            var entityResult = _entityExtractor.ExtractEntitiesAndRelationships(chunk, entityOptions);
+
+            // Store entity extraction results
+            chunk.Properties["EntitiesExtracted"] = entityResult.NamedEntities.Count;
+            chunk.Properties["RelationshipsExtracted"] = entityResult.ExtractedRelationships.Count;
+            chunk.Properties["CoreferenceChains"] = entityResult.CoreferenceChains.Count;
+            chunk.Properties["EntityTypes"] = entityResult.NamedEntities.Select(e => e.Type).Distinct().ToList();
+
+            // 2. Graph structure generation
+            var graphOptions = new GraphGenerationOptions
+            {
+                EnableRDFGeneration = true,
+                EnableHierarchicalStructures = true,
+                EnableTemporalAnalysis = true,
+                EnableSpatialAnalysis = true,
+                EnableCausalAnalysis = false, // Skip for performance
+                MinConfidenceThreshold = 0.6,
+                MaxTriplesPerChunk = 100
+            };
+
+            var graphResult = _graphGenerator.GenerateGraphStructure(entityResult, graphOptions);
+
+            // Store graph structure results
+            chunk.Properties["GraphTriples"] = graphResult.Triples.Count;
+            chunk.Properties["HierarchicalStructures"] = graphResult.HierarchicalStructures.Count;
+            chunk.Properties["TemporalRelationships"] = graphResult.TemporalRelationships.Count;
+            chunk.Properties["SpatialRelationships"] = graphResult.SpatialRelationships.Count;
+            chunk.Properties["GraphMetrics"] = graphResult.GraphMetrics;
+
+            // 3. Ontology mapping
+            var ontologyOptions = new OntologyMappingOptions
+            {
+                MinDomainConfidence = 0.7,
+                EnableSchemaInference = true,
+                ApplyPropertyMappings = true,
+                ValidateConsistency = true
+            };
+
+            var ontologyResult = _ontologyMapper.MapToOntology(graphResult, ontologyOptions);
+
+            // Store ontology mapping results
+            chunk.Properties["OntologyDomain"] = ontologyResult.DomainOntology.Domain;
+            chunk.Properties["SchemaEntityTypes"] = ontologyResult.InferredSchema.EntityTypes.Count;
+            chunk.Properties["MappedTriples"] = ontologyResult.MappedTriples.Count;
+            chunk.Properties["TypedEntities"] = ontologyResult.TypedEntities.Count;
+            chunk.Properties["OntologyQuality"] = ontologyResult.QualityMetrics;
+
+            // 4. Graph quality assurance
+            var qualityOptions = new GraphQualityOptions
+            {
+                AutoFix = false, // Skip auto-fix for performance
+                MinConnectionThreshold = 2,
+                ValidateSemanticConsistency = true,
+                DetectCycles = true,
+                IdentifyOrphans = true
+            };
+
+            var qualityResult = _graphQualityAssurance.AssessGraphQuality(ontologyResult, qualityOptions);
+
+            // Store quality assessment results
+            chunk.Properties["GraphQualityGrade"] = qualityResult.QualityScores.QualityGrade;
+            chunk.Properties["ConsistencyScore"] = qualityResult.ConsistencyReport.ConsistencyScore;
+            chunk.Properties["CompletenessScore"] = qualityResult.CompletenessReport.OverallCompletenessScore;
+            chunk.Properties["StructuralIntegrityScore"] = qualityResult.StructuralIntegrityReport.IntegrityScore;
+            chunk.Properties["HasCycles"] = qualityResult.CyclicReferenceReport.HasCycles;
+            chunk.Properties["OrphanNodesCount"] = qualityResult.OrphanNodeReport.OrphanCount;
+
+            // 5. Generate improvement recommendations
+            if (qualityResult.ImprovementRecommendations.Any())
+            {
+                chunk.Properties["GraphImprovementRecommendations"] = qualityResult.ImprovementRecommendations
+                    .Take(3) // Top 3 recommendations
+                    .Select(r => new { r.Priority, r.Category, r.Description })
+                    .ToList();
+            }
+
+            // 6. Update chunk properties with graph-specific metadata
+            if (entityResult.NamedEntities.Any())
+            {
+                // Extract key entities for search optimization
+                var keyEntities = entityResult.NamedEntities
+                    .Where(e => e.Confidence > 0.7)
+                    .OrderByDescending(e => e.Confidence)
+                    .Take(10)
+                    .Select(e => e.Value)
+                    .ToList();
+
+                chunk.Properties["GraphKeyEntities"] = keyEntities;
+                
+                // Add entity-based keywords to existing search keywords
+                if (chunk.Properties.ContainsKey("SearchKeywords"))
+                {
+                    var existingKeywords = (List<string>)chunk.Properties["SearchKeywords"];
+                    var combinedKeywords = existingKeywords.Union(keyEntities).Take(15).ToList();
+                    chunk.Properties["SearchKeywords"] = combinedKeywords;
+                }
+            }
+
+            // 7. Enhance content type classification
+            if (ontologyResult.DomainOntology.Domain != "general")
+            {
+                chunk.Properties["GraphDomain"] = ontologyResult.DomainOntology.Domain;
+                
+                // Update document domain if graph provides more specific classification
+                if (chunk.DocumentDomain == "General" || string.IsNullOrEmpty(chunk.DocumentDomain))
+                {
+                    chunk.DocumentDomain = ontologyResult.DomainOntology.Domain.Substring(0, 1).ToUpper() + 
+                                         ontologyResult.DomainOntology.Domain.Substring(1).ToLower();
+                }
+            }
+
+            // 8. Calculate graph-enhanced relevance score
+            var graphRelevance = CalculateGraphRelevanceScore(entityResult, graphResult, qualityResult);
+            
+            // Update overall relevance score: 70% original + 30% graph-based
+            var originalRelevance = chunk.RelevanceScore;
+            chunk.RelevanceScore = (originalRelevance * 0.7) + (graphRelevance * 0.3);
+
+            // 9. Update overall quality score with graph quality
+            var originalQuality = chunk.QualityScore;
+            var graphQuality = qualityResult.QualityScores.OverallQualityScore;
+            
+            // Weighted combination: 80% current quality + 20% graph quality
+            chunk.QualityScore = (originalQuality * 0.8) + (graphQuality * 0.2);
+
+            // Mark as graph-optimized
+            chunk.Properties["GraphOptimized"] = true;
+            chunk.Properties["GraphOptimizationTimestamp"] = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail chunk creation
+            chunk.Properties["GraphOptimizationError"] = ex.Message;
+            chunk.Properties["GraphOptimized"] = false;
+        }
+    }
+
+    /// <summary>
+    /// Calculate relevance score based on graph structure quality
+    /// </summary>
+    private static double CalculateGraphRelevanceScore(EntityExtractionResult entityResult, 
+        GraphStructureResult graphResult, GraphQualityResult qualityResult)
+    {
+        var scores = new List<double>();
+
+        // Entity richness score (0.0-1.0)
+        var entityScore = Math.Min(1.0, entityResult.NamedEntities.Count / 10.0); // 10+ entities = max score
+        scores.Add(entityScore);
+
+        // Relationship density score (0.0-1.0)
+        var relationshipScore = entityResult.NamedEntities.Count > 0 
+            ? Math.Min(1.0, entityResult.ExtractedRelationships.Count / (double)entityResult.NamedEntities.Count)
+            : 0.0;
+        scores.Add(relationshipScore);
+
+        // Graph connectivity score (0.0-1.0)
+        var connectivityScore = graphResult.Triples.Count > 0 
+            ? Math.Min(1.0, graphResult.Triples.Count / 20.0) // 20+ triples = max score
+            : 0.0;
+        scores.Add(connectivityScore);
+
+        // Quality score (0.0-1.0)
+        var qualityScore = qualityResult.QualityScores.OverallQualityScore;
+        scores.Add(qualityScore);
+
+        return scores.Average();
     }
 
     [GeneratedRegex(@"[.!?]+\s+", RegexOptions.Compiled)]

@@ -1,278 +1,394 @@
+using FileFlux;
 using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
 
 /// <summary>
-/// Context Preservation 강화를 위한 적응형 오버랩 관리자
-/// Phase 9 평가 결과: Context Preservation 37-52% → 75% 목표
+/// Phase 10: Adaptive Overlap Manager - Context Preservation Enhancement
+/// Goal: Improve from 37-52% to 75%+ 
 /// </summary>
 public class AdaptiveOverlapManager
 {
     private static readonly Regex SentenceEndRegex = new(@"[.!?]+(?:\s|$)", RegexOptions.Compiled);
-    private static readonly Regex ParagraphBoundaryRegex = new(@"\n\s*\n+", RegexOptions.Compiled);
-    private static readonly Regex ImportantKeywordRegex = new(@"\b(중요|핵심|요약|결론|참고|주의|경고|important|key|summary|conclusion|note|warning|attention)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex ParagraphRegex = new(@"\n\s*\n+", RegexOptions.Compiled);
+    private static readonly Regex HeaderRegex = new(@"^#{1,6}\s+.+$", RegexOptions.Compiled | RegexOptions.Multiline);
     
     /// <summary>
-    /// 두 청크 간의 최적 오버랩 크기를 계산
+    /// Calculate optimal overlap size between chunks
+    /// Dynamically determines overlap based on document structure and content complexity
     /// </summary>
     public int CalculateOptimalOverlap(string previousChunk, string currentChunk, ChunkingOptions options)
     {
-        var baseOverlapSize = options.OverlapSize;
-        var maxOverlapSize = Math.Min(baseOverlapSize * 3, options.MaxChunkSize / 4); // 최대 청크 크기의 1/4
+        if (string.IsNullOrWhiteSpace(previousChunk) || string.IsNullOrWhiteSpace(currentChunk))
+            return options.OverlapSize;
         
-        // 1. 문장 경계 기반 오버랩 조정
-        var sentenceBoundaryOverlap = CalculateSentenceBoundaryOverlap(previousChunk, baseOverlapSize);
+        // Base overlap size
+        var baseOverlap = options.OverlapSize > 0 ? options.OverlapSize : 100;
         
-        // 2. 의미적 연속성 평가
-        var semanticContinuityBonus = CalculateSemanticContinuityBonus(previousChunk, currentChunk, baseOverlapSize);
+        // 1. Context complexity adjustment
+        var complexityFactor = CalculateContextComplexity(previousChunk, currentChunk);
         
-        // 3. 중요 키워드 존재 시 오버랩 증가
-        var importantContentBonus = CalculateImportantContentBonus(previousChunk, baseOverlapSize);
+        // 2. Structural boundary detection adjustment
+        var structuralFactor = DetectStructuralBoundaryType(previousChunk, currentChunk);
         
-        var adaptiveOverlapSize = Math.Min(
-            sentenceBoundaryOverlap + semanticContinuityBonus + importantContentBonus,
-            maxOverlapSize);
-            
-        return Math.Max(adaptiveOverlapSize, baseOverlapSize); // 최소 기본 크기는 보장
+        // 3. Semantic continuity adjustment
+        var semanticFactor = CalculateSemanticContinuity(previousChunk, currentChunk);
+        
+        // Calculate adaptive overlap
+        var adaptiveOverlap = (int)(baseOverlap * complexityFactor * structuralFactor * semanticFactor);
+        
+        // Apply min/max constraints
+        var minOverlap = Math.Max(50, baseOverlap / 2);
+        var maxOverlap = Math.Min(options.MaxChunkSize / 4, baseOverlap * 3);
+        
+        return Math.Max(minOverlap, Math.Min(maxOverlap, adaptiveOverlap));
     }
     
     /// <summary>
-    /// 문장 경계를 보존하는 오버랩 생성
+    /// Create context-preserving overlap text
+    /// Recognizes sentence/paragraph boundaries for natural overlap
     /// </summary>
-    public string CreateContextPreservingOverlap(string previousChunk, int optimalOverlapSize)
+    public string CreateContextPreservingOverlap(string previousChunk, int overlapSize)
     {
-        if (string.IsNullOrEmpty(previousChunk) || optimalOverlapSize <= 0)
+        if (string.IsNullOrWhiteSpace(previousChunk) || overlapSize <= 0)
             return string.Empty;
-            
-        // 문장 단위로 오버랩 생성하여 문장 중단 방지
-        var sentences = SplitIntoSentences(previousChunk);
-        var overlap = BuildOverlapFromSentences(sentences, optimalOverlapSize);
         
-        return overlap;
+        // Split into sentences
+        var sentences = ExtractSentences(previousChunk);
+        if (sentences.Count == 0)
+            return string.Empty;
+        
+        // Find last paragraph start
+        var lastParagraphStart = FindLastParagraphStart(previousChunk);
+        var relevantText = lastParagraphStart >= 0 
+            ? previousChunk.Substring(lastParagraphStart) 
+            : previousChunk;
+        
+        // Extract meaningful last portion
+        var overlapText = ExtractMeaningfulOverlap(relevantText, overlapSize, sentences);
+        
+        // Include header if present
+        var lastHeader = ExtractLastHeader(previousChunk);
+        if (!string.IsNullOrEmpty(lastHeader))
+        {
+            overlapText = lastHeader + "\n" + overlapText;
+        }
+        
+        return overlapText.Trim();
     }
     
     /// <summary>
-    /// 두 청크 간의 의미적 연결성 검증
+    /// Calculate context complexity
     /// </summary>
-    public double ValidateContextPreservation(string overlapText, string previousChunk, string currentChunk)
+    private double CalculateContextComplexity(string previousChunk, string currentChunk)
     {
-        if (string.IsNullOrEmpty(overlapText))
+        var prevComplexity = CalculateTextComplexity(previousChunk);
+        var currComplexity = CalculateTextComplexity(currentChunk);
+        
+        // Higher complexity requires more overlap
+        var avgComplexity = (prevComplexity + currComplexity) / 2;
+        
+        return avgComplexity switch
+        {
+            < 0.3 => 0.8,  // Simple text: less overlap
+            < 0.6 => 1.0,  // Medium complexity: base overlap
+            < 0.8 => 1.3,  // Complex text: more overlap
+            _ => 1.5       // Very complex: maximum overlap
+        };
+    }
+    
+    /// <summary>
+    /// Measure text complexity
+    /// </summary>
+    private double CalculateTextComplexity(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
             return 0.0;
-            
-        // 1. 오버랩이 이전 청크 끝부분과 일치하는지 검증
-        var endMatch = ValidateEndMatch(overlapText, previousChunk);
         
-        // 2. 오버랩이 현재 청크 시작부분과 일치하는지 검증
-        var startMatch = ValidateStartMatch(overlapText, currentChunk);
+        var sentences = ExtractSentences(text);
+        if (sentences.Count == 0)
+            return 0.0;
         
-        // 3. 오버랩 내 문장 완결성 검증
-        var sentenceCompleteness = ValidateSentenceCompleteness(overlapText);
+        // Average sentence length
+        var avgSentenceLength = sentences.Average(s => s.Split(' ').Length);
         
-        // 4. 전체 Context Preservation 점수 계산
-        return (endMatch * 0.4 + startMatch * 0.4 + sentenceCompleteness * 0.2);
+        // Technical term density
+        var technicalTermDensity = CountTechnicalTerms(text) / (double)sentences.Count;
+        
+        // Structural element density
+        var structuralDensity = CountStructuralElements(text) / (double)sentences.Count;
+        
+        // Complexity score (0.0 ~ 1.0)
+        var complexity = (avgSentenceLength / 30.0) * 0.4 +  // Complex if > 30 words
+                        (technicalTermDensity / 5.0) * 0.3 +   // Complex if > 5 terms per sentence
+                        (structuralDensity / 2.0) * 0.3;       // Complex if > 2 structural elements
+        
+        return Math.Min(1.0, complexity);
     }
     
-    private int CalculateSentenceBoundaryOverlap(string previousChunk, int baseOverlapSize)
+    /// <summary>
+    /// Detect structural boundary type
+    /// </summary>
+    private double DetectStructuralBoundaryType(string previousChunk, string currentChunk)
     {
-        if (string.IsNullOrEmpty(previousChunk))
-            return baseOverlapSize;
-            
-        // 마지막 완전한 문장들을 포함하도록 오버랩 크기 조정
-        var lastSentenceEnd = FindLastCompleteSentence(previousChunk, baseOverlapSize);
+        var prevEndsWithHeader = HeaderRegex.IsMatch(previousChunk.TrimEnd());
+        var currStartsWithHeader = HeaderRegex.IsMatch(currentChunk.TrimStart());
         
-        return Math.Max(lastSentenceEnd, baseOverlapSize);
+        // Header boundary: reduce overlap
+        if (prevEndsWithHeader || currStartsWithHeader)
+            return 0.6;
+        
+        var prevEndsWithList = IsListEnding(previousChunk);
+        var currStartsWithList = IsListBeginning(currentChunk);
+        
+        // List continuation: increase overlap
+        if (prevEndsWithList && currStartsWithList)
+            return 1.4;
+        
+        var prevEndsWithTable = IsTableEnding(previousChunk);
+        var currStartsWithTable = IsTableBeginning(currentChunk);
+        
+        // Table boundary: minimize overlap
+        if (prevEndsWithTable || currStartsWithTable)
+            return 0.5;
+        
+        // Regular text: base overlap
+        return 1.0;
     }
     
-    private int CalculateSemanticContinuityBonus(string previousChunk, string currentChunk, int baseOverlapSize)
+    /// <summary>
+    /// Calculate semantic continuity
+    /// </summary>
+    private double CalculateSemanticContinuity(string previousChunk, string currentChunk)
     {
-        // 청크 간 주제 연결성이 높으면 오버랩 증가
-        var previousKeywords = ExtractKeywords(previousChunk);
-        var currentKeywords = ExtractKeywords(currentChunk);
+        // Extract last and first sentences
+        var prevSentences = ExtractSentences(previousChunk);
+        var currSentences = ExtractSentences(currentChunk);
         
-        var sharedKeywords = previousKeywords.Intersect(currentKeywords).Count();
-        var totalKeywords = previousKeywords.Union(currentKeywords).Count();
+        if (prevSentences.Count == 0 || currSentences.Count == 0)
+            return 1.0;
         
-        var continuityRatio = totalKeywords > 0 ? (double)sharedKeywords / totalKeywords : 0;
+        var lastSentence = prevSentences.Last();
+        var firstSentence = currSentences.First();
         
-        // 연결성이 높으면 오버랩 20-50% 증가
-        return (int)(baseOverlapSize * continuityRatio * 0.5);
+        // Common keyword ratio
+        var commonKeywords = CalculateCommonKeywordRatio(lastSentence, firstSentence);
+        
+        // Pronoun/reference detection
+        var hasReference = DetectReference(firstSentence);
+        
+        // High continuity: increase overlap
+        if (commonKeywords > 0.3 || hasReference)
+            return 1.3;
+        
+        // Low continuity: decrease overlap
+        if (commonKeywords < 0.1)
+            return 0.8;
+        
+        return 1.0;
     }
     
-    private int CalculateImportantContentBonus(string previousChunk, int baseOverlapSize)
+    /// <summary>
+    /// Extract meaningful overlap
+    /// </summary>
+    private string ExtractMeaningfulOverlap(string text, int targetSize, List<string> sentences)
     {
-        // 중요 키워드가 포함된 경우 오버랩 증가
-        var importantMatches = ImportantKeywordRegex.Matches(previousChunk);
+        if (sentences.Count == 0)
+            return text.Length > targetSize ? text.Substring(text.Length - targetSize) : text;
         
-        if (importantMatches.Count > 0)
-        {
-            return (int)(baseOverlapSize * 0.3); // 30% 증가
-        }
+        var overlapSentences = new List<string>();
+        var currentSize = 0;
         
-        return 0;
-    }
-    
-    private int FindLastCompleteSentence(string text, int targetSize)
-    {
-        var endPosition = Math.Min(text.Length, targetSize);
-        
-        // 목표 크기 근처에서 마지막 완전한 문장 찾기
-        for (int i = endPosition; i >= targetSize / 2; i--)
-        {
-            if (i < text.Length && SentenceEndRegex.IsMatch(text.Substring(i - 1, 1)))
-            {
-                return i;
-            }
-        }
-        
-        return targetSize; // 문장을 찾지 못하면 기본 크기 반환
-    }
-    
-    private List<string> SplitIntoSentences(string text)
-    {
-        var sentences = new List<string>();
-        var matches = SentenceEndRegex.Matches(text);
-        int start = 0;
-        
-        foreach (Match match in matches)
-        {
-            var sentence = text.Substring(start, match.Index + match.Length - start).Trim();
-            if (!string.IsNullOrWhiteSpace(sentence))
-            {
-                sentences.Add(sentence);
-            }
-            start = match.Index + match.Length;
-        }
-        
-        // 마지막 문장 처리
-        if (start < text.Length)
-        {
-            var lastSentence = text.Substring(start).Trim();
-            if (!string.IsNullOrWhiteSpace(lastSentence))
-            {
-                sentences.Add(lastSentence);
-            }
-        }
-        
-        return sentences;
-    }
-    
-    private string BuildOverlapFromSentences(List<string> sentences, int targetSize)
-    {
-        var overlap = new List<string>();
-        int currentSize = 0;
-        
-        // 뒤에서부터 문장을 추가하여 목표 크기에 맞춤
+        // Add sentences from the end
         for (int i = sentences.Count - 1; i >= 0; i--)
         {
             var sentence = sentences[i];
-            if (currentSize + sentence.Length <= targetSize)
-            {
-                overlap.Insert(0, sentence);
-                currentSize += sentence.Length;
-            }
-            else
-            {
+            var sentenceSize = sentence.Length;
+            
+            if (currentSize + sentenceSize > targetSize * 1.5) // Allow 50% overshoot
                 break;
-            }
+            
+            overlapSentences.Insert(0, sentence);
+            currentSize += sentenceSize;
+            
+            if (currentSize >= targetSize)
+                break;
         }
         
-        return string.Join(" ", overlap);
-    }
-    
-    private double ValidateEndMatch(string overlap, string previousChunk)
-    {
-        if (string.IsNullOrEmpty(overlap) || string.IsNullOrEmpty(previousChunk))
-            return 0.0;
-            
-        // 오버랩이 이전 청크의 끝부분과 얼마나 일치하는지 계산
-        var endPortion = previousChunk.Length >= overlap.Length 
-            ? previousChunk.Substring(previousChunk.Length - overlap.Length)
-            : previousChunk;
-            
-        return CalculateTextSimilarity(overlap, endPortion);
-    }
-    
-    private double ValidateStartMatch(string overlap, string currentChunk)
-    {
-        if (string.IsNullOrEmpty(overlap) || string.IsNullOrEmpty(currentChunk))
-            return 0.0;
-            
-        // 오버랩이 현재 청크의 시작부분과 얼마나 일치하는지 계산
-        var startPortion = currentChunk.Length >= overlap.Length 
-            ? currentChunk.Substring(0, overlap.Length)
-            : currentChunk;
-            
-        return CalculateTextSimilarity(overlap, startPortion);
-    }
-    
-    private double ValidateSentenceCompleteness(string overlapText)
-    {
-        if (string.IsNullOrEmpty(overlapText))
-            return 0.0;
-            
-        var sentences = SplitIntoSentences(overlapText);
-        var completeSentences = sentences.Count(s => SentenceEndRegex.IsMatch(s));
-        
-        return sentences.Count > 0 ? (double)completeSentences / sentences.Count : 0.0;
-    }
-    
-    private double CalculateTextSimilarity(string text1, string text2)
-    {
-        if (string.IsNullOrEmpty(text1) || string.IsNullOrEmpty(text2))
-            return 0.0;
-            
-        // 간단한 문자열 유사도 계산 (Levenshtein distance 기반)
-        var longer = text1.Length > text2.Length ? text1 : text2;
-        var shorter = text1.Length > text2.Length ? text2 : text1;
-        
-        if (longer.Length == 0)
-            return 1.0;
-            
-        var editDistance = CalculateLevenshteinDistance(shorter, longer);
-        return (longer.Length - editDistance) / (double)longer.Length;
-    }
-    
-    private int CalculateLevenshteinDistance(string s1, string s2)
-    {
-        var matrix = new int[s1.Length + 1, s2.Length + 1];
-        
-        for (int i = 0; i <= s1.Length; i++)
-            matrix[i, 0] = i;
-            
-        for (int j = 0; j <= s2.Length; j++)
-            matrix[0, j] = j;
-            
-        for (int i = 1; i <= s1.Length; i++)
+        // Include at least one sentence
+        if (overlapSentences.Count == 0 && sentences.Count > 0)
         {
-            for (int j = 1; j <= s2.Length; j++)
-            {
-                var cost = s1[i - 1] == s2[j - 1] ? 0 : 1;
-                matrix[i, j] = Math.Min(
-                    Math.Min(matrix[i - 1, j] + 1, matrix[i, j - 1] + 1),
-                    matrix[i - 1, j - 1] + cost);
-            }
+            overlapSentences.Add(sentences.Last());
         }
         
-        return matrix[s1.Length, s2.Length];
+        return string.Join(" ", overlapSentences);
     }
     
+    /// <summary>
+    /// Find last paragraph start position
+    /// </summary>
+    private int FindLastParagraphStart(string text)
+    {
+        var matches = ParagraphRegex.Matches(text);
+        if (matches.Count == 0)
+            return -1;
+        
+        var lastMatch = matches[matches.Count - 1];
+        return lastMatch.Index + lastMatch.Length;
+    }
+    
+    /// <summary>
+    /// Extract last header
+    /// </summary>
+    private string ExtractLastHeader(string text)
+    {
+        var matches = HeaderRegex.Matches(text);
+        if (matches.Count == 0)
+            return string.Empty;
+        
+        return matches[matches.Count - 1].Value.Trim();
+    }
+    
+    /// <summary>
+    /// Extract sentences
+    /// </summary>
+    private List<string> ExtractSentences(string text)
+    {
+        return SentenceEndRegex.Split(text)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 10)
+            .ToList();
+    }
+    
+    /// <summary>
+    /// Count technical terms
+    /// </summary>
+    private int CountTechnicalTerms(string text)
+    {
+        var patterns = new[]
+        {
+            @"\b[A-Z]{2,}\b",  // Abbreviations
+            @"\b\w+\(\)",      // Function calls
+            @"\b\w+\.\w+",     // Namespaces
+            @"\b(?:class|function|method|interface|enum)\b"  // Programming keywords
+        };
+        
+        return patterns.Sum(pattern => Regex.Matches(text, pattern, RegexOptions.IgnoreCase).Count);
+    }
+    
+    /// <summary>
+    /// Count structural elements
+    /// </summary>
+    private int CountStructuralElements(string text)
+    {
+        var count = 0;
+        count += HeaderRegex.Matches(text).Count;
+        count += Regex.Matches(text, @"^\s*[-*+]\s+", RegexOptions.Multiline).Count;
+        count += Regex.Matches(text, @"^\s*\d+\.\s+", RegexOptions.Multiline).Count;
+        count += text.Split('\n').Count(line => line.Contains('|') && line.Count(c => c == '|') >= 2);
+        return count;
+    }
+    
+    /// <summary>
+    /// Detect list ending
+    /// </summary>
+    private bool IsListEnding(string text)
+    {
+        var lines = text.Split('\n');
+        var lastLines = lines.Skip(Math.Max(0, lines.Length - 3));
+        return lastLines.Any(line => line != null && Regex.IsMatch(line.Trim(), @"^[-*+]\s+|^\d+\.\s+"));
+    }
+    
+    /// <summary>
+    /// Detect list beginning
+    /// </summary>
+    private bool IsListBeginning(string text)
+    {
+        var lines = text.Split('\n').Take(3);
+        return lines.Any(line => line != null && Regex.IsMatch(line.Trim(), @"^[-*+]\s+|^\d+\.\s+"));
+    }
+    
+    /// <summary>
+    /// Detect table ending
+    /// </summary>
+    private bool IsTableEnding(string text)
+    {
+        var lines = text.Split('\n');
+        var lastLines = lines.Skip(Math.Max(0, lines.Length - 3));
+        return lastLines.Any(line => line != null && line.Contains('|') && line.Count(c => c == '|') >= 2);
+    }
+    
+    /// <summary>
+    /// Detect table beginning
+    /// </summary>
+    private bool IsTableBeginning(string text)
+    {
+        var lines = text.Split('\n').Take(3);
+        return lines.Any(line => line.Contains('|') && line.Count(c => c == '|') >= 2);
+    }
+    
+    /// <summary>
+    /// Calculate common keyword ratio
+    /// </summary>
+    private double CalculateCommonKeywordRatio(string text1, string text2)
+    {
+        var words1 = ExtractKeywords(text1);
+        var words2 = ExtractKeywords(text2);
+        
+        if (words1.Count == 0 || words2.Count == 0)
+            return 0.0;
+        
+        var common = words1.Intersect(words2, StringComparer.OrdinalIgnoreCase).Count();
+        var total = words1.Union(words2, StringComparer.OrdinalIgnoreCase).Count();
+        
+        return total > 0 ? (double)common / total : 0.0;
+    }
+    
+    /// <summary>
+    /// Extract keywords
+    /// </summary>
     private HashSet<string> ExtractKeywords(string text)
     {
-        var keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        
-        // 단순한 키워드 추출 (공백 기준 분할 후 길이 4 이상)
-        var words = text.Split(new[] { ' ', '\n', '\r', '\t', '.', ',', ';', ':', '!', '?' }, 
-            StringSplitOptions.RemoveEmptyEntries);
-            
-        foreach (var word in words)
+        return text.ToLowerInvariant()
+            .Split(new[] { ' ', '\n', '\r', '\t', '.', ',', ';', ':', '!', '?' }, 
+                   StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 3)
+            .Where(w => !IsStopWord(w))
+            .ToHashSet();
+    }
+    
+    /// <summary>
+    /// Detect reference expressions
+    /// </summary>
+    private bool DetectReference(string text)
+    {
+        var referencePatterns = new[]
         {
-            if (word.Length >= 4)
-            {
-                keywords.Add(word.Trim().ToLower());
-            }
-        }
+            @"\b(this|that|these|those|it|they|them|their)\b",
+            @"\b(above|below|following|previous|aforementioned)\b",
+            @"\b(as mentioned|as described|as shown|as discussed)\b"
+        };
         
-        return keywords;
+        return referencePatterns.Any(pattern => 
+            Regex.IsMatch(text, pattern, RegexOptions.IgnoreCase));
+    }
+    
+    /// <summary>
+    /// Check if word is a stop word
+    /// </summary>
+    private bool IsStopWord(string word)
+    {
+        var stopWords = new HashSet<string>
+        {
+            "the", "and", "or", "but", "in", "on", "at", "to", "for",
+            "of", "with", "by", "from", "as", "is", "was", "are", "were",
+            "been", "being", "have", "has", "had", "do", "does", "did",
+            "will", "would", "could", "should", "may", "might", "must",
+            "can", "shall", "a", "an"
+        };
+        
+        return stopWords.Contains(word.ToLowerInvariant());
     }
 }

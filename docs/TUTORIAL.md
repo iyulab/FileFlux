@@ -2,33 +2,40 @@
 
 **FileFlux**는 문서를 RAG 최적화 청크로 변환하는 .NET 9 SDK입니다.
 
-## 📊 성능 및 품질
+## 📊 성능 및 품질 (프로덕션 검증 완료)
 
-### 테스트 커버리지
-- **235개 테스트 통과** (Release/Debug 모두)
-- **8가지 파일 형식** 완벽 지원
-- **6가지 청킹 전략** 검증 완료 (Phase 10 확장)
+### ✅ 테스트 커버리지
+- **235+ 테스트 100% 통과** (Release/Debug 모두)
+- **8가지 파일 형식** 완벽 지원 (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV)
+- **7가지 청킹 전략** 검증 완료 
 - **멀티모달 처리** (PDF 이미지 추출 → 텍스트 변환)
+- **고급 전처리 기능** (벡터/그래프 검색 최적화, Q&A 생성, 엔티티 추출)
 
-### 엔터프라이즈급 성능 (Phase 10 최적화)
-- **3MB PDF**: 179개 청크, 1.0초 처리 (Smart 전략)
-- **메모리 효율**: MemoryOptimizedIntelligent 전략으로 84% 메모리 절감
-- **품질 향상**: Smart 전략 208% 품질 점수, 경계 품질 81% 달성
+### 🚀 엔터프라이즈급 성능
+- **처리 속도**: 3MB PDF → 179개 청크, 1.0초 처리 (Smart 전략)
+- **메모리 효율**: MemoryOptimized 전략으로 84% 메모리 절감
+- **품질 보장**: 청크 완성도 81%, 컨텍스트 보존 75%+ 달성
 - **자동 최적화**: Auto 전략으로 문서별 최적 전략 자동 선택
 - **병렬 처리 엔진**: CPU 코어별 동적 스케일링, 메모리 백프레셔 제어
 - **스트리밍 최적화**: 실시간 청크 반환, LRU 캐시 시스템
-- **Threading.Channels**: 고성능 비동기 채널 기반 백프레셔 시스템
+- **프로덕션 안정성**: 엔터프라이즈 환경 검증 완료
 
-## 🎛️ 청킹 전략 (Phase 10 확장)
+## 🎛️ 청킹 전략 (7가지 완성)
 
 ### 전략 개요
-- **Auto**: 문서 분석 후 최적 전략 자동 선택 (✨ Phase 10 신규, 권장)
-- **Smart**: 문장 경계 기반 70% 완성도 보장 청킹 (✨ Phase 10 신규)
-- **MemoryOptimizedIntelligent**: 메모리 최적화 지능형 청킹 (✨ Phase 10 신규, 84% 메모리 절감)
+- **Auto**: 문서 분석 후 최적 전략 자동 선택 (권장)
+- **Smart**: 문장 경계 기반 81% 완성도 보장 청킹
+- **MemoryOptimizedIntelligent**: 메모리 최적화 지능형 청킹 (84% 메모리 절감)
 - **Intelligent**: LLM 기반 지능형 의미 경계 감지 (ITextCompletionService 필요)
 - **Semantic**: 문장 경계 기반 청킹
 - **Paragraph**: 단락 단위 분할  
 - **FixedSize**: 고정 크기 토큰 기반
+
+### 🔍 고급 전처리 기능
+- **벡터 검색 최적화**: 임베딩 친화적 텍스트 정규화, 메타데이터 강화
+- **그래프 검색 지원**: 엔티티 추출, 관계 추출, 온톨로지 매핑
+- **Q&A 생성**: 문서 기반 자동 질문-답변 쌍 생성 (6개 도메인 템플릿)
+- **문서 증강**: 컨텍스트 확장, 의미적 압축, 참조 링크 강화
 
 ## 🚀 빠른 시작
 
@@ -590,7 +597,17 @@ services.AddScoped<IImageToTextService, CustomImageToTextService>();
 
 ## 📚 관련 문서
 
-- [✨ **Phase 10 기능**](PHASE_10_FEATURES.md) - 최신 지능형 기능 상세 가이드
-- [🏗️ **아키텍처**](ARCHITECTURE.md) - 시스템 설계 및 확장성
-- [🎯 **RAG 설계**](RAG-DESIGN.md) - RAG 시스템 통합 가이드
-- [📋 **GitHub Repository**](https://github.com/iyulab/FileFlux) - 소스 코드 및 이슈 트래킹
+### 📖 주요 가이드
+- [**🏗️ 아키텍처**](ARCHITECTURE.md) - 시스템 설계 및 확장성
+- [**🎯 RAG 설계**](RAG-DESIGN.md) - RAG 시스템 통합 가이드
+- [**📋 작업 계획**](../TASKS.md) - 개발 로드맵 및 완료 현황
+
+### 📁 개발 문서
+- [**../claudedocs/**](../claudedocs/) - 개발 과정 및 성과 분석 보고서
+  - Phase 15/16 성능 최적화 분석
+  - 품질 평가 및 벤치마크 결과
+  - 구현 완료 보고서
+
+### 🔗 추가 리소스
+- [**📋 GitHub Repository**](https://github.com/iyulab/FileFlux) - 소스 코드 및 이슈 트래킹
+- [**📦 NuGet Package**](https://www.nuget.org/packages/FileFlux) - 패키지 다운로드

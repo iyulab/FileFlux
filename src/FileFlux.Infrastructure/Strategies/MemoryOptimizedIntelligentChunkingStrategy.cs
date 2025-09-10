@@ -372,7 +372,7 @@ public struct DocumentStructureLightweight
 }
 
 /// <summary>
-/// List<T> 풀링을 위한 정책
+/// List pooling policy
 /// </summary>
 public class ListPooledObjectPolicy<T> : PooledObjectPolicy<List<T>>
 {

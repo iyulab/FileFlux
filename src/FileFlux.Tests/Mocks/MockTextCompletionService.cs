@@ -16,6 +16,15 @@ public class MockTextCompletionService : ITextCompletionService
         MaxContextLength = 4096
     };
     private static readonly string[] result = new[] { "test", "mock", "sample" };
+    private string? _mockResponse = null;
+
+    /// <summary>
+    /// 테스트를 위한 Mock 응답 설정
+    /// </summary>
+    public void SetMockResponse(string response)
+    {
+        _mockResponse = response;
+    }
 
     public Task<StructureAnalysisResult> AnalyzeStructureAsync(
         string prompt,
@@ -81,6 +90,14 @@ public class MockTextCompletionService : ITextCompletionService
 
     public Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default)
     {
+        // 설정된 Mock 응답이 있으면 반환
+        if (!string.IsNullOrEmpty(_mockResponse))
+        {
+            var response = _mockResponse;
+            _mockResponse = null; // 한 번만 사용하고 초기화
+            return Task.FromResult(response);
+        }
+
         // Simple mock that returns a score based on prompt content
         if (prompt.Contains("relevance", StringComparison.OrdinalIgnoreCase))
         {

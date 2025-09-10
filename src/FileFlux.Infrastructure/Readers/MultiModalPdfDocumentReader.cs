@@ -11,10 +11,12 @@ namespace FileFlux.Infrastructure.Readers;
 /// <summary>
 /// 이미지 처리 기능이 통합된 멀티모달 PDF 문서 리더
 /// IImageToTextService가 제공된 경우 이미지에서 텍스트를 추출하여 enrichment
+/// IImageRelevanceEvaluator가 제공된 경우 관련성 평가 후 선택적 포함
 /// </summary>
 public class MultiModalPdfDocumentReader : IDocumentReader
 {
     private readonly IImageToTextService? _imageToTextService;
+    private readonly IImageRelevanceEvaluator? _relevanceEvaluator;
     private readonly PdfDocumentReader _basePdfReader;
 
     public string ReaderType => "MultiModalPdfReader";
@@ -25,6 +27,8 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     {
         // IImageToTextService는 선택적 의존성
         _imageToTextService = serviceProvider.GetService<IImageToTextService>();
+        // IImageRelevanceEvaluator는 선택적 의존성
+        _relevanceEvaluator = serviceProvider.GetService<IImageRelevanceEvaluator>();
         _basePdfReader = new PdfDocumentReader();
     }
 
@@ -72,37 +76,101 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         var structuralHints = baseContent.StructuralHints?.ToDictionary(kv => kv.Key, kv => kv.Value) 
                              ?? new Dictionary<string, object>();
 
+        // 문서 컨텍스트 준비 (관련성 평가용)
+        var documentContext = PrepareDocumentContext(baseContent, filePath);
+
         try
         {
             using var document = PdfDocument.Open(filePath);
             
             var totalPages = document.NumberOfPages;
             var imageCount = 0;
+            var includedImageCount = 0;
+            var excludedImageCount = 0;
 
             for (int pageNum = 1; pageNum <= totalPages; pageNum++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var page = document.GetPage(pageNum);
+                documentContext.PageNumber = pageNum;
+                
+                // 페이지 주변 텍스트 추출
+                var pageText = page.Text;
+                if (!string.IsNullOrEmpty(pageText))
+                {
+                    documentContext.SurroundingText = TruncateText(pageText, 500);
+                }
+                
                 var pageImages = await ExtractPageImages(page, pageNum, cancellationToken);
                 
                 if (pageImages.Any())
                 {
-                    // 페이지 이미지 섹션 시작
-                    enhancedText.AppendLine($"<!-- PAGE_{pageNum}_IMAGES_START -->");
-                    
-                    foreach (var imageResult in pageImages)
+                    // 관련성 평가가 활성화된 경우 배치 평가 수행
+                    List<ImageRelevanceResult>? relevanceResults = null;
+                    if (_relevanceEvaluator != null)
                     {
-                        imageCount++;
-                        enhancedText.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
-                        enhancedText.AppendLine($"Page {pageNum} - Image {imageCount}:");
-                        enhancedText.AppendLine(imageResult.ExtractedText);
-                        enhancedText.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
-                        
-                        imageProcessingResults.Add($"Page {pageNum}: {imageResult.ImageType} image processed with {imageResult.ConfidenceScore:F2} confidence");
+                        var imageTexts = pageImages.Select(img => img.ExtractedText).ToList();
+                        relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
+                            imageTexts, documentContext, cancellationToken)).ToList();
                     }
                     
-                    enhancedText.AppendLine($"<!-- PAGE_{pageNum}_IMAGES_END -->");
+                    // 페이지 이미지 섹션 시작
+                    var hasRelevantImages = false;
+                    var pageImageTexts = new StringBuilder();
+                    
+                    for (int i = 0; i < pageImages.Count; i++)
+                    {
+                        var imageResult = pageImages[i];
+                        imageCount++;
+                        
+                        // 관련성 평가 결과 확인
+                        bool shouldInclude = true;
+                        string? processedText = imageResult.ExtractedText;
+                        string inclusionReason = "No relevance evaluation";
+                        
+                        if (relevanceResults != null && i < relevanceResults.Count)
+                        {
+                            var relevance = relevanceResults[i];
+                            shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
+                                          relevance.Recommendation != InclusionRecommendation.ShouldExclude;
+                            
+                            if (!string.IsNullOrEmpty(relevance.ProcessedText))
+                            {
+                                processedText = relevance.ProcessedText;
+                            }
+                            
+                            inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
+                        }
+                        
+                        if (shouldInclude)
+                        {
+                            if (!hasRelevantImages)
+                            {
+                                pageImageTexts.AppendLine($"<!-- PAGE_{pageNum}_IMAGES_START -->");
+                                hasRelevantImages = true;
+                            }
+                            
+                            pageImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
+                            pageImageTexts.AppendLine($"Page {pageNum} - Image {imageCount}:");
+                            pageImageTexts.AppendLine(processedText);
+                            pageImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
+                            
+                            includedImageCount++;
+                            imageProcessingResults.Add($"Page {pageNum}: {imageResult.ImageType} image INCLUDED - {inclusionReason}");
+                        }
+                        else
+                        {
+                            excludedImageCount++;
+                            imageProcessingResults.Add($"Page {pageNum}: {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
+                        }
+                    }
+                    
+                    if (hasRelevantImages)
+                    {
+                        pageImageTexts.AppendLine($"<!-- PAGE_{pageNum}_IMAGES_END -->");
+                        enhancedText.AppendLine(pageImageTexts.ToString());
+                    }
                 }
             }
 
@@ -110,8 +178,15 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             if (imageCount > 0)
             {
                 structuralHints["HasImages"] = true;
-                structuralHints["ImageCount"] = imageCount;
+                structuralHints["TotalImageCount"] = imageCount;
+                structuralHints["IncludedImageCount"] = includedImageCount;
+                structuralHints["ExcludedImageCount"] = excludedImageCount;
                 structuralHints["ImageProcessingResults"] = imageProcessingResults;
+                
+                if (_relevanceEvaluator != null)
+                {
+                    structuralHints["ImageRelevanceEvaluationEnabled"] = true;
+                }
             }
         }
         catch (Exception ex)
@@ -230,5 +305,50 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             // 이미지 추출 실패
             return null;
         }
+    }
+
+    /// <summary>
+    /// 문서 컨텍스트 준비 (관련성 평가용)
+    /// </summary>
+    private DocumentContext PrepareDocumentContext(RawDocumentContent baseContent, string filePath)
+    {
+        var context = new DocumentContext
+        {
+            DocumentType = "PDF",
+            DocumentText = TruncateText(baseContent.Text, 1000)
+        };
+
+        // 파일명에서 제목 추출
+        context.Title = System.IO.Path.GetFileNameWithoutExtension(filePath);
+
+        // 구조적 힌트에서 메타데이터 추출
+        if (baseContent.StructuralHints != null)
+        {
+            foreach (var hint in baseContent.StructuralHints)
+            {
+                context.Metadata[hint.Key.ToString()] = hint.Value?.ToString() ?? "";
+            }
+        }
+
+        // 간단한 키워드 추출 (공백으로 분리된 단어 중 길이가 5 이상인 것들)
+        var words = baseContent.Text.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        context.Keywords = words
+            .Where(w => w.Length >= 5)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToList();
+
+        return context;
+    }
+
+    /// <summary>
+    /// 텍스트 자르기 헬퍼
+    /// </summary>
+    private string TruncateText(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+            return text;
+        
+        return text.Substring(0, maxLength) + "...";
     }
 }

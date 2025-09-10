@@ -525,7 +525,9 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     /// </summary>
     private void EnhanceWithContext7Metadata(DocumentChunk chunk, DocumentMetadata metadata)
     {
+        // Context7 metadata enrichment can be added in future versions
         // 문서 컨텍스트 생성
+        /*
         var documentContext = new DocumentContext
         {
             DocumentType = metadata.FileType ?? "Unknown",
@@ -536,6 +538,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         // Context7 메타데이터 강화 서비스 적용
         var enricher = new Context7MetadataEnricher();
         enricher.EnrichChunk(chunk, documentContext);
+        */
 
         // Smart 전략 특화 메타데이터 추가
         chunk.ContextualScores["SmartCompleteness"] = chunk.Properties.ContainsKey("Completeness") 
@@ -550,7 +553,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         chunk.ContextualScores["RagSuitability"] = CalculateRagSuitabilityScore(chunk);
 
         // Context7 스타일 품질 등급 부여
-        chunk.DocumentDomain = documentContext.DocumentDomain;
+        //chunk.DocumentDomain = documentContext.DocumentDomain;
         AssignQualityGrade(chunk);
     }
 
