@@ -49,7 +49,7 @@ FileFlux는 **인터페이스를 정의하고, 소비 애플리케이션이 구�
 dotnet add package FileFlux
 ```
 
-### 기본 사용법 (RAG 통합)
+### 기본 사용법
 ```csharp
 using FileFlux;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,11 +58,13 @@ var services = new ServiceCollection();
 
 // 필수 서비스 등록 (소비 애플리케이션에서 구현)
 services.AddScoped<ITextCompletionService, YourLLMService>();        // LLM 서비스
-services.AddScoped<IEmbeddingService, YourEmbeddingService>();      // 임베딩 서비스
-services.AddScoped<IVectorStore, YourVectorStore>();                // 벡터 저장소
+services.AddScoped<IEmbeddingService, YourEmbeddingService>();      // 임베딩 서비스(일부 전략에서 필요)
 
 // 선택사항: 이미지-텍스트 서비스 (멀티모달 처리용)
 services.AddScoped<IImageToTextService, YourVisionService>();
+
+// 소비 어플리케이션에서 관리
+services.AddScoped<IVectorStore, YourVectorStore>();                // 벡터 저장소
 
 // FileFlux 서비스 등록 (병렬 처리 및 스트리밍 엔진 포함)
 services.AddFileFlux();
@@ -169,12 +171,6 @@ foreach (var chunk in chunks)
 - [**🏗️ 아키텍처**](docs/ARCHITECTURE.md) - 시스템 설계 및 확장성
 - [**🎯 RAG 설계**](docs/RAG-DESIGN.md) - RAG 시스템 통합 가이드
 - [**📋 작업 계획**](TASKS.md) - 개발 로드맵 및 완료 현황
-
-### 📁 개발 문서
-- [**claudedocs/**](claudedocs/) - 개발 과정 및 성과 분석 보고서
-  - Phase 15/16 성능 최적화 분석
-  - 품질 평가 및 벤치마크 결과
-  - 구현 완료 보고서
 
 ### 🔗 추가 리소스
 - [**📋 GitHub Repository**](https://github.com/iyulab/FileFlux) - 소스 코드 및 이슈 트래킹

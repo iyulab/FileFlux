@@ -602,12 +602,6 @@ services.AddScoped<IImageToTextService, CustomImageToTextService>();
 - [**🎯 RAG 설계**](RAG-DESIGN.md) - RAG 시스템 통합 가이드
 - [**📋 작업 계획**](../TASKS.md) - 개발 로드맵 및 완료 현황
 
-### 📁 개발 문서
-- [**../claudedocs/**](../claudedocs/) - 개발 과정 및 성과 분석 보고서
-  - Phase 15/16 성능 최적화 분석
-  - 품질 평가 및 벤치마크 결과
-  - 구현 완료 보고서
-
 ### 🔗 추가 리소스
 - [**📋 GitHub Repository**](https://github.com/iyulab/FileFlux) - 소스 코드 및 이슈 트래킹
 - [**📦 NuGet Package**](https://www.nuget.org/packages/FileFlux) - 패키지 다운로드

@@ -30,7 +30,7 @@ class RealWorldTestRunner
 
     static async Task SaveDetailedReport(RealWorldQualityReport report)
     {
-        var reportPath = Path.Combine(Directory.GetCurrentDirectory(), "claudedocs", "Real_World_Quality_Report.md");
+        var reportPath = Path.Combine(Directory.GetCurrentDirectory(), "docs", "reports", "Real_World_Quality_Report.md");
         Directory.CreateDirectory(Path.GetDirectoryName(reportPath)!);
 
         var markdown = GenerateMarkdownReport(report);

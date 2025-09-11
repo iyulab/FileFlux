@@ -156,7 +156,7 @@ class DirectQualityTest
 
     static async Task SaveReport(List<TestResult> results, TimeSpan duration)
     {
-        var reportDir = Path.Combine(Directory.GetCurrentDirectory(), "claudedocs");
+        var reportDir = Path.Combine(Directory.GetCurrentDirectory(), "docs", "reports");
         Directory.CreateDirectory(reportDir);
         
         var reportPath = Path.Combine(reportDir, "Direct_Quality_Test_Report.md");
