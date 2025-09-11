@@ -40,7 +40,7 @@ public class OpenAiImageToTextService : IImageToTextService
             // 이미지 타입에 따른 프롬프트 생성
             var prompt = GeneratePrompt(options?.ImageTypeHint, options?.ExtractStructure ?? false);
 
-            var chatClient = _client.GetChatClient("gpt-4o-mini");
+            var chatClient = _client.GetChatClient("gpt-5-nano");
             
             var messages = new List<ChatMessage>
             {

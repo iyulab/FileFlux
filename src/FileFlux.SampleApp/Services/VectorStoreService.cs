@@ -24,7 +24,7 @@ public class VectorStoreService : IVectorStoreService
 
     // OpenAI 모델 설정
     private const string EmbeddingModel = "text-embedding-3-small";
-    private const string ChatModel = "gpt-4o-mini";
+    private const string ChatModel = "gpt-5-nano";
 
     public VectorStoreService(
         FileFluxDbContext context,

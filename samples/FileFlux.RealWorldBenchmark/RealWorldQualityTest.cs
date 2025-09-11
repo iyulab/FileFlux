@@ -157,7 +157,7 @@ public class RealWorldQualityTest
             services.AddSingleton<ITextCompletionService>(provider =>
                 new OpenAITextCompletionService(
                     apiKey,
-                    Environment.GetEnvironmentVariable("OPENAI_MODEL") ?? "gpt-4o-mini"));
+                    Environment.GetEnvironmentVariable("OPENAI_MODEL") ?? "gpt-5-nano"));
         }
         else
         {

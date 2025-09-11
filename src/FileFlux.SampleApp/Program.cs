@@ -310,7 +310,7 @@ class Program
                 services.AddSingleton(openAiClient.GetEmbeddingClient("text-embedding-3-small"));
 
                 // Phase 5: OpenAI LLM 제공업체 등록 (소비 애플리케이션에서 구현)
-                var chatClient = openAiClient.GetChatClient("gpt-4o-mini");
+                var chatClient = openAiClient.GetChatClient("gpt-5-nano");
                 services.AddSingleton(chatClient);
                 // LLM Provider를 직접 등록
                 services.AddScoped<ITextCompletionService, OpenAiTextCompletionService>();

@@ -111,7 +111,7 @@ public class OpenAiImageToTextService : IImageToTextService
         ImageToTextOptions? options = null, 
         CancellationToken cancellationToken = default)
     {
-        var chatClient = _client.GetChatClient("gpt-4o-mini");
+        var chatClient = _client.GetChatClient("gpt-5-nano");
         
         var messages = new List<ChatMessage>
         {

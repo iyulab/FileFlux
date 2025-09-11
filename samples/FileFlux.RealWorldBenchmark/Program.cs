@@ -1076,7 +1076,7 @@ class Program
             textService = new OpenAiTextCompletionService(apiKey, model);
             if (!_processorMessageShown)
             {
-                AnsiConsole.MarkupLine($"[green]Using OpenAI API for text completion (model: {model ?? "gpt-4o-mini"})[/]");
+                AnsiConsole.MarkupLine($"[green]Using OpenAI API for text completion (model: {model ?? "gpt-5-nano"})[/]");
                 _processorMessageShown = true;
             }
         }

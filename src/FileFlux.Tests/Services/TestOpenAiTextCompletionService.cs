@@ -19,7 +19,7 @@ public class TestOpenAiTextCompletionService : ITextCompletionService
 {
     private readonly ChatClient _chatClient;
 
-    public TestOpenAiTextCompletionService(string apiKey, string model = "gpt-4o-mini")
+    public TestOpenAiTextCompletionService(string apiKey, string model = "gpt-5-nano")
     {
         if (string.IsNullOrEmpty(apiKey))
             throw new ArgumentException("API key is required", nameof(apiKey));
@@ -32,7 +32,7 @@ public class TestOpenAiTextCompletionService : ITextCompletionService
     {
         Name = "OpenAI (Test)",
         Type = TextCompletionProviderType.OpenAI,
-        SupportedModels = new[] { "gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo" },
+        SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-3.5-turbo" },
         MaxContextLength = 128000,
         InputTokenCost = 0.00015m,
         OutputTokenCost = 0.0006m,

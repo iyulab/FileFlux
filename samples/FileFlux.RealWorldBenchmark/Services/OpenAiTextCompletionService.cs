@@ -25,7 +25,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
     public OpenAiTextCompletionService(string apiKey, string? model = null)
     {
         _apiKey = apiKey ?? throw new ArgumentNullException(nameof(apiKey));
-        _model = model ?? "gpt-4o-mini";
+        _model = model ?? "gpt-5-nano";
         _httpClient = new HttpClient();
         _httpClient.DefaultRequestHeaders.Authorization = 
             new AuthenticationHeaderValue("Bearer", _apiKey);
@@ -272,7 +272,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
     {
         Name = "OpenAI",
         Type = TextCompletionProviderType.OpenAI,
-        SupportedModels = new[] { "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo" },
+        SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo" },
         MaxContextLength = 128000,
         ApiVersion = "v1"
     };

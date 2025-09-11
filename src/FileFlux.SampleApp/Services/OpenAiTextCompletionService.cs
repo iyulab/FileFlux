@@ -24,9 +24,9 @@ public class OpenAiTextCompletionService : ITextCompletionService
     {
         Name = "OpenAI",
         Type = TextCompletionProviderType.OpenAI,
-        SupportedModels = new[] { "gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo" },
+        SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-3.5-turbo" },
         MaxContextLength = 128000,
-        InputTokenCost = 0.00015m, // gpt-4o-mini 가격
+        InputTokenCost = 0.00015m, // gpt-5-nano 가격
         OutputTokenCost = 0.0006m,
         ApiVersion = "2024-08-01"
     };

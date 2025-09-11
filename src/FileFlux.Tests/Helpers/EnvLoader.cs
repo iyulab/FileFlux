@@ -70,6 +70,6 @@ public static class EnvLoader
     public static string GetOpenAiModel()
     {
         Load();
-        return Environment.GetEnvironmentVariable("OPENAI_MODEL") ?? "gpt-4o-mini";
+        return Environment.GetEnvironmentVariable("OPENAI_MODEL") ?? "gpt-5-nano";
     }
 }
