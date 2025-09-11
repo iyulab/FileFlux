@@ -4,8 +4,8 @@
   <!-- Project-specific properties are defined in Directory.Build.props based on MSBuildProjectName -->
 
   <ItemGroup>
-    <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" PrivateAssets="none" />
-    <ProjectReference Include="..\FileFlux.Domain\FileFlux.Domain.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\FileFlux.Domain\FileFlux.Domain.csproj" PrivateAssets="all" />
   </ItemGroup>
   
   <!-- NuGet packaging configuration to include all assemblies -->
@@ -17,11 +17,11 @@
   <!-- Custom target to include project references in package -->
   <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="BuildOnlySettings;ResolveReferences">
     <ItemGroup>
-      <!-- Get all project reference outputs -->
-      <_ProjectReferenceDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference'" />
-      
-      <!-- Add to package output -->
-      <BuildOutputInPackage Include="@(_ProjectReferenceDlls)" />
+      <!-- Include Core and Domain DLLs and their XML docs in the package -->
+      <BuildOutputInPackage Include="$(OutputPath)FileFlux.Core.dll" />
+      <BuildOutputInPackage Include="$(OutputPath)FileFlux.Domain.dll" />
+      <BuildOutputInPackage Include="$(OutputPath)FileFlux.Core.xml" Condition="Exists('$(OutputPath)FileFlux.Core.xml')" />
+      <BuildOutputInPackage Include="$(OutputPath)FileFlux.Domain.xml" Condition="Exists('$(OutputPath)FileFlux.Domain.xml')" />
     </ItemGroup>
   </Target>
   
