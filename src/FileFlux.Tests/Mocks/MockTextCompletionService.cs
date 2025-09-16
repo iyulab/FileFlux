@@ -38,7 +38,7 @@ public class MockTextCompletionService : ITextCompletionService
             {
                 new SectionInfo
                 {
-                    Type = SectionType.HEADING_L1,
+                    Type = SectionType.HeadingL1,
                     Title = "Test Section",
                     StartPosition = 0,
                     EndPosition = 100,
@@ -48,7 +48,7 @@ public class MockTextCompletionService : ITextCompletionService
             },
             Structure = new FileFlux.CoreDocumentStructure
             {
-                Root = new SectionInfo { Type = SectionType.HEADING_L1, Title = "Root" },
+                Root = new SectionInfo { Type = SectionType.HeadingL1, Title = "Root" },
                 AllSections = new List<SectionInfo>()
             },
             Confidence = 0.8,

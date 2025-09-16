@@ -116,7 +116,7 @@ public class DocumentSection
     /// <summary>
     /// 하위 섹션들
     /// </summary>
-    public List<DocumentSection> SubSections { get; set; } = new();
+    public List<DocumentSection> SubSections { get; } = new();
 }
 
 /// <summary>
@@ -224,5 +224,5 @@ public class ParsingMetadata
     /// <summary>
     /// LLM 호출 통계 (횟수, 토큰 사용량 등)
     /// </summary>
-    public Dictionary<string, object> LlmStats { get; set; } = new();
+    public Dictionary<string, object> LlmStats { get; } = new();
 }

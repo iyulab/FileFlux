@@ -272,7 +272,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
     {
         Name = "OpenAI",
         Type = TextCompletionProviderType.OpenAI,
-        SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo" },
+        SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-4-turbo" },
         MaxContextLength = 128000,
         ApiVersion = "v1"
     };

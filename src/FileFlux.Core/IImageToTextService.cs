@@ -89,7 +89,7 @@ public class ImageToTextOptions
     /// <summary>
     /// 커스텀 옵션 (서비스별 특화 설정)
     /// </summary>
-    public Dictionary<string, object> CustomOptions { get; set; } = new();
+    public Dictionary<string, object> CustomOptions { get; } = new();
 }
 
 /// <summary>

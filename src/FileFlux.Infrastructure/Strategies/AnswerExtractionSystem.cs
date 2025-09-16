@@ -31,7 +31,7 @@ namespace FileFlux.Infrastructure.Strategies
         public AnswerExtractionResult ExtractAnswer(
             GeneratedQuestion question, 
             DocumentChunk chunk,
-            AnswerExtractionOptions options = null)
+            AnswerExtractionOptions? options = null)
         {
             options ??= new AnswerExtractionOptions();
             
@@ -100,7 +100,7 @@ namespace FileFlux.Infrastructure.Strategies
         public BatchAnswerExtractionResult ExtractAnswersFromMultipleSources(
             GeneratedQuestion question,
             List<DocumentChunk> chunks,
-            AnswerExtractionOptions options = null)
+            AnswerExtractionOptions? options = null)
         {
             var batchResult = new BatchAnswerExtractionResult
             {
@@ -136,12 +136,12 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         /// <summary>
-        /// Extract answers for all questions in a Q&A generation result
+        /// Extract answers for all questions in a Q&amp;A generation result
         /// </summary>
         public QAExtractionResult ExtractAnswersForQuestions(
             QuestionGenerationResult questionResult,
             DocumentChunk chunk,
-            AnswerExtractionOptions options = null)
+            AnswerExtractionOptions? options = null)
         {
             var qaResult = new QAExtractionResult
             {

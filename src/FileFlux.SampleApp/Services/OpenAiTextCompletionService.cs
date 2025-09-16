@@ -24,7 +24,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
     {
         Name = "OpenAI",
         Type = TextCompletionProviderType.OpenAI,
-        SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-3.5-turbo" },
+        SupportedModels = new[] { "gpt-5-nano", "gpt-4o" },
         MaxContextLength = 128000,
         InputTokenCost = 0.00015m, // gpt-5-nano 가격
         OutputTokenCost = 0.0006m,
@@ -342,24 +342,24 @@ public class OpenAiTextCompletionService : ITextCompletionService
     {
         return typeString?.ToUpperInvariant() switch
         {
-            "HEADING_L1" or "TITLE" => SectionType.HEADING_L1,
-            "HEADING_L2" or "SUBTITLE" => SectionType.HEADING_L2,
-            "HEADING_L3" => SectionType.HEADING_L3,
-            "PARAGRAPH" => SectionType.PARAGRAPH,
-            "CODE_BLOCK" => SectionType.CODE_BLOCK,
-            "LIST" => SectionType.LIST,
-            "TABLE" => SectionType.TABLE,
-            "IMAGE" => SectionType.IMAGE,
-            "API_ENDPOINT" => SectionType.API_ENDPOINT,
-            "CLASS" => SectionType.CLASS,
-            "METHOD" => SectionType.METHOD,
-            "EXAMPLE" => SectionType.EXAMPLE,
-            "COMMENT" => SectionType.COMMENT,
-            "NAVIGATION" => SectionType.NAVIGATION,
-            "ARTICLE" => SectionType.ARTICLE,
-            "ASIDE" => SectionType.ASIDE,
-            "FOOTER" => SectionType.FOOTER,
-            _ => SectionType.PARAGRAPH
+            "HEADING_L1" or "TITLE" => SectionType.HeadingL1,
+            "HEADING_L2" or "SUBTITLE" => SectionType.HeadingL2,
+            "HEADING_L3" => SectionType.HeadingL3,
+            "PARAGRAPH" => SectionType.Paragraph,
+            "CODE_BLOCK" => SectionType.CodeBlock,
+            "LIST" => SectionType.List,
+            "TABLE" => SectionType.Table,
+            "IMAGE" => SectionType.Image,
+            "API_ENDPOINT" => SectionType.ApiEndpoint,
+            "CLASS" => SectionType.Class,
+            "METHOD" => SectionType.Method,
+            "EXAMPLE" => SectionType.Example,
+            "COMMENT" => SectionType.Comment,
+            "NAVIGATION" => SectionType.Navigation,
+            "ARTICLE" => SectionType.Article,
+            "ASIDE" => SectionType.Aside,
+            "FOOTER" => SectionType.Footer,
+            _ => SectionType.Paragraph
         };
     }
 

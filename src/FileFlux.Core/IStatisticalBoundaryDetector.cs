@@ -9,7 +9,7 @@ public interface IStatisticalBoundaryDetector
 {
     /// <summary>
     /// Calculates the uncertainty score for a text segment.
-    /// Score = exp(-1/n ∑log P(tj|t<j))
+    /// Score = exp(-1/n ∑log P(tj|t&lt;j))
     /// </summary>
     /// <param name="segment">The text segment to analyze</param>
     /// <param name="context">Optional preceding context</param>

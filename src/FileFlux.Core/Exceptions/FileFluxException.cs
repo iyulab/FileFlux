@@ -5,6 +5,7 @@ namespace FileFlux.Exceptions;
 /// </summary>
 public abstract class FileFluxException : Exception
 {
+    protected FileFluxException() : base() { }
     protected FileFluxException(string message) : base(message) { }
     protected FileFluxException(string message, Exception innerException) : base(message, innerException) { }
 }
@@ -14,7 +15,9 @@ public abstract class FileFluxException : Exception
 /// </summary>
 public class UnsupportedFileFormatException : FileFluxException
 {
-    public string FileName { get; }
+    public string FileName { get; } = string.Empty;
+
+    public UnsupportedFileFormatException() : base("Unsupported file format") { }
 
     public UnsupportedFileFormatException(string fileName)
         : base($"Unsupported file format: {fileName}")
@@ -27,6 +30,9 @@ public class UnsupportedFileFormatException : FileFluxException
     {
         FileName = fileName;
     }
+
+    public UnsupportedFileFormatException(string message, Exception innerException)
+        : base(message, innerException) { }
 }
 
 /// <summary>
@@ -35,6 +41,8 @@ public class UnsupportedFileFormatException : FileFluxException
 public class DocumentProcessingException : FileFluxException
 {
     public string? FileName { get; }
+
+    public DocumentProcessingException() : base("Document processing error") { }
 
     public DocumentProcessingException(string message) : base(message) { }
 
@@ -60,6 +68,8 @@ public class DocumentProcessingException : FileFluxException
 public class ChunkingStrategyException : FileFluxException
 {
     public string? StrategyName { get; }
+
+    public ChunkingStrategyException() : base("Chunking strategy error") { }
 
     public ChunkingStrategyException(string message) : base(message) { }
 

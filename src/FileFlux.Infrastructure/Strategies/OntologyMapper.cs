@@ -794,7 +794,7 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class TripleComparer : IEqualityComparer<RdfTriple>
     {
-        public bool Equals(RdfTriple x, RdfTriple y)
+        public bool Equals(RdfTriple? x, RdfTriple? y)
         {
             if (x == null && y == null) return true;
             if (x == null || y == null) return false;

@@ -54,7 +54,7 @@ public class ImageInfo
     /// <summary>
     /// 이미지 크기 정보
     /// </summary>
-    public Dictionary<string, object> Properties { get; set; } = new();
+    public Dictionary<string, object> Properties { get; } = new();
 }
 
 /// <summary>

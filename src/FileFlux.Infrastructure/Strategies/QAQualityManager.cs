@@ -7,8 +7,8 @@ using FileFlux.Domain;
 namespace FileFlux.Infrastructure.Strategies
 {
     /// <summary>
-    /// Phase 13: T13-003 - Q&A Quality Manager
-    /// Manages quality assessment, filtering, and improvement of Q&A pairs
+    /// Phase 13: T13-003 - Q&amp;A Quality Manager
+    /// Manages quality assessment, filtering, and improvement of Q&amp;A pairs
     /// </summary>
     public class QAQualityManager
     {
@@ -28,11 +28,11 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         /// <summary>
-        /// Evaluate and manage quality of Q&A pairs
+        /// Evaluate and manage quality of Q&amp;A pairs
         /// </summary>
         public QAQualityResult EvaluateQAQuality(
             List<QAPair> qaPairs,
-            QAQualityOptions options = null)
+            QAQualityOptions? options = null)
         {
             options ??= new QAQualityOptions();
             
@@ -93,11 +93,11 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         /// <summary>
-        /// Improve quality of existing Q&A pairs
+        /// Improve quality of existing Q&amp;A pairs
         /// </summary>
         public QAImprovementResult ImproveQAQuality(
             List<QAPair> qaPairs,
-            QAImprovementOptions options = null)
+            QAImprovementOptions? options = null)
         {
             options ??= new QAImprovementOptions();
             
@@ -155,11 +155,11 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         /// <summary>
-        /// Validate Q&A pairs against quality criteria
+        /// Validate Q&amp;A pairs against quality criteria
         /// </summary>
         public QAValidationResult ValidateQAPairs(
             List<QAPair> qaPairs,
-            ValidationCriteria criteria = null)
+            ValidationCriteria? criteria = null)
         {
             criteria ??= new ValidationCriteria();
             

@@ -16,7 +16,7 @@ public class Phase14PreprocessingFeatures
 {
     public async Task<PreprocessingResult> ProcessDocumentAsync(
         ParsedDocumentContent document,
-        PreprocessingOptions options = null,
+        PreprocessingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         options ??= new PreprocessingOptions();

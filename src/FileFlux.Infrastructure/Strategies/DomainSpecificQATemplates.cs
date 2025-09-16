@@ -7,7 +7,7 @@ using FileFlux.Domain;
 namespace FileFlux.Infrastructure.Strategies
 {
     /// <summary>
-    /// Phase 13: T13-004 - Domain-Specific Q&A Templates
+    /// Phase 13: T13-004 - Domain-Specific Q&amp;A Templates
     /// Provides specialized question generation templates for different domains
     /// </summary>
     public class DomainSpecificQATemplates
@@ -33,11 +33,11 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         /// <summary>
-        /// Generate domain-specific Q&A pairs
+        /// Generate domain-specific Q&amp;A pairs
         /// </summary>
         public DomainQAResult GenerateDomainSpecificQA(
             DocumentChunk chunk,
-            DomainQAOptions options = null)
+            DomainQAOptions? options = null)
         {
             options ??= new DomainQAOptions();
             

@@ -30,7 +30,7 @@ namespace FileFlux.Infrastructure.Strategies
             _diversityOptimizer = new QuestionDiversityOptimizer();
         }
 
-        public QuestionGenerationResult GenerateQuestions(DocumentChunk chunk, QuestionGenerationOptions options = null)
+        public QuestionGenerationResult GenerateQuestions(DocumentChunk chunk, QuestionGenerationOptions? options = null)
         {
             options ??= new QuestionGenerationOptions();
             var result = new QuestionGenerationResult

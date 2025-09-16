@@ -16,7 +16,7 @@ cp .env.local.example .env.local
 2. Edit `.env.local` and add your API keys:
 ```env
 OPENAI_API_KEY=sk-your-actual-api-key-here
-OPENAI_MODEL=gpt-3.5-turbo
+OPENAI_MODEL=gpt-5-nano
 ```
 
 ### 2. Add Test Files
@@ -101,7 +101,7 @@ The benchmark measures:
 ## API Cost Estimation
 
 When using OpenAI API:
-- **GPT-3.5-turbo**: ~$0.001 per 1000 tokens
+- **gpt-5-nano**: ~$0.001 per 1000 tokens
 - **Average document**: 10-50 API calls
 - **Estimated cost**: $0.01-0.05 per document
 

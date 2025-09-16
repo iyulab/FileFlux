@@ -72,7 +72,7 @@ public class DocumentParsingOptions
     /// <summary>
     /// 커스텀 파싱 설정
     /// </summary>
-    public Dictionary<string, object> CustomSettings { get; set; } = new();
+    public Dictionary<string, object> CustomSettings { get; } = new();
 }
 
 /// <summary>

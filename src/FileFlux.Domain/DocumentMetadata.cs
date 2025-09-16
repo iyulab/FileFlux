@@ -58,5 +58,5 @@ public class DocumentMetadata
     /// <summary>
     /// 사용자 정의 속성들
     /// </summary>
-    public Dictionary<string, object> CustomProperties { get; set; } = new();
+    public Dictionary<string, object> CustomProperties { get; } = new();
 }

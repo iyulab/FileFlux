@@ -32,7 +32,7 @@ public class TestOpenAiTextCompletionService : ITextCompletionService
     {
         Name = "OpenAI (Test)",
         Type = TextCompletionProviderType.OpenAI,
-        SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-3.5-turbo" },
+        SupportedModels = new[] { "gpt-5-nano", "gpt-4o" },
         MaxContextLength = 128000,
         InputTokenCost = 0.00015m,
         OutputTokenCost = 0.0006m,
@@ -50,7 +50,6 @@ public class TestOpenAiTextCompletionService : ITextCompletionService
 
             var response = await _chatClient.CompleteChatAsync(messages, new ChatCompletionOptions
             {
-                Temperature = 0.7f,
                 MaxOutputTokenCount = 1000
             }, cancellationToken);
 

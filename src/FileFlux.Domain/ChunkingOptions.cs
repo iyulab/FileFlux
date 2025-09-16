@@ -23,7 +23,7 @@ public class ChunkingOptions
     /// <summary>
     /// 사용자 정의 속성들 (Phase 10: 고급 설정)
     /// </summary>
-    public Dictionary<string, object> CustomProperties { get; set; } = new();
+    public Dictionary<string, object> CustomProperties { get; } = new();
 }
 
 /// <summary>

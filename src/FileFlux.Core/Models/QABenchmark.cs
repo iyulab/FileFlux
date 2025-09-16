@@ -200,7 +200,7 @@ public class GeneratedQuestion
     /// <summary>
     /// IDs of chunks that contain relevant information for answering
     /// </summary>
-    public List<string> RelevantChunkIds { get; set; } = new();
+    public List<string> RelevantChunkIds { get; } = new();
 
     /// <summary>
     /// Question type classification for targeted evaluation
@@ -222,7 +222,7 @@ public class GeneratedQuestion
     /// <summary>
     /// Additional metadata for question analysis
     /// </summary>
-    public Dictionary<string, object> Metadata { get; set; } = new();
+    public Dictionary<string, object> Metadata { get; } = new();
 }
 
 /// <summary>

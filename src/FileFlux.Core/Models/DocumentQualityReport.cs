@@ -50,7 +50,7 @@ public class DocumentQualityReport
     /// Detailed metrics for advanced analysis and debugging
     /// Extended metadata in key-value pairs for analysis
     /// </summary>
-    public Dictionary<string, object> DetailedMetrics { get; set; } = new();
+    public Dictionary<string, object> DetailedMetrics { get; } = new();
 
     /// <summary>
     /// Processing timestamp for tracking and versioning
