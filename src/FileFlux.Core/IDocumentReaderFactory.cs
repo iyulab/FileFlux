@@ -37,4 +37,23 @@ public interface IDocumentReaderFactory
     /// </summary>
     /// <param name="readerType">해제할 Reader 타입</param>
     bool UnregisterReader(string readerType);
+
+    /// <summary>
+    /// 지원하는 모든 파일 확장자 목록 조회
+    /// </summary>
+    /// <returns>지원하는 확장자 목록 (.pdf, .docx 등)</returns>
+    IEnumerable<string> GetSupportedExtensions();
+
+    /// <summary>
+    /// 특정 확장자가 지원되는지 확인
+    /// </summary>
+    /// <param name="extension">확장자 (.pdf, .docx 등)</param>
+    /// <returns>지원 여부</returns>
+    bool IsExtensionSupported(string extension);
+
+    /// <summary>
+    /// 확장자별로 어떤 Reader가 처리하는지 매핑 정보 제공
+    /// </summary>
+    /// <returns>확장자-Reader 매핑 정보</returns>
+    IReadOnlyDictionary<string, string> GetExtensionReaderMapping();
 }

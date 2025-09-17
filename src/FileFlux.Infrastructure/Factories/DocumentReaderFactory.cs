@@ -58,16 +58,53 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         return _readers.TryRemove(readerType, out _);
     }
 
+    public IEnumerable<string> GetSupportedExtensions()
+    {
+        return _readers.Values
+            .SelectMany(reader => reader.SupportedExtensions)
+            .Distinct()
+            .OrderBy(ext => ext)
+            .ToList();
+    }
+
+    public bool IsExtensionSupported(string extension)
+    {
+        if (string.IsNullOrWhiteSpace(extension))
+            return false;
+
+        var normalizedExtension = extension.StartsWith(".") ? extension.ToLowerInvariant() : $".{extension.ToLowerInvariant()}";
+
+        return _readers.Values
+            .Any(reader => reader.SupportedExtensions.Contains(normalizedExtension));
+    }
+
+    public IReadOnlyDictionary<string, string> GetExtensionReaderMapping()
+    {
+        var mapping = new Dictionary<string, string>();
+
+        foreach (var reader in _readers.Values)
+        {
+            foreach (var extension in reader.SupportedExtensions)
+            {
+                mapping[extension] = reader.ReaderType;
+            }
+        }
+
+        return mapping;
+    }
+
     private void RegisterDefaultReaders()
     {
         // 텍스트 기반 Reader들
         RegisterReader(new Readers.TextDocumentReader());
-        
+        RegisterReader(new Readers.MarkdownDocumentReader());
+        RegisterReader(new Readers.HtmlDocumentReader());
+
         // Office 문서 Reader들 (DocumentFormat.OpenXml 기반)
         RegisterReader(new Readers.WordDocumentReader());
         RegisterReader(new Readers.ExcelDocumentReader());
         RegisterReader(new Readers.PowerPointDocumentReader());
-        
+
         // PDF Reader (PdfPig 기반)
         RegisterReader(new Readers.PdfDocumentReader());
     }

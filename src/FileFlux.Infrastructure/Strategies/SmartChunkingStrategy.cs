@@ -249,8 +249,8 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         var semanticCoherence = CalculateSemanticCoherence(string.Join(" ", chunk));
         scores.Add(semanticCoherence);
 
-        // 4. 길이 적절성 (너무 짧지 않은가?)
-        var lengthScore = Math.Min(1.0, chunk.Sum(s => s.Length) / 200.0); // 200자 이상이면 1.0
+        // 4. 길이 적절성 (너무 짧지 않은가?) - Phase 15: 200자 → 300자로 최적화
+        var lengthScore = Math.Min(1.0, chunk.Sum(s => s.Length) / 300.0); // 300자 이상이면 1.0
         scores.Add(lengthScore);
 
         return scores.Average();

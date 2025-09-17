@@ -11,7 +11,7 @@
 
 **FileFlux** is a pure RAG preprocessing SDK - a **.NET 9 SDK** that transforms documents into structured chunks optimized for RAG systems.
 
-✅ **Production Ready** - 235+ tests 100% passed, real API verification completed, enterprise-grade performance
+✅ **Production Ready** - 241+ tests 100% passed, Phase 15 optimization completed, enterprise-grade performance
 
 ### 🏗️ Architecture Principle: Interface Provider
 
@@ -31,14 +31,15 @@ FileFlux follows clear separation of responsibilities: **defining interfaces whi
 ### ✨ Key Features
 - **📦 Single NuGet Package**: Easy installation with `dotnet add package FileFlux`
 - **🎯 Clean Interface**: Pure interface design independent of AI providers
-- **📄 8 Document Formats**: Perfect support for PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV
+- **📄 8+ Document Formats**: Perfect support for PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML
 - **🎛️ 7 Chunking Strategies**: Auto, Smart, Intelligent, MemoryOptimized, Semantic, Paragraph, FixedSize
 - **🖼️ Multimodal Processing**: Text + Image → Unified text conversion
 - **⚡ Parallel Processing Engine**: Dynamic scaling per CPU core, memory backpressure control
 - **📊 Streaming Optimization**: Real-time chunk return, intelligent LRU cache
 - **🔍 Advanced Preprocessing**: Vector/graph search optimization, Q&A generation, entity extraction
+- **🔧 Extension Discovery API**: Runtime supported file format discovery and validation
 - **🏗️ Clean Architecture**: Extensibility guaranteed through dependency inversion
-- **🚀 Production Ready**: 235+ tests passed, real API verification completed, production deployment ready
+- **🚀 Production Ready**: 241+ tests passed, Phase 15 optimization completed, production deployment ready
 
 ---
 
@@ -137,7 +138,28 @@ foreach (var chunk in chunks)
 - **PowerPoint** (.pptx) - Slide and notes extraction
 - **Excel** (.xlsx) - Multi-sheet and table structure
 - **Markdown** (.md) - Structure preservation
+- **HTML** (.html, .htm) - Web content extraction
 - **Text** (.txt), **JSON** (.json), **CSV** (.csv)
+
+### Extension Discovery API
+```csharp
+var factory = provider.GetRequiredService<IDocumentReaderFactory>();
+
+// Get all supported extensions
+var extensions = factory.GetSupportedExtensions();
+Console.WriteLine($"Supported: {string.Join(", ", extensions)}");
+
+// Check specific extension
+bool isSupported = factory.IsExtensionSupported(".pdf");
+Console.WriteLine($"PDF supported: {isSupported}");
+
+// Get extension-reader mapping
+var mapping = factory.GetExtensionReaderMapping();
+foreach (var kvp in mapping)
+{
+    Console.WriteLine($"{kvp.Key} → {kvp.Value}");
+}
+```
 
 ---
 
@@ -171,13 +193,12 @@ foreach (var chunk in chunks)
 ### 📈 Verified Performance Metrics (Real API Verification)
 - **Processing Speed**: 3.14MB PDF → 328 chunks, GPT-5-nano real-time processing
 - **Memory Efficiency**: Memory usage under 2x file size (MemoryOptimized: 84% reduction)
-- **Quality Assurance**: 81% chunk completeness, 75%+ context preservation achieved
+- **Quality Assurance**: 81%+ chunk completeness, 75%+ context preservation achieved
 - **Auto Optimization**: Automatic optimal strategy selection per document with Auto strategy
 - **Parallel Scaling**: Linear performance improvement based on CPU core count
 - **Vectorization Processing**: Real-time embedding generation with text-embedding-3-small
-- **Test Coverage**: 235+ tests 100% passed, real API verification completed
+- **Test Coverage**: 241+ tests 100% passed, Optimization completed
 - **Advanced Features**: Vector/graph search optimization, entity extraction, Q&A generation completed
-
 ---
 
 ## 📚 Documentation and Guides

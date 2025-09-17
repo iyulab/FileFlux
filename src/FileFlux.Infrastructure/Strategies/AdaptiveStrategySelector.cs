@@ -684,45 +684,130 @@ Return your response in the following JSON format:
         content.Contains("\\begin{equation}");
 
     /// <summary>
-    /// 번호 체계 섹션 감지 (1., 2., 3. 또는 1), 2), 3) 패턴)
+    /// Phase 15: 강화된 번호 체계 섹션 감지
+    /// 다양한 번호 패턴과 계층 구조를 인식
     /// </summary>
     private bool DetectNumberedSections(string content)
     {
         var lines = content.Split('\n');
         int numberedLines = 0;
+        int hierarchicalLines = 0;
 
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
-            // 숫자로 시작하는 섹션 감지
+
+            // 기본 번호 패턴: 1., 2., 3. 또는 1), 2), 3)
             if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d+[\.\)]\s+\w+"))
+            {
+                numberedLines++;
+            }
+
+            // 계층적 번호 패턴: 1.1, 1.2, 2.1, 2.2 등
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d+\.\d+[\.\)]*\s+\w+"))
+            {
+                hierarchicalLines++;
+                numberedLines++; // 계층적 번호도 번호 라인으로 카운트
+            }
+
+            // 로마 숫자 패턴: I., II., III., IV. 등
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[IVX]+[\.\)]\s+\w+"))
+            {
+                numberedLines++;
+            }
+
+            // 알파벳 패턴: a), b), c) 또는 A), B), C)
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[a-zA-Z][\.\)]\s+\w+"))
+            {
+                numberedLines++;
+            }
+
+            // 한국어 번호 패턴: 가., 나., 다. 또는 (1), (2), (3)
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[가-힣][\.\)]\s+\w+") ||
+                System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\(\d+\)\s+\w+"))
             {
                 numberedLines++;
             }
         }
 
-        // 전체 라인의 10% 이상이 번호 체계를 가지면 구조화된 문서로 판단
-        return numberedLines >= Math.Max(2, lines.Length * 0.1);
+        // 계층적 구조가 발견되면 가중치 부여
+        var structureWeight = hierarchicalLines > 0 ? 1.5 : 1.0;
+        var effectiveNumberedLines = numberedLines * structureWeight;
+
+        // 전체 라인의 8% 이상이 번호 체계를 가지거나, 계층 구조가 3개 이상이면 구조화된 문서로 판단
+        var threshold = Math.Max(2, lines.Length * 0.08);
+        return effectiveNumberedLines >= threshold || hierarchicalLines >= 3;
     }
 
     /// <summary>
-    /// 구조화된 요구사항 문서 감지 (요구사항, 변경사항, 항목 등의 키워드)
+    /// Phase 15: 강화된 구조화 요구사항 문서 감지
+    /// 다양한 문서 구조 패턴과 키워드를 종합적으로 분석
     /// </summary>
     private bool DetectStructuredRequirements(string content)
     {
-        var keywords = new[] {
-            "요구사항", "변경사항", "항목", "변경", "프로그램", "시스템",
-            "requirement", "change", "item", "specification", "feature"
+        // 핵심 요구사항 키워드
+        var requirementKeywords = new[] {
+            "요구사항", "변경사항", "항목", "변경", "프로그램", "시스템", "기능", "명세",
+            "requirement", "change", "item", "specification", "feature", "function",
+            "criteria", "policy", "rule", "standard", "guideline", "procedure"
         };
 
-        var keywordCount = keywords.Count(keyword =>
+        // 문서 구조 키워드
+        var structureKeywords = new[] {
+            "section", "chapter", "part", "단락", "장", "절", "조", "항",
+            "objective", "목적", "목표", "범위", "scope", "overview", "개요"
+        };
+
+        // 상태/프로세스 키워드
+        var processKeywords = new[] {
+            "status", "state", "process", "workflow", "step", "phase",
+            "상태", "과정", "단계", "절차", "흐름", "처리"
+        };
+
+        var requirementKeywordCount = requirementKeywords.Count(keyword =>
             content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 
-        // 구조 표시자 확인
-        var hasStructureMarkers = content.Contains("□") || content.Contains("▣") ||
-                                  content.Contains("No.") || content.Contains("항목");
+        var structureKeywordCount = structureKeywords.Count(keyword =>
+            content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 
-        return keywordCount >= 2 || hasStructureMarkers;
+        var processKeywordCount = processKeywords.Count(keyword =>
+            content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+        // 구조 표시자 확인 (강화)
+        var checkboxMarkers = content.Contains("□") || content.Contains("▣") ||
+                              content.Contains("☐") || content.Contains("☑") ||
+                              content.Contains("✓") || content.Contains("✗");
+
+        var numberingMarkers = content.Contains("No.") || content.Contains("항목") ||
+                               content.Contains("#") || content.Contains("Item");
+
+        var tableMarkers = content.Contains(" | ") && content.Contains("---");
+
+        var bulletMarkers = content.Split('\n').Count(line =>
+            line.Trim().StartsWith("- ") || line.Trim().StartsWith("* ") ||
+            line.Trim().StartsWith("• ")) > 3;
+
+        // 종합 점수 계산
+        var score = 0;
+        score += requirementKeywordCount * 2;  // 요구사항 키워드 가중치 높음
+        score += structureKeywordCount;
+        score += processKeywordCount;
+
+        if (checkboxMarkers) score += 3;
+        if (numberingMarkers) score += 2;
+        if (tableMarkers) score += 2;
+        if (bulletMarkers) score += 1;
+
+        // 텍스트 밀도 기반 추가 검증
+        var lines = content.Split('\n');
+        var nonEmptyLines = lines.Count(line => !string.IsNullOrWhiteSpace(line));
+        var averageLineLength = nonEmptyLines > 0 ?
+            content.Length / (double)nonEmptyLines : 0;
+
+        // 구조화된 문서는 보통 짧은 라인들로 구성됨
+        if (averageLineLength < 50 && nonEmptyLines > 10) score += 2;
+
+        return score >= 5; // 임계값을 5로 설정하여 더 정확한 감지
     }
     
     private string InferContentType(string content, string extension)

@@ -1648,28 +1648,176 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
     private static double CalculateLengthAppropriateness(int length)
     {
-        // 적절한 청크 길이 범위: 200-1500자
-        if (length < 100) return 0.3; // 너무 짧음
-        if (length < 200) return 0.6; // 짧음
+        // Phase 15: 적절한 청크 길이 범위 최적화: 300-1500자
+        if (length < 150) return 0.3; // 너무 짧음
+        if (length < 300) return 0.6; // 짧음
         if (length <= 1500) return 1.0; // 적절함
         if (length <= 2000) return 0.8; // 다소 길음
         return 0.6; // 너무 길음
     }
 
+    /// <summary>
+    /// Phase 15: 강화된 헤더 계층 구조 일관성 계산
+    /// 더 정교한 계층 구조 분석 및 번호 체계 인식 포함
+    /// </summary>
     private static double CalculateHeaderConsistency(string content)
     {
-        var headerMatches = Regex.Matches(content, @"^#{1,6}\s+", RegexOptions.Multiline);
-        if (headerMatches.Count <= 1) return 1.0;
+        var markdownHeaderMatches = Regex.Matches(content, @"^#{1,6}\s+", RegexOptions.Multiline);
+        var numberedHeaderMatches = Regex.Matches(content, @"^\d+[\.\)]\s+\w+", RegexOptions.Multiline);
+        var hierarchicalHeaderMatches = Regex.Matches(content, @"^\d+\.\d+[\.\)]*\s+\w+", RegexOptions.Multiline);
 
-        // 헤더 레벨의 일관성 확인 (큰 폭의 레벨 점프가 없는지)
-        var levels = headerMatches.Cast<Match>()
-            .Select(m => m.Value.Count(c => c == '#'))
-            .ToList();
+        var totalHeaders = markdownHeaderMatches.Count + numberedHeaderMatches.Count + hierarchicalHeaderMatches.Count;
+        if (totalHeaders <= 1) return 1.0;
 
+        var consistency = 0.0;
+        var weights = new List<double>();
+
+        // 1. 마크다운 헤더 일관성 분석
+        if (markdownHeaderMatches.Count > 1)
+        {
+            var mdLevels = markdownHeaderMatches.Cast<Match>()
+                .Select(m => m.Value.Count(c => c == '#'))
+                .ToList();
+
+            var mdConsistency = CalculateMarkdownLevelConsistency(mdLevels);
+            consistency += mdConsistency * markdownHeaderMatches.Count;
+            weights.Add(markdownHeaderMatches.Count);
+        }
+
+        // 2. 번호 체계 헤더 일관성 분석
+        if (numberedHeaderMatches.Count > 1)
+        {
+            var numberedConsistency = AnalyzeNumberedSequence(numberedHeaderMatches);
+            consistency += numberedConsistency * numberedHeaderMatches.Count;
+            weights.Add(numberedHeaderMatches.Count);
+        }
+
+        // 3. 계층적 번호 체계 일관성 분석 (1.1, 1.2, 2.1 등)
+        if (hierarchicalHeaderMatches.Count > 1)
+        {
+            var hierarchicalConsistency = AnalyzeHierarchicalSequence(hierarchicalHeaderMatches);
+            consistency += hierarchicalConsistency * hierarchicalHeaderMatches.Count;
+            weights.Add(hierarchicalHeaderMatches.Count);
+        }
+
+        // 4. 혼합 체계 패널티 (서로 다른 번호 체계가 섞여있으면 일관성 감소)
+        var mixedSystemsPenalty = CalculateMixedSystemsPenalty(
+            markdownHeaderMatches.Count,
+            numberedHeaderMatches.Count,
+            hierarchicalHeaderMatches.Count);
+
+        var weightedConsistency = weights.Count > 0 ? consistency / weights.Sum() : 1.0;
+        return Math.Max(0.0, weightedConsistency - mixedSystemsPenalty);
+    }
+
+    /// <summary>
+    /// 마크다운 헤더 레벨 일관성 계산
+    /// </summary>
+    private static double CalculateMarkdownLevelConsistency(List<int> levels)
+    {
         var levelJumps = levels.Zip(levels.Skip(1), (a, b) => Math.Abs(a - b)).ToList();
         var avgJump = levelJumps.Count != 0 ? levelJumps.Average() : 0;
 
-        return Math.Max(0.0, 1.0 - (avgJump / 3.0)); // 3단계 이상 점프는 일관성 낮음
+        // 레벨 점프가 1 이하면 좋은 일관성, 2 이상이면 일관성 저하
+        return Math.Max(0.0, 1.0 - (avgJump - 1.0) * 0.3);
+    }
+
+    /// <summary>
+    /// 번호 체계 순서 일관성 분석
+    /// </summary>
+    private static double AnalyzeNumberedSequence(MatchCollection matches)
+    {
+        var numbers = new List<int>();
+        foreach (Match match in matches)
+        {
+            var numberText = Regex.Match(match.Value, @"^\d+").Value;
+            if (int.TryParse(numberText, out var number))
+            {
+                numbers.Add(number);
+            }
+        }
+
+        if (numbers.Count <= 1) return 1.0;
+
+        var isSequential = true;
+        var expectedNext = numbers[0] + 1;
+
+        for (int i = 1; i < numbers.Count; i++)
+        {
+            if (numbers[i] != expectedNext)
+            {
+                isSequential = false;
+                break;
+            }
+            expectedNext = numbers[i] + 1;
+        }
+
+        // 순차적이면 1.0, 그렇지 않으면 부분 점수
+        return isSequential ? 1.0 : 0.6;
+    }
+
+    /// <summary>
+    /// 계층적 번호 체계 일관성 분석 (1.1, 1.2, 2.1 형태)
+    /// </summary>
+    private static double AnalyzeHierarchicalSequence(MatchCollection matches)
+    {
+        var hierarchicalNumbers = new List<(int major, int minor)>();
+
+        foreach (Match match in matches)
+        {
+            var parts = match.Value.Split('.');
+            if (parts.Length >= 2 &&
+                int.TryParse(parts[0], out var major) &&
+                int.TryParse(parts[1].TrimEnd('.', ')', ' ').Split(' ')[0], out var minor))
+            {
+                hierarchicalNumbers.Add((major, minor));
+            }
+        }
+
+        if (hierarchicalNumbers.Count <= 1) return 1.0;
+
+        var consistency = 0.0;
+        var groupedByMajor = hierarchicalNumbers.GroupBy(h => h.major).ToList();
+
+        foreach (var group in groupedByMajor)
+        {
+            var minors = group.Select(g => g.minor).OrderBy(m => m).ToList();
+
+            // 각 주요 번호 그룹 내에서 부번호가 순차적인지 확인
+            var isSequential = true;
+            for (int i = 1; i < minors.Count; i++)
+            {
+                if (minors[i] != minors[i - 1] + 1)
+                {
+                    isSequential = false;
+                    break;
+                }
+            }
+
+            consistency += isSequential ? 1.0 : 0.7;
+        }
+
+        return consistency / groupedByMajor.Count;
+    }
+
+    /// <summary>
+    /// 혼합 헤더 체계 패널티 계산
+    /// </summary>
+    private static double CalculateMixedSystemsPenalty(int markdownCount, int numberedCount, int hierarchicalCount)
+    {
+        var systemsUsed = 0;
+        if (markdownCount > 0) systemsUsed++;
+        if (numberedCount > 0) systemsUsed++;
+        if (hierarchicalCount > 0) systemsUsed++;
+
+        // 하나의 체계만 사용하면 패널티 없음, 여러 체계 혼용 시 패널티
+        return systemsUsed switch
+        {
+            1 => 0.0,  // 단일 체계 - 패널티 없음
+            2 => 0.1,  // 2개 체계 혼용 - 약간의 패널티
+            3 => 0.2,  // 3개 체계 혼용 - 더 큰 패널티
+            _ => 0.0
+        };
     }
 
     private static double CalculateListConsistency(string content)

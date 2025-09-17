@@ -81,8 +81,8 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         public BatchQuestionGenerationResult GenerateQuestionsForDocument(
-            List<DocumentChunk> chunks, 
-            QuestionGenerationOptions options = null)
+            List<DocumentChunk> chunks,
+            QuestionGenerationOptions? options = null)
         {
             var batchResult = new BatchQuestionGenerationResult
             {
