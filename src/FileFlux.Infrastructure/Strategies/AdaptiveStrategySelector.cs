@@ -134,6 +134,8 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
         characteristics.HasTables = DetectTables(sampleContent);
         characteristics.HasLists = DetectLists(sampleContent);
         characteristics.HasMathFormulas = DetectMathFormulas(sampleContent);
+        characteristics.HasNumberedSections = DetectNumberedSections(sampleContent);
+        characteristics.HasStructuredRequirements = DetectStructuredRequirements(sampleContent);
         
         // 콘텐츠 타입 추론
         characteristics.ContentType = InferContentType(sampleContent, fileExtension);
@@ -182,8 +184,13 @@ DOCUMENT CHARACTERISTICS:
 - Has Code Blocks: {characteristics.HasCodeBlocks}
 - Has Tables: {characteristics.HasTables}
 - Has Lists: {characteristics.HasLists}
+- Has Numbered Sections: {characteristics.HasNumberedSections}
+- Has Structured Requirements: {characteristics.HasStructuredRequirements}
 - Average Sentence Length: {characteristics.AverageSentenceLength:F1} words
 - Structure Complexity: {characteristics.StructureComplexity}/10
+
+IMPORTANT: If the document has numbered sections or structured requirements,
+strongly consider Smart or Intelligent strategies for optimal section-aware chunking.
 
 SAMPLE CONTENT (first 500 chars):
 {(characteristics.SampleContent.Length > 500 ? characteristics.SampleContent.Substring(0, 500) : characteristics.SampleContent)}
@@ -295,8 +302,14 @@ Return your response in the following JSON format:
             Alternatives = new List<AlternativeStrategy>()
         };
         
-        // 규칙 기반 선택 로직
-        if (characteristics.HasCodeBlocks && characteristics.HasMarkdownHeaders)
+        // 규칙 기반 선택 로직 - 구조화 문서 우선 처리
+        if (characteristics.HasNumberedSections || characteristics.HasStructuredRequirements)
+        {
+            recommendation.StrategyName = "Smart";
+            recommendation.Confidence = 0.95;
+            recommendation.Reasoning = "Structured document with numbered sections or requirements - Smart strategy provides optimal section-aware chunking";
+        }
+        else if (characteristics.HasCodeBlocks && characteristics.HasMarkdownHeaders)
         {
             recommendation.StrategyName = "Intelligent";
             recommendation.Confidence = 0.85;
@@ -663,12 +676,54 @@ Return your response in the following JSON format:
         content.Contains(" | ") && content.Contains("\n|");
     
     private bool DetectLists(string content) =>
-        content.Contains("\n- ") || content.Contains("\n* ") || 
+        content.Contains("\n- ") || content.Contains("\n* ") ||
         content.Contains("\n1. ") || content.Contains("\n1)");
-    
+
     private bool DetectMathFormulas(string content) =>
-        content.Contains("$$") || content.Contains("\\[") || 
+        content.Contains("$$") || content.Contains("\\[") ||
         content.Contains("\\begin{equation}");
+
+    /// <summary>
+    /// 번호 체계 섹션 감지 (1., 2., 3. 또는 1), 2), 3) 패턴)
+    /// </summary>
+    private bool DetectNumberedSections(string content)
+    {
+        var lines = content.Split('\n');
+        int numberedLines = 0;
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            // 숫자로 시작하는 섹션 감지
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d+[\.\)]\s+\w+"))
+            {
+                numberedLines++;
+            }
+        }
+
+        // 전체 라인의 10% 이상이 번호 체계를 가지면 구조화된 문서로 판단
+        return numberedLines >= Math.Max(2, lines.Length * 0.1);
+    }
+
+    /// <summary>
+    /// 구조화된 요구사항 문서 감지 (요구사항, 변경사항, 항목 등의 키워드)
+    /// </summary>
+    private bool DetectStructuredRequirements(string content)
+    {
+        var keywords = new[] {
+            "요구사항", "변경사항", "항목", "변경", "프로그램", "시스템",
+            "requirement", "change", "item", "specification", "feature"
+        };
+
+        var keywordCount = keywords.Count(keyword =>
+            content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+        // 구조 표시자 확인
+        var hasStructureMarkers = content.Contains("□") || content.Contains("▣") ||
+                                  content.Contains("No.") || content.Contains("항목");
+
+        return keywordCount >= 2 || hasStructureMarkers;
+    }
     
     private string InferContentType(string content, string extension)
     {
@@ -724,14 +779,16 @@ Return your response in the following JSON format:
     private int CalculateStructureComplexity(DocumentCharacteristics characteristics)
     {
         var complexity = 0;
-        
+
         if (characteristics.HasMarkdownHeaders) complexity += 2;
         if (characteristics.HasCodeBlocks) complexity += 2;
         if (characteristics.HasTables) complexity += 2;
         if (characteristics.HasLists) complexity += 1;
         if (characteristics.HasMathFormulas) complexity += 2;
+        if (characteristics.HasNumberedSections) complexity += 3; // 구조화 문서 강한 지표
+        if (characteristics.HasStructuredRequirements) complexity += 3; // 요구사항 문서 강한 지표
         if (characteristics.ParagraphCount > 10) complexity += 1;
-        
+
         return Math.Min(complexity, 10);
     }
     
@@ -798,6 +855,8 @@ public class DocumentCharacteristics
     public bool HasTables { get; set; }
     public bool HasLists { get; set; }
     public bool HasMathFormulas { get; set; }
+    public bool HasNumberedSections { get; set; }
+    public bool HasStructuredRequirements { get; set; }
     public string ContentType { get; set; } = "General";
     public string Language { get; set; } = "English";
     public string Domain { get; set; } = "General";

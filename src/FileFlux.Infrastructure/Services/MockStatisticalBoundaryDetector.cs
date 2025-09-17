@@ -1,8 +1,10 @@
+#if DEBUG
 namespace FileFlux.Infrastructure.Services;
 
 /// <summary>
 /// Mock implementation of statistical boundary detector for testing.
 /// Simulates uncertainty calculation without actual LLM.
+/// Only available in DEBUG builds - excluded from production Release builds.
 /// </summary>
 public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
 {
@@ -200,3 +202,4 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
         return 0.3;
     }
 }
+#endif

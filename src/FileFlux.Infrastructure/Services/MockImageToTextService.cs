@@ -1,3 +1,4 @@
+#if DEBUG
 using FileFlux;
 using System.Drawing;
 
@@ -6,6 +7,7 @@ namespace FileFlux.Infrastructure.Services;
 /// <summary>
 /// 테스트를 위한 Mock 이미지-텍스트 변환 서비스
 /// 실제 AI 서비스 없이도 FileFlux의 멀티모달 기능을 테스트할 수 있도록 함
+/// Only available in DEBUG builds - excluded from production Release builds.
 /// </summary>
 public class MockImageToTextService : IImageToTextService
 {
@@ -279,3 +281,4 @@ public class MockImageToTextService : IImageToTextService
         };
     }
 }
+#endif

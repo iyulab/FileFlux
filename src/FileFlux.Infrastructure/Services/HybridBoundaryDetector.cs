@@ -15,7 +15,11 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         IStatisticalBoundaryDetector? statisticalDetector = null,
         ISemanticBoundaryDetector? semanticDetector = null)
     {
+#if DEBUG
         _statisticalDetector = statisticalDetector ?? new MockStatisticalBoundaryDetector();
+#else
+        _statisticalDetector = statisticalDetector ?? throw new InvalidOperationException("IStatisticalBoundaryDetector must be provided in Release builds");
+#endif
         _semanticDetector = semanticDetector ?? new SemanticBoundaryDetector();
     }
 

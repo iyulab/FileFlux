@@ -371,3 +371,4 @@ test/
 *.db
 benchmark-report-*
 nupkg/
+output/

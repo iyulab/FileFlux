@@ -57,8 +57,10 @@ public static class ServiceCollectionExtensions
 
         // Embedding 서비스 관련 등록 (Phase 8)
         // Note: 실제 IEmbeddingService는 소비 애플리케이션에서 등록해야 함
-        // 여기서는 Mock 서비스를 fallback으로 등록
+        // Mock 서비스는 DEBUG 빌드에서만 fallback으로 사용
+#if DEBUG
         services.TryAddSingleton<IEmbeddingService, MockEmbeddingService>();
+#endif
         
         // Semantic analysis services
         services.AddSingleton<ISemanticBoundaryDetector, SemanticBoundaryDetector>();
@@ -156,10 +158,12 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Mock 서비스들과 함께 FileFlux 서비스 등록 (테스트용)
+    /// Only available in DEBUG builds - excluded from production Release builds.
     /// </summary>
     /// <param name="services">서비스 컬렉션</param>
     /// <param name="useMockServices">Mock 서비스 사용 여부</param>
     /// <returns>서비스 컬렉션</returns>
+#if DEBUG
     public static IServiceCollection AddFileFluxWithMocks(this IServiceCollection services, bool useMockServices = true)
     {
         if (useMockServices)
@@ -170,6 +174,7 @@ public static class ServiceCollectionExtensions
         // FileFlux 서비스들 등록
         return AddFileFlux(services);
     }
+#endif
 
     /// <summary>
     /// 커스텀 Document Reader 등록

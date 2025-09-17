@@ -1,103 +1,103 @@
-# FileFlux 튜토리얼
+# FileFlux Tutorial
 
-**FileFlux**는 문서를 RAG 최적화 청크로 변환하는 .NET 9 SDK입니다.
+**FileFlux** is a .NET 9 SDK that transforms documents into RAG-optimized chunks.
 
-## 📊 성능 및 품질 (프로덕션 검증 완료)
+## 📊 Performance and Quality (Production Verified)
 
-### ✅ 테스트 커버리지
-- **235+ 테스트 100% 통과** (Release/Debug 모두)
-- **8가지 파일 형식** 완벽 지원 (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV)
-- **7가지 청킹 전략** 검증 완료 
-- **멀티모달 처리** (PDF 이미지 추출 → 텍스트 변환)
-- **고급 전처리 기능** (벡터/그래프 검색 최적화, Q&A 생성, 엔티티 추출)
+### ✅ Test Coverage
+- **235+ tests 100% passed** (both Release/Debug)
+- **8 file formats** perfectly supported (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV)
+- **7 chunking strategies** verification complete
+- **Multimodal processing** (PDF image extraction → text conversion)
+- **Advanced preprocessing features** (vector/graph search optimization, Q&A generation, entity extraction)
 
-### 🚀 엔터프라이즈급 성능 (실제 API 검증)
-- **처리 속도**: 3.14MB PDF → 328개 청크, GPT-5-nano 실시간 처리 완료
-- **메모리 효율**: MemoryOptimized 전략으로 84% 메모리 절감
-- **품질 보장**: 청크 완성도 81%, 컨텍스트 보존 75%+ 달성
-- **자동 최적화**: Auto 전략으로 문서별 최적 전략 자동 선택
-- **병렬 처리 엔진**: CPU 코어별 동적 스케일링, 메모리 백프레셔 제어
-- **벡터화 처리**: text-embedding-3-small 실시간 임베딩 생성 및 저장
-- **스트리밍 최적화**: 실시간 청크 반환, LRU 캐시 시스템
-- **프로덕션 안정성**: 실제 API 환경에서 엔터프라이즈 성능 검증 완료
+### 🚀 Enterprise-Grade Performance (Real API Verification)
+- **Processing Speed**: 3.14MB PDF → 328 chunks, GPT-5-nano real-time processing complete
+- **Memory Efficiency**: 84% memory reduction with MemoryOptimized strategy
+- **Quality Assurance**: 81% chunk completeness, 75%+ context preservation achieved
+- **Auto Optimization**: Automatic optimal strategy selection per document with Auto strategy
+- **Parallel Processing Engine**: Dynamic scaling per CPU core, memory backpressure control
+- **Vectorization Processing**: Real-time embedding generation and storage with text-embedding-3-small
+- **Streaming Optimization**: Real-time chunk return, LRU cache system
+- **Production Stability**: Enterprise performance verification completed in real API environment
 
-## 🎛️ 청킹 전략 (7가지 완성)
+## 🎛️ Chunking Strategies (7 Complete)
 
-### 전략 개요
-- **Auto**: 문서 분석 후 최적 전략 자동 선택 (권장)
-- **Smart**: 문장 경계 기반 81% 완성도 보장 청킹
-- **MemoryOptimizedIntelligent**: 메모리 최적화 지능형 청킹 (84% 메모리 절감)
-- **Intelligent**: LLM 기반 지능형 의미 경계 감지 (ITextCompletionService 필요)
-- **Semantic**: 문장 경계 기반 청킹
-- **Paragraph**: 단락 단위 분할  
-- **FixedSize**: 고정 크기 토큰 기반
+### Strategy Overview
+- **Auto**: Automatic optimal strategy selection after document analysis (recommended)
+- **Smart**: 81% completeness guarantee chunking based on sentence boundaries
+- **MemoryOptimizedIntelligent**: Memory-optimized intelligent chunking (84% memory reduction)
+- **Intelligent**: LLM-based intelligent semantic boundary detection (requires ITextCompletionService)
+- **Semantic**: Sentence boundary-based chunking
+- **Paragraph**: Paragraph-level segmentation
+- **FixedSize**: Fixed-size token-based
 
-### 🔍 고급 전처리 기능
-- **벡터 검색 최적화**: 임베딩 친화적 텍스트 정규화, 메타데이터 강화
-- **그래프 검색 지원**: 엔티티 추출, 관계 추출, 온톨로지 매핑
-- **Q&A 생성**: 문서 기반 자동 질문-답변 쌍 생성 (6개 도메인 템플릿)
-- **문서 증강**: 컨텍스트 확장, 의미적 압축, 참조 링크 강화
+### 🔍 Advanced Preprocessing Features
+- **Vector Search Optimization**: Embedding-friendly text normalization, metadata enhancement
+- **Graph Search Support**: Entity extraction, relationship extraction, ontology mapping
+- **Q&A Generation**: Automatic question-answer pair generation based on documents (6 domain templates)
+- **Document Enhancement**: Context expansion, semantic compression, reference link strengthening
 
-## 🚀 빠른 시작
+## 🚀 Quick Start
 
-### 1. 설치 및 설정
+### 1. Installation and Setup
 
 ```bash
 dotnet add package FileFlux
 ```
 
-### 2. 기본 사용법
+### 2. Basic Usage
 
 ```csharp
-using FileFlux; // 🎯 단일 네임스페이스로 모든 핵심 인터페이스 및 AddFileFlux 접근
+using FileFlux; // 🎯 Single namespace access to all core interfaces and AddFileFlux
 using Microsoft.Extensions.DependencyInjection;
 
-// DI 설정
+// DI setup
 var services = new ServiceCollection();
 
-// 필수 LLM 서비스 등록 (소비 애플리케이션에서 구현)
+// Required LLM service registration (implemented by consuming application)
 services.AddScoped<ITextCompletionService, YourLLMService>();
 
-// 선택사항: 이미지-텍스트 서비스 (멀티모달 처리용)
+// Optional: Image-to-text service (for multimodal processing)
 services.AddScoped<IImageToTextService, YourVisionService>();
 
-// FileFlux 서비스 등록 (병렬 처리 및 스트리밍 엔진 포함)
+// FileFlux service registration (includes parallel processing and streaming engine)
 services.AddFileFlux();
 var provider = services.BuildServiceProvider();
 
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
-// 방법 1: 스트리밍 처리 (권장 - 메모리 효율적, 병렬 최적화)
+// Method 1: Streaming processing (recommended - memory efficient, parallel optimized)
 await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
 {
     if (result.IsSuccess && result.Result != null)
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"📄 청크 {chunk.ChunkIndex}: {chunk.Content.Length}자");
-            Console.WriteLine($"   품질점수: {chunk.Properties.GetValueOrDefault("QualityScore", "N/A")}");
+            Console.WriteLine($"📄 Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars");
+            Console.WriteLine($"   Quality Score: {chunk.Properties.GetValueOrDefault("QualityScore", "N/A")}");
         }
     }
 }
 
-// 방법 2: 기본 처리 (Phase 10 개선)
+// Method 2: Basic processing (Phase 10 improvements)
 var chunks = await processor.ProcessAsync("document.pdf", new ChunkingOptions
 {
-    Strategy = "Auto",  // 자동 최적 전략 선택 (권장)
+    Strategy = "Auto",  // Automatic optimal strategy selection (recommended)
     MaxChunkSize = 512,
     OverlapSize = 64
 });
 
 foreach (var chunk in chunks)
 {
-    Console.WriteLine($"청크: {chunk.Content[..50]}...");
+    Console.WriteLine($"Chunk: {chunk.Content[..50]}...");
 }
 ```
 
-### 3. 멀티모달 처리 (텍스트 + 이미지)
+### 3. Multimodal Processing (Text + Image)
 
 ```csharp
-// OpenAI Vision 서비스 구현 예시 (소비 애플리케이션에서 구현)
+// OpenAI Vision service implementation example (implemented by consuming application)
 public class OpenAiImageToTextService : IImageToTextService
 {
     private readonly OpenAIClient _client;
@@ -112,11 +112,11 @@ public class OpenAiImageToTextService : IImageToTextService
         ImageToTextOptions? options = null, 
         CancellationToken cancellationToken = default)
     {
-        var chatClient = _client.GetChatClient("gpt-5-nano"); // 최신 모델 사용
+        var chatClient = _client.GetChatClient("gpt-5-nano"); // Use latest model
         
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage("이미지에서 모든 텍스트를 정확히 추출하세요."),
+            new SystemChatMessage("Extract all text from the image accurately."),
             new UserChatMessage(ChatMessageContentPart.CreateImagePart(
                 BinaryData.FromBytes(imageData), "image/jpeg"))
         };
@@ -136,35 +136,35 @@ public class OpenAiImageToTextService : IImageToTextService
     }
 }
 
-// 서비스 등록 및 사용
+// Service registration and usage
 services.AddScoped<IImageToTextService, OpenAiImageToTextService>();
 
-// 이미지 포함 PDF 처리
+// Process PDF with images
 await foreach (var result in processor.ProcessWithProgressAsync("document-with-images.pdf"))
 {
     if (result.IsSuccess && result.Result != null)
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"📄 청크 {chunk.ChunkIndex}: {chunk.Content.Length}자");
+            Console.WriteLine($"📄 Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars");
             if (chunk.Properties.ContainsKey("HasImages"))
             {
-                Console.WriteLine($"🖼️ 이미지 텍스트 추출 포함");
+                Console.WriteLine($"🖼️ Image text extraction included");
             }
         }
     }
 }
 ```
 
-### 4. LLM 통합 지능형 처리
+### 4. LLM-Integrated Intelligent Processing
 
 ```csharp
-// LLM 서비스 주입 (고품질 처리를 위해 필수)
+// LLM service injection (required for high-quality processing)
 services.AddScoped<ITextCompletionService, YourLlmService>();
 
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
-// 방법 1: 직접 처리 (권장)
+// Method 1: Direct processing (recommended)
 await foreach (var result in processor.ProcessWithProgressAsync("technical-doc.md", new ChunkingOptions 
 { 
     Strategy = "Intelligent" 
@@ -174,12 +174,12 @@ await foreach (var result in processor.ProcessWithProgressAsync("technical-doc.m
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"청크 {chunk.ChunkIndex}: {chunk.Content[..50]}...");
+            Console.WriteLine($"Chunk {chunk.ChunkIndex}: {chunk.Content[..50]}...");
         }
     }
 }
 
-// 방법 2: 추출 후 처리 (캐싱/재사용 시)
+// Method 2: Extract then process (for caching/reuse)
 var extractResult = await processor.ExtractAsync("technical-doc.md");
 var parsedContent = await processor.ParseAsync(extractResult);
 var chunks = await processor.ChunkAsync(parsedContent, new ChunkingOptions 
@@ -189,58 +189,58 @@ var chunks = await processor.ChunkAsync(parsedContent, new ChunkingOptions
 
 foreach (var chunk in chunks)
 {
-    Console.WriteLine($"청크 {chunk.ChunkIndex}: {chunk.Content[..50]}...");
+    Console.WriteLine($"Chunk {chunk.ChunkIndex}: {chunk.Content[..50]}...");
 }
 ```
 
-### Auto (권장, Phase 10 신규)
+### Auto (Recommended, Phase 10 New)
 ```csharp
 var options = new ChunkingOptions
 {
-    Strategy = "Auto",          // 문서별 최적 전략 자동 선택
-    MaxChunkSize = 512,         // RAG 최적화 크기
-    OverlapSize = 64,           // 적응형 오버랩
+    Strategy = "Auto",          // Automatic optimal strategy selection per document
+    MaxChunkSize = 512,         // RAG-optimized size
+    OverlapSize = 64,           // Adaptive overlap
 };
 ```
 
-### Smart (Phase 10 신규)
+### Smart (Phase 10 New)
 ```csharp
 var options = new ChunkingOptions
 {
-    Strategy = "Smart",         // 문장 경계 기반 81% 완성도 보장
-    MaxChunkSize = 512,         // 경계 품질 81% 달성
-    OverlapSize = 128,          // 컨텍스트 보존 강화
+    Strategy = "Smart",         // 81% completeness guarantee based on sentence boundaries
+    MaxChunkSize = 512,         // 81% boundary quality achievement
+    OverlapSize = 128,          // Enhanced context preservation
 };
 ```
 
-### MemoryOptimizedIntelligent (Phase 10 신규)
+### MemoryOptimizedIntelligent (Phase 10 New)
 ```csharp
 var options = new ChunkingOptions
 {
-    Strategy = "MemoryOptimizedIntelligent",  // 84% 메모리 절감
-    MaxChunkSize = 512,                       // 오브젝트 풀링 최적화
-    OverlapSize = 64,                        // 스트림 처리
+    Strategy = "MemoryOptimizedIntelligent",  // 84% memory reduction
+    MaxChunkSize = 512,                       // Object pooling optimization
+    OverlapSize = 64,                        // Stream processing
 };
 ```
 
-### 기타 전략들
+### Other Strategies
 ```csharp
-// LLM 기반 지능형 (기존)
+// LLM-based intelligent (existing)
 new ChunkingOptions { Strategy = "Intelligent", MaxChunkSize = 512 };
 
-// 단락 기반 (Markdown 최적화)
+// Paragraph-based (Markdown optimized)
 new ChunkingOptions { Strategy = "Paragraph", PreserveStructure = true };
 
-// 문장 기반 의미적
+// Sentence-based semantic
 new ChunkingOptions { Strategy = "Semantic", MaxChunkSize = 800 };
 
-// 고정 크기 균등 분할
+// Fixed-size uniform division
 new ChunkingOptions { Strategy = "FixedSize", MaxChunkSize = 512 };
 ```
 
-## 📊 지원 형식
+## 📊 Supported Formats
 
-| 형식 | 확장자 | 텍스트 추출 | 이미지 처리 | LLM 분석 | 품질 보증 |
+| Format | Extension | Text Extraction | Image Processing | LLM Analysis | Quality Assurance |
 |------|--------|------------|------------|----------|-----------|
 | PDF | `.pdf` | ✅ | ✅ | ✅ | ✅ |
 | Word | `.docx` | ✅ | 🔄 | ✅ | ✅ |
@@ -252,48 +252,48 @@ new ChunkingOptions { Strategy = "FixedSize", MaxChunkSize = 512 };
 | CSV | `.csv` | ✅ | ❌ | ✅ | ✅ |
 | HTML | `.html` | ✅ | ✅ | ✅ | ✅ |
 
-**범례**:
-- ✅ 완전 지원 (테스트 검증 완료)
-- 🔄 개발 예정
-- ❌ 지원하지 않음
+**Legend**:
+- ✅ Full support (test verification complete)
+- 🔄 Development planned
+- ❌ Not supported
 
-## 🧪 품질 검증 기능
+## 🧪 Quality Verification Features
 
-### 청크 품질 분석
+### Chunk Quality Analysis
 ```csharp
-// ChunkQualityEngine를 사용한 품질 메트릭 계산
+// Quality metrics calculation using ChunkQualityEngine
 var qualityEngine = provider.GetRequiredService<ChunkQualityEngine>();
 var chunks = await processor.ProcessAsync("document.pdf");
 
 var qualityMetrics = await qualityEngine.CalculateQualityMetricsAsync(chunks);
-Console.WriteLine($"평균 완성도: {qualityMetrics.AverageCompleteness:P}");
-Console.WriteLine($"콘텐츠 일관성: {qualityMetrics.ContentConsistency:P}");
-Console.WriteLine($"경계 품질: {qualityMetrics.BoundaryQuality:P}");
-Console.WriteLine($"크기 분포: {qualityMetrics.SizeDistribution:P}");
+Console.WriteLine($"Average Completeness: {qualityMetrics.AverageCompleteness:P}");
+Console.WriteLine($"Content Consistency: {qualityMetrics.ContentConsistency:P}");
+Console.WriteLine($"Boundary Quality: {qualityMetrics.BoundaryQuality:P}");
+Console.WriteLine($"Size Distribution: {qualityMetrics.SizeDistribution:P}");
 ```
 
-### 질문 생성 및 검증
+### Question Generation and Validation
 ```csharp
-// RAG 시스템 품질 테스트를 위한 질문 생성
+// Question generation for RAG system quality testing
 var parsedContent = await processor.ParseAsync(rawContent);
 var questions = await qualityEngine.GenerateQuestionsAsync(parsedContent, 10);
 
 foreach (var question in questions)
 {
     Console.WriteLine($"Q: {question.Question}");
-    Console.WriteLine($"   타입: {question.Type}");
-    Console.WriteLine($"   난이도: {question.DifficultyScore:P}");
+    Console.WriteLine($"   Type: {question.Type}");
+    Console.WriteLine($"   Difficulty: {question.DifficultyScore:P}");
 }
 
-// 답변 가능성 검증
+// Answer possibility validation
 var validation = await qualityEngine.ValidateAnswerabilityAsync(questions, chunks);
-Console.WriteLine($"답변 가능한 질문: {validation.AnswerableQuestions}/{validation.TotalQuestions}");
-Console.WriteLine($"평균 신뢰도: {validation.AverageConfidence:P}");
+Console.WriteLine($"Answerable Questions: {validation.AnswerableQuestions}/{validation.TotalQuestions}");
+Console.WriteLine($"Average Confidence: {validation.AverageConfidence:P}");
 ```
 
-## 🔧 고급 기능
+## 🔧 Advanced Features
 
-### RAG 시스템 통합
+### RAG System Integration
 ```csharp
 public class RagService
 {
@@ -313,7 +313,7 @@ public class RagService
             {
                 foreach (var chunk in result.Result)
                 {
-                    // RAG 파이프라인: 임베딩 생성 → 벡터 저장소 저장
+                    // RAG pipeline: Generate embedding → Store in vector store
                     var embedding = await _embeddingService.GenerateAsync(chunk.Content);
                     await _vectorStore.StoreAsync(new {
                         Id = chunk.Id,
@@ -328,10 +328,10 @@ public class RagService
 }
 ```
 
-## 🎯 RAG 통합 예시
+## 🎯 RAG Integration Example
 
 ```csharp
-// 완전한 RAG 파이프라인 예시
+// Complete RAG pipeline example
 var options = new ChunkingOptions
 {
     Strategy = "Intelligent",
@@ -346,7 +346,7 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf", 
     {
         foreach (var chunk in result.Result)
         {
-            // RAG 파이프라인: 임베딩 생성 → 벡터 저장소 저장
+            // RAG pipeline: Generate embedding → Store in vector store
             var embedding = await embeddingService.GenerateAsync(chunk.Content);
             await vectorStore.StoreAsync(new {
                 Id = chunk.Id,
@@ -357,75 +357,75 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf", 
         }
     }
     
-    // 진행률 표시
+    // Progress display
     if (result.Progress != null)
     {
-        Console.WriteLine($"진행률: {result.Progress.PercentComplete:F1}%");
+        Console.WriteLine($"Progress: {result.Progress.PercentComplete:F1}%");
     }
 }
 ```
 
-## 📁 상세 지원 형식
+## 📁 Detailed Supported Formats
 
-### Office 문서
-- **PDF** (`.pdf`): 텍스트 + 이미지 처리, 구조 인식, 메타데이터 보존
-- **Word** (`.docx`): 스타일 인식, 헤더/표/이미지 캡션 추출
-- **Excel** (`.xlsx`): 다중 시트 지원, 수식 추출, 테이블 구조 분석
-- **PowerPoint** (`.pptx`): 슬라이드 콘텐츠, 노트, 제목 구조 추출
+### Office Documents
+- **PDF** (`.pdf`): Text + image processing, structure recognition, metadata preservation
+- **Word** (`.docx`): Style recognition, header/table/image caption extraction
+- **Excel** (`.xlsx`): Multi-sheet support, formula extraction, table structure analysis
+- **PowerPoint** (`.pptx`): Slide content, notes, title structure extraction
 
-### 텍스트 문서
-- **Markdown** (`.md`): Markdig 기반 헤더/코드블록/테이블 구조 보존
-- **Text** (`.txt`): 일반 텍스트, 자동 인코딩 감지
-- **JSON** (`.json`): 구조화된 데이터 플래튼화, 스키마 추출
-- **CSV** (`.csv`): CsvHelper 기반 테이블 데이터, 헤더 보존
+### Text Documents
+- **Markdown** (`.md`): Markdig-based header/code block/table structure preservation
+- **Text** (`.txt`): Plain text, automatic encoding detection
+- **JSON** (`.json`): Structured data flattening, schema extraction
+- **CSV** (`.csv`): CsvHelper-based table data, header preservation
 
-## ⚙️ 청킹 전략 (Phase 10 확장)
+## ⚙️ Chunking Strategies (Phase 10 Extended)
 
-| 전략 | 특징 | 최적 사용 케이스 | 품질 점수 | Phase 10 |
-|------|------|-----------------|----------|----------|
-| **Auto** (권장) | 문서별 최적 전략 자동 선택 | 모든 문서 형식 | ⭐⭐⭐⭐⭐ | ✨ 신규 |
-| **Smart** | 81% 완성도 보장, 81% 경계 품질 | 법률, 의료, 학술 문서 | ⭐⭐⭐⭐⭐ | ✨ 신규 |
-| **MemoryOptimizedIntelligent** | 84% 메모리 절감, 오브젝트 풀링 | 대용량 문서, 서버 환경 | ⭐⭐⭐⭐⭐ | ✨ 신규 |
-| **Intelligent** | LLM 기반 의미 단위 청킹 | 기술 문서, API 문서 | ⭐⭐⭐⭐⭐ | 기존 |
-| **Semantic** | 문장 경계 기준 청킹 | 일반 문서, 논문 | ⭐⭐⭐⭐ | 기존 |
-| **Paragraph** | 단락 단위 청킹 | Markdown, 블로그 | ⭐⭐⭐⭐ | 기존 |
-| **FixedSize** | 고정 크기 청킹 | 균일한 처리 필요 | ⭐⭐⭐ | 기존 |
+| Strategy | Features | Optimal Use Cases | Quality Score | Phase 10 |
+|----------|----------|-------------------|---------------|----------|
+| **Auto** (Recommended) | Automatic optimal strategy selection per document | All document formats | ⭐⭐⭐⭐⭐ | ✨ New |
+| **Smart** | 81% completeness guarantee, 81% boundary quality | Legal, medical, academic documents | ⭐⭐⭐⭐⭐ | ✨ New |
+| **MemoryOptimizedIntelligent** | 84% memory reduction, object pooling | Large documents, server environments | ⭐⭐⭐⭐⭐ | ✨ New |
+| **Intelligent** | LLM-based semantic unit chunking | Technical docs, API documentation | ⭐⭐⭐⭐⭐ | Existing |
+| **Semantic** | Sentence boundary-based chunking | General documents, papers | ⭐⭐⭐⭐ | Existing |
+| **Paragraph** | Paragraph unit chunking | Markdown, blogs | ⭐⭐⭐⭐ | Existing |
+| **FixedSize** | Fixed size chunking | Uniform processing needs | ⭐⭐⭐ | Existing |
 
-## 📄 단계별 처리
+## 📄 Step-by-Step Processing
 
 ```csharp
-// 1단계: 텍스트 추출만 (Reader 단계)
+// Step 1: Text extraction only (Reader stage)
 var rawContent = await processor.ExtractAsync("document.pdf");
-Console.WriteLine($"원본 텍스트: {rawContent.Content.Length}자");
+Console.WriteLine($"Original text: {rawContent.Content.Length} chars");
 
-// 2단계: 구조화 처리 (Parser 단계 - LLM 사용)
+// Step 2: Structured processing (Parser stage - uses LLM)
 var parsedContent = await processor.ParseAsync(rawContent);
-Console.WriteLine($"구조화된 섹션: {parsedContent.Sections?.Count ?? 0}개");
+Console.WriteLine($"Structured sections: {parsedContent.Sections?.Count ?? 0}");
 
-// 3단계: 청킹만 실행 (Chunking 단계) - Phase 10 개선
+// Step 3: Chunking execution only (Chunking stage) - Phase 10 improvements
 var chunks = await processor.ChunkAsync(parsedContent, new ChunkingOptions
 {
-    Strategy = "Auto",  // 자동 최적 전략 선택
+    Strategy = "Auto",  // Automatic optimal strategy selection
     MaxChunkSize = 512,
     OverlapSize = 64
 });
-Console.WriteLine($"생성된 청크: {chunks.Count()}개");
+Console.WriteLine($"Generated chunks: {chunks.Count()}");
 
-// 통합 처리 (권장)
+// Integrated processing (recommended)
 await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
 {
     if (result.IsSuccess && result.Result != null)
     {
-        Console.WriteLine($"처리 완료: {result.Result.Length}개 청크");
+        Console.WriteLine($"Processing complete: {result.Result.Length} chunks");
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"  청크 {chunk.ChunkIndex}: {chunk.Content.Length}자");
+            Console.WriteLine($"  Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars");
         }
     }
 }
 ```
 
-## ❌ 오류 처리
+## ❌ Error Handling
 
 ```csharp
 try
@@ -439,47 +439,47 @@ try
         }
         else if (!string.IsNullOrEmpty(result.Error))
         {
-            Console.WriteLine($"오류: {result.Error}");
+            Console.WriteLine($"Error: {result.Error}");
         }
     }
 }
 catch (UnsupportedFileFormatException ex)
 {
-    Console.WriteLine($"지원되지 않는 파일 형식: {ex.FileName}");
+    Console.WriteLine($"Unsupported file format: {ex.FileName}");
 }
 catch (DocumentProcessingException ex)
 {
-    Console.WriteLine($"문서 처리 오류: {ex.Message}");
-    Console.WriteLine($"파일: {ex.FileName}");
+    Console.WriteLine($"Document processing error: {ex.Message}");
+    Console.WriteLine($"File: {ex.FileName}");
 }
 catch (FileNotFoundException)
 {
-    Console.WriteLine("파일을 찾을 수 없습니다.");
+    Console.WriteLine("File not found.");
 }
 
-// 스트리밍에서 오류 처리
+// Error handling in streaming
 await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
 {
     if (!result.IsSuccess)
     {
-        Console.WriteLine($"처리 실패: {result.Error}");
-        continue; // 다음 청크 처리 계속
+        Console.WriteLine($"Processing failed: {result.Error}");
+        continue; // Continue processing next chunk
     }
     
-    // 성공한 결과 처리
+    // Process successful results
     if (result.Result != null)
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"청크 {chunk.ChunkIndex} 처리 완료");
+            Console.WriteLine($"Chunk {chunk.ChunkIndex} processing complete");
         }
     }
 }
 ```
 
-## 🎨 사용자 정의
+## 🎨 Customization
 
-### 커스텀 청킹 전략
+### Custom Chunking Strategy
 ```csharp
 public class CustomChunkingStrategy : IChunkingStrategy
 {
@@ -492,7 +492,7 @@ public class CustomChunkingStrategy : IChunkingStrategy
     {
         var chunks = new List<DocumentChunk>();
         
-        // 커스텀 청킹 로직 구현
+        // Custom chunking logic implementation
         var sentences = content.Content.Split('.', StringSplitOptions.RemoveEmptyEntries);
         var chunkIndex = 0;
         
@@ -504,7 +504,7 @@ public class CustomChunkingStrategy : IChunkingStrategy
                 Content = sentence.Trim(),
                 ChunkIndex = chunkIndex++,
                 Metadata = content.Metadata,
-                StartPosition = 0, // 실제 구현에서는 정확한 위치 계산
+                StartPosition = 0, // In actual implementation, calculate exact position
                 EndPosition = sentence.Length,
                 Properties = new Dictionary<string, object>
                 {
@@ -518,16 +518,16 @@ public class CustomChunkingStrategy : IChunkingStrategy
     
     private double CalculateCustomScore(string text)
     {
-        // 커스텀 품질 점수 계산 로직
+        // Custom quality score calculation logic
         return text.Length > 50 ? 0.8 : 0.5;
     }
 }
 
-// 등록
+// Registration
 services.AddTransient<IChunkingStrategy, CustomChunkingStrategy>();
 ```
 
-### 커스텀 Document Reader
+### Custom Document Reader
 ```csharp
 public class CustomDocumentReader : IDocumentReader
 {
@@ -558,11 +558,11 @@ public class CustomDocumentReader : IDocumentReader
     }
 }
 
-// 등록
+// Registration
 services.AddTransient<IDocumentReader, CustomDocumentReader>();
 ```
 
-### 커스텀 이미지-텍스트 서비스
+### Custom Image-to-Text Service
 ```csharp
 public class CustomImageToTextService : IImageToTextService
 {
@@ -571,14 +571,14 @@ public class CustomImageToTextService : IImageToTextService
         ImageToTextOptions? options = null, 
         CancellationToken cancellationToken = default)
     {
-        // 커스텀 이미지 텍스트 추출 로직
-        // 예: Tesseract OCR, Azure Computer Vision, Google Cloud Vision 등
-        
-        await Task.Delay(100, cancellationToken); // 모의 처리 시간
-        
+        // Custom image text extraction logic
+        // Examples: Tesseract OCR, Azure Computer Vision, Google Cloud Vision, etc.
+
+        await Task.Delay(100, cancellationToken); // Mock processing time
+
         return new ImageToTextResult
         {
-            ExtractedText = "커스텀 이미지에서 추출된 텍스트",
+            ExtractedText = "Text extracted from custom image",
             Confidence = 0.85,
             IsSuccess = true,
             Metadata = new Dictionary<string, object>
@@ -590,19 +590,19 @@ public class CustomImageToTextService : IImageToTextService
     }
 }
 
-// 등록
+// Registration
 services.AddScoped<IImageToTextService, CustomImageToTextService>();
 ```
 
 ---
 
-## 📚 관련 문서
+## 📚 Related Documentation
 
-### 📖 주요 가이드
-- [**🏗️ 아키텍처**](ARCHITECTURE.md) - 시스템 설계 및 확장성
-- [**🎯 RAG 설계**](RAG-DESIGN.md) - RAG 시스템 통합 가이드
-- [**📋 작업 계획**](../TASKS.md) - 개발 로드맵 및 완료 현황
+### 📖 Main Guides
+- [**🏗️ Architecture**](ARCHITECTURE.md) - System design and scalability
+- [**🎯 RAG Design**](RAG-DESIGN.md) - RAG system integration guide
+- [**📋 Task Plan**](../TASKS.md) - Development roadmap and completion status
 
-### 🔗 추가 리소스
-- [**📋 GitHub Repository**](https://github.com/iyulab/FileFlux) - 소스 코드 및 이슈 트래킹
-- [**📦 NuGet Package**](https://www.nuget.org/packages/FileFlux) - 패키지 다운로드
+### 🔗 Additional Resources
+- [**📋 GitHub Repository**](https://github.com/iyulab/FileFlux) - Source code and issue tracking
+- [**📦 NuGet Package**](https://www.nuget.org/packages/FileFlux) - Package download

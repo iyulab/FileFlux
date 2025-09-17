@@ -1,5 +1,5 @@
 # FileFlux
-> RAG 시스템을 위한 완전한 문서 처리 SDK
+> Complete Document Processing SDK for RAG Systems
 
 [![NuGet](https://img.shields.io/nuget/v/FileFlux.svg)](https://www.nuget.org/packages/FileFlux)
 [![Downloads](https://img.shields.io/nuget/dt/FileFlux.svg)](https://www.nuget.org/packages/FileFlux)
@@ -7,66 +7,66 @@
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![📦 NuGet Package Build & Publish](https://github.com/iyulab/FileFlux/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/iyulab/FileFlux/actions/workflows/nuget-publish.yml)
 
-## 🎯 개요
+## 🎯 Overview
 
-**FileFlux**는 순수 RAG 전처리 SDK입니다 - 문서를 RAG 시스템에 최적화된 구조화된 청크로 변환하는 **.NET 9 SDK**입니다.
+**FileFlux** is a pure RAG preprocessing SDK - a **.NET 9 SDK** that transforms documents into structured chunks optimized for RAG systems.
 
-✅ **프로덕션 준비 완료** - 235+ 테스트 100% 통과, 실제 API 검증 완료, 엔터프라이즈급 성능
+✅ **Production Ready** - 235+ tests 100% passed, real API verification completed, enterprise-grade performance
 
-### 🏗️ 아키텍처 원칙: 인터페이스 제공자
+### 🏗️ Architecture Principle: Interface Provider
 
-FileFlux는 **인터페이스를 정의하고, 소비 애플리케이션이 구현체를 선택**하는 명확한 책임 분리를 따릅니다:
+FileFlux follows clear separation of responsibilities: **defining interfaces while consuming applications choose implementations**:
 
-#### ✅ FileFlux가 제공하는 것:
-- **📄 문서 파싱**: PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV → 구조화된 텍스트
-- **🔌 AI 인터페이스**: ITextCompletionService, IImageToTextService 계약 정의
-- **🎛️ 처리 파이프라인**: Reader → Parser → Chunking 오케스트레이션
-- **🧪 Mock 서비스**: 테스트용 MockTextCompletionService, MockImageToTextService
+#### ✅ What FileFlux Provides:
+- **📄 Document Parsing**: PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV → Structured text
+- **🔌 AI Interfaces**: ITextCompletionService, IImageToTextService contract definitions
+- **🎛️ Processing Pipeline**: Reader → Parser → Chunking orchestration
+- **🧪 Mock Services**: MockTextCompletionService, MockImageToTextService for testing
 
-#### ❌ FileFlux가 제공하지 않는 것:
-- **AI 서비스 구현**: OpenAI, Anthropic, Azure 등 특정 공급자 구현 없음
-- **벡터 생성**: 임베딩 생성은 소비 앱의 책임
-- **데이터 저장**: Pinecone, Qdrant 등 벡터 DB 구현 없음
+#### ❌ What FileFlux Does NOT Provide:
+- **AI Service Implementation**: No specific provider implementations (OpenAI, Anthropic, Azure, etc.)
+- **Vector Generation**: Embedding generation is the consuming app's responsibility
+- **Data Storage**: No vector DB implementations (Pinecone, Qdrant, etc.)
 
-### ✨ 핵심 특징
-- **📦 단일 NuGet 패키지**: `dotnet add package FileFlux`로 간편 설치
-- **🎯 Clean Interface**: AI 공급자에 종속되지 않는 순수한 인터페이스 설계
-- **📄 8가지 문서 형식**: PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV 완벽 지원
-- **🎛️ 7가지 청킹 전략**: Auto, Smart, Intelligent, MemoryOptimized, Semantic, Paragraph, FixedSize
-- **🖼️ 멀티모달 처리**: 텍스트 + 이미지 → 통합 텍스트 변환
-- **⚡ 병렬 처리 엔진**: CPU 코어별 동적 스케일링, 메모리 백프레셔 제어
-- **📊 스트리밍 최적화**: 실시간 청크 반환, 지능형 LRU 캐시
-- **🔍 고급 전처리**: 벡터/그래프 검색 최적화, Q&A 생성, 엔티티 추출
-- **🏗️ Clean Architecture**: 의존성 역전으로 확장성 보장
-- **🚀 Production Ready**: 235+ 테스트 통과, 실제 API 검증 완료, 프로덕션 배포 준비
+### ✨ Key Features
+- **📦 Single NuGet Package**: Easy installation with `dotnet add package FileFlux`
+- **🎯 Clean Interface**: Pure interface design independent of AI providers
+- **📄 8 Document Formats**: Perfect support for PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV
+- **🎛️ 7 Chunking Strategies**: Auto, Smart, Intelligent, MemoryOptimized, Semantic, Paragraph, FixedSize
+- **🖼️ Multimodal Processing**: Text + Image → Unified text conversion
+- **⚡ Parallel Processing Engine**: Dynamic scaling per CPU core, memory backpressure control
+- **📊 Streaming Optimization**: Real-time chunk return, intelligent LRU cache
+- **🔍 Advanced Preprocessing**: Vector/graph search optimization, Q&A generation, entity extraction
+- **🏗️ Clean Architecture**: Extensibility guaranteed through dependency inversion
+- **🚀 Production Ready**: 235+ tests passed, real API verification completed, production deployment ready
 
 ---
 
-## 🚀 빠른 시작
+## 🚀 Quick Start
 
-### 설치
+### Installation
 ```bash
 dotnet add package FileFlux
 ```
 
-### 기본 사용법
+### Basic Usage
 ```csharp
 using FileFlux;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-// 필수 서비스 등록 (소비 애플리케이션에서 구현)
-services.AddScoped<ITextCompletionService, YourLLMService>();        // LLM 서비스
-services.AddScoped<IEmbeddingService, YourEmbeddingService>();      // 임베딩 서비스(일부 전략에서 필요)
+// Required service registration (implemented by consuming application)
+services.AddScoped<ITextCompletionService, YourLLMService>();        // LLM service
+services.AddScoped<IEmbeddingService, YourEmbeddingService>();      // Embedding service (required for some strategies)
 
-// 선택사항: 이미지-텍스트 서비스 (멀티모달 처리용)
+// Optional: Image-to-text service (for multimodal processing)
 services.AddScoped<IImageToTextService, YourVisionService>();
 
-// 소비 어플리케이션에서 관리
-services.AddScoped<IVectorStore, YourVectorStore>();                // 벡터 저장소
+// Managed by consuming application
+services.AddScoped<IVectorStore, YourVectorStore>();                // Vector store
 
-// FileFlux 서비스 등록 (병렬 처리 및 스트리밍 엔진 포함)
+// Register FileFlux services (includes parallel processing and streaming engine)
 services.AddFileFlux();
 
 var provider = services.BuildServiceProvider();
@@ -74,16 +74,16 @@ var processor = provider.GetRequiredService<IDocumentProcessor>();
 var embeddingService = provider.GetRequiredService<IEmbeddingService>();
 var vectorStore = provider.GetRequiredService<IVectorStore>();
 
-// 스트리밍 처리 (권장 - 메모리 효율적, 병렬 최적화)
+// Streaming processing (recommended - memory efficient, parallel optimized)
 await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
 {
     if (result.IsSuccess && result.Result != null)
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"📄 청크 {chunk.ChunkIndex}: {chunk.Content.Length}자");
+            Console.WriteLine($"📄 Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars");
 
-            // RAG 파이프라인: 임베딩 생성 → 벡터 저장소 저장
+            // RAG pipeline: Generate embedding → Store in vector store
             var embedding = await embeddingService.GenerateAsync(chunk.Content);
             await vectorStore.StoreAsync(new {
                 Id = chunk.Id,
@@ -96,29 +96,29 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
 }
 ```
 
-### 단계별 처리 (고급 사용법)
+### Step-by-Step Processing (Advanced Usage)
 ```csharp
-// 각 단계를 개별적으로 제어하고 싶을 때 사용
+// Use when you want to control each step individually
 
-// 1단계: 텍스트 추출 (Reader)
+// Step 1: Text extraction (Reader)
 var rawContent = await processor.ExtractAsync("document.pdf");
-Console.WriteLine($"추출된 텍스트: {rawContent.Content.Length}자");
+Console.WriteLine($"Extracted text: {rawContent.Content.Length} chars");
 
-// 2단계: 구조 분석 (Parser with LLM)
+// Step 2: Structure analysis (Parser with LLM)
 var parsedContent = await processor.ParseAsync(rawContent);
-Console.WriteLine($"구조화된 섹션: {parsedContent.Sections?.Count ?? 0}개");
+Console.WriteLine($"Structured sections: {parsedContent.Sections?.Count ?? 0}");
 
-// 3단계: 청킹 (Chunking Strategy) - Phase 10 개선
+// Step 3: Chunking (Chunking Strategy) - Phase 15 improvements
 var chunks = await processor.ChunkAsync(parsedContent, new ChunkingOptions
 {
-    Strategy = "Auto",  // 자동 최적 전략 선택 (권장)
+    Strategy = "Auto",  // Automatic optimal strategy selection (recommended)
     MaxChunkSize = 512,
     OverlapSize = 64
 });
 
-Console.WriteLine($"생성된 청크: {chunks.Length}개");
+Console.WriteLine($"Generated chunks: {chunks.Length}");
 
-// 4단계: RAG 파이프라인 (임베딩 → 저장)
+// Step 4: RAG pipeline (embedding → storage)
 foreach (var chunk in chunks)
 {
     var embedding = await embeddingService.GenerateAsync(chunk.Content);
@@ -131,71 +131,71 @@ foreach (var chunk in chunks)
 }
 ```
 
-### 지원 문서 형식
-- **PDF** (.pdf) - 텍스트 + 이미지 추출 지원
-- **Word** (.docx) - 스타일 및 구조 보존
-- **PowerPoint** (.pptx) - 슬라이드 및 노트 추출
-- **Excel** (.xlsx) - 다중 시트 및 테이블 구조
-- **Markdown** (.md) - 구조 보존
+### Supported Document Formats
+- **PDF** (.pdf) - Text + image extraction support
+- **Word** (.docx) - Style and structure preservation
+- **PowerPoint** (.pptx) - Slide and notes extraction
+- **Excel** (.xlsx) - Multi-sheet and table structure
+- **Markdown** (.md) - Structure preservation
 - **Text** (.txt), **JSON** (.json), **CSV** (.csv)
 
 ---
 
-## 🎛️ 청킹 전략 가이드
+## 🎛️ Chunking Strategy Guide
 
-### 전략 선택 가이드
-| 전략 | 최적 사용 케이스 | 품질 점수 | 메모리 사용 |
-|------|-----------------|----------|------------|
-| **Auto** (권장) | 모든 문서 형식 - 자동 최적화 | ⭐⭐⭐⭐⭐ | 중간 |
-| **Smart** | 법률, 의료, 학술 문서 | ⭐⭐⭐⭐⭐ | 중간 |
-| **MemoryOptimizedIntelligent** | 대용량 문서, 서버 환경 | ⭐⭐⭐⭐⭐ | 낮음 (84% 절감) |
-| **Intelligent** | 기술 문서, API 문서 | ⭐⭐⭐⭐⭐ | 높음 |
-| **Semantic** | 일반 문서, 논문 | ⭐⭐⭐⭐ | 중간 |
-| **Paragraph** | Markdown, 블로그 | ⭐⭐⭐⭐ | 낮음 |
-| **FixedSize** | 균일한 처리 필요 | ⭐⭐⭐ | 낮음 |
-
----
-
-## ⚡ 엔터프라이즈급 성능 최적화
-
-### 🚀 병렬 처리 엔진
-- **CPU 코어별 동적 스케일링**: 시스템 리소스에 맞춘 자동 확장
-- **메모리 백프레셔 제어**: Threading.Channels 기반 고성능 비동기 처리
-- **지능형 작업 분산**: 파일 크기와 복잡도에 따른 최적 분배
-
-### 📊 스트리밍 최적화
-- **실시간 청크 반환**: AsyncEnumerable 기반 즉시 결과 제공
-- **LRU 캐시 시스템**: 파일 해시 기반 자동 캐싱 및 만료 관리
-- **캐시 우선 검사**: 동일 문서 재처리 시 즉시 반환
-
-### 📈 검증된 성능 지표 (실제 API 검증)
-- **처리 속도**: 3.14MB PDF → 328청크, GPT-5-nano 실시간 처리
-- **메모리 효율**: 파일 크기 2배 이하 메모리 사용 (MemoryOptimized: 84% 절감)
-- **품질 보장**: 청크 완성도 81%, 컨텍스트 보존 75%+ 달성
-- **자동 최적화**: Auto 전략으로 문서별 최적 전략 자동 선택
-- **병렬 확장**: CPU 코어 수에 따른 선형 성능 향상
-- **벡터화 처리**: text-embedding-3-small 실시간 임베딩 생성
-- **테스트 커버리지**: 235+ 테스트 100% 통과, 실제 API 검증 완료
-- **고급 기능**: 벡터/그래프 검색 최적화, 엔티티 추출, Q&A 생성 완료
+### Strategy Selection Guide
+| Strategy | Optimal Use Case | Quality Score | Memory Usage |
+|----------|------------------|---------------|--------------|
+| **Auto** (Recommended) | All document formats - automatic optimization | ⭐⭐⭐⭐⭐ | Medium |
+| **Smart** | Legal, medical, academic documents | ⭐⭐⭐⭐⭐ | Medium |
+| **MemoryOptimizedIntelligent** | Large documents, server environments | ⭐⭐⭐⭐⭐ | Low (84% reduction) |
+| **Intelligent** | Technical docs, API documentation | ⭐⭐⭐⭐⭐ | High |
+| **Semantic** | General documents, papers | ⭐⭐⭐⭐ | Medium |
+| **Paragraph** | Markdown, blogs | ⭐⭐⭐⭐ | Low |
+| **FixedSize** | Uniform processing needs | ⭐⭐⭐ | Low |
 
 ---
 
-## 📚 문서 및 가이드
+## ⚡ Enterprise-Grade Performance Optimization
 
-### 📖 주요 문서
-- [**📋 튜토리얼**](docs/TUTORIAL.md) - 단계별 사용법 가이드
-- [**🏗️ 아키텍처**](docs/ARCHITECTURE.md) - 시스템 설계 및 확장성
-- [**📋 작업 계획**](TASKS.md) - 개발 로드맵 및 완료 현황
+### 🚀 Parallel Processing Engine
+- **Dynamic Scaling per CPU Core**: Automatic scaling based on system resources
+- **Memory Backpressure Control**: High-performance async processing based on Threading.Channels
+- **Intelligent Work Distribution**: Optimal distribution based on file size and complexity
 
-### 🔗 추가 리소스
-- [**📋 GitHub Repository**](https://github.com/iyulab/FileFlux) - 소스 코드 및 이슈 트래킹
-- [**📦 NuGet Package**](https://www.nuget.org/packages/FileFlux) - 패키지 다운로드
+### 📊 Streaming Optimization
+- **Real-time Chunk Return**: Immediate results via AsyncEnumerable
+- **LRU Cache System**: Automatic caching and expiration management based on file hash
+- **Cache-First Checking**: Immediate return for same document reprocessing
+
+### 📈 Verified Performance Metrics (Real API Verification)
+- **Processing Speed**: 3.14MB PDF → 328 chunks, GPT-5-nano real-time processing
+- **Memory Efficiency**: Memory usage under 2x file size (MemoryOptimized: 84% reduction)
+- **Quality Assurance**: 81% chunk completeness, 75%+ context preservation achieved
+- **Auto Optimization**: Automatic optimal strategy selection per document with Auto strategy
+- **Parallel Scaling**: Linear performance improvement based on CPU core count
+- **Vectorization Processing**: Real-time embedding generation with text-embedding-3-small
+- **Test Coverage**: 235+ tests 100% passed, real API verification completed
+- **Advanced Features**: Vector/graph search optimization, entity extraction, Q&A generation completed
 
 ---
 
-## 🔧 고급 사용법
+## 📚 Documentation and Guides
 
-### LLM 서비스 구현 예시 (GPT-5-nano)
+### 📖 Main Documentation
+- [**📋 Tutorial**](docs/TUTORIAL.md) - Step-by-step usage guide
+- [**🏗️ Architecture**](docs/ARCHITECTURE.md) - System design and scalability
+- [**📋 Development Plan**](TASKS.md) - Development roadmap and completion status
+
+### 🔗 Additional Resources
+- [**📋 GitHub Repository**](https://github.com/iyulab/FileFlux) - Source code and issue tracking
+- [**📦 NuGet Package**](https://www.nuget.org/packages/FileFlux) - Package download
+
+---
+
+## 🔧 Advanced Usage
+
+### LLM Service Implementation Example (GPT-5-nano)
 ```csharp
 public class OpenAiTextCompletionService : ITextCompletionService
 {
@@ -211,7 +211,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
         TextCompletionOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var chatClient = _client.GetChatClient("gpt-5-nano"); // 최신 모델 사용
+        var chatClient = _client.GetChatClient("gpt-5-nano"); // Use latest model
 
         var response = await chatClient.CompleteChatAsync(
             [new UserChatMessage(prompt)],
@@ -227,7 +227,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
 }
 ```
 
-### 멀티모달 처리 - 이미지 텍스트 추출
+### Multimodal Processing - Image Text Extraction
 ```csharp
 public class OpenAiImageToTextService : IImageToTextService
 {
@@ -247,7 +247,7 @@ public class OpenAiImageToTextService : IImageToTextService
 
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage("이미지에서 모든 텍스트를 정확히 추출하세요."),
+            new SystemChatMessage("Extract all text from the image accurately."),
             new UserChatMessage(ChatMessageContentPart.CreateImagePart(
                 BinaryData.FromBytes(imageData), "image/jpeg"))
         };
@@ -268,7 +268,7 @@ public class OpenAiImageToTextService : IImageToTextService
 }
 ```
 
-### RAG 파이프라인 통합
+### RAG Pipeline Integration
 ```csharp
 public class RagService
 {
@@ -278,7 +278,7 @@ public class RagService
 
     public async Task IndexDocumentAsync(string filePath)
     {
-        // Auto 전략으로 자동 최적화
+        // Auto strategy for automatic optimization
         var options = new ChunkingOptions
         {
             Strategy = "Auto",
@@ -292,7 +292,7 @@ public class RagService
             {
                 foreach (var chunk in result.Result)
                 {
-                    // 임베딩 생성 및 저장
+                    // Generate embedding and store
                     var embedding = await _embeddingService.GenerateAsync(chunk.Content);
                     await _vectorStore.StoreAsync(new VectorDocument
                     {
@@ -304,10 +304,10 @@ public class RagService
                 }
             }
 
-            // 진행률 표시
+            // Display progress
             if (result.Progress != null)
             {
-                Console.WriteLine($"진행률: {result.Progress.PercentComplete:F1}%");
+                Console.WriteLine($"Progress: {result.Progress.PercentComplete:F1}%");
             }
         }
     }
@@ -316,45 +316,45 @@ public class RagService
 
 ---
 
-## 🛠️ 개발 및 기여
+## 🛠️ Development and Contributing
 
-### 요구사항
+### Requirements
 - .NET 9.0 SDK
-- Visual Studio 2022 17.8+ 또는 VS Code
+- Visual Studio 2022 17.8+ or VS Code
 - Git
 
-### 빌드 및 테스트
+### Build and Test
 ```bash
-# 빌드
+# Build
 dotnet build
 
-# 테스트 실행
+# Run tests
 dotnet test
 
-# NuGet 패키지 생성
+# Create NuGet package
 dotnet pack -c Release
 ```
 
-### 기여 가이드라인
-1. Issue를 먼저 생성하여 논의
-2. Feature branch에서 작업
-3. 테스트 추가/수정
-4. PR 제출
+### Contributing Guidelines
+1. Create an issue first for discussion
+2. Work on feature branch
+3. Add/modify tests
+4. Submit PR
 
 ---
 
-## 📄 라이선스
+## 📄 License
 
-MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
-
----
-
-## 🤝 지원 및 문의
-
-- **버그 리포트**: [GitHub Issues](https://github.com/iyulab/FileFlux/issues)
-- **기능 제안**: [GitHub Discussions](https://github.com/iyulab/FileFlux/discussions)
-- **이메일**: support@iyulab.com
+MIT License - See [LICENSE](LICENSE) file for details
 
 ---
 
-**FileFlux** - RAG 시스템을 위한 완벽한 문서 전처리 솔루션 🚀
+## 🤝 Support and Contact
+
+- **Bug Reports**: [GitHub Issues](https://github.com/iyulab/FileFlux/issues)
+- **Feature Requests**: [GitHub Discussions](https://github.com/iyulab/FileFlux/discussions)
+- **Email**: support@iyulab.com
+
+---
+
+**FileFlux** - Complete Document Preprocessing Solution for RAG Systems 🚀

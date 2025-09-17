@@ -1,3 +1,4 @@
+#if DEBUG
 using FileFlux;
 using FileFlux.Domain;
 
@@ -5,6 +6,7 @@ namespace FileFlux.Tests.Mocks;
 
 /// <summary>
 /// 테스트용 Mock Text Completion Service
+/// Only available in DEBUG builds - excluded from production Release builds.
 /// </summary>
 public class MockTextCompletionService : ITextCompletionService
 {
@@ -223,3 +225,4 @@ public class MockTextCompletionService : ITextCompletionService
         return Task.FromResult(string.Join("\n", questions));
     }
 }
+#endif

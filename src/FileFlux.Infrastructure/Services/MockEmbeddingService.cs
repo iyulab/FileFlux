@@ -1,3 +1,4 @@
+#if DEBUG
 using System.Security.Cryptography;
 using System.Text;
 
@@ -6,6 +7,7 @@ namespace FileFlux.Infrastructure.Services;
 /// <summary>
 /// Mock implementation of IEmbeddingService for testing.
 /// Uses TF-IDF-like approach for generating pseudo-embeddings.
+/// Only available in DEBUG builds - excluded from production Release builds.
 /// </summary>
 public class MockEmbeddingService : IEmbeddingService
 {
@@ -257,3 +259,4 @@ public class MockEmbeddingService : IEmbeddingService
         return System.Text.RegularExpressions.Regex.IsMatch(text, pattern);
     }
 }
+#endif
