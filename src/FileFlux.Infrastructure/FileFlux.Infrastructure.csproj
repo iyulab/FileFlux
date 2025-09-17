@@ -14,7 +14,7 @@
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
   
-  <!-- Custom target to include project references in package -->
+  <!-- Custom target to include project references and dependencies in package -->
   <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="BuildOnlySettings;ResolveReferences">
     <ItemGroup>
       <!-- Include Core and Domain DLLs and their XML docs in the package -->
@@ -22,6 +22,9 @@
       <BuildOutputInPackage Include="$(OutputPath)FileFlux.Domain.dll" />
       <BuildOutputInPackage Include="$(OutputPath)FileFlux.Core.xml" Condition="Exists('$(OutputPath)FileFlux.Core.xml')" />
       <BuildOutputInPackage Include="$(OutputPath)FileFlux.Domain.xml" Condition="Exists('$(OutputPath)FileFlux.Domain.xml')" />
+
+      <!-- Include all dependency DLLs in the package to avoid version conflicts -->
+      <BuildOutputInPackage Include="$(OutputPath)*.dll" Exclude="$(OutputPath)FileFlux.*.dll" />
     </ItemGroup>
   </Target>
   
@@ -37,18 +40,19 @@
   </Target>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.8" />
-    
-    <!-- Document Processing Libraries -->
-    <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
-    <PackageReference Include="PdfPig" Version="0.1.8" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.12.2" />
-    <PackageReference Include="CsvHelper" Version="33.1.0" />
-    <PackageReference Include="Markdig" Version="0.41.3" />
+    <!-- Microsoft Extensions packages with PrivateAssets to avoid version conflicts -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.9" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.9" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.9" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.9" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.9" PrivateAssets="all" />
+
+    <!-- Document Processing Libraries with PrivateAssets to bundle them -->
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" PrivateAssets="all" />
+    <PackageReference Include="PdfPig" Version="0.1.11" PrivateAssets="all" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.3" PrivateAssets="all" />
+    <PackageReference Include="CsvHelper" Version="33.1.0" PrivateAssets="all" />
+    <PackageReference Include="Markdig" Version="0.42.0" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

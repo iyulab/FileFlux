@@ -1,0 +1,50 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.{cs,csx}]
+# C# specific settings
+
+# Code style rules
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+
+# Suppression for code analysis warnings
+# CA2227: Collection properties should be read only
+# Suppressed because our domain objects need mutable collections for deserialization and runtime assignment
+dotnet_diagnostic.CA2227.severity = none
+
+# CA1000: Do not declare static members on generic types
+# Suppressed for factory methods on generic types which is a valid pattern
+dotnet_diagnostic.CA1000.severity = suggestion
+
+# CA1310: Specify StringComparison for correctness
+# Downgrade to suggestion as it's often over-cautious for internal processing
+dotnet_diagnostic.CA1310.severity = suggestion
+
+# CA1829: Use Length/Count property instead of Enumerable.Count()
+# Downgrade to suggestion as it's not always critical
+dotnet_diagnostic.CA1829.severity = suggestion
+
+# CA1062: Validate arguments of public methods
+# Downgrade for APIs where null validation is handled differently
+dotnet_diagnostic.CA1062.severity = suggestion
+
+# IDE warnings for unused parameters in interface implementations
+dotnet_diagnostic.IDE0060.severity = none
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
