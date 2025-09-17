@@ -1,4 +1,5 @@
 using FileFlux.Domain;
+using FileFlux.Infrastructure.Utils;
 using System.Text.Json;
 using System.Text;
 
@@ -225,8 +226,8 @@ public class TestResultsStorage
 
     private static string SanitizeFileName(string fileName)
     {
-        var invalidChars = Path.GetInvalidFileNameChars();
-        var sanitized = new string(fileName.Where(c => !invalidChars.Contains(c)).ToArray());
-        return sanitized.Replace(" ", "_").Replace(".", "_");
+        return FileNameHelper.NormalizeFileName(fileName)
+            .Replace(" ", "_")
+            .Replace(".", "_");
     }
 }

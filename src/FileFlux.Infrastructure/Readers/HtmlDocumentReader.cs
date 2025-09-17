@@ -2,6 +2,7 @@ using HtmlAgilityPack;
 using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
+using FileFlux.Infrastructure.Utils;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -105,7 +106,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 Text = extractedText,
                 FileInfo = new FileMetadata
                 {
-                    FileName = fileInfo.Name,
+                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = fileInfo.Extension,
                     FileSize = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
@@ -680,7 +681,7 @@ public partial class HtmlDocumentReader : IDocumentReader
             Text = string.Empty,
             FileInfo = new FileMetadata
             {
-                FileName = fileInfo.Name,
+                FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                 FileExtension = fileInfo.Extension,
                 FileSize = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,

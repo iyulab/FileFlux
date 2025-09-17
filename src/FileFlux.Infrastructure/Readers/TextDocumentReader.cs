@@ -1,6 +1,7 @@
 using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
+using FileFlux.Infrastructure.Utils;
 using System.Buffers;
 using System.Text;
 
@@ -59,7 +60,7 @@ public class TextDocumentReader : IDocumentReader
                 Text = text,
                 FileInfo = new FileMetadata
                 {
-                    FileName = fileInfo.Name,
+                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = Path.GetExtension(filePath).ToLowerInvariant(),
                     FileSize = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
@@ -369,7 +370,7 @@ public class TextDocumentReader : IDocumentReader
                 Text = text,
                 FileInfo = new FileMetadata
                 {
-                    FileName = fileInfo.Name,
+                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = Path.GetExtension(filePath).ToLowerInvariant(),
                     FileSize = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,

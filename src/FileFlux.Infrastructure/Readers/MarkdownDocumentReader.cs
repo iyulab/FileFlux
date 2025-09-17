@@ -1,5 +1,6 @@
 using FileFlux;
 using FileFlux.Domain;
+using FileFlux.Infrastructure.Utils;
 using Markdig;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
@@ -90,7 +91,7 @@ public class MarkdownDocumentReader : IDocumentReader
         var fileInfo = new FileInfo(filePath);
         return new FileMetadata
         {
-            FileName = fileInfo.Name,
+            FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
             FileExtension = fileInfo.Extension,
             FileSize = fileInfo.Length,
             CreatedAt = fileInfo.CreationTime,

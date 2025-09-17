@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml;
 using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
+using FileFlux.Infrastructure.Utils;
 using System.Text;
 
 namespace FileFlux.Infrastructure.Readers;
@@ -131,7 +132,7 @@ public class WordDocumentReader : IDocumentReader
                 Text = extractedText,
                 FileInfo = new FileMetadata
                 {
-                    FileName = fileInfo.Name,
+                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = ".docx",
                     FileSize = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,

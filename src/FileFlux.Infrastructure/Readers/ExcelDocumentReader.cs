@@ -3,6 +3,7 @@ using DocumentFormat.OpenXml.Spreadsheet;
 using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
+using FileFlux.Infrastructure.Utils;
 using System.Text;
 
 namespace FileFlux.Infrastructure.Readers;
@@ -148,7 +149,7 @@ public class ExcelDocumentReader : IDocumentReader
                 Text = extractedText,
                 FileInfo = new FileMetadata
                 {
-                    FileName = fileInfo.Name,
+                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = ".xlsx",
                     FileSize = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
@@ -378,7 +379,7 @@ public class ExcelDocumentReader : IDocumentReader
             Text = string.Empty,
             FileInfo = new FileMetadata
             {
-                FileName = fileInfo.Name,
+                FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                 FileExtension = ".xlsx",
                 FileSize = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,

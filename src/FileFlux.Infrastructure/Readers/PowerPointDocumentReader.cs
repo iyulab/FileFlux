@@ -3,6 +3,7 @@ using DocumentFormat.OpenXml.Presentation;
 using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
+using FileFlux.Infrastructure.Utils;
 using System.Text;
 using A = DocumentFormat.OpenXml.Drawing;
 
@@ -143,7 +144,7 @@ public class PowerPointDocumentReader : IDocumentReader
                 Text = extractedText,
                 FileInfo = new FileMetadata
                 {
-                    FileName = fileInfo.Name,
+                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = ".pptx",
                     FileSize = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
@@ -387,7 +388,7 @@ public class PowerPointDocumentReader : IDocumentReader
             Text = string.Empty,
             FileInfo = new FileMetadata
             {
-                FileName = fileInfo.Name,
+                FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                 FileExtension = ".pptx",
                 FileSize = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,
