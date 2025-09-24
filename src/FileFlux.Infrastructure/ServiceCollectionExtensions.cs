@@ -1,13 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using FileFlux.Core;
-using FileFlux.Infrastructure;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
 using FileFlux.Infrastructure.Services;
 using FileFlux.Infrastructure.Processing;
 using FileFlux.Infrastructure.Strategies;
+using FileFlux.Infrastructure;
 
 namespace FileFlux;
 
@@ -17,22 +17,25 @@ namespace FileFlux;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// FileFlux 서비스들을 DI 컨테이너에 등록 - 텍스트 완성 서비스를 DI에서 주입받아 사용
+    /// FileFlux 서비스들을 DI 컨테이너에 등록 - AI 서비스들은 선택적 의존성으로 처리
     /// </summary>
     /// <param name="services">서비스 컬렉션</param>
     /// <returns>서비스 컬렉션</returns>
     public static IServiceCollection AddFileFlux(this IServiceCollection services)
     {
-        // 핵심 팩토리들 등록
+        // 핵심 팩토리들 등록 - AI 서비스들은 선택적 의존성
         services.AddSingleton<IDocumentReaderFactory, DocumentReaderFactory>();
         services.AddSingleton<IDocumentParserFactory>(provider =>
-            new DocumentParserFactory(provider.GetRequiredService<ITextCompletionService>()));
+            new DocumentParserFactory(provider.GetService<ITextCompletionService>()));
 
         // 기본 청킹 전략들을 등록하는 팩토리
         RegisterChunkingStrategies(services);
-        
-        // 적응형 전략 선택기 등록 (Auto 전략 지원)
-        services.AddScoped<IAdaptiveStrategySelector, AdaptiveStrategySelector>();
+
+        // 적응형 전략 선택기 등록 (Auto 전략 지원) - AI 서비스 선택적
+        services.AddScoped<IAdaptiveStrategySelector>(provider =>
+            new AdaptiveStrategySelector(
+                provider.GetRequiredService<IChunkingStrategyFactory>(),
+                provider.GetService<ITextCompletionService>()));
 
         // 메인 문서 처리기 등록
         services.AddScoped<IDocumentProcessor, DocumentProcessor>();
@@ -51,9 +54,9 @@ public static class ServiceCollectionExtensions
         // 이미지 처리 기능이 포함된 PDF Reader 등록
         services.AddTransient<IDocumentReader, MultiModalPdfDocumentReader>();
 
-        // 기본 Parser들 등록
+        // 기본 Parser들 등록 - AI 서비스 선택적
         services.AddTransient<IDocumentParser>(provider =>
-            new BasicDocumentParser(provider.GetRequiredService<ITextCompletionService>()));
+            new BasicDocumentParser(provider.GetService<ITextCompletionService>()));
 
         // Embedding 서비스 관련 등록 (Phase 8)
         // Note: 실제 IEmbeddingService는 소비 애플리케이션에서 등록해야 함
@@ -61,10 +64,16 @@ public static class ServiceCollectionExtensions
 #if DEBUG
         services.TryAddSingleton<IEmbeddingService, MockEmbeddingService>();
 #endif
-        
-        // Semantic analysis services
+
+        // Semantic analysis services - AI 서비스들은 선택적 의존성으로 처리
         services.AddSingleton<ISemanticBoundaryDetector, SemanticBoundaryDetector>();
-        services.AddSingleton<IChunkCoherenceAnalyzer, ChunkCoherenceAnalyzer>();
+        services.AddSingleton<IChunkCoherenceAnalyzer>(provider =>
+            new ChunkCoherenceAnalyzer(provider.GetService<ISemanticBoundaryDetector>()));
+
+        // Quality analysis services - AI 서비스 선택적
+        services.AddTransient(provider =>
+            new FileFlux.Infrastructure.Quality.ChunkQualityEngine(
+                provider.GetService<ITextCompletionService>()));
 
         // Phase 15 성능 최적화 컴포넌트들은 별도로 등록 가능
 

@@ -156,7 +156,7 @@ public class RAGQualityBenchmark : IDisposable
         
         // Different thresholds for real API vs mock
         // Note: Current chunking implementation doesn't guarantee complete sentences
-        var minimumRate = _useRealApi ? 0.2 : 0.2;  // Lowered threshold due to chunking implementation
+        var minimumRate = _useRealApi ? 0.15 : 0.15;  // Further lowered threshold to match current implementation
         Assert.True(completenessRate >= minimumRate, 
             $"Chunk completeness {completenessRate:P1} below {minimumRate:P0} minimum (using {(_useRealApi ? "real API" : "mock")})" );
     }

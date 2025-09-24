@@ -10,11 +10,11 @@ namespace FileFlux.Infrastructure.Parsers;
 /// </summary>
 public partial class BasicDocumentParser : IDocumentParser
 {
-    private readonly ITextCompletionService _textCompletionService;
+    private readonly ITextCompletionService? _textCompletionService;
 
-    public BasicDocumentParser(ITextCompletionService textCompletionService)
+    public BasicDocumentParser(ITextCompletionService? textCompletionService = null)
     {
-        _textCompletionService = textCompletionService ?? throw new ArgumentNullException(nameof(textCompletionService));
+        _textCompletionService = textCompletionService;
     }
 
     public IEnumerable<string> SupportedDocumentTypes =>
@@ -47,14 +47,14 @@ public partial class BasicDocumentParser : IDocumentParser
         {
             ParsedDocumentContent result;
 
-            if (options.UseLlmParsing)
+            if (options.UseLlmParsing && _textCompletionService != null)
             {
                 // 텍스트 완성 서비스 기반 고도화 구조화
                 result = await ParseWithTextCompletionAsync(rawContent, options, cancellationToken);
             }
             else
             {
-                // 규칙 기반 기본 구조화
+                // 규칙 기반 기본 구조화 (LLM 없거나 UseLlmParsing=false)
                 result = ParseWithRules(rawContent, options);
             }
 
@@ -62,7 +62,7 @@ public partial class BasicDocumentParser : IDocumentParser
             result.ParsingInfo = new ParsingMetadata
             {
                 ParserType = ParserType,
-                UsedLlm = options.UseLlmParsing,
+                UsedLlm = options.UseLlmParsing && _textCompletionService != null,
                 StartedAt = startTime,
                 CompletedAt = DateTime.UtcNow,
                 Warnings = warnings
@@ -436,6 +436,11 @@ public partial class BasicDocumentParser : IDocumentParser
 
         try
         {
+            if (_textCompletionService == null)
+            {
+                return basicStructure;
+            }
+
             // 텍스트 완성 서비스 호출
             var response = await _textCompletionService.GenerateAsync(prompt, cancellationToken);
 

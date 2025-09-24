@@ -17,18 +17,18 @@ namespace FileFlux.Infrastructure.Strategies;
 /// </summary>
 public class AdaptiveStrategySelector : IAdaptiveStrategySelector
 {
-    private readonly ITextCompletionService _llmService;
+    private readonly ITextCompletionService? _llmService;
     private readonly IChunkingStrategyFactory _strategyFactory;
     private readonly Dictionary<string, IChunkingStrategyMetadata> _strategyMetadata;
     private readonly IDocumentReader? _documentReader;
 
     public AdaptiveStrategySelector(
-        ITextCompletionService llmService,
         IChunkingStrategyFactory strategyFactory,
+        ITextCompletionService? llmService = null,
         IDocumentReader? documentReader = null)
     {
-        _llmService = llmService ?? throw new ArgumentNullException(nameof(llmService));
         _strategyFactory = strategyFactory ?? throw new ArgumentNullException(nameof(strategyFactory));
+        _llmService = llmService; // Optional now
         _documentReader = documentReader;
         _strategyMetadata = InitializeStrategyMetadata();
     }
@@ -57,23 +57,43 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
             extension,
             cancellationToken);
         
-        // 4. LLM을 통한 전략 추천
-        var recommendedStrategy = await GetLLMRecommendationAsync(
-            documentCharacteristics,
-            _strategyMetadata.Values.ToList(),
-            cancellationToken);
-        
+        // 4. 전략 추천 (LLM 사용 가능시 사용, 없으면 규칙 기반)
+        LLMStrategyRecommendation recommendedStrategy;
+        bool usedLLM = false;
+
+        if (_llmService != null)
+        {
+            try
+            {
+                recommendedStrategy = await GetLLMRecommendationAsync(
+                    documentCharacteristics,
+                    _strategyMetadata.Values.ToList(),
+                    cancellationToken);
+                usedLLM = true;
+            }
+            catch (Exception)
+            {
+                // LLM 호출 실패시 규칙 기반으로 fallback
+                recommendedStrategy = GetFallbackRecommendation(documentCharacteristics);
+            }
+        }
+        else
+        {
+            // LLM이 없으면 바로 규칙 기반 선택
+            recommendedStrategy = GetFallbackRecommendation(documentCharacteristics);
+        }
+
         // 5. 최종 전략 선택 및 검증
         var selectedStrategy = ValidateAndFinalizeSelection(
             recommendedStrategy,
             documentCharacteristics);
-        
+
         return new StrategySelectionResult
         {
             StrategyName = selectedStrategy.StrategyName,
             Confidence = selectedStrategy.Confidence,
             Reasoning = selectedStrategy.Reasoning,
-            UsedLLM = true
+            UsedLLM = usedLLM
         };
     }
 
