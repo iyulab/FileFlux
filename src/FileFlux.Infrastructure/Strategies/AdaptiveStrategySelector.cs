@@ -178,6 +178,11 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
         List<IChunkingStrategyMetadata> availableStrategies,
         CancellationToken cancellationToken)
     {
+        // LLM 서비스가 없으면 폴백 추천 반환
+        if (_llmService == null)
+        {
+            return GetFallbackRecommendation(characteristics);
+        }
         // 전략 설명 준비
         var strategiesJson = JsonSerializer.Serialize(
             availableStrategies.Select(s => new
@@ -243,7 +248,7 @@ Return your response in the following JSON format:
 
         try
         {
-            var response = await _llmService!.GenerateAsync(prompt, cancellationToken);
+            var response = await _llmService.GenerateAsync(prompt, cancellationToken);
 
             // Parse LLM response
             var recommendation = ParseLLMResponse(response);
