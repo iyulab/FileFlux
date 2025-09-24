@@ -243,8 +243,8 @@ Return your response in the following JSON format:
 
         try
         {
-            var response = await _llmService.GenerateAsync(prompt, cancellationToken);
-            
+            var response = await _llmService!.GenerateAsync(prompt, cancellationToken);
+
             // Parse LLM response
             var recommendation = ParseLLMResponse(response);
             return recommendation;
