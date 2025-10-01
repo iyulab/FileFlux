@@ -1,86 +1,77 @@
-# FileFlux 아키텍처 가이드
+# FileFlux Architecture Guide
 
-> RAG 시스템을 위한 문서 처리 SDK의 아키텍처 개요
+> Architectural overview of the document processing SDK for RAG systems
 
-## 🎯 설계 원칙
+## Design Principles
 
-### 1. 클린 아키텍처
-- **도메인 계층**: 핵심 모델과 인터페이스 정의
-- **코어 계층**: 비즈니스 로직과 처리 오케스트레이션
-- **인프라 계층**: 구체적인 구현체 (리더, 전략)
+### 1. Clean Architecture
 
-### 2. 인터페이스 중심 설계
-- 확장 가능한 플러그인 아키텍처
-- 의존성 주입을 통한 느슨한 결합
-- 전략 패턴과 팩토리 패턴 적용
+- **Domain Layer**: Core models and interface definitions
+- **Core Layer**: Business logic and processing orchestration
+- **Infrastructure Layer**: Concrete implementations (readers, strategies)
 
-### 3. Phase 7 도메인 모델 최적화
-- **단순화된 속성명**: `Properties` → `Props`, `ChunkIndex` → `Index`
-- **Props 딕셔너리 패턴**: 확장 가능한 메타데이터 저장
-- **Guid 기반 추적성**: 파이프라인 전체 단계 추적 가능
-- **Quality 단순화**: 복잡한 객체에서 double 타입으로 변경
-- **통합 API**: IDocumentProcessor로 Batch/Streaming 통합
+### 2. Interface-Driven Design
 
----
+- Extensible plugin architecture
+- Loose coupling through dependency injection
+- Strategy and Factory patterns
 
-## 🏗️ 시스템 아키텍처
+### 3. Domain Model Optimization
+
+- **Simplified property names**: `Properties` → `Props`, `ChunkIndex` → `Index`
+- **Props dictionary pattern**: Extensible metadata storage
+- **Guid-based traceability**: Track entire pipeline stages
+- **Simplified Quality**: Changed from complex object to double type
+- **Unified API**: Integrated batch/streaming through IDocumentProcessor
+
+## System Architecture
 
 ```mermaid
 graph TB
     A[Client Application] --> B[IDocumentProcessor]
     B --> C[DocumentProcessor]
-    B --> P[ParallelDocumentProcessor]
-    B --> S[StreamingDocumentProcessor]
-    
+
     C --> D[IDocumentReaderFactory]
     C --> E[IChunkingStrategyFactory]
-    P --> D
-    P --> E
-    S --> C
-    S --> CACHE[DocumentCacheService]
-    
+
     D --> F[PdfReader]
-    D --> G[WordReader]  
+    D --> G[WordReader]
     D --> H[ExcelReader]
     D --> I[PowerPointReader]
     D --> J[MarkdownReader]
     D --> K[TextReader]
     D --> L[JsonReader]
     D --> N[CsvReader]
-    
-    E --> O[FixedSizeStrategy]
-    E --> Q[SemanticStrategy]
-    E --> R[ParagraphStrategy]
-    E --> T[IntelligentStrategy]
-    
-    P --> U[Parallel Processing Engine]
-    S --> V[Streaming Pipeline]
-    U --> W[CPU Core Scaling]
-    V --> X[AsyncEnumerable Output]
-    CACHE --> Y[LRU Cache System]
-    
-    C --> M[DocumentChunk[]]
-    
+    D --> O[HtmlReader]
+
+    E --> P[AutoChunkingStrategy]
+    E --> Q[SmartChunkingStrategy]
+    E --> R[IntelligentChunkingStrategy]
+    E --> S[SemanticChunkingStrategy]
+    E --> T[ParagraphChunkingStrategy]
+    E --> U[FixedSizeChunkingStrategy]
+    E --> V[MemoryOptimizedIntelligentStrategy]
+
+    C --> W[DocumentChunk[]]
+
     style A fill:#e1f5fe
     style B fill:#f3e5f5
-    style P fill:#fff3e0
-    style S fill:#fff3e0
-    style CACHE fill:#f1f8e9
-    style M fill:#e8f5e8
+    style C fill:#fff3e0
+    style W fill:#e8f5e8
 ```
 
-### 계층 구조
+### Layer Structure
 
 ```
 ┌─────────────────────────────────┐
-│         Client Layer            │ 
+│         Client Layer            │
 │ • Application Code              │
 │ • RAG Systems Integration       │
 │ • Service Configuration         │
 ├─────────────────────────────────┤
 │       Abstraction Layer         │
 │ • IDocumentProcessor            │
-│ • IDocumentReader               │ 
+│ • IDocumentReader               │
 │ • IChunkingStrategy             │
 ├─────────────────────────────────┤
 │          Core Layer             │
@@ -95,253 +86,292 @@ graph TB
 ├─────────────────────────────────┤
 │         Model Layer             │
 │ • DocumentChunk                 │
-│ • DocumentMetadata              │ 
+│ • RawContent                    │
+│ • ParsedDocumentContent         │
 │ • ChunkingOptions               │
 └─────────────────────────────────┘
 ```
 
----
+## Core Components
 
-## 🔧 핵심 컴포넌트
+### 1. IDocumentProcessor (Main Interface)
 
-### 1. IDocumentProcessor (주 인터페이스)
-**역할**: 모든 문서 처리의 단일 진입점
-**주요 메소드**: ProcessAsync(파일경로/스트림)
-**책임**: 처리 파이프라인 조정, 오류 처리, 결과 검증
+**Role**: Single entry point for all document processing
 
-### 2. DocumentProcessor (오케스트레이터)
-**처리 파이프라인**:
-1. 입력 검증 → 2. 문서 타입 감지 → 3. 리더 선택 → 4. 콘텐츠 추출 → 5. 전략 선택 → 6. 청킹 적용 → 7. 후처리
+**Key Methods**:
+- `ProcessAsync(filePath/stream)`: Complete processing pipeline
+- `ProcessStreamAsync(filePath/stream)`: Streaming processing
+- `ExtractAsync()`: Extract raw content
+- `ParseAsync()`: Parse structure
+- `ChunkAsync()`: Apply chunking
 
-### 3. IDocumentReader (콘텐츠 추출)
-**현재 구현체**:
-- **TextDocumentReader**: .txt, .md 파일 처리
-- **JsonDocumentReader**: .json 파일 구조화 처리  
-- **CsvDocumentReader**: .csv 파일 테이블 데이터 처리
+**Responsibilities**: Pipeline orchestration, error handling, result validation
 
-### 4. IChunkingStrategy (콘텐츠 분할)
-**전략 종류**:
-- **FixedSizeStrategy**: 고정 크기 토큰 기반 분할
-- **SemanticStrategy**: 문장 경계 기반 분할
-- **ParagraphStrategy**: 단락 단위 분할
-- **IntelligentStrategy**: AI 기반 의미 단위 분할
+### 2. DocumentProcessor (Orchestrator)
 
-### 5. ParallelDocumentProcessor (Phase 8 - 병렬 처리 엔진)
-**핵심 기능**:
-- **CPU 코어별 동적 스케일링**: 시스템 리소스에 맞춘 작업 분산
-- **메모리 백프레셔 제어**: Threading.Channels 기반 백프레셔 시스템
-- **지능형 작업 분산**: 파일 크기와 복잡도에 따른 최적 분배
-- **Task.WhenAll 최적화**: 병렬 처리 결과 통합
+**Processing Pipeline**:
+1. Input validation
+2. Document type detection
+3. Reader selection
+4. Content extraction
+5. Strategy selection
+6. Chunking application
+7. Post-processing
 
-### 6. StreamingDocumentProcessor (Phase 8 - 스트리밍 최적화)
-**핵심 기능**:
-- **실시간 청크 반환**: AsyncEnumerable 기반 즉시 결과 제공
-- **캐시 우선 검사**: 파일 해시 기반 중복 처리 방지
-- **LRU 캐시 시스템**: 자동 만료 및 메모리 최적화
-- **백프레셔 제어**: 채널 기반 메모리 압력 조절
+### 3. IDocumentReader (Content Extraction)
 
-### 7. DocumentCacheService (Phase 8 - 지능형 캐시)
-**캐시 전략**:
-- **파일 해시 기반 키**: 파일 내용 + 옵션 조합으로 고유 키 생성
-- **LRU 교체 정책**: 메모리 제한 시 최근 미사용 항목 자동 제거
-- **자동 만료**: 설정 가능한 TTL로 캐시 무효화
-- **통계 수집**: 히트율, 메모리 사용률 등 성능 메트릭 제공
+**Current Implementations**:
+- **PdfDocumentReader**: PDF text and image extraction
+- **WordDocumentReader**: DOCX with style preservation
+- **ExcelDocumentReader**: XLSX multi-sheet support
+- **PowerPointDocumentReader**: PPTX slide extraction
+- **MarkdownDocumentReader**: Markdown structure preservation
+- **HtmlDocumentReader**: HTML content extraction
+- **TextDocumentReader**: Plain text processing
+- **JsonDocumentReader**: JSON structured data
+- **CsvDocumentReader**: CSV table data
 
----
+### 4. IChunkingStrategy (Content Splitting)
 
-## 🔄 처리 파이프라인
+**Strategy Types**:
+- **AutoChunkingStrategy**: Automatic strategy selection (recommended)
+- **SmartChunkingStrategy**: Sentence boundary-based with high completeness
+- **IntelligentChunkingStrategy**: LLM-based semantic boundary detection
+- **MemoryOptimizedIntelligentChunkingStrategy**: Memory-efficient intelligent chunking
+- **SemanticChunkingStrategy**: Sentence-based semantic chunking
+- **ParagraphChunkingStrategy**: Paragraph-level segmentation
+- **FixedSizeChunkingStrategy**: Fixed-size token-based chunking
 
-### Phase 8 향상된 처리 흐름
+## Processing Pipeline
 
 ```mermaid
 graph TB
-    A[Document Input] --> B{Processing Mode}
-    
-    B -->|Parallel| C[ParallelDocumentProcessor]
-    B -->|Streaming| D[StreamingDocumentProcessor]
-    B -->|Standard| E[DocumentProcessor]
-    
-    C --> F[CPU Core Scaling]
-    C --> G[Task Distribution]
-    
-    D --> H[Cache Check]
-    H -->|Hit| I[Cached Results]
-    H -->|Miss| J[Live Processing]
-    
-    E --> K[Type Detection]
-    J --> K
-    G --> K
-    
-    K --> L[Reader Selection]
-    L --> M[Content Extraction]
-    M --> N[Strategy Selection]
-    N --> O[Chunking Process]
-    O --> P[Post Processing]
-    
-    P --> Q[DocumentChunk[]]
-    I --> Q
-    
-    D --> R[LRU Cache Update]
-    P --> R
-    
-    style C fill:#fff3e0
-    style D fill:#fff3e0
-    style H fill:#f1f8e9
-    style R fill:#f1f8e9
+    A[Document Input] --> B[Type Detection]
+    B --> C[Reader Selection]
+    C --> D[Content Extraction]
+    D --> E[Structure Parsing]
+    E --> F[Strategy Selection]
+    F --> G[Chunking Process]
+    G --> H[Post Processing]
+    H --> I[DocumentChunk[]]
+
+    style A fill:#e1f5fe
+    style I fill:#e8f5e8
 ```
 
-### 1. 입력 처리
-- 파일 경로 또는 스트림 입력 지원
-- 파일 존재성 및 접근 권한 검증
-- 지원 형식 확인
+### 1. Input Processing
 
-### 2. 콘텐츠 추출
-- 문서 타입별 전용 리더 사용
-- 텍스트 콘텐츠와 메타데이터 추출
-- 문서 구조 정보 보존
+- File path or stream input support
+- File existence and access permission validation
+- Supported format verification
 
-### 3. 청킹 처리
-- 선택된 전략에 따른 콘텐츠 분할
-- 청크 간 겹침(overlap) 적용
-- 메타데이터 전파 및 인덱스 부여
+### 2. Content Extraction
 
----
+- Dedicated reader for each document type
+- Text content and metadata extraction
+- Document structure preservation
 
-## 🏭 팩토리 패턴
+### 3. Chunking Processing
+
+- Content splitting based on selected strategy
+- Overlap between chunks
+- Metadata propagation and indexing
+
+## Factory Patterns
 
 ### DocumentReaderFactory
-- 파일 확장자 기반 리더 선택
-- 새로운 리더 등록 및 관리
-- 지원되지 않는 형식 예외 처리
 
-### ChunkingStrategyFactory  
-- 전략 이름 기반 선택 시스템
-- 기본 전략 및 대체 전략 관리
-- 동적 전략 등록 지원
+- File extension-based reader selection
+- New reader registration and management
+- Unsupported format exception handling
+- Extension discovery API
 
----
+### ChunkingStrategyFactory
 
-## 🎛️ 설정 및 옵션
+- Strategy name-based selection system
+- Default and fallback strategy management
+- Dynamic strategy registration support
+
+## Configuration and Options
 
 ### ChunkingOptions
-**주요 설정**:
-- **Strategy**: 청킹 전략 이름 ("Intelligent", "Semantic" 등)
-- **MaxChunkSize**: 최대 청크 크기 (기본: 1024 토큰)
-- **OverlapSize**: 청크 간 겹침 크기 (기본: 128 토큰)  
-- **PreserveStructure**: 문서 구조 보존 여부
-- **StrategyOptions**: 전략별 세부 옵션
 
-### 의존성 주입 설정
-**기본 등록**: `services.AddFileFlux()`
-**커스텀 설정**: 옵션 콜백으로 기본값 구성
-**확장 등록**: 커스텀 리더/전략 추가 등록
+**Main Settings**:
+- **Strategy**: Chunking strategy name ("Auto", "Smart", "Intelligent", etc.)
+- **MaxChunkSize**: Maximum chunk size (default: 1024 tokens)
+- **OverlapSize**: Overlap size between chunks (default: 128 tokens)
+- **PreserveStructure**: Whether to preserve document structure
+- **StrategyOptions**: Strategy-specific detailed options
 
----
+### Dependency Injection Setup
 
-## 🚀 성능 고려사항
+**Basic Registration**: `services.AddFileFlux()`
 
-### 메모리 관리
-- 스트림 기반 처리로 대용량 파일 지원
-- IDisposable 패턴으로 리소스 정리
-- ConfigureAwait(false)로 컨텍스트 스위칭 최소화
+**Custom Configuration**: Configure defaults with options callback
 
-### 동시성
-- 모든 공개 인터페이스는 스레드 안전
-- 팩토리는 불변 컬렉션 사용
-- 공유 가변 상태 없음
+**Extension Registration**: Add custom readers/strategies
 
-### 확장성
-- 최소한의 메모리 할당
-- 효율적인 문자열 처리
-- 재사용 가능한 컴포넌트 설계
+## Performance Considerations
 
----
+### Memory Management
 
-## 🔌 확장 지점
+- Stream-based processing for large files
+- IDisposable pattern for resource cleanup
+- ConfigureAwait(false) to minimize context switching
 
-### 커스텀 리더 추가
-1. IDocumentReader 인터페이스 구현
-2. DI 컨테이너에 등록
-3. SupportedExtensions와 CanRead 메소드 구현
+### Concurrency
 
-### 커스텀 청킹 전략 추가
-1. IChunkingStrategy 인터페이스 구현  
-2. StrategyName과 DefaultOptions 정의
-3. ChunkAsync 메소드에 분할 로직 구현
+- All public interfaces are thread-safe
+- Factories use immutable collections
+- No shared mutable state
 
-### 플러그인 아키텍처
-- IFileFluxPlugin 인터페이스로 플러그인 정의
-- 런타임 어셈블리 로딩 지원
-- 플러그인별 서비스 등록 관리
+### Scalability
 
----
+- Minimal memory allocation
+- Efficient string processing
+- Reusable component design
 
-## 🔍 오류 처리
+## Extension Points
 
-### 예외 계층구조
-- **FileFluxException**: 모든 예외의 기반 클래스
-- **UnsupportedFileFormatException**: 지원되지 않는 파일 형식
-- **DocumentProcessingException**: 문서 처리 중 오류
-- **ChunkingException**: 청킹 과정 중 오류
+### Adding Custom Reader
 
-### 오류 처리 패턴
-- 입력 검증을 통한 조기 오류 감지
-- 의미있는 오류 메시지와 컨텍스트 제공
-- 내부 예외 보존으로 원인 추적 가능
-- 파일명과 전략명 등 디버깅 정보 포함
+1. Implement IDocumentReader interface
+2. Register in DI container
+3. Implement SupportedExtensions and CanRead methods
 
----
+**Example**:
+```csharp
+public class CustomDocumentReader : IDocumentReader
+{
+    public string ReaderType => "CustomReader";
+    public IEnumerable<string> SupportedExtensions => [".custom"];
 
-## 📊 RAG 시스템 통합
+    public bool CanRead(string fileName) =>
+        Path.GetExtension(fileName).Equals(".custom", StringComparison.OrdinalIgnoreCase);
 
-### 처리 결과 (Phase 7 최적화)
+    public async Task<RawContent> ReadAsync(string filePath, CancellationToken cancellationToken)
+    {
+        // Implementation
+    }
+}
+
+// Registration
+services.AddTransient<IDocumentReader, CustomDocumentReader>();
+```
+
+### Adding Custom Chunking Strategy
+
+1. Implement IChunkingStrategy interface
+2. Define StrategyName and DefaultOptions
+3. Implement chunking logic in ChunkAsync method
+
+**Example**:
+```csharp
+public class CustomChunkingStrategy : IChunkingStrategy
+{
+    public string StrategyName => "Custom";
+
+    public async Task<IEnumerable<DocumentChunk>> ChunkAsync(
+        ParsedDocumentContent content,
+        ChunkingOptions options,
+        CancellationToken cancellationToken)
+    {
+        // Implementation
+    }
+}
+
+// Registration
+services.AddTransient<IChunkingStrategy, CustomChunkingStrategy>();
+```
+
+## Error Handling
+
+### Exception Hierarchy
+
+- **FileFluxException**: Base class for all exceptions
+- **UnsupportedFileFormatException**: Unsupported file format
+- **DocumentProcessingException**: Error during document processing
+- **ChunkingException**: Error during chunking process
+
+### Error Handling Patterns
+
+- Early error detection through input validation
+- Meaningful error messages with context
+- Preserve inner exceptions for cause tracking
+- Include debugging information (filename, strategy name)
+
+## RAG System Integration
+
+### Processing Result
+
 **DocumentChunk**:
-- `Id` (Guid): 청크 고유 식별자
-- `Content` (string): 청크 텍스트 내용
-- `Index` (int): 청크 순서 인덱스
-- `Location` (SourceLocation): StartChar/EndChar 위치 정보
-- `Quality` (double): 품질 점수 (0.0~1.0)
-- `Props` (Dictionary<string, object>): 확장 가능한 메타데이터
+- `Id` (Guid): Unique chunk identifier
+- `Content` (string): Chunk text content
+- `Index` (int): Chunk order index
+- `Location` (SourceLocation): StartChar/EndChar position info
+- `Quality` (double): Quality score (0.0~1.0)
+- `Props` (Dictionary<string, object>): Extensible metadata
+
+**RawContent**:
+- `Text`: Extracted raw text
+- `File` (SourceFileInfo): File information
+- `ReaderType`: Reader type used
+- `ExtractedAt`: Extraction timestamp
+- `Warnings`: Processing warnings
+- `Hints`: Processing hints
+
+**ParsedDocumentContent**:
+- `Content`: Parsed text content
+- `Sections`: Structured sections (optional)
+- `RawId`: Reference to RawContent.Id
+- `Props`: Additional metadata
 
 **SourceFileInfo**:
-- `Name`: 파일명
-- `Extension`: 파일 확장자
-- `Size`: 파일 크기
-- `Path`: 파일 경로
+- `Name`: Filename
+- `Extension`: File extension
+- `Size`: File size
+- `Path`: File path (optional)
 
-### 통합 패턴
-1. **스트리밍 처리**: ProcessAsync로 청크별 순차 처리
-2. **배치 처리**: 전체 청크 수집 후 일괄 처리
-3. **파이프라인 처리**: 청크 생성과 임베딩 생성 동시 진행
+### Integration Patterns
 
-### Phase 7 주요 변경사항
+1. **Streaming Processing**: Sequential processing per chunk with ProcessStreamAsync
+2. **Batch Processing**: Collect all chunks then batch process
+3. **Pipeline Processing**: Simultaneous chunk generation and embedding generation
 
-**도메인 모델**:
-- `RawContent`: `Warnings`, `Hints`, `File` (SourceFileInfo), `ReaderType` 필수화
-- `ParsedContent`: `Text` 단일화, `Duration` 이동
-- `DocumentChunk`: `Props` 패턴, `Index`, `Location` (SourceLocation), `Quality` (double), `Id` (Guid)
+### Extensibility Pattern
 
-**확장성 패턴**:
 ```csharp
-// Props 딕셔너리로 확장 가능한 메타데이터
+// Extensible metadata with Props dictionary
 chunk.Props["ContextualHeader"] = "Document: Technical";
 chunk.Props["DocumentDomain"] = "Technical";
+chunk.Props["HasImages"] = true;
 
-// Extension 메서드로 하위 호환성 유지
+// Maintain backward compatibility with extension methods
 public static string? ContextualHeader(this DocumentChunk chunk)
     => chunk.Props.TryGetValue("ContextualHeader", out var v) ? v?.ToString() : null;
 ```
 
-**파이프라인 추적성**:
+### Pipeline Traceability
+
 ```
 RawContent.Id (Guid)
     ↓
-ParsedContent.RawId → RawContent.Id
+ParsedDocumentContent.RawId → RawContent.Id
     ↓
 DocumentChunk.RawId → RawContent.Id
-DocumentChunk.ParsedId → ParsedContent.Id
+DocumentChunk.ParsedId → ParsedDocumentContent.Id
 ```
 
-FileFlux는 문서를 구조화된 청크로 변환하는 역할에 집중하며, 임베딩 생성과 벡터 저장은 사용자 선택에 맡깁니다.
+## Design Philosophy
 
-**테스트 완성도**: 217 tests 100% passed (Phase 7 완료)
+FileFlux focuses on transforming documents into structured chunks, leaving embedding generation and vector storage to user choice.
+
+**Interface Provider Pattern**: FileFlux defines interfaces (ITextCompletionService, IImageToTextService) while implementation is up to consuming applications.
+
+## Related Documentation
+
+- [Tutorial](TUTORIAL.md) - Detailed usage guide
+- [RAG Design](RAG-DESIGN.md) - RAG system integration patterns
+- [Building](../BUILDING.md) - Build and test guide
+- [GitHub Repository](https://github.com/iyulab/FileFlux)
+- [NuGet Package](https://www.nuget.org/packages/FileFlux)
