@@ -1,4 +1,4 @@
-using FileFlux;
+﻿using FileFlux;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Services;
 using System.Text.RegularExpressions;
@@ -489,16 +489,19 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     {
         var chunk = new DocumentChunk
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             Content = content.Trim(),
             Metadata = metadata,
-            StartPosition = startPosition,
-            EndPosition = startPosition + content.Length,
-            ChunkIndex = chunkIndex,
+            Location = new SourceLocation
+            {
+                StartChar = startPosition,
+                EndChar = startPosition + content.Length
+            },
+            Index = chunkIndex,
             Strategy = "Smart",
-            EstimatedTokens = EstimateTokenCount(content),
+            Tokens = EstimateTokenCount(content),
             CreatedAt = DateTime.UtcNow,
-            Properties = new Dictionary<string, object>()
+            Props = new Dictionary<string, object>()
         };
 
         // 기본 품질 메트릭 계산
@@ -506,13 +509,13 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         var coherence = CalculateSemanticCoherence(content);
         var sentenceIntegrity = CalculateSentenceIntegrity(content);
         
-        chunk.Properties["Completeness"] = completeness;
-        chunk.Properties["SemanticCoherence"] = coherence;
-        chunk.Properties["SentenceIntegrity"] = sentenceIntegrity;
-        chunk.Properties["HasOverlap"] = options.OverlapSize > 0;
+        chunk.Props["Completeness"] = completeness;
+        chunk.Props["SemanticCoherence"] = coherence;
+        chunk.Props["SentenceIntegrity"] = sentenceIntegrity;
+        chunk.Props["HasOverlap"] = options.OverlapSize > 0;
         
         // 품질 점수 계산
-        chunk.QualityScore = (completeness + coherence + sentenceIntegrity) / 3.0;
+        chunk.Quality = (completeness + coherence + sentenceIntegrity) / 3.0;
 
         // Context7 스타일 메타데이터 강화
         EnhanceWithContext7Metadata(chunk, metadata);
@@ -541,19 +544,19 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         */
 
         // Smart 전략 특화 메타데이터 추가
-        chunk.ContextualScores["SmartCompleteness"] = chunk.Properties.ContainsKey("Completeness") 
-            ? Convert.ToDouble(chunk.Properties["Completeness"]) 
+        chunk.Props["SmartCompleteness"] = chunk.Props.ContainsKey("Completeness")
+            ? Convert.ToDouble(chunk.Props["Completeness"])
             : 0.7; // Smart 전략은 최소 70% 보장
 
-        chunk.ContextualScores["SentenceBoundaryPreservation"] = chunk.Properties.ContainsKey("SentenceIntegrity")
-            ? Convert.ToDouble(chunk.Properties["SentenceIntegrity"])
+        chunk.Props["SentenceBoundaryPreservation"] = chunk.Props.ContainsKey("SentenceIntegrity")
+            ? Convert.ToDouble(chunk.Props["SentenceIntegrity"])
             : 1.0;
 
         // RAG 적합성 점수 계산 (Smart 전략 특화)
-        chunk.ContextualScores["RagSuitability"] = CalculateRagSuitabilityScore(chunk);
+        chunk.Props["RagSuitability"] = CalculateRagSuitabilityScore(chunk);
 
         // Context7 스타일 품질 등급 부여
-        //chunk.DocumentDomain = documentContext.DocumentDomain;
+        //chunk.Domain = documentContext.Domain;
         AssignQualityGrade(chunk);
     }
 
@@ -604,21 +607,21 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         var score = 0.0;
         
         // 완성도 기여 (40%)
-        if (chunk.Properties.ContainsKey("Completeness"))
+        if (chunk.Props.ContainsKey("Completeness"))
         {
-            score += Convert.ToDouble(chunk.Properties["Completeness"]) * 0.4;
+            score += Convert.ToDouble(chunk.Props["Completeness"]) * 0.4;
         }
 
         // 문장 무결성 기여 (30%)
-        if (chunk.Properties.ContainsKey("SentenceIntegrity"))
+        if (chunk.Props.ContainsKey("SentenceIntegrity"))
         {
-            score += Convert.ToDouble(chunk.Properties["SentenceIntegrity"]) * 0.3;
+            score += Convert.ToDouble(chunk.Props["SentenceIntegrity"]) * 0.3;
         }
 
         // 의미적 일관성 기여 (20%)
-        if (chunk.Properties.ContainsKey("SemanticCoherence"))
+        if (chunk.Props.ContainsKey("SemanticCoherence"))
         {
-            score += Convert.ToDouble(chunk.Properties["SemanticCoherence"]) * 0.2;
+            score += Convert.ToDouble(chunk.Props["SemanticCoherence"]) * 0.2;
         }
 
         // 길이 적절성 기여 (10%)
@@ -633,9 +636,11 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     /// </summary>
     private void AssignQualityGrade(DocumentChunk chunk)
     {
-        var ragSuitability = chunk.ContextualScores.GetValueOrDefault("RagSuitability", 0.0);
+        var ragSuitability = chunk.Props.ContainsKey("RagSuitability")
+            ? Convert.ToDouble(chunk.Props["RagSuitability"])
+            : 0.0;
         
-        chunk.Properties["QualityGrade"] = ragSuitability switch
+        chunk.Props["QualityGrade"] = ragSuitability switch
         {
             >= 0.9 => "A", // 최고 품질
             >= 0.8 => "B", // 우수 품질

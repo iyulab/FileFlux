@@ -184,8 +184,11 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
                     var chunk = new DocumentChunk
                     {
                         Content = chunkText,
-                        StartPosition = currentUnits[0].Position,
-                        EndPosition = currentUnits[^1].Position + currentUnits[^1].Content.Length,
+                        Location = new SourceLocation
+                        {
+                            StartChar = currentUnits[0].Position,
+                            EndChar = currentUnits[^1].Position + currentUnits[^1].Content.Length
+                        }
                     };
                     
                     chunk.Metadata.CustomProperties["Strategy"] = StrategyName;
@@ -212,8 +215,11 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
                 var chunk = new DocumentChunk
                 {
                     Content = chunkText,
-                    StartPosition = currentUnits[0].Position,
-                    EndPosition = currentUnits[^1].Position + currentUnits[^1].Content.Length,
+                    Location = new SourceLocation
+                    {
+                        StartChar = currentUnits[0].Position,
+                        EndChar = currentUnits[^1].Position + currentUnits[^1].Content.Length
+                    }
                 };
                 
                 chunk.Metadata.CustomProperties["Strategy"] = StrategyName;

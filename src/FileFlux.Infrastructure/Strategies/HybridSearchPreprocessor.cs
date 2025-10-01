@@ -1,4 +1,4 @@
-using FileFlux.Domain;
+﻿using FileFlux.Domain;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -397,7 +397,9 @@ public class HybridSearchPreprocessor
             TopicalRelevanceWeight = 0.2,
             ContextualWeight = 0.1,
             EstimatedSemanticDensity = EstimateSemanticDensity(chunk.Content),
-            CoherenceScore = chunk.ContextualScores.GetValueOrDefault("SemanticCoherence", 0.5)
+            CoherenceScore = chunk.Props.ContainsKey("SemanticCoherence")
+                ? Convert.ToDouble(chunk.Props["SemanticCoherence"])
+                : 0.5
         };
     }
 
@@ -441,8 +443,8 @@ public class HybridSearchPreprocessor
             FirstParagraphWeight = 1.5,
             LastParagraphWeight = 1.2,
             MiddleWeight = 1.0,
-            ChunkPosition = chunk.ChunkIndex,
-            RelativePosition = chunk.ChunkIndex / Math.Max(1.0, chunk.Metadata?.CustomProperties?.GetValueOrDefault("TotalChunks", 1) as int? ?? 1)
+            ChunkPosition = chunk.Index,
+            RelativePosition = chunk.Index / Math.Max(1.0, chunk.Metadata?.CustomProperties?.GetValueOrDefault("TotalChunks", 1) as int? ?? 1)
         };
     }
 
@@ -463,10 +465,10 @@ public class HybridSearchPreprocessor
     {
         return new QualityMultipliers
         {
-            QualityScore = chunk.QualityScore,
-            QualityBoost = Math.Max(0.5, Math.Min(2.0, chunk.QualityScore * 1.5)),
-            HasHighQuality = chunk.QualityScore > 0.8,
-            ConfidenceLevel = chunk.QualityScore > 0.6 ? "High" : chunk.QualityScore > 0.4 ? "Medium" : "Low"
+            QualityScore = chunk.Quality,
+            QualityBoost = Math.Max(0.5, Math.Min(2.0, chunk.Quality * 1.5)),
+            HasHighQuality = chunk.Quality > 0.8,
+            ConfidenceLevel = chunk.Quality > 0.6 ? "High" : chunk.Quality > 0.4 ? "Medium" : "Low"
         };
     }
 
@@ -573,7 +575,7 @@ public class HybridSearchPreprocessor
     {
         return new List<RerankingFeature>
         {
-            new() { FeatureName = "ChunkQuality", FeatureValue = chunk.QualityScore },
+            new() { FeatureName = "ChunkQuality", FeatureValue = chunk.Quality },
             new() { FeatureName = "TermDensity", FeatureValue = result.BM25Preprocessing.TermFrequencies.Count / (double)result.BM25Preprocessing.DocumentLength }
         };
     }
@@ -593,7 +595,7 @@ public class HybridSearchPreprocessor
     {
         return new List<ContextualSignal>
         {
-            new() { SignalType = "ChunkPosition", SignalValue = chunk.ChunkIndex.ToString() },
+            new() { SignalType = "ChunkPosition", SignalValue = chunk.Index.ToString() },
             new() { SignalType = "DocumentType", SignalValue = chunk.Metadata?.FileType ?? "Unknown" }
         };
     }
@@ -602,10 +604,10 @@ public class HybridSearchPreprocessor
     {
         return new UserInteractionPredictions
         {
-            ClickProbability = Math.Min(0.95, chunk.QualityScore + 0.1),
+            ClickProbability = Math.Min(0.95, chunk.Quality + 0.1),
             DwellTimePrediction = chunk.Content.Length / 20.0, // seconds
-            BounceRatePrediction = 1.0 - chunk.QualityScore,
-            SatisfactionScore = chunk.QualityScore
+            BounceRatePrediction = 1.0 - chunk.Quality,
+            SatisfactionScore = chunk.Quality
         };
     }
 
@@ -614,8 +616,8 @@ public class HybridSearchPreprocessor
         return new List<QualityIndicator>
         {
             new() { IndicatorName = "Readability", Value = 0.7 },
-            new() { IndicatorName = "Completeness", Value = chunk.QualityScore },
-            new() { IndicatorName = "Coherence", Value = chunk.ContextualScores.GetValueOrDefault("SemanticCoherence", 0.5) }
+            new() { IndicatorName = "Completeness", Value = chunk.Quality },
+            new() { IndicatorName = "Coherence", Value = chunk.Props.TryGetValue("ContextualScores", out var scores) && scores is Dictionary<string, double> dict ? dict.GetValueOrDefault("SemanticCoherence", 0.5) : 0.5 }
         };
     }
 
@@ -664,7 +666,7 @@ public class HybridSearchPreprocessor
         return new AuthoritySignals
         {
             SourceAuthority = 0.8, // Would be calculated based on source metadata
-            ContentAuthority = result.OriginalChunk.QualityScore,
+            ContentAuthority = result.OriginalChunk.Quality,
             CitationCount = ExtractCitationCount(result.BM25Preprocessing.OriginalContent),
             ExpertiseIndicators = ExtractExpertiseIndicators(result.BM25Preprocessing.OriginalContent)
         };
@@ -681,7 +683,7 @@ public class HybridSearchPreprocessor
             {
                 ["domain_expertise"] = 0.7,
                 ["task_alignment"] = 0.8,
-                ["information_depth"] = result.OriginalChunk.QualityScore
+                ["information_depth"] = result.OriginalChunk.Quality
             }
         };
     }

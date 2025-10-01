@@ -1,4 +1,4 @@
-using DocumentFormat.OpenXml.Packaging;
+﻿using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using DocumentFormat.OpenXml;
 using FileFlux;
@@ -130,18 +130,17 @@ public class WordDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    FileExtension = ".docx",
-                    FileSize = fileInfo.Length,
+                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                    Extension = ".docx",
+                    Size = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
-                    ModifiedAt = fileInfo.LastWriteTimeUtc,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = "WordReader"
+                    ModifiedAt = fileInfo.LastWriteTimeUtc
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = "WordReader"
             };
         }
         catch (Exception ex)
@@ -215,18 +214,17 @@ public class WordDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = fileName,
-                    FileExtension = ".docx",
-                    FileSize = stream.Length,
+                    Name = fileName,
+                    Extension = ".docx",
+                    Size = stream.Length,
                     CreatedAt = DateTime.Now,
-                    ModifiedAt = DateTime.Now,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = "WordReader"
+                    ModifiedAt = DateTime.UtcNow
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = "WordReader"
             };
         }
         catch (Exception ex)
@@ -609,18 +607,17 @@ public class WordDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new SourceFileInfo
+            File = new SourceFileInfo
             {
-                FileName = fileInfo.Name,
-                FileExtension = ".docx",
-                FileSize = fileInfo.Length,
+                Name = fileInfo.Name,
+                Extension = ".docx",
+                Size = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,
-                ModifiedAt = fileInfo.LastWriteTimeUtc,
-                ExtractedAt = DateTime.UtcNow,
-                ReaderType = "WordReader"
+                ModifiedAt = fileInfo.LastWriteTimeUtc
             },
-            StructuralHints = structuralHints,
-            ExtractionWarnings = warnings
+            Hints = structuralHints,
+            Warnings = warnings,
+            ReaderType = "WordReader"
         };
     }
 
@@ -629,18 +626,17 @@ public class WordDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new SourceFileInfo
+            File = new SourceFileInfo
             {
-                FileName = fileName,
-                FileExtension = ".docx",
-                FileSize = stream.Length,
+                Name = fileName,
+                Extension = ".docx",
+                Size = stream.Length,
                 CreatedAt = DateTime.Now,
-                ModifiedAt = DateTime.Now,
-                ExtractedAt = DateTime.UtcNow,
-                ReaderType = "WordReader"
+                ModifiedAt = DateTime.UtcNow
             },
-            StructuralHints = structuralHints,
-            ExtractionWarnings = warnings
+            Hints = structuralHints,
+            Warnings = warnings,
+            ReaderType = "WordReader"
         };
     }
 }

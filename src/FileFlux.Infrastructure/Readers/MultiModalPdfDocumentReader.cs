@@ -1,4 +1,4 @@
-using FileFlux;
+﻿using FileFlux;
 using FileFlux.Domain;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
@@ -73,7 +73,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     {
         var enhancedText = new StringBuilder(baseContent.Text);
         var imageProcessingResults = new List<string>();
-        var structuralHints = baseContent.StructuralHints?.ToDictionary(kv => kv.Key, kv => kv.Value) 
+        var structuralHints = baseContent.Hints?.ToDictionary(kv => kv.Key, kv => kv.Value) 
                              ?? new Dictionary<string, object>();
 
         // 문서 컨텍스트 준비 (관련성 평가용)
@@ -192,24 +192,26 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         catch (Exception ex)
         {
             // 이미지 처리 실패 시 기본 결과 사용하되 경고 추가
-            var warnings = baseContent.ExtractionWarnings?.ToList() ?? new List<string>();
+            var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
             warnings.Add($"Image processing failed: {ex.Message}");
             
             return new RawContent
             {
                 Text = baseContent.Text,
-                FileInfo = baseContent.File,
-                StructuralHints = baseContent.StructuralHints ?? new Dictionary<string, object>(),
-                ExtractionWarnings = warnings
+                File = baseContent.File,
+                Hints = baseContent.Hints ?? new Dictionary<string, object>(),
+                Warnings = warnings,
+                ReaderType = ReaderType
             };
         }
 
         return new RawContent
         {
             Text = enhancedText.ToString(),
-            FileInfo = baseContent.File,
-            StructuralHints = structuralHints,
-            ExtractionWarnings = baseContent.ExtractionWarnings
+            File = baseContent.File,
+            Hints = structuralHints,
+            Warnings = baseContent.Warnings,
+            ReaderType = ReaderType
         };
     }
 
@@ -322,9 +324,9 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         context.Title = System.IO.Path.GetFileNameWithoutExtension(filePath);
 
         // 구조적 힌트에서 메타데이터 추출
-        if (baseContent.StructuralHints != null)
+        if (baseContent.Hints != null)
         {
-            foreach (var hint in baseContent.StructuralHints)
+            foreach (var hint in baseContent.Hints)
             {
                 context.Metadata[hint.Key.ToString()] = hint.Value?.ToString() ?? "";
             }

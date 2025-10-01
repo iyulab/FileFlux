@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using FileFlux.Domain;
 
 namespace FileFlux.Infrastructure.Services;
@@ -449,18 +449,18 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         foreach (var boundary in boundaries)
         {
             var chunkSize = boundary.EndPosition - boundary.StartPosition;
-            
+
             // Skip chunks that are too small
             if (chunkSize < options.MaxChunkSize * 0.3)
             {
                 continue;
             }
-            
+
             // Split chunks that are too large
             if (chunkSize > options.MaxChunkSize * 1.5)
             {
                 var midPoint = boundary.StartPosition + chunkSize / 2;
-                
+
                 optimized.Add(new ChunkBoundary
                 {
                     StartPosition = boundary.StartPosition,
@@ -469,7 +469,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
                     Reason = boundary.Reason + " (split for size)",
                     ContentPreview = boundary.ContentPreview
                 });
-                
+
                 optimized.Add(new ChunkBoundary
                 {
                     StartPosition = midPoint,

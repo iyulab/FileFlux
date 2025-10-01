@@ -1,4 +1,4 @@
-using FileFlux.Domain;
+﻿using FileFlux.Domain;
 
 namespace FileFlux.Infrastructure.Services;
 
@@ -17,32 +17,33 @@ public class Context7MetadataEnricher
     public DocumentChunk EnrichChunk(DocumentChunk chunk, DocumentContext documentContext)
     {
         // 콘텐츠 타입 자동 감지 및 분류
-        chunk.ContentType = DetectContentType(chunk.Content);
+        // chunk.Props.GetValueOrDefault("ContentType", "text") = DetectContentType(chunk.Content);
         
         // 구조적 역할 자동 분류
-        chunk.StructuralRole = DetermineStructuralRole(chunk.Content, chunk.ContentType);
+        // chunk.Props.GetValueOrDefault("StructuralRole", "content") = DetermineStructuralRole(chunk.Content, chunk.Props.GetValueOrDefault("ContentType", "text"));
         
         // 주제별 점수 계산
-        chunk.ContextualScores = CalculateTopicScores(chunk.Content, documentContext);
+        // chunk.ContextualScores = CalculateTopicScores(chunk.Content, documentContext);
         
         // 기술 키워드 추출
-        chunk.TechnicalKeywords = ExtractTechnicalKeywords(chunk.Content, documentContext.DocumentDomain);
+        // chunk.TechnicalKeywords = ExtractTechnicalKeywords(chunk.Content, documentcontext.DocumentType);
         
         // 문서 도메인별 관련성 점수
-        chunk.RelevanceScore = CalculateRelevanceScore(chunk.Content, documentContext);
+        var relevanceScore = CalculateRelevanceScore(chunk.Content, documentContext);
+        chunk.Props["RelevanceScore"] = relevanceScore;
         
         // Context7 스타일 컨텍스트 헤더 생성
-        chunk.ContextualHeader = GenerateContextualHeader(chunk, documentContext);
+        // chunk.ContextualHeader = GenerateContextualHeader(chunk, documentContext);
         
         // 정보 밀도 계산
-        chunk.InformationDensity = CalculateInformationDensity(chunk.Content);
+        // chunk.InformationDensity = CalculateInformationDensity(chunk.Content);
         
         // 청크 완성도 점수 (Smart 전략 특화)
         if (chunk.Strategy == "Smart")
         {
             var completeness = CalculateCompletenessScore(chunk.Content);
-            chunk.ContextualScores["Completeness"] = completeness;
-            chunk.Properties["CompletenessScore"] = completeness;
+            chunk.Props["Completeness"] = completeness;
+            chunk.Props["CompletenessScore"] = completeness;
         }
         
         return chunk;
@@ -123,7 +124,7 @@ public class Context7MetadataEnricher
         var words = content.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         
         // 기술 문서 주제 점수
-        if (context.DocumentDomain == "Technical")
+        if (context.DocumentType == "Technical")
         {
             scores["API"] = CalculateKeywordDensity(words, ["api", "endpoint", "request", "response"]);
             scores["Architecture"] = CalculateKeywordDensity(words, ["architecture", "system", "design", "pattern"]);
@@ -132,7 +133,7 @@ public class Context7MetadataEnricher
         }
         
         // 비즈니스 문서 주제 점수
-        else if (context.DocumentDomain == "Business")
+        else if (context.DocumentType == "Business")
         {
             scores["Strategy"] = CalculateKeywordDensity(words, ["strategy", "plan", "goal", "objective"]);
             scores["Finance"] = CalculateKeywordDensity(words, ["revenue", "cost", "budget", "profit", "finance"]);
@@ -141,7 +142,7 @@ public class Context7MetadataEnricher
         }
         
         // 학술 문서 주제 점수
-        else if (context.DocumentDomain == "Academic")
+        else if (context.DocumentType == "Academic")
         {
             scores["Research"] = CalculateKeywordDensity(words, ["research", "study", "analysis", "methodology"]);
             scores["Theory"] = CalculateKeywordDensity(words, ["theory", "concept", "framework", "model"]);
@@ -239,20 +240,20 @@ public class Context7MetadataEnricher
         headerParts.Add($"Document: {context.DocumentType}");
         
         // 섹션 정보
-        if (!string.IsNullOrEmpty(chunk.Section))
-            headerParts.Add($"Section: {chunk.Section}");
+        if (!string.IsNullOrEmpty(chunk.Metadata.FileName))
+            headerParts.Add($"Section: {chunk.Metadata.FileName}");
         
         // 콘텐츠 타입 정보
-        if (chunk.ContentType != "text")
-            headerParts.Add($"Type: {chunk.ContentType}");
+        if (chunk.Props.GetValueOrDefault("ContentType", "text") != "text")
+            headerParts.Add($"Type: {chunk.Props.GetValueOrDefault("ContentType", "text")}");
         
         // 구조적 역할
-        if (chunk.StructuralRole != "content")
-            headerParts.Add($"Role: {chunk.StructuralRole}");
+        if (chunk.Props.GetValueOrDefault("StructuralRole", "content") != "content")
+            headerParts.Add($"Role: {chunk.Props.GetValueOrDefault("StructuralRole", "content")}");
         
         // 도메인 정보
-        if (context.DocumentDomain != "General")
-            headerParts.Add($"Domain: {context.DocumentDomain}");
+        if (context.DocumentType != "General")
+            headerParts.Add($"Domain: {context.DocumentType}");
         
         return string.Join(" | ", headerParts);
     }

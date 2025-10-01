@@ -5,7 +5,7 @@
 ## 📊 Performance and Quality (Production Verified)
 
 ### ✅ Test Coverage
-- **224+ tests 100% passed** (both Release/Debug)
+- **217 tests 100% passed** (both Release/Debug)
 - **8+ file formats** perfectly supported (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML)
 - **7 chunking strategies** verification complete
 - **Context7-style metadata** enrichment system
@@ -75,8 +75,8 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"📄 Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars");
-            Console.WriteLine($"   Quality Score: {chunk.Properties.GetValueOrDefault("QualityScore", "N/A")}");
+            Console.WriteLine($"📄 Chunk {chunk.Index}: {chunk.Content.Length} chars");
+            Console.WriteLine($"   Quality Score: {chunk.Quality}");
         }
     }
 }
@@ -147,8 +147,8 @@ await foreach (var result in processor.ProcessWithProgressAsync("document-with-i
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"📄 Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars");
-            if (chunk.Properties.ContainsKey("HasImages"))
+            Console.WriteLine($"📄 Chunk {chunk.Index}: {chunk.Content.Length} chars");
+            if (chunk.Props.ContainsKey("HasImages"))
             {
                 Console.WriteLine($"🖼️ Image text extraction included");
             }
@@ -175,7 +175,7 @@ await foreach (var result in processor.ProcessWithProgressAsync("technical-doc.m
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"Chunk {chunk.ChunkIndex}: {chunk.Content[..50]}...");
+            Console.WriteLine($"Chunk {chunk.Index}: {chunk.Content[..50]}...");
         }
     }
 }
@@ -190,7 +190,7 @@ var chunks = await processor.ChunkAsync(parsedContent, new ChunkingOptions
 
 foreach (var chunk in chunks)
 {
-    Console.WriteLine($"Chunk {chunk.ChunkIndex}: {chunk.Content[..50]}...");
+    Console.WriteLine($"Chunk {chunk.Index}: {chunk.Content[..50]}...");
 }
 ```
 
@@ -382,7 +382,7 @@ public class RagService
                     await _vectorStore.StoreAsync(new {
                         Id = chunk.Id,
                         Content = chunk.Content,
-                        Metadata = chunk.Metadata,
+                        Props = chunk.Props,
                         Vector = embedding
                     });
                 }
@@ -415,7 +415,7 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf", 
             await vectorStore.StoreAsync(new {
                 Id = chunk.Id,
                 Content = chunk.Content,
-                Metadata = chunk.Metadata,
+                Props = chunk.Props,
                 Vector = embedding
             });
         }
@@ -489,7 +489,7 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
         Console.WriteLine($"Processing complete: {result.Result.Length} chunks");
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"  Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars");
+            Console.WriteLine($"  Chunk {chunk.Index}: {chunk.Content.Length} chars");
         }
     }
 }
@@ -541,7 +541,7 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"Chunk {chunk.ChunkIndex} processing complete");
+            Console.WriteLine($"Chunk {chunk.Index} processing complete");
         }
     }
 }
@@ -570,13 +570,16 @@ public class CustomChunkingStrategy : IChunkingStrategy
         {
             chunks.Add(new DocumentChunk
             {
-                Id = Guid.NewGuid().ToString(),
+                Id = Guid.NewGuid(),
                 Content = sentence.Trim(),
-                ChunkIndex = chunkIndex++,
-                Metadata = content.Metadata,
-                StartPosition = 0, // In actual implementation, calculate exact position
-                EndPosition = sentence.Length,
-                Properties = new Dictionary<string, object>
+                Index = chunkIndex++,
+                Location = new SourceLocation
+                {
+                    StartChar = 0,  // In actual implementation, calculate exact position
+                    EndChar = sentence.Length
+                },
+                Quality = CalculateCustomScore(sentence),
+                Props = new Dictionary<string, object>
                 {
                     ["CustomScore"] = CalculateCustomScore(sentence)
                 }
@@ -607,22 +610,24 @@ public class CustomDocumentReader : IDocumentReader
     public bool CanRead(string fileName) => 
         Path.GetExtension(fileName).Equals(".custom", StringComparison.OrdinalIgnoreCase);
     
-    public async Task<RawDocumentContent> ReadAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ReadAsync(string filePath, CancellationToken cancellationToken = default)
     {
         var content = await File.ReadAllTextAsync(filePath, cancellationToken);
-        
-        return new RawDocumentContent
+
+        return new RawContent
         {
-            Content = content,
-            Metadata = new DocumentMetadata
+            Text = content,
+            File = new SourceFileInfo
             {
-                FileName = Path.GetFileName(filePath),
-                FileType = "Custom",
-                ProcessedAt = DateTime.UtcNow,
-                Properties = new Dictionary<string, object>
-                {
-                    ["CustomProperty"] = "CustomValue"
-                }
+                Name = Path.GetFileName(filePath),
+                Extension = Path.GetExtension(filePath),
+                Size = new FileInfo(filePath).Length
+            },
+            ReaderType = "CustomReader",
+            ExtractedAt = DateTime.UtcNow,
+            Hints = new Dictionary<string, object>
+            {
+                ["CustomProperty"] = "CustomValue"
             }
         };
     }

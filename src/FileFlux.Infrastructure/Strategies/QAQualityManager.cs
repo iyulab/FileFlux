@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -63,11 +63,11 @@ namespace FileFlux.Infrastructure.Strategies
             // 3. Score overall quality
             foreach (var pair in qaPairs)
             {
-                pair.QualityScore = _qualityScorer.ScoreQAPair(pair);
+                pair.Quality = _qualityScorer.ScoreQAPair(pair);
             }
 
             // 4. Filter by quality threshold
-            var filteredPairs = qaPairs.Where(p => p.QualityScore >= options.MinQualityThreshold).ToList();
+            var filteredPairs = qaPairs.Where(p => p.Quality >= options.MinQualityThreshold).ToList();
 
             // 5. Remove duplicates
             filteredPairs = _duplicateRemover.RemoveDuplicates(filteredPairs, options);
@@ -138,9 +138,9 @@ namespace FileFlux.Infrastructure.Strategies
                 }
 
                 // Recalculate quality score
-                improvedPair.QualityScore = _qualityScorer.ScoreQAPair(improvedPair);
+                improvedPair.Quality = _qualityScorer.ScoreQAPair(improvedPair);
 
-                if (improvedPair.QualityScore > pair.QualityScore)
+                if (improvedPair.Quality > pair.Quality)
                 {
                     result.ImprovementCount++;
                 }
@@ -225,13 +225,13 @@ namespace FileFlux.Infrastructure.Strategies
             
             foreach (var group in byDifficulty)
             {
-                var selected = group.OrderByDescending(p => p.QualityScore)
+                var selected = group.OrderByDescending(p => p.Quality)
                                    .Take(targetPerLevel)
                                    .ToList();
                 balanced.AddRange(selected);
             }
 
-            return balanced.OrderByDescending(p => p.QualityScore)
+            return balanced.OrderByDescending(p => p.Quality)
                           .Take(options.MaxQAPairs)
                           .ToList();
         }
@@ -449,10 +449,10 @@ namespace FileFlux.Infrastructure.Strategies
 
             return new QAQualityMetrics
             {
-                AverageQuality = pairs.Average(p => p.QualityScore),
-                MinQuality = pairs.Min(p => p.QualityScore),
-                MaxQuality = pairs.Max(p => p.QualityScore),
-                StandardDeviation = CalculateStandardDeviation(pairs.Select(p => p.QualityScore).ToList()),
+                AverageQuality = pairs.Average(p => p.Quality),
+                MinQuality = pairs.Min(p => p.Quality),
+                MaxQuality = pairs.Max(p => p.Quality),
+                StandardDeviation = CalculateStandardDeviation(pairs.Select(p => p.Quality).ToList()),
                 CompletePairs = pairs.Count(p => p.Answer != null),
                 VerifiedPairs = pairs.Count(p => p.Answer?.IsVerified == true)
             };
@@ -480,7 +480,7 @@ namespace FileFlux.Infrastructure.Strategies
             var improvements = new List<double>();
             for (int i = 0; i < Math.Min(original.Count, improved.Count); i++)
             {
-                var improvement = improved[i].QualityScore - original[i].QualityScore;
+                var improvement = improved[i].Quality - original[i].Quality;
                 improvements.Add(improvement);
             }
 
@@ -598,7 +598,7 @@ namespace FileFlux.Infrastructure.Strategies
             var seenQuestions = new HashSet<string>();
             var seenAnswers = new HashSet<string>();
 
-            foreach (var pair in pairs.OrderByDescending(p => p.QualityScore))
+            foreach (var pair in pairs.OrderByDescending(p => p.Quality))
             {
                 var questionNormalized = NormalizeText(pair.Question.QuestionText);
                 var answerNormalized = pair.Answer != null ? NormalizeText(pair.Answer.Text) : "";

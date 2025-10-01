@@ -1,4 +1,4 @@
-using FileFlux.Domain;
+﻿using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
@@ -18,7 +18,7 @@ public class SearchQualityEvaluator
     {
         var result = new SearchQualityResult
         {
-            ChunkId = chunk.Id,
+            ChunkId = chunk.Id.ToString(),
             EvaluationTimestamp = DateTime.UtcNow
         };
 
@@ -403,8 +403,8 @@ public class SearchQualityEvaluator
     private double CalculateContextualDistinctiveness(DocumentChunk chunk)
     {
         // Consider position, relationships, and contextual factors
-        var positionScore = chunk.ChunkIndex == 0 ? 0.8 : Math.Max(0.2, 1.0 - (chunk.ChunkIndex / 100.0));
-        var qualityScore = chunk.QualityScore;
+        var positionScore = chunk.Index == 0 ? 0.8 : Math.Max(0.2, 1.0 - (chunk.Index / 100.0));
+        var qualityScore = chunk.Quality;
         
         return (positionScore + qualityScore) / 2.0;
     }
@@ -484,7 +484,7 @@ public class SearchQualityEvaluator
         // Check if chunk provides sufficient context
         var hasIntroduction = chunk.Content.Substring(0, Math.Min(200, chunk.Content.Length))
             .ToLowerInvariant().Contains("introduction") || 
-            chunk.ChunkIndex == 0;
+            chunk.Index == 0;
 
         var hasConclusion = chunk.Content.Substring(Math.Max(0, chunk.Content.Length - 200))
             .ToLowerInvariant().Contains("conclusion") ||
@@ -634,7 +634,7 @@ public class SearchQualityEvaluator
     {
         // Higher uncertainty for shorter chunks or lower quality
         var lengthFactor = Math.Max(0.1, Math.Min(0.5, 1.0 - (chunk.Content.Length / 2000.0)));
-        var qualityFactor = Math.Max(0.1, 1.0 - chunk.QualityScore);
+        var qualityFactor = Math.Max(0.1, 1.0 - chunk.Quality);
         
         return (lengthFactor + qualityFactor) / 2.0;
     }

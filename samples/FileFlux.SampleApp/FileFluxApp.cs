@@ -69,12 +69,7 @@ public class FileFluxApp
 
             // 기본 문서 처리 - 새로운 스트리밍 API 사용
             Console.WriteLine("📋 기본 문서 처리");
-            var chunkList = new List<DocumentChunk>();
-            await foreach (var chunk in _documentProcessor.ProcessAsync(filePath, chunkingOptions))
-            {
-                chunkList.Add(chunk);
-            }
-            var chunks = chunkList.ToArray();
+            var chunks = await _documentProcessor.ProcessAsync(filePath, chunkingOptions);
             Console.WriteLine($"✅ 청크 생성 완료: {chunks.Length}개 청크");
 
             // 벡터 스토어에 저장
@@ -289,12 +284,7 @@ public class FileFluxApp
                         OverlapSize = 50
                     };
 
-                    var chunkList = new List<DocumentChunk>();
-                    await foreach (var chunk in _documentProcessor.ProcessAsync(filePath, chunkingOptions))
-                    {
-                        chunkList.Add(chunk);
-                    }
-                    var chunks = chunkList.ToArray();
+                    var chunks = await _documentProcessor.ProcessAsync(filePath, chunkingOptions);
                     stopwatch.Stop();
 
                     Console.WriteLine($"   ✅ 성공: {chunks.Length}개 청크 생성 ({stopwatch.Elapsed:mm\\:ss\\.fff})");
@@ -395,25 +385,13 @@ public class FileFluxApp
 
             var stopwatch = Stopwatch.StartNew();
             
-            // 새로운 스트리밍 API 사용
-            await foreach (var chunk in _documentProcessor.ProcessAsync(filePath, chunkingOptions))
-            {
-                chunkList.Add(chunk);
-                chunkCount++;
-                
-                // 진행 상황 표시 (간단한 카운터)
-                if (chunkCount % 10 == 0)
-                {
-                    Console.Write($"\r📦 처리된 청크: {chunkCount}개");
-                }
-            }
-            
+            // 문서 처리
+            var chunks = await _documentProcessor.ProcessAsync(filePath, chunkingOptions);
+            chunkCount = chunks.Length;
+
             stopwatch.Stop();
             Console.WriteLine($"\r✅ 처리 완료! 총 {chunkCount}개 청크 생성");
             Console.WriteLine($"⏱️ 처리 시간: {stopwatch.Elapsed:mm\\:ss\\.fff}");
-            
-            // 결과를 배열로 변환
-            var chunks = chunkList.ToArray();
 
             // 벡터 스토어에 저장
             var document = await _vectorStore.StoreDocumentAsync(filePath, chunks, strategy);
@@ -482,21 +460,21 @@ public class FileFluxApp
             Console.WriteLine($"⏱️ 처리 시간: {stopwatch.Elapsed:mm\\:ss\\.fff}");
 
             // 결과 분석
-            var hasImages = rawContent.StructuralHints?.ContainsKey("HasImages") == true 
-                         && (bool)(rawContent.StructuralHints["HasImages"]);
+            var hasImages = rawContent.Hints?.ContainsKey("HasImages") == true
+                         && (bool)(rawContent.Hints["HasImages"]);
 
             Console.WriteLine("\n📊 Vision 처리 결과:");
             Console.WriteLine($"   📁 파일: {Path.GetFileName(filePath)}");
             Console.WriteLine($"   📏 파일 크기: {new FileInfo(filePath).Length:N0} bytes");
             Console.WriteLine($"   🖼️  이미지 처리: {(hasImages ? "✅ 있음" : "❌ 없음")}");
 
-            if (hasImages && rawContent.StructuralHints != null)
+            if (hasImages && rawContent.Hints != null)
             {
-                var imageCount = rawContent.StructuralHints.GetValueOrDefault("ImageCount", 0);
+                var imageCount = rawContent.Hints.GetValueOrDefault("ImageCount", 0);
                 Console.WriteLine($"   🔢 처리된 이미지: {imageCount}개");
 
-                if (rawContent.StructuralHints.ContainsKey("ImageProcessingResults") &&
-                    rawContent.StructuralHints["ImageProcessingResults"] is System.Collections.Generic.List<string> results)
+                if (rawContent.Hints.ContainsKey("ImageProcessingResults") &&
+                    rawContent.Hints["ImageProcessingResults"] is System.Collections.Generic.List<string> results)
                 {
                     Console.WriteLine("   📋 이미지 처리 상세:");
                     foreach (var result in results)
@@ -537,10 +515,10 @@ public class FileFluxApp
             }
 
             // 경고사항 출력
-            if (rawContent.ExtractionWarnings?.Any() == true)
+            if (rawContent.Warnings?.Any() == true)
             {
                 Console.WriteLine("\n⚠️  경고사항:");
-                foreach (var warning in rawContent.ExtractionWarnings)
+                foreach (var warning in rawContent.Warnings)
                 {
                     Console.WriteLine($"   - {warning}");
                 }

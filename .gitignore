@@ -363,6 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 .claude/
+claudedocs/
 CLAUDE.local.md
 /src/FileFlux.SampleApp/fileflux.db
 .env.local

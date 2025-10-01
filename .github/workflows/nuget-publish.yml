@@ -42,9 +42,9 @@ jobs:
           echo "Detected version: ${{ steps.extract-version.outputs.version }}"
           echo "This workflow will proceed to build and publish the NuGet package."
 
-  # 빌드만 수행 (테스트 제외)
-  build:
-    name: 🔨 Build Solution
+  # NuGet 패키지 빌드 (빌드 포함)
+  build-package:
+    name: 📦 Build & Pack NuGet Package
     runs-on: ubuntu-latest
     needs: detect-version
     steps:
@@ -55,34 +55,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: 📦 Restore Dependencies
-        run: dotnet restore src/
-
-      - name: 🔨 Build Solution (Excluding Tests)
-        run: |
-          dotnet build src/FileFlux.Domain/FileFlux.Domain.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
-          dotnet build src/FileFlux.Core/FileFlux.Core.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
-          dotnet build src/FileFlux.Infrastructure/FileFlux.Infrastructure.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
-          dotnet build src/FileFlux.Contracts/FileFlux.Contracts.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore || true
-          dotnet build src/FileFlux.SampleApp/FileFlux.SampleApp.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore || true
-
-  # NuGet 패키지 빌드
-  build-package:
-    name: 📦 Build NuGet Package
-    runs-on: ubuntu-latest
-    needs: [detect-version, build]
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: ⚙️ Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: 📦 Restore Dependencies
-        run: dotnet restore src/
 
       - name: 📦 Create NuGet Package
         run: |

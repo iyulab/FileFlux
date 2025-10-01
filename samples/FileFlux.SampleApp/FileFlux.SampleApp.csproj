@@ -11,9 +11,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" />
-    <ProjectReference Include="..\FileFlux.Domain\FileFlux.Domain.csproj" />
-    <ProjectReference Include="..\FileFlux.Infrastructure\FileFlux.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\FileFlux.Core\FileFlux.Core.csproj" />
+    <ProjectReference Include="..\..\src\FileFlux.Domain\FileFlux.Domain.csproj" />
+    <ProjectReference Include="..\..\src\FileFlux.Infrastructure\FileFlux.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

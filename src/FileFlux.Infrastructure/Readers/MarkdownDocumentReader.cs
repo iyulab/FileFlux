@@ -1,4 +1,4 @@
-using FileFlux;
+﻿using FileFlux;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Utils;
 using Markdig;
@@ -51,7 +51,8 @@ public class MarkdownDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = structuredContent,
-            FileInfo = metadata
+            File = metadata,
+            ReaderType = ReaderType
         };
     }
 
@@ -82,7 +83,8 @@ public class MarkdownDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = structuredContent,
-            FileInfo = metadata
+            File = metadata,
+            ReaderType = ReaderType
         };
     }
 
@@ -91,13 +93,11 @@ public class MarkdownDocumentReader : IDocumentReader
         var fileInfo = new FileInfo(filePath);
         return new SourceFileInfo
         {
-            FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-            FileExtension = fileInfo.Extension,
-            FileSize = fileInfo.Length,
+            Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+            Extension = fileInfo.Extension,
+            Size = fileInfo.Length,
             CreatedAt = fileInfo.CreationTime,
-            ModifiedAt = fileInfo.LastWriteTime,
-            ExtractedAt = DateTime.UtcNow,
-            ReaderType = "MarkdownReader"
+            ModifiedAt = fileInfo.LastWriteTime
         };
     }
 
@@ -105,13 +105,11 @@ public class MarkdownDocumentReader : IDocumentReader
     {
         return new SourceFileInfo
         {
-            FileName = fileName,
-            FileExtension = Path.GetExtension(fileName),
-            FileSize = content.Length,
+            Name = fileName,
+            Extension = Path.GetExtension(fileName),
+            Size = content.Length,
             CreatedAt = DateTime.UtcNow,
-            ModifiedAt = DateTime.UtcNow,
-            ExtractedAt = DateTime.UtcNow,
-            ReaderType = "MarkdownReader"
+            ModifiedAt = DateTime.UtcNow
         };
     }
 

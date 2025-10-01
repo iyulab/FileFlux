@@ -5,12 +5,13 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileFlux.Core\FileFlux.Core.csproj" />
     <ProjectReference Include="..\..\src\FileFlux.Infrastructure\FileFlux.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\FileFlux.Tests\FileFlux.Tests.csproj" />
+    <ProjectReference Include="..\..\test\FileFlux.Tests\FileFlux.Tests.csproj" />
   </ItemGroup>
 
   <ItemGroup>

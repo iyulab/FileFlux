@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -90,9 +90,9 @@ public class AutoChunkingStrategy : IChunkingStrategy
         return chunks.Select(chunk =>
         {
             chunk.Strategy = $"Auto({_selectedStrategyName})";
-            chunk.Properties["AutoSelectedStrategy"] = _selectedStrategyName;
-            chunk.Properties["SelectionReasoning"] = _selectionReasoning;
-            chunk.Properties["SelectionConfidence"] = GetSelectionConfidence();
+            chunk.Props["AutoSelectedStrategy"] = _selectedStrategyName;
+            chunk.Props["SelectionReasoning"] = _selectionReasoning;
+            chunk.Props["SelectionConfidence"] = GetSelectionConfidence();
             return chunk;
         });
     }

@@ -40,7 +40,7 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         if (rawContent?.File == null)
             return null;
 
-        return GetReader(rawContent.File.FileName);
+        return GetReader(rawContent.File.Name);
     }
 
     public void RegisterReader(IDocumentReader reader)

@@ -1,4 +1,4 @@
-using FileFlux;
+﻿using FileFlux;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Parsers;
 using System.Collections.Concurrent;
@@ -31,7 +31,7 @@ public class DocumentParserFactory : IDocumentParserFactory
             return _defaultParser;
 
         // 파일 확장자 기반 Parser 선택
-        var extension = rawContent.File.FileExtension.ToLowerInvariant();
+        var extension = rawContent.File.Extension.ToLowerInvariant();
         var documentType = InferDocumentType(rawContent, extension);
 
         return GetParser(documentType);
@@ -74,7 +74,7 @@ public class DocumentParserFactory : IDocumentParserFactory
     private static string InferDocumentType(RawContent rawContent, string extension)
     {
         var text = rawContent.Text.ToLowerInvariant();
-        var hints = rawContent.StructuralHints;
+        var hints = rawContent.Hints;
 
         // 확장자 기반 추론
         var typeFromExtension = extension switch

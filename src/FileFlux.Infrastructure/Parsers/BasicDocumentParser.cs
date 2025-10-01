@@ -1,4 +1,4 @@
-using FileFlux;
+﻿using FileFlux;
 using FileFlux.Domain;
 using System.Text.RegularExpressions;
 using DocumentStructure = FileFlux.Domain.DocumentStructure;
@@ -41,7 +41,7 @@ public partial class BasicDocumentParser : IDocumentParser
             throw new ArgumentException("Cannot parse the provided raw content", nameof(rawContent));
 
         var startTime = DateTime.UtcNow;
-        var warnings = new List<string>(rawContent.ExtractionWarnings);
+        var warnings = new List<string>(rawContent.Warnings);
 
         try
         {
@@ -59,14 +59,13 @@ public partial class BasicDocumentParser : IDocumentParser
             }
 
             // 파싱 메타데이터 설정
-            result.ParsingInfo = new ParsingMetadata
+            result.Info = new ParsingInfo
             {
                 ParserType = ParserType,
                 UsedLlm = options.UseLlmParsing && _textCompletionService != null,
-                StartedAt = startTime,
-                CompletedAt = DateTime.UtcNow,
                 Warnings = warnings
             };
+            result.Duration = DateTime.UtcNow - startTime;
 
             return result;
         }
@@ -82,10 +81,10 @@ public partial class BasicDocumentParser : IDocumentParser
     private ParsedContent ParseWithRules(RawContent rawContent, DocumentParsingOptions options)
     {
         var text = rawContent.Text;
-        var hints = rawContent.StructuralHints;
+        var hints = rawContent.Hints;
 
         // 문서 유형 추론
-        var documentType = InferDocumentType(rawContent);
+        var documentType = InferType(rawContent);
 
         // 섹션 분할
         var sections = ExtractSections(text, hints);
@@ -101,12 +100,11 @@ public partial class BasicDocumentParser : IDocumentParser
 
         return new ParsedContent
         {
-            StructuredText = FormatStructuredText(sections),
-            OriginalText = text,
+            Text = FormatStructuredText(sections),
             Metadata = metadata,
             Structure = new DocumentStructure
             {
-                DocumentType = documentType,
+                Type = documentType,
                 Topic = keywords.FirstOrDefault() ?? "Unknown",
                 Summary = summary,
                 Keywords = keywords,
@@ -137,18 +135,17 @@ public partial class BasicDocumentParser : IDocumentParser
 
         return new ParsedContent
         {
-            StructuredText = FormatStructuredText(enhancedStructure.Sections),
-            OriginalText = rawContent.Text,
+            Text = FormatStructuredText(enhancedStructure.Sections),
             Metadata = basicResult.Metadata,
             Structure = enhancedStructure,
             Quality = enhancedQuality
         };
     }
 
-    private static string InferDocumentType(RawContent rawContent)
+    private static string InferType(RawContent rawContent)
     {
         var text = rawContent.Text.ToLowerInvariant();
-        var extension = rawContent.File.FileExtension.ToLowerInvariant();
+        var extension = rawContent.File.Extension.ToLowerInvariant();
 
         // 확장자 기반 추론
         if (extension == ".md") return "Technical";
@@ -209,9 +206,9 @@ public partial class BasicDocumentParser : IDocumentParser
                     {
                         Id = $"section_{++sectionId}",
                         Title = headerMatch.Groups[3].Value.Trim(),
-                        SectionType = "Header",
+                        Type = "Header",
                         Level = headerMatch.Groups[2].Value.Length,
-                        StartPosition = text.IndexOf(line),
+                        Start = text.IndexOf(line),
                         Content = line
                     };
                 }
@@ -246,10 +243,10 @@ public partial class BasicDocumentParser : IDocumentParser
             {
                 Id = $"paragraph_{i + 1}",
                 Title = $"Paragraph {i + 1}",
-                SectionType = "Paragraph",
+                Type = "Paragraph",
                 Content = paragraph,
                 Level = 1,
-                StartPosition = text.IndexOf(paragraph)
+                Start = text.IndexOf(paragraph)
             });
         }
 
@@ -260,9 +257,9 @@ public partial class BasicDocumentParser : IDocumentParser
     {
         return new DocumentMetadata
         {
-            FileName = rawContent.File.FileName,
+            FileName = rawContent.File.Name,
             FileType = documentType,
-            FileSize = rawContent.File.FileSize,
+            FileSize = rawContent.File.Size,
             CreatedAt = rawContent.File.CreatedAt,
             ModifiedAt = rawContent.File.ModifiedAt,
             ProcessedAt = DateTime.UtcNow,
@@ -416,7 +413,7 @@ public partial class BasicDocumentParser : IDocumentParser
             ConfidenceScore = structureConfidence,
             CompletenessScore = completenessScore,
             ConsistencyScore = metadataAccuracy,
-            DetailedMetrics = new Dictionary<string, object>
+            Details = new Dictionary<string, object>
             {
                 ["section_count"] = sections.Count,
                 ["avg_section_length"] = sections.Count != 0 ? sections.Average(s => s.Content.Length) : 0,
@@ -463,7 +460,7 @@ public partial class BasicDocumentParser : IDocumentParser
         {text}
         
         기본 분석 결과:
-        - 문서 유형: {basicStructure.DocumentType}
+        - 문서 유형: {basicStructure.Type}
         - 섹션 수: {basicStructure.Sections.Count}
         
         요청사항:
@@ -485,7 +482,7 @@ public partial class BasicDocumentParser : IDocumentParser
         {
             var enhanced = new DocumentStructure
             {
-                DocumentType = fallback.DocumentType,
+                Type = fallback.Type,
                 Sections = fallback.Sections
             };
 

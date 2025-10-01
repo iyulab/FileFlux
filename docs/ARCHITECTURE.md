@@ -14,11 +14,12 @@
 - 의존성 주입을 통한 느슨한 결합
 - 전략 패턴과 팩토리 패턴 적용
 
-### 3. 유연한 AI 서비스 통합 (Phase 7)
-- **선택적 AI 서비스**: ITextCompletionService, IEmbeddingService, IImageToTextService 선택적 구현
-- **우아한 폴백**: AI 서비스 미제공 시 비AI 대안 사용
-- **Context7 스타일 메타데이터**: 도메인 분류, 품질 평가, 구조 분석
-- **생산성 최적화**: AI 없이도 완전 동작, AI 있으면 최고 품질
+### 3. Phase 7 도메인 모델 최적화
+- **단순화된 속성명**: `Properties` → `Props`, `ChunkIndex` → `Index`
+- **Props 딕셔너리 패턴**: 확장 가능한 메타데이터 저장
+- **Guid 기반 추적성**: 파이프라인 전체 단계 추적 가능
+- **Quality 단순화**: 복잡한 객체에서 double 타입으로 변경
+- **통합 API**: IDocumentProcessor로 Batch/Streaming 통합
 
 ---
 
@@ -293,13 +294,54 @@ graph TB
 
 ## 📊 RAG 시스템 통합
 
-### 처리 결과
-**DocumentChunk**: 청크 ID, 콘텐츠, 메타데이터, 위치 정보, 인덱스 포함
-**DocumentMetadata**: 파일명, 파일 타입, 처리 시간, 페이지 번호 등
+### 처리 결과 (Phase 7 최적화)
+**DocumentChunk**:
+- `Id` (Guid): 청크 고유 식별자
+- `Content` (string): 청크 텍스트 내용
+- `Index` (int): 청크 순서 인덱스
+- `Location` (SourceLocation): StartChar/EndChar 위치 정보
+- `Quality` (double): 품질 점수 (0.0~1.0)
+- `Props` (Dictionary<string, object>): 확장 가능한 메타데이터
+
+**SourceFileInfo**:
+- `Name`: 파일명
+- `Extension`: 파일 확장자
+- `Size`: 파일 크기
+- `Path`: 파일 경로
 
 ### 통합 패턴
 1. **스트리밍 처리**: ProcessAsync로 청크별 순차 처리
-2. **배치 처리**: 전체 청크 수집 후 일괄 처리  
+2. **배치 처리**: 전체 청크 수집 후 일괄 처리
 3. **파이프라인 처리**: 청크 생성과 임베딩 생성 동시 진행
 
+### Phase 7 주요 변경사항
+
+**도메인 모델**:
+- `RawContent`: `Warnings`, `Hints`, `File` (SourceFileInfo), `ReaderType` 필수화
+- `ParsedContent`: `Text` 단일화, `Duration` 이동
+- `DocumentChunk`: `Props` 패턴, `Index`, `Location` (SourceLocation), `Quality` (double), `Id` (Guid)
+
+**확장성 패턴**:
+```csharp
+// Props 딕셔너리로 확장 가능한 메타데이터
+chunk.Props["ContextualHeader"] = "Document: Technical";
+chunk.Props["DocumentDomain"] = "Technical";
+
+// Extension 메서드로 하위 호환성 유지
+public static string? ContextualHeader(this DocumentChunk chunk)
+    => chunk.Props.TryGetValue("ContextualHeader", out var v) ? v?.ToString() : null;
+```
+
+**파이프라인 추적성**:
+```
+RawContent.Id (Guid)
+    ↓
+ParsedContent.RawId → RawContent.Id
+    ↓
+DocumentChunk.RawId → RawContent.Id
+DocumentChunk.ParsedId → ParsedContent.Id
+```
+
 FileFlux는 문서를 구조화된 청크로 변환하는 역할에 집중하며, 임베딩 생성과 벡터 저장은 사용자 선택에 맡깁니다.
+
+**테스트 완성도**: 217 tests 100% passed (Phase 7 완료)

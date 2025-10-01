@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -39,7 +39,7 @@ namespace FileFlux.Infrastructure.Strategies
             {
                 QuestionId = question.QuestionText.GetHashCode().ToString(),
                 Question = question,
-                ChunkId = chunk.Id,
+                ChunkId = chunk.Id.ToString(),
                 ExtractedAt = DateTime.UtcNow
             };
 
@@ -145,7 +145,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             var qaResult = new QAExtractionResult
             {
-                ChunkId = chunk.Id,
+                ChunkId = chunk.Id.ToString(),
                 GeneratedAt = DateTime.UtcNow
             };
 
@@ -159,7 +159,7 @@ namespace FileFlux.Infrastructure.Strategies
                     {
                         Question = question,
                         Answer = answerResult.Answer,
-                        ChunkId = chunk.Id,
+                        ChunkId = chunk.Id.ToString(),
                         Quality = CalculateQAPairQuality(question, answerResult.Answer)
                     });
                 }
@@ -496,9 +496,9 @@ namespace FileFlux.Infrastructure.Strategies
             // Check if spans overlap significantly (>50%)
             var overlapStart = Math.Max(span1.StartPosition, span2.StartPosition);
             var overlapEnd = Math.Min(span1.EndPosition, span2.EndPosition);
-            
+
             if (overlapStart >= overlapEnd) return false;
-            
+
             var overlapLength = overlapEnd - overlapStart;
             var minLength = Math.Min(
                 span1.EndPosition - span1.StartPosition,

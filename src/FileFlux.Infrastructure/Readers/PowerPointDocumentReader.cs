@@ -1,4 +1,4 @@
-using DocumentFormat.OpenXml.Packaging;
+﻿using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using FileFlux;
 using FileFlux.Exceptions;
@@ -142,18 +142,18 @@ public class PowerPointDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    FileExtension = ".pptx",
-                    FileSize = fileInfo.Length,
+                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                    Extension = ".pptx",
+                    Size = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
                     ModifiedAt = fileInfo.LastWriteTimeUtc,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = "PowerPointReader"
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = "PowerPointReader"
             };
         }
         catch (Exception ex)
@@ -239,18 +239,17 @@ public class PowerPointDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = fileName,
-                    FileExtension = ".pptx",
-                    FileSize = stream.Length,
+                    Name = fileName,
+                    Extension = ".pptx",
+                    Size = stream.Length,
                     CreatedAt = DateTime.Now,
-                    ModifiedAt = DateTime.Now,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = "PowerPointReader"
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = "PowerPointReader"
             };
         }
         catch (Exception ex)
@@ -386,18 +385,18 @@ public class PowerPointDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new SourceFileInfo
+            File = new SourceFileInfo
             {
-                FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-                FileExtension = ".pptx",
-                FileSize = fileInfo.Length,
+                Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                Extension = ".pptx",
+                Size = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,
                 ModifiedAt = fileInfo.LastWriteTimeUtc,
-                ExtractedAt = DateTime.UtcNow,
-                ReaderType = "PowerPointReader"
+
             },
-            StructuralHints = structuralHints,
-            ExtractionWarnings = warnings
+            Hints = structuralHints,
+            Warnings = warnings,
+            ReaderType = "PowerPointReader"
         };
     }
 
@@ -406,18 +405,17 @@ public class PowerPointDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new SourceFileInfo
+            File = new SourceFileInfo
             {
-                FileName = fileName,
-                FileExtension = ".pptx",
-                FileSize = stream.Length,
+                Name = fileName,
+                Extension = ".pptx",
+                Size = stream.Length,
                 CreatedAt = DateTime.Now,
-                ModifiedAt = DateTime.Now,
-                ExtractedAt = DateTime.UtcNow,
-                ReaderType = "PowerPointReader"
+
             },
-            StructuralHints = structuralHints,
-            ExtractionWarnings = warnings
+            Hints = structuralHints,
+            Warnings = warnings,
+            ReaderType = "PowerPointReader"
         };
     }
 }

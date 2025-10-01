@@ -1,4 +1,4 @@
-using FileFlux.Domain;
+﻿using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
@@ -22,7 +22,7 @@ public class EntityExtractionSystem
     {
         var result = new EntityExtractionResult
         {
-            ChunkId = chunk.Id,
+            ChunkId = chunk.Id.ToString(),
             ExtractionTimestamp = DateTime.UtcNow
         };
 

@@ -1,4 +1,4 @@
-using FileFlux.Domain;
+﻿using FileFlux.Domain;
 using FileFlux.Infrastructure.Utils;
 using System.Text.Json;
 using System.Text;
@@ -52,15 +52,15 @@ public class TestResultsStorage
         // JSON 메타데이터 저장
         var metadata = new
         {
-            FileName = rawContent.File.FileName,
-            FileSize = rawContent.File.FileSize,
-            FileExtension = rawContent.File.FileExtension,
-            ExtractedAt = rawContent.File.ExtractedAt,
-            ReaderType = rawContent.File.ReaderType,
+            FileName = rawContent.File.Name,
+            FileSize = rawContent.File.Size,
+            FileExtension = rawContent.File.Extension,
+            ExtractedAt = rawContent.File.ModifiedAt,
+            ReaderType = rawContent.ReaderType,
             TextLength = rawContent.Text.Length,
-            WarningCount = rawContent.ExtractionWarnings.Count,
-            Warnings = rawContent.ExtractionWarnings,
-            StructuralHints = rawContent.StructuralHints
+            WarningCount = rawContent.Warnings.Count,
+            Warnings = rawContent.Warnings,
+            Hints = rawContent.Hints
         };
 
         var metadataPath = Path.Combine(_baseDirectory, "extraction-results", $"{sanitizedName}_{timestamp}_metadata.json");
@@ -83,7 +83,7 @@ public class TestResultsStorage
         var metadata = new
         {
             OriginalFileName = parsedContent.Metadata?.FileName,
-            DocumentType = parsedContent.Structure.DocumentType,
+            DocumentType = parsedContent.Structure.Type,
             Topic = parsedContent.Structure.Topic,
             Keywords = parsedContent.Structure.Keywords,
             Summary = parsedContent.Structure.Summary,
@@ -94,15 +94,15 @@ public class TestResultsStorage
                 parsedContent.Quality.CompletenessScore,
                 parsedContent.Quality.ConsistencyScore,
                 parsedContent.Quality.OverallScore,
-                parsedContent.Quality.StructureConfidence
+                parsedContent.Quality.StructureScore
             },
             ParsingInfo = new
             {
-                parsedContent.ParsingInfo.UsedLlm,
-                parsedContent.ParsingInfo.ParserType,
-                Duration = parsedContent.ParsingInfo.Duration.TotalMilliseconds,
-                WarningCount = parsedContent.ParsingInfo.Warnings.Count,
-                Warnings = parsedContent.ParsingInfo.Warnings
+                parsedContent.Info.UsedLlm,
+                parsedContent.Info.ParserType,
+                Duration = parsedContent.Duration.TotalMilliseconds,
+                WarningCount = parsedContent.Info.Warnings.Count,
+                Warnings = parsedContent.Info.Warnings
             }
         };
 
@@ -111,13 +111,13 @@ public class TestResultsStorage
 
         // 구조화된 텍스트 저장
         var structuredTextPath = Path.Combine(_baseDirectory, "parsing-results", $"{sanitizedName}_{timestamp}_structured.txt");
-        await File.WriteAllTextAsync(structuredTextPath, parsedContent.StructuredText ?? parsedContent.OriginalText, Encoding.UTF8);
+        await File.WriteAllTextAsync(structuredTextPath, parsedContent.Text ?? parsedContent.Text, Encoding.UTF8);
 
         // 원본 텍스트 저장 (다른 경우)
-        if (!string.IsNullOrEmpty(parsedContent.OriginalText) && parsedContent.OriginalText != parsedContent.StructuredText)
+        if (!string.IsNullOrEmpty(parsedContent.Text) && parsedContent.Text != parsedContent.Text)
         {
             var originalTextPath = Path.Combine(_baseDirectory, "parsing-results", $"{sanitizedName}_{timestamp}_original.txt");
-            await File.WriteAllTextAsync(originalTextPath, parsedContent.OriginalText, Encoding.UTF8);
+            await File.WriteAllTextAsync(originalTextPath, parsedContent.Text, Encoding.UTF8);
         }
 
         // 섹션 구조 저장
@@ -171,7 +171,7 @@ public class TestResultsStorage
             allChunksContent.AppendLine($"=== 청크 {i + 1}/{chunks.Length} ===");
             allChunksContent.AppendLine($"ID: {chunk.Id}");
             allChunksContent.AppendLine($"크기: {chunk.Content.Length}자");
-            allChunksContent.AppendLine($"위치: {chunk.StartPosition} - {chunk.EndPosition}");
+            allChunksContent.AppendLine($"위치: {chunk.Location.StartChar} - {chunk.Location.EndChar}");
             allChunksContent.AppendLine();
             allChunksContent.AppendLine(chunk.Content);
             allChunksContent.AppendLine();
@@ -191,8 +191,8 @@ public class TestResultsStorage
             var chunkHeader = $"청크 {index + 1}/{chunks.Length}\n" +
                              $"ID: {chunk.Id}\n" +
                              $"크기: {chunk.Content.Length}자\n" +
-                             $"위치: {chunk.StartPosition} - {chunk.EndPosition}\n" +
-                             $"인덱스: {chunk.ChunkIndex}\n" +
+                             $"위치: {chunk.Location.StartChar} - {chunk.Location.EndChar}\n" +
+                             $"인덱스: {chunk.Index}\n" +
                              new string('=', 50) + "\n\n";
 
             await File.WriteAllTextAsync(chunkPath, chunkHeader + chunk.Content, Encoding.UTF8);

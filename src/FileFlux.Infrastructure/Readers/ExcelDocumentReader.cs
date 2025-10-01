@@ -1,4 +1,4 @@
-using DocumentFormat.OpenXml.Packaging;
+﻿using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using FileFlux;
 using FileFlux.Exceptions;
@@ -147,18 +147,18 @@ public class ExcelDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    FileExtension = ".xlsx",
-                    FileSize = fileInfo.Length,
+                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                    Extension = ".xlsx",
+                    Size = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
                     ModifiedAt = fileInfo.LastWriteTimeUtc,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = "ExcelReader"
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = "ExcelReader"
             };
         }
         catch (Exception ex)
@@ -250,18 +250,17 @@ public class ExcelDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = fileName,
-                    FileExtension = ".xlsx",
-                    FileSize = stream.Length,
+                    Name = fileName,
+                    Extension = ".xlsx",
+                    Size = stream.Length,
                     CreatedAt = DateTime.Now,
-                    ModifiedAt = DateTime.Now,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = "ExcelReader"
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = "ExcelReader"
             };
         }
         catch (Exception ex)
@@ -377,18 +376,18 @@ public class ExcelDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new SourceFileInfo
+            File = new SourceFileInfo
             {
-                FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-                FileExtension = ".xlsx",
-                FileSize = fileInfo.Length,
+                Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                Extension = ".xlsx",
+                Size = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,
                 ModifiedAt = fileInfo.LastWriteTimeUtc,
-                ExtractedAt = DateTime.UtcNow,
-                ReaderType = "ExcelReader"
+
             },
-            StructuralHints = structuralHints,
-            ExtractionWarnings = warnings
+            Hints = structuralHints,
+            Warnings = warnings,
+            ReaderType = "ExcelReader"
         };
     }
 
@@ -397,18 +396,17 @@ public class ExcelDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new SourceFileInfo
+            File = new SourceFileInfo
             {
-                FileName = fileName,
-                FileExtension = ".xlsx",
-                FileSize = stream.Length,
+                Name = fileName,
+                Extension = ".xlsx",
+                Size = stream.Length,
                 CreatedAt = DateTime.Now,
-                ModifiedAt = DateTime.Now,
-                ExtractedAt = DateTime.UtcNow,
-                ReaderType = "ExcelReader"
+
             },
-            StructuralHints = structuralHints,
-            ExtractionWarnings = warnings
+            Hints = structuralHints,
+            Warnings = warnings,
+            ReaderType = "ExcelReader"
         };
     }
 }

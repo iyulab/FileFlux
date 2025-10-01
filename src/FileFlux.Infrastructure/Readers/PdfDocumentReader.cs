@@ -1,4 +1,4 @@
-using FileFlux;
+﻿using FileFlux;
 using FileFlux.Domain;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
@@ -130,16 +130,16 @@ public partial class PdfDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = Path.GetFileName(filePath),
-                    FileExtension = ".pdf",
-                    FileSize = fileInfo.Length,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = ReaderType
+                    Name = Path.GetFileName(filePath),
+                    Extension = ".pdf",
+                    Size = fileInfo.Length,
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = extractionWarnings
+                Hints = structuralHints,
+                Warnings = extractionWarnings,
+                ReaderType = ReaderType
             };
         }
         catch (Exception ex)
@@ -229,16 +229,16 @@ public partial class PdfDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = fileName,
-                    FileExtension = ".pdf",
-                    FileSize = streamLength,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = ReaderType
+                    Name = fileName,
+                    Extension = ".pdf",
+                    Size = streamLength,
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = extractionWarnings
+                Hints = structuralHints,
+                Warnings = extractionWarnings,
+                ReaderType = ReaderType
             };
         }
         catch (Exception ex)

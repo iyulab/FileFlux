@@ -223,17 +223,19 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
     {
         return new DocumentChunk
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             Content = content.Trim(),
             Metadata = metadata,
-            StartPosition = startPosition,
-            EndPosition = startPosition + content.Length,
-            ChunkIndex = chunkIndex,
+            Location = new SourceLocation
+            {
+                StartChar = startPosition,
+                EndChar = startPosition + content.Length
+            },
+            Index = chunkIndex,
             Strategy = ChunkingStrategies.Semantic,
-            EstimatedTokens = EstimateTokenCount(content),
+            Tokens = EstimateTokenCount(content),
             CreatedAt = DateTime.UtcNow,
-            Importance = CalculateImportance(content),
-            PageNumber = metadata.PageCount == 1 ? 1 : null
+            Importance = CalculateImportance(content)
         };
     }
 

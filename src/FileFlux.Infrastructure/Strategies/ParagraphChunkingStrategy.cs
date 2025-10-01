@@ -1,4 +1,4 @@
-using FileFlux;
+﻿using FileFlux;
 using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
@@ -326,18 +326,20 @@ public partial class ParagraphChunkingStrategy : IChunkingStrategy
 
         return new DocumentChunk
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             Content = content.Trim(),
             Metadata = metadata,
-            StartPosition = startPosition,
-            EndPosition = startPosition + content.Length,
-            ChunkIndex = chunkIndex,
+            Location = new SourceLocation
+            {
+                StartChar = startPosition,
+                EndChar = startPosition + content.Length
+            },
+            Index = chunkIndex,
             Strategy = ChunkingStrategies.Paragraph,
-            EstimatedTokens = EstimateTokenCount(content),
+            Tokens = EstimateTokenCount(content),
             CreatedAt = DateTime.UtcNow,
             Importance = hasHeader ? 0.8 : 0.5, // 헤더가 있으면 중요도 높임
-            PageNumber = metadata.PageCount == 1 ? 1 : null,
-            Properties = new Dictionary<string, object>
+            Props = new Dictionary<string, object>
             {
                 ["ParagraphCount"] = paragraphs.Count,
                 ["HasHeader"] = hasHeader

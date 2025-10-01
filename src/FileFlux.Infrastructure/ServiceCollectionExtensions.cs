@@ -5,7 +5,6 @@ using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
 using FileFlux.Infrastructure.Services;
-using FileFlux.Infrastructure.Processing;
 using FileFlux.Infrastructure.Strategies;
 using FileFlux.Infrastructure;
 
@@ -39,14 +38,6 @@ public static class ServiceCollectionExtensions
 
         // 메인 문서 처리기 등록
         services.AddScoped<IDocumentProcessor, DocumentProcessor>();
-        
-        // 병렬 문서 처리기 등록 (Phase 8)
-        services.AddScoped<IParallelDocumentProcessor, ParallelDocumentProcessor>();
-        
-        // 스트리밍 및 캐시 서비스 등록 (Phase 8)
-        services.AddSingleton<DocumentCacheOptions>(provider => new DocumentCacheOptions());
-        services.AddSingleton<IDocumentCacheService, Infrastructure.Caching.DocumentCacheService>();
-        services.AddScoped<IStreamingDocumentProcessor, Infrastructure.Streaming.StreamingDocumentProcessor>();
 
         // 기본 Reader들 등록
         services.AddTransient<IDocumentReader, TextDocumentReader>();

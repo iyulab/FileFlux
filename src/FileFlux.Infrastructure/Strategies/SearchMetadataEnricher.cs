@@ -1,4 +1,4 @@
-using FileFlux.Domain;
+﻿using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
@@ -55,7 +55,7 @@ public class SearchMetadataEnricher
         // Document level
         metadata.DocumentLevel = new DocumentLevelMetadata
         {
-            DocumentId = chunk.Metadata?.FileName ?? chunk.Id,
+            DocumentId = chunk.Metadata?.FileName ?? chunk.Id.ToString(),
             DocumentTitle = chunk.Metadata?.Title ?? "Untitled",
             DocumentType = chunk.Metadata?.FileType ?? "Unknown",
             TotalChunks = chunk.Metadata?.CustomProperties?.GetValueOrDefault("TotalChunks", 1) as int? ?? 1,
@@ -76,7 +76,7 @@ public class SearchMetadataEnricher
         // Paragraph level
         metadata.ParagraphLevel = new ParagraphLevelMetadata
         {
-            ParagraphIndex = chunk.ChunkIndex,
+            ParagraphIndex = chunk.Index,
             SentenceCount = CountSentences(chunk.Content),
             WordCount = CountWords(chunk.Content),
             AverageSentenceLength = CalculateAverageSentenceLength(chunk.Content),
@@ -86,12 +86,12 @@ public class SearchMetadataEnricher
         // Chunk level
         metadata.ChunkLevel = new ChunkLevelMetadata
         {
-            ChunkId = chunk.Id,
-            ChunkIndex = chunk.ChunkIndex,
-            StartPosition = chunk.StartPosition,
-            EndPosition = chunk.EndPosition,
+            ChunkId = chunk.Id.ToString(),
+            ChunkIndex = chunk.Index,
+            StartPosition = chunk.Location.StartChar,
+            EndPosition = chunk.Location.EndChar,
             ChunkStrategy = chunk.Strategy ?? "Unknown",
-            ChunkQuality = chunk.QualityScore
+            ChunkQuality = chunk.Quality
         };
 
         return metadata;
@@ -173,15 +173,15 @@ public class SearchMetadataEnricher
     {
         var relationships = new ChunkRelationships
         {
-            ChunkId = chunk.Id
+            ChunkId = chunk.Id.ToString()
         };
 
         // Sequential relationships
-        relationships.PreviousChunkId = chunk.ChunkIndex > 0 
-            ? GenerateChunkId(chunk.Metadata?.FileName, chunk.ChunkIndex - 1) 
+        relationships.PreviousChunkId = chunk.Index > 0 
+            ? GenerateChunkId(chunk.Metadata?.FileName, chunk.Index - 1) 
             : null;
             
-        relationships.NextChunkId = GenerateChunkId(chunk.Metadata?.FileName, chunk.ChunkIndex + 1);
+        relationships.NextChunkId = GenerateChunkId(chunk.Metadata?.FileName, chunk.Index + 1);
 
         // Hierarchical relationships
         relationships.ParentChunkId = DetermineParentChunk(chunk);
@@ -280,7 +280,7 @@ public class SearchMetadataEnricher
             info.Depth = headerMatch.Value.TakeWhile(c => c == '#').Count();
         }
         
-        info.Number = chunk.ChunkIndex / 10; // Simplified section numbering
+        info.Number = chunk.Index / 10; // Simplified section numbering
         info.SubsectionCount = HeaderRegex.Matches(chunk.Content).Count - 1;
         
         return info;
@@ -497,7 +497,7 @@ public class SearchMetadataEnricher
     private string? DetermineParentChunk(DocumentChunk chunk)
     {
         // Simplified parent determination
-        if (chunk.ChunkIndex == 0)
+        if (chunk.Index == 0)
             return null;
             
         return GenerateChunkId(chunk.Metadata?.FileName, 0);

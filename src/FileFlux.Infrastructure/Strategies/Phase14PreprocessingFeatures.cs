@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -69,7 +69,7 @@ public class Phase14PreprocessingFeatures
         await Task.Yield();
         
         var summary = new DocumentSummary();
-        var text = document.StructuredText;
+        var text = document.Text;
         
         // 추출적 요약 - 첫 번째와 마지막 문장들
         var sentences = text.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries)
@@ -127,7 +127,7 @@ public class Phase14PreprocessingFeatures
         await Task.Yield();
         
         var compressed = new CompressedContent();
-        var text = document.StructuredText;
+        var text = document.Text;
         
         // 중복 제거 - 반복되는 문장 제거
         var sentences = text.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries)
@@ -165,7 +165,7 @@ public class Phase14PreprocessingFeatures
         await Task.Yield();
         
         var augmented = new AugmentedContent();
-        var text = document.StructuredText;
+        var text = document.Text;
         
         // 컨텍스트 확장 - 메타데이터 정보 추가
         var contextInfo = new StringBuilder();
@@ -231,7 +231,7 @@ public class Phase14PreprocessingFeatures
         var analysis = new MultimodalAnalysis();
         
         // 구조화된 콘텐츠 분석
-        var structuredContent = document.StructuredText;
+        var structuredContent = document.Text;
         
         // 테이블 패턴 감지 (텍스트에서)
         var tablePatterns = new[] { "|", "┌", "└", "├", "─", "│", "표", "Table" };

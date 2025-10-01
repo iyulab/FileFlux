@@ -35,7 +35,7 @@ namespace FileFlux.Infrastructure.Strategies
             options ??= new QuestionGenerationOptions();
             var result = new QuestionGenerationResult
             {
-                ChunkId = chunk.Id,
+                ChunkId = chunk.Id.ToString(),
                 ChunkContent = chunk.Content,
                 GeneratedAt = DateTime.UtcNow
             };
@@ -474,7 +474,7 @@ namespace FileFlux.Infrastructure.Strategies
                 {
                     QuestionText = $"What is {entity}?",
                     Type = QuestionType.Factual,
-                    ExpectedAnswerLocation = chunk.Id,
+                    ExpectedAnswerLocation = chunk.Id.ToString(),
                     Keywords = new List<string> { entity },
                     Quality = 0.7
                 });
@@ -487,7 +487,7 @@ namespace FileFlux.Infrastructure.Strategies
                 {
                     QuestionText = $"What happened in {date}?",
                     Type = QuestionType.Factual,
-                    ExpectedAnswerLocation = chunk.Id,
+                    ExpectedAnswerLocation = chunk.Id.ToString(),
                     Keywords = new List<string> { date },
                     Quality = 0.6
                 });
@@ -503,7 +503,7 @@ namespace FileFlux.Infrastructure.Strategies
                     {
                         QuestionText = $"How many {context}?",
                         Type = QuestionType.Factual,
-                        ExpectedAnswerLocation = chunk.Id,
+                        ExpectedAnswerLocation = chunk.Id.ToString(),
                         Keywords = new List<string> { number, context },
                         Quality = 0.8
                     });
@@ -552,7 +552,7 @@ namespace FileFlux.Infrastructure.Strategies
                 {
                     QuestionText = $"Why is {concept} important?",
                     Type = QuestionType.Conceptual,
-                    ExpectedAnswerLocation = chunk.Id,
+                    ExpectedAnswerLocation = chunk.Id.ToString(),
                     Keywords = new List<string> { concept, "important" },
                     Quality = 0.75
                 });
@@ -561,7 +561,7 @@ namespace FileFlux.Infrastructure.Strategies
                 {
                     QuestionText = $"How does {concept} work?",
                     Type = QuestionType.Conceptual,
-                    ExpectedAnswerLocation = chunk.Id,
+                    ExpectedAnswerLocation = chunk.Id.ToString(),
                     Keywords = new List<string> { concept, "work" },
                     Quality = 0.8
                 });
@@ -589,7 +589,7 @@ namespace FileFlux.Infrastructure.Strategies
                 {
                     QuestionText = $"What can be inferred from the relationship between {relation.Subject} and {relation.Object}?",
                     Type = QuestionType.Inferential,
-                    ExpectedAnswerLocation = chunk.Id,
+                    ExpectedAnswerLocation = chunk.Id.ToString(),
                     Keywords = new List<string> { relation.Subject, relation.Object, "relationship" },
                     Quality = 0.85
                 });
@@ -603,7 +603,7 @@ namespace FileFlux.Infrastructure.Strategies
                 {
                     QuestionText = $"What are the implications of {causalRelation.Subject} on {causalRelation.Object}?",
                     Type = QuestionType.Inferential,
-                    ExpectedAnswerLocation = chunk.Id,
+                    ExpectedAnswerLocation = chunk.Id.ToString(),
                     Keywords = new List<string> { causalRelation.Subject, causalRelation.Object, "implications" },
                     Quality = 0.9
                 });
@@ -634,7 +634,7 @@ namespace FileFlux.Infrastructure.Strategies
                 {
                     QuestionText = $"How does {entity1} relate to {entity2} and what is the impact?",
                     Type = QuestionType.MultiHop,
-                    ExpectedAnswerLocation = chunk.Id,
+                    ExpectedAnswerLocation = chunk.Id.ToString(),
                     Keywords = new List<string> { entity1, entity2, "relate", "impact" },
                     Quality = 0.9,
                     RequiredHops = 2

@@ -11,7 +11,7 @@
 
 **FileFlux** is a pure RAG preprocessing SDK - a **.NET 9 SDK** that transforms documents into structured chunks optimized for RAG systems.
 
-✅ **Production Ready** - 224+ tests 100% passed, Phase 7 Context7-style metadata completed, enterprise-grade performance
+✅ **Production Ready** - 217 tests 100% passed, Phase 7 domain model refactoring completed, enterprise-grade performance
 
 ### 🏗️ Architecture Principle: Interface Provider
 
@@ -39,7 +39,7 @@ FileFlux follows clear separation of responsibilities: **defining interfaces whi
 - **🔍 Advanced Preprocessing**: Vector/graph search optimization, Q&A generation, entity extraction
 - **🔧 Extension Discovery API**: Runtime supported file format discovery and validation
 - **🏗️ Clean Architecture**: Extensibility guaranteed through dependency inversion
-- **🚀 Production Ready**: 224+ tests passed, Phase 7 Context7 metadata completed, AI services optional fallback implemented, production deployment ready
+- **🚀 Production Ready**: 217 tests passed (100%), Phase 7 domain model refactoring completed, AI services optional fallback implemented, production deployment ready
 
 ---
 
@@ -80,14 +80,14 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
     {
         foreach (var chunk in result.Result)
         {
-            Console.WriteLine($"📄 Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars");
+            Console.WriteLine($"📄 Chunk {chunk.Index}: {chunk.Content.Length} chars");
 
             // RAG pipeline: Generate embedding → Store in vector store
             var embedding = await embeddingService.GenerateAsync(chunk.Content);
             await vectorStore.StoreAsync(new {
                 Id = chunk.Id,
                 Content = chunk.Content,
-                Metadata = chunk.Metadata,
+                Props = chunk.Props,
                 Vector = embedding
             });
         }
@@ -124,7 +124,7 @@ foreach (var chunk in chunks)
     await vectorStore.StoreAsync(new {
         Id = chunk.Id,
         Content = chunk.Content,
-        Metadata = chunk.Metadata,
+        Props = chunk.Props,
         Vector = embedding
     });
 }
@@ -195,7 +195,7 @@ foreach (var kvp in mapping)
 - **Auto Optimization**: Automatic optimal strategy selection per document with Auto strategy
 - **Parallel Scaling**: Linear performance improvement based on CPU core count
 - **AI Services Fallback**: Graceful degradation when AI services unavailable
-- **Test Coverage**: 224+ tests 100% passed, Context7 metadata system completed
+- **Test Coverage**: 217 tests 100% passed, Phase 7 domain model optimized
 - **Optional AI Integration**: Works with or without AI services - maximum flexibility
 ---
 
@@ -317,7 +317,7 @@ public class RagService
                     {
                         Id = chunk.Id,
                         Content = chunk.Content,
-                        Metadata = chunk.Metadata,
+                        Props = chunk.Props,
                         Vector = embedding
                     });
                 }

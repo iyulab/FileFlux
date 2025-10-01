@@ -1,4 +1,4 @@
-using FileFlux;
+﻿using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Utils;
@@ -58,18 +58,18 @@ public class TextDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = text,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    FileExtension = Path.GetExtension(filePath).ToLowerInvariant(),
-                    FileSize = fileInfo.Length,
+                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                    Extension = Path.GetExtension(filePath).ToLowerInvariant(),
+                    Size = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
                     ModifiedAt = fileInfo.LastWriteTimeUtc,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = ReaderType
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = ReaderType
             };
         }
         catch (Exception ex) when (!(ex is FileFluxException))
@@ -105,18 +105,17 @@ public class TextDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = text,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = fileName,
-                    FileExtension = Path.GetExtension(fileName).ToLowerInvariant(),
-                    FileSize = stream.Length,
+                    Name = fileName,
+                    Extension = Path.GetExtension(fileName).ToLowerInvariant(),
+                    Size = stream.Length,
                     CreatedAt = DateTime.Now, // 스트림에서는 불명
-                    ModifiedAt = DateTime.Now,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = ReaderType
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = ReaderType
             };
         }
         catch (Exception ex) when (!(ex is FileFluxException))
@@ -368,18 +367,18 @@ public class TextDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = text,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    FileExtension = Path.GetExtension(filePath).ToLowerInvariant(),
-                    FileSize = fileInfo.Length,
+                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                    Extension = Path.GetExtension(filePath).ToLowerInvariant(),
+                    Size = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
                     ModifiedAt = fileInfo.LastWriteTimeUtc,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = ReaderType
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = ReaderType
             };
         }
         catch (Exception ex) when (!(ex is FileFluxException))
@@ -466,18 +465,16 @@ public class TextDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = text,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = fileName,
-                    FileExtension = Path.GetExtension(fileName).ToLowerInvariant(),
-                    FileSize = stream.Length,
+                    Name = fileName,
+                    Extension = Path.GetExtension(fileName).ToLowerInvariant(),
+                    Size = stream.Length,
                     CreatedAt = DateTime.Now,
-                    ModifiedAt = DateTime.Now,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = ReaderType
+                    
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings
             };
         }
         catch (Exception ex) when (!(ex is FileFluxException))

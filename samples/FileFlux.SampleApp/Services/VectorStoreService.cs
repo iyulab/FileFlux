@@ -226,7 +226,7 @@ public class VectorStoreService : IVectorStoreService
                 DocumentId = documentId,
                 Order = startIndex + i,
                 Content = chunk.Content,
-                EstimatedTokens = chunk.EstimatedTokens,
+                EstimatedTokens = chunk.Tokens,
                 Metadata = JsonSerializer.Serialize(chunk.Metadata),
                 EmbeddingVector = JsonSerializer.Serialize(embedding),
                 EmbeddingCreatedAt = DateTime.UtcNow

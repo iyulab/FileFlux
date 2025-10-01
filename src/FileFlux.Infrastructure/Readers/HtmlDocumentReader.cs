@@ -1,4 +1,4 @@
-using HtmlAgilityPack;
+﻿using HtmlAgilityPack;
 using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
@@ -104,18 +104,18 @@ public partial class HtmlDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    FileExtension = fileInfo.Extension,
-                    FileSize = fileInfo.Length,
+                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                    Extension = fileInfo.Extension,
+                    Size = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
                     ModifiedAt = fileInfo.LastWriteTimeUtc,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = "HtmlReader"
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = "HtmlReader"
             };
         }
         catch (Exception ex)
@@ -162,18 +162,17 @@ public partial class HtmlDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new SourceFileInfo
+                File = new SourceFileInfo
                 {
-                    FileName = fileName,
-                    FileExtension = Path.GetExtension(fileName),
-                    FileSize = stream.Length,
+                    Name = fileName,
+                    Extension = Path.GetExtension(fileName),
+                    Size = stream.Length,
                     CreatedAt = DateTime.Now,
-                    ModifiedAt = DateTime.Now,
-                    ExtractedAt = DateTime.UtcNow,
-                    ReaderType = "HtmlReader"
+
                 },
-                StructuralHints = structuralHints,
-                ExtractionWarnings = warnings
+                Hints = structuralHints,
+                Warnings = warnings,
+                ReaderType = "HtmlReader"
             };
         }
         catch (Exception ex)
@@ -679,18 +678,18 @@ public partial class HtmlDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new SourceFileInfo
+            File = new SourceFileInfo
             {
-                FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
-                FileExtension = fileInfo.Extension,
-                FileSize = fileInfo.Length,
+                Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                Extension = fileInfo.Extension,
+                Size = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,
                 ModifiedAt = fileInfo.LastWriteTimeUtc,
-                ExtractedAt = DateTime.UtcNow,
-                ReaderType = "HtmlReader"
+
             },
-            StructuralHints = structuralHints,
-            ExtractionWarnings = warnings
+            Hints = structuralHints,
+            Warnings = warnings,
+            ReaderType = "HtmlReader"
         };
     }
 
@@ -699,18 +698,17 @@ public partial class HtmlDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new SourceFileInfo
+            File = new SourceFileInfo
             {
-                FileName = fileName,
-                FileExtension = Path.GetExtension(fileName),
-                FileSize = stream.Length,
+                Name = fileName,
+                Extension = Path.GetExtension(fileName),
+                Size = stream.Length,
                 CreatedAt = DateTime.Now,
-                ModifiedAt = DateTime.Now,
-                ExtractedAt = DateTime.UtcNow,
-                ReaderType = "HtmlReader"
+
             },
-            StructuralHints = structuralHints,
-            ExtractionWarnings = warnings
+            Hints = structuralHints,
+            Warnings = warnings,
+            ReaderType = "HtmlReader"
         };
     }
 

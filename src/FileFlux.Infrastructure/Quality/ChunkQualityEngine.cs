@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -480,7 +480,7 @@ public class ChunkQualityEngine
             return questions;
         }
 
-        var prompt = CreateQuestionGenerationPrompt(content.StructuredText, questionType, count);
+        var prompt = CreateQuestionGenerationPrompt(content.Text, questionType, count);
 
         try
         {
@@ -505,9 +505,9 @@ public class ChunkQualityEngine
 
     private GeneratedQuestion? GenerateQuestionForType(ParsedContent content, QuestionType questionType, int index)
     {
-        var contentSnippet = content.StructuredText.Length > 100 
-            ? content.StructuredText.Substring(index * 20 % content.StructuredText.Length, Math.Min(100, content.StructuredText.Length - (index * 20 % content.StructuredText.Length)))
-            : content.StructuredText;
+        var contentSnippet = content.Text.Length > 100 
+            ? content.Text.Substring(index * 20 % content.Text.Length, Math.Min(100, content.Text.Length - (index * 20 % content.Text.Length)))
+            : content.Text;
 
         var keyword = GetKeywordFromContent(contentSnippet);
         
@@ -626,7 +626,7 @@ A: [expected answer]
     {
         // Fallback: generate simple questions based on content structure
         var questions = new List<GeneratedQuestion>();
-        var sentences = content.StructuredText.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var sentences = content.Text.Split('.', StringSplitOptions.RemoveEmptyEntries);
 
         for (int i = 0; i < Math.Min(count, sentences.Length) && i < 10; i++)
         {
@@ -654,7 +654,7 @@ A: [expected answer]
     {
         // Fallback: generate simple questions with varied types
         var questions = new List<GeneratedQuestion>();
-        var sentences = content.StructuredText.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var sentences = content.Text.Split('.', StringSplitOptions.RemoveEmptyEntries);
         var questionTypes = Enum.GetValues<QuestionType>().ToArray();
 
         for (int i = 0; i < Math.Min(count, sentences.Length * 2) && questions.Count < count; i++)

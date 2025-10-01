@@ -43,7 +43,7 @@ namespace FileFlux.Infrastructure.Strategies
             
             var result = new DomainQAResult
             {
-                ChunkId = chunk.Id,
+                ChunkId = chunk.Id.ToString(),
                 GeneratedAt = DateTime.UtcNow
             };
 
@@ -78,7 +78,7 @@ namespace FileFlux.Infrastructure.Strategies
                         Question = question,
                         Answer = answer,
                         Domain = domain,
-                        ChunkId = chunk.Id
+                        ChunkId = chunk.Id.ToString()
                     });
                 }
             }

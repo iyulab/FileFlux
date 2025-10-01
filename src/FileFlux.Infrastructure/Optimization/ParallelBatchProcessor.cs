@@ -211,17 +211,13 @@ public class ParallelBatchProcessor : IParallelBatchProcessor
     {
         try
         {
-            var chunks = new List<DocumentChunk>();
-            await foreach (var chunk in _baseProcessor.ProcessAsync(filePath, options, cancellationToken))
-            {
-                chunks.Add(chunk);
-            }
-            
+            var chunks = await _baseProcessor.ProcessAsync(filePath, options, cancellationToken);
+
             return new DocumentProcessingResult
             {
                 FilePath = filePath,
                 Success = true,
-                Chunks = chunks,
+                Chunks = chunks.ToList(),
                 ProcessingTime = DateTime.UtcNow
             };
         }

@@ -10,7 +10,7 @@ namespace FileFlux.Infrastructure;
 /// <summary>
 /// 문서 처리기 구현체 - 간결한 API 제공
 /// </summary>
-public class DocumentProcessor : IDocumentProcessor
+public partial class DocumentProcessor : IDocumentProcessor
 {
     private readonly IDocumentReaderFactory _readerFactory;
     private readonly IDocumentParserFactory _parserFactory;
@@ -34,10 +34,10 @@ public class DocumentProcessor : IDocumentProcessor
             new DocumentQualityAnalyzer(new ChunkQualityEngine(), this));
     }
 
-    public async IAsyncEnumerable<DocumentChunk> ProcessAsync(
+    public async Task<DocumentChunk[]> ProcessAsync(
         string filePath,
         ChunkingOptions? options = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(filePath))
             throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
@@ -47,26 +47,21 @@ public class DocumentProcessor : IDocumentProcessor
 
         // Step 1: Extract text
         var rawContent = await ExtractTextInternalAsync(filePath, cancellationToken);
-        
+
         // Step 2: Parse document
-        var parsedContent = await ParseAsync(rawContent, null, cancellationToken);
-        
+        var parsedContent = await ParseAsync(rawContent, (DocumentParsingOptions?)null, cancellationToken);
+
         // Step 3: Generate chunks
         var chunks = await ChunkAsync(parsedContent, options, cancellationToken);
-        
-        // Yield chunks
-        foreach (var chunk in chunks)
-        {
-            yield return chunk;
-            cancellationToken.ThrowIfCancellationRequested();
-        }
+
+        return chunks;
     }
 
-    public async IAsyncEnumerable<DocumentChunk> ProcessAsync(
+    public async Task<DocumentChunk[]> ProcessAsync(
         Stream stream,
         string fileName,
         ChunkingOptions? options = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
@@ -75,41 +70,31 @@ public class DocumentProcessor : IDocumentProcessor
 
         // Step 1: Extract text from stream
         var rawContent = await ExtractTextInternalAsync(stream, fileName, cancellationToken);
-        
+
         // Step 2: Parse document
-        var parsedContent = await ParseAsync(rawContent, null, cancellationToken);
-        
+        var parsedContent = await ParseAsync(rawContent, (DocumentParsingOptions?)null, cancellationToken);
+
         // Step 3: Generate chunks
         var chunks = await ChunkAsync(parsedContent, options, cancellationToken);
-        
-        // Yield chunks
-        foreach (var chunk in chunks)
-        {
-            yield return chunk;
-            cancellationToken.ThrowIfCancellationRequested();
-        }
+
+        return chunks;
     }
 
-    public async IAsyncEnumerable<DocumentChunk> ProcessAsync(
+    public async Task<DocumentChunk[]> ProcessAsync(
         RawContent rawContent,
         ChunkingOptions? options = null,
         DocumentParsingOptions? parsingOptions = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(rawContent);
 
         // Step 1: Parse document
         var parsedContent = await ParseAsync(rawContent, parsingOptions, cancellationToken);
-        
+
         // Step 2: Generate chunks
         var chunks = await ChunkAsync(parsedContent, options, cancellationToken);
-        
-        // Yield chunks
-        foreach (var chunk in chunks)
-        {
-            yield return chunk;
-            cancellationToken.ThrowIfCancellationRequested();
-        }
+
+        return chunks;
     }
 
     public async Task<ParsedContent> ParseAsync(
@@ -134,9 +119,9 @@ public class DocumentProcessor : IDocumentProcessor
             var parsedContent = await parser.ParseAsync(rawContent, parsingOptions, cancellationToken);
 
             // 파싱 경고 로깅
-            if (parsedContent.ParsingInfo.Warnings.Count != 0)
+            if (parsedContent.Info.Warnings.Count != 0)
             {
-                foreach (var warning in parsedContent.ParsingInfo.Warnings)
+                foreach (var warning in parsedContent.Info.Warnings)
                 {
                     _logger?.LogWarning("Parsing warning: {Warning}", warning);
                 }
@@ -146,7 +131,7 @@ public class DocumentProcessor : IDocumentProcessor
         }
         catch (Exception ex) when (!(ex is FileFluxException))
         {
-            throw new DocumentProcessingException(rawContent.File.FileName, $"Document parsing failed: {ex.Message}", ex);
+            throw new DocumentProcessingException(rawContent.File.Name, $"Document parsing failed: {ex.Message}", ex);
         }
     }
 
@@ -214,9 +199,9 @@ public class DocumentProcessor : IDocumentProcessor
             var rawContent = await reader.ExtractAsync(filePath, cancellationToken);
 
             // 추출 경고 로깅
-            if (rawContent.ExtractionWarnings.Count != 0)
+            if (rawContent.Warnings.Count != 0)
             {
-                foreach (var warning in rawContent.ExtractionWarnings)
+                foreach (var warning in rawContent.Warnings)
                 {
                     _logger?.LogWarning("Extraction warning: {Warning}", warning);
                 }
@@ -246,9 +231,9 @@ public class DocumentProcessor : IDocumentProcessor
 
             var rawContent = await reader.ExtractAsync(stream, fileName, cancellationToken);
 
-            if (rawContent.ExtractionWarnings.Count != 0)
+            if (rawContent.Warnings.Count != 0)
             {
-                foreach (var warning in rawContent.ExtractionWarnings)
+                foreach (var warning in rawContent.Warnings)
                 {
                     _logger?.LogWarning("Extraction warning: {Warning}", warning);
                 }
@@ -323,19 +308,19 @@ public class DocumentProcessor : IDocumentProcessor
     {
         return new DocumentContent
         {
-            Text = parsedContent.StructuredText,
+            Text = parsedContent.Text,
             Metadata = parsedContent.Metadata,
             StructureInfo = new Dictionary<string, object>
             {
-                ["DocumentType"] = parsedContent.Structure.DocumentType,
+                ["DocumentType"] = parsedContent.Structure.Type,
                 ["Topic"] = parsedContent.Structure.Topic,
                 ["SectionCount"] = parsedContent.Structure.Sections.Count,
                 ["Keywords"] = string.Join(", ", parsedContent.Structure.Keywords),
                 ["Summary"] = parsedContent.Structure.Summary,
                 ["QualityScore"] = parsedContent.Quality.OverallScore,
-                ["StructureConfidence"] = parsedContent.Quality.StructureConfidence,
-                ["ParsingDuration"] = parsedContent.ParsingInfo.Duration.TotalMilliseconds,
-                ["UsedLlm"] = parsedContent.ParsingInfo.UsedLlm
+                ["StructureConfidence"] = parsedContent.Quality.StructureScore,
+                ["ParsingDuration"] = parsedContent.Duration.TotalMilliseconds,
+                ["UsedLlm"] = parsedContent.Info.UsedLlm
             }
         };
     }

@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Text;
 using FileFlux.Core;
 using FileFlux.Domain;
@@ -171,7 +171,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
                 await File.WriteAllTextAsync(tempFile, content, cancellationToken);
                 
                 var processedChunks = new List<DocumentChunk>();
-                await foreach (var chunk in _baseProcessor.ProcessAsync(tempFile, options, cancellationToken))
+                var chunks = await _baseProcessor.ProcessAsync(tempFile, options, cancellationToken); foreach (var chunk in chunks)
                 {
                     processedChunks.Add(chunk);
                 }
@@ -180,7 +180,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
 
                 foreach (var chunk in processedChunks)
                 {
-                    chunk.ChunkIndex = chunkIndex++;
+                    chunk.Index = chunkIndex++;
                     yield return chunk;
                 }
 
@@ -207,7 +207,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
             await File.WriteAllTextAsync(tempFile, contentBuilder.ToString(), cancellationToken);
             
             var remainingChunks = new List<DocumentChunk>();
-            await foreach (var chunk in _baseProcessor.ProcessAsync(tempFile, options, cancellationToken))
+            var chunks = await _baseProcessor.ProcessAsync(tempFile, options, cancellationToken); foreach (var chunk in chunks)
             {
                 remainingChunks.Add(chunk);
             }
@@ -216,7 +216,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
 
             foreach (var chunk in remainingChunks)
             {
-                chunk.ChunkIndex = chunkIndex++;
+                chunk.Index = chunkIndex++;
                 yield return chunk;
             }
         }

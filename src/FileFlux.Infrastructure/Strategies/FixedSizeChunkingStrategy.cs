@@ -55,21 +55,24 @@ public partial class FixedSizeChunkingStrategy : IChunkingStrategy
             // 청크 생성
             var chunk = new DocumentChunk
             {
-                Id = Guid.NewGuid().ToString(),
+                Id = Guid.NewGuid(),
                 Content = chunkText.Trim(),
                 Metadata = content.Metadata,
-                StartPosition = currentPosition,
-                EndPosition = currentPosition + actualChunkLength,
-                ChunkIndex = chunkIndex++,
+                Location = new SourceLocation
+                {
+                    StartChar = currentPosition,
+                    EndChar = currentPosition + actualChunkLength
+                },
+                Index = chunkIndex++,
                 Strategy = StrategyName,
-                EstimatedTokens = EstimateTokenCount(chunkText),
+                Tokens = EstimateTokenCount(chunkText),
                 CreatedAt = DateTime.UtcNow
             };
 
             // 페이지 정보 추가 (단일 페이지 문서의 경우)
             if (content.Metadata.PageCount == 1)
             {
-                chunk.PageNumber = 1;
+                chunk.Props["PageNumber"] = 1;
             }
 
             chunks.Add(chunk);

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using FileFlux.Domain;
 
 namespace FileFlux.Infrastructure.Services;
@@ -80,7 +80,7 @@ public class LLMChunkFilter : ILLMChunkFilter
 
         if (options.PreserveOrder)
         {
-            result = result.OrderBy(fc => fc.Chunk.ChunkIndex);
+            result = result.OrderBy(fc => fc.Chunk.Index);
         }
 
         return result;
@@ -417,7 +417,7 @@ Output only the numeric score.";
             score += 0.15;
         
         // Position in document matters
-        if (chunk.ChunkIndex < 3) // Early chunks often important
+        if (chunk.Index < 3) // Early chunks often important
             score += 0.1;
         
         return Math.Min(1, score);
