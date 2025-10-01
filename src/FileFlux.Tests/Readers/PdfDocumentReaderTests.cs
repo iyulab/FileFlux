@@ -136,15 +136,15 @@ public class PdfDocumentReaderTests
         // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Text);
-        Assert.NotNull(result.FileInfo);
+        Assert.NotNull(result.File);
         Assert.NotNull(result.StructuralHints);
         Assert.NotNull(result.ExtractionWarnings);
 
         // FileInfo 검증
-        Assert.Equal("oai_gpt-oss_model_card.pdf", result.FileInfo.FileName);
-        Assert.Equal(".pdf", result.FileInfo.FileExtension);
-        Assert.Equal("PdfReader", result.FileInfo.ReaderType);
-        Assert.True(result.FileInfo.FileSize > 0);
+        Assert.Equal("oai_gpt-oss_model_card.pdf", result.File.FileName);
+        Assert.Equal(".pdf", result.File.FileExtension);
+        Assert.Equal("PdfReader", result.File.ReaderType);
+        Assert.True(result.File.FileSize > 0);
 
         // StructuralHints 검증 - PDF 관련
         if (result.StructuralHints.TryGetValue("PageCount", out object? pageCount))
@@ -202,11 +202,11 @@ public class PdfDocumentReaderTests
         // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Text);
-        Assert.NotNull(result.FileInfo);
+        Assert.NotNull(result.File);
         
-        Assert.Equal("oai_gpt-oss_model_card.pdf", result.FileInfo.FileName);
-        Assert.Equal(".pdf", result.FileInfo.FileExtension);
-        Assert.Equal("PdfReader", result.FileInfo.ReaderType);
+        Assert.Equal("oai_gpt-oss_model_card.pdf", result.File.FileName);
+        Assert.Equal(".pdf", result.File.FileExtension);
+        Assert.Equal("PdfReader", result.File.ReaderType);
 
         _logger.LogInformation("Stream extraction - Text length: {Length}", result.Text.Length);
     }

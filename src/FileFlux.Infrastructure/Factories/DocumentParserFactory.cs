@@ -25,13 +25,13 @@ public class DocumentParserFactory : IDocumentParserFactory
         return _parsers.Values.ToList();
     }
 
-    public IDocumentParser GetParser(RawDocumentContent rawContent)
+    public IDocumentParser GetParser(RawContent rawContent)
     {
         if (rawContent == null)
             return _defaultParser;
 
         // 파일 확장자 기반 Parser 선택
-        var extension = rawContent.FileInfo.FileExtension.ToLowerInvariant();
+        var extension = rawContent.File.FileExtension.ToLowerInvariant();
         var documentType = InferDocumentType(rawContent, extension);
 
         return GetParser(documentType);
@@ -71,7 +71,7 @@ public class DocumentParserFactory : IDocumentParserFactory
         RegisterParser(new BasicDocumentParser(textCompletionService));
     }
 
-    private static string InferDocumentType(RawDocumentContent rawContent, string extension)
+    private static string InferDocumentType(RawContent rawContent, string extension)
     {
         var text = rawContent.Text.ToLowerInvariant();
         var hints = rawContent.StructuralHints;

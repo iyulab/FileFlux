@@ -187,11 +187,11 @@ public class WordDocumentStyleBasedTests : IDisposable
 
         // Assert
         Assert.NotNull(result);
-        Assert.NotNull(result.FileInfo);
+        Assert.NotNull(result.File);
 
         _output.WriteLine($"문서 속성 포함 추출 결과:");
-        _output.WriteLine($"파일명: {result.FileInfo.FileName}");
-        _output.WriteLine($"파일 크기: {result.FileInfo.FileSize} bytes");
+        _output.WriteLine($"파일명: {result.File.FileName}");
+        _output.WriteLine($"파일 크기: {result.File.FileSize} bytes");
 
         // Word 특화 메타데이터 검증
         if (result.StructuralHints.TryGetValue("word_metadata", out object? value))
@@ -209,9 +209,9 @@ public class WordDocumentStyleBasedTests : IDisposable
         }
 
         // 파일 정보 기본 검증
-        Assert.True(result.FileInfo.FileSize > 0);
-        Assert.Equal(".docx", result.FileInfo.FileExtension);
-        Assert.Equal("WordReader", result.FileInfo.ReaderType);
+        Assert.True(result.File.FileSize > 0);
+        Assert.Equal(".docx", result.File.FileExtension);
+        Assert.Equal("WordReader", result.File.ReaderType);
     }
 
     #region Test Document Creation Helper Methods

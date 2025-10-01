@@ -23,7 +23,7 @@ public partial class BasicDocumentParser : IDocumentParser
     public string ParserType => "BasicParser";
     private static readonly string[] separator = new[] { "\n\n", "\r\n\r\n" };
 
-    public bool CanParse(RawDocumentContent rawContent)
+    public bool CanParse(RawContent rawContent)
     {
         if (rawContent == null || string.IsNullOrWhiteSpace(rawContent.Text))
             return false;
@@ -32,8 +32,8 @@ public partial class BasicDocumentParser : IDocumentParser
         return rawContent.Text.Length >= 30;
     }
 
-    public async Task<ParsedDocumentContent> ParseAsync(
-        RawDocumentContent rawContent,
+    public async Task<ParsedContent> ParseAsync(
+        RawContent rawContent,
         DocumentParsingOptions options,
         CancellationToken cancellationToken = default)
     {
@@ -45,7 +45,7 @@ public partial class BasicDocumentParser : IDocumentParser
 
         try
         {
-            ParsedDocumentContent result;
+            ParsedContent result;
 
             if (options.UseLlmParsing && _textCompletionService != null)
             {
@@ -79,7 +79,7 @@ public partial class BasicDocumentParser : IDocumentParser
     /// <summary>
     /// 규칙 기반 기본 구조화 (LLM 없음)
     /// </summary>
-    private ParsedDocumentContent ParseWithRules(RawDocumentContent rawContent, DocumentParsingOptions options)
+    private ParsedContent ParseWithRules(RawContent rawContent, DocumentParsingOptions options)
     {
         var text = rawContent.Text;
         var hints = rawContent.StructuralHints;
@@ -99,7 +99,7 @@ public partial class BasicDocumentParser : IDocumentParser
         // 간단한 요약 (첫 번째 문단 또는 제목)
         var summary = GenerateBasicSummary(text, sections);
 
-        return new ParsedDocumentContent
+        return new ParsedContent
         {
             StructuredText = FormatStructuredText(sections),
             OriginalText = text,
@@ -120,8 +120,8 @@ public partial class BasicDocumentParser : IDocumentParser
     /// <summary>
     /// 텍스트 완성 서비스 기반 고도화 구조화
     /// </summary>
-    private async Task<ParsedDocumentContent> ParseWithTextCompletionAsync(
-        RawDocumentContent rawContent,
+    private async Task<ParsedContent> ParseWithTextCompletionAsync(
+        RawContent rawContent,
         DocumentParsingOptions options,
         CancellationToken cancellationToken)
     {
@@ -135,7 +135,7 @@ public partial class BasicDocumentParser : IDocumentParser
         // 품질 재계산
         var enhancedQuality = CalculateQualityMetrics(rawContent.Text, enhancedStructure.Sections, true);
 
-        return new ParsedDocumentContent
+        return new ParsedContent
         {
             StructuredText = FormatStructuredText(enhancedStructure.Sections),
             OriginalText = rawContent.Text,
@@ -145,10 +145,10 @@ public partial class BasicDocumentParser : IDocumentParser
         };
     }
 
-    private static string InferDocumentType(RawDocumentContent rawContent)
+    private static string InferDocumentType(RawContent rawContent)
     {
         var text = rawContent.Text.ToLowerInvariant();
-        var extension = rawContent.FileInfo.FileExtension.ToLowerInvariant();
+        var extension = rawContent.File.FileExtension.ToLowerInvariant();
 
         // 확장자 기반 추론
         if (extension == ".md") return "Technical";
@@ -163,9 +163,9 @@ public partial class BasicDocumentParser : IDocumentParser
         return "General";
     }
 
-    private List<DocumentSection> ExtractSections(string text, Dictionary<string, object> hints)
+    private List<Section> ExtractSections(string text, Dictionary<string, object> hints)
     {
-        var sections = new List<DocumentSection>();
+        var sections = new List<Section>();
 
         // 마크다운 헤더 기반 섹션 분할
         if (hints.TryGetValue("has_headers", out object? value) && (bool)value)
@@ -181,11 +181,11 @@ public partial class BasicDocumentParser : IDocumentParser
         return sections;
     }
 
-    private static List<DocumentSection> ExtractMarkdownSections(string text)
+    private static List<Section> ExtractMarkdownSections(string text)
     {
-        var sections = new List<DocumentSection>();
+        var sections = new List<Section>();
         var lines = text.Split('\n');
-        var currentSection = new DocumentSection();
+        var currentSection = new Section();
         var sectionId = 0;
 
         for (int i = 0; i < lines.Length; i++)
@@ -205,7 +205,7 @@ public partial class BasicDocumentParser : IDocumentParser
                 var headerMatch = MyRegex().Match(line);
                 if (headerMatch.Success)
                 {
-                    currentSection = new DocumentSection
+                    currentSection = new Section
                     {
                         Id = $"section_{++sectionId}",
                         Title = headerMatch.Groups[3].Value.Trim(),
@@ -232,9 +232,9 @@ public partial class BasicDocumentParser : IDocumentParser
         return sections;
     }
 
-    private static List<DocumentSection> ExtractParagraphSections(string text)
+    private static List<Section> ExtractParagraphSections(string text)
     {
-        var sections = new List<DocumentSection>();
+        var sections = new List<Section>();
         var paragraphs = text.Split(separator, StringSplitOptions.RemoveEmptyEntries);
 
         for (int i = 0; i < paragraphs.Length; i++)
@@ -242,7 +242,7 @@ public partial class BasicDocumentParser : IDocumentParser
             var paragraph = paragraphs[i].Trim();
             if (string.IsNullOrEmpty(paragraph)) continue;
 
-            sections.Add(new DocumentSection
+            sections.Add(new Section
             {
                 Id = $"paragraph_{i + 1}",
                 Title = $"Paragraph {i + 1}",
@@ -256,15 +256,15 @@ public partial class BasicDocumentParser : IDocumentParser
         return sections;
     }
 
-    private static DocumentMetadata CreateBasicMetadata(RawDocumentContent rawContent, string documentType)
+    private static DocumentMetadata CreateBasicMetadata(RawContent rawContent, string documentType)
     {
         return new DocumentMetadata
         {
-            FileName = rawContent.FileInfo.FileName,
+            FileName = rawContent.File.FileName,
             FileType = documentType,
-            FileSize = rawContent.FileInfo.FileSize,
-            CreatedAt = rawContent.FileInfo.CreatedAt,
-            ModifiedAt = rawContent.FileInfo.ModifiedAt,
+            FileSize = rawContent.File.FileSize,
+            CreatedAt = rawContent.File.CreatedAt,
+            ModifiedAt = rawContent.File.ModifiedAt,
             ProcessedAt = DateTime.UtcNow,
             Language = DetectLanguage(rawContent.Text),
             PageCount = 1
@@ -365,7 +365,7 @@ public partial class BasicDocumentParser : IDocumentParser
         return words;
     }
 
-    private static string GenerateBasicSummary(string text, List<DocumentSection> sections)
+    private static string GenerateBasicSummary(string text, List<Section> sections)
     {
         // 첫 번째 문단이나 제목 기반 요약
         if (sections.Count != 0)
@@ -383,7 +383,7 @@ public partial class BasicDocumentParser : IDocumentParser
             : text.Replace('\n', ' ').Trim();
     }
 
-    private static string FormatStructuredText(List<DocumentSection> sections)
+    private static string FormatStructuredText(List<Section> sections)
     {
         return string.Join("\n\n", sections.Select(s =>
         {
@@ -403,7 +403,7 @@ public partial class BasicDocumentParser : IDocumentParser
         }));
     }
 
-    private static QualityMetrics CalculateQualityMetrics(string originalText, List<DocumentSection> sections, bool usedLlm)
+    private static QualityMetrics CalculateQualityMetrics(string originalText, List<Section> sections, bool usedLlm)
     {
         var structureConfidence = sections.Count != 0 ? 0.8 : 0.3;
         var completenessScore = Math.Min(1.0, sections.Sum(s => s.Content.Length) / (double)originalText.Length);

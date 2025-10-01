@@ -28,7 +28,7 @@ public class TextDocumentReader : IDocumentReader
         return SupportedExtensions.Contains(extension);
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"File not found: {filePath}");
@@ -55,10 +55,10 @@ public class TextDocumentReader : IDocumentReader
             }
 
             // 순수 텍스트 추출 결과 반환
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = text,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = Path.GetExtension(filePath).ToLowerInvariant(),
@@ -78,7 +78,7 @@ public class TextDocumentReader : IDocumentReader
         }
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
@@ -102,10 +102,10 @@ public class TextDocumentReader : IDocumentReader
             }
 
             // 순수 텍스트 추출 결과 반환
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = text,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = fileName,
                     FileExtension = Path.GetExtension(fileName).ToLowerInvariant(),
@@ -244,7 +244,7 @@ public class TextDocumentReader : IDocumentReader
     /// <summary>
     /// 진행률을 추적하면서 문서를 읽습니다
     /// </summary>
-    public async Task<RawDocumentContent> ExtractWithProgressAsync(
+    public async Task<RawContent> ExtractWithProgressAsync(
         string filePath,
         Action<ProcessingProgress>? progressCallback = null,
         CancellationToken cancellationToken = default)
@@ -365,10 +365,10 @@ public class TextDocumentReader : IDocumentReader
                 CurrentTime = DateTime.UtcNow
             });
 
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = text,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = Path.GetExtension(filePath).ToLowerInvariant(),
@@ -392,7 +392,7 @@ public class TextDocumentReader : IDocumentReader
     /// <summary>
     /// 진행률을 추적하면서 스트림에서 문서를 읽습니다
     /// </summary>
-    public async Task<RawDocumentContent> ExtractWithProgressAsync(
+    public async Task<RawContent> ExtractWithProgressAsync(
         Stream stream,
         string fileName,
         Action<ProcessingProgress>? progressCallback = null,
@@ -463,10 +463,10 @@ public class TextDocumentReader : IDocumentReader
                 CurrentTime = DateTime.UtcNow
             });
 
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = text,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = fileName,
                     FileExtension = Path.GetExtension(fileName).ToLowerInvariant(),

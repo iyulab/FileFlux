@@ -138,15 +138,15 @@ public class PowerPointDocumentReaderTests
         // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Text);
-        Assert.NotNull(result.FileInfo);
+        Assert.NotNull(result.File);
         Assert.NotNull(result.StructuralHints);
         Assert.NotNull(result.ExtractionWarnings);
 
         // FileInfo 검증
-        Assert.Equal("samplepptx.pptx", result.FileInfo.FileName);
-        Assert.Equal(".pptx", result.FileInfo.FileExtension);
-        Assert.Equal("PowerPointReader", result.FileInfo.ReaderType);
-        Assert.True(result.FileInfo.FileSize > 0);
+        Assert.Equal("samplepptx.pptx", result.File.FileName);
+        Assert.Equal(".pptx", result.File.FileExtension);
+        Assert.Equal("PowerPointReader", result.File.ReaderType);
+        Assert.True(result.File.FileSize > 0);
 
         // StructuralHints 검증
         Assert.Equal("powerpoint_presentation", result.StructuralHints["file_type"]);
@@ -204,11 +204,11 @@ public class PowerPointDocumentReaderTests
         // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Text);
-        Assert.NotNull(result.FileInfo);
+        Assert.NotNull(result.File);
         
-        Assert.Equal("samplepptx.pptx", result.FileInfo.FileName);
-        Assert.Equal(".pptx", result.FileInfo.FileExtension);
-        Assert.Equal("PowerPointReader", result.FileInfo.ReaderType);
+        Assert.Equal("samplepptx.pptx", result.File.FileName);
+        Assert.Equal(".pptx", result.File.FileExtension);
+        Assert.Equal("PowerPointReader", result.File.ReaderType);
 
         _logger.LogInformation("Stream extraction - Text length: {Length}", result.Text.Length);
     }

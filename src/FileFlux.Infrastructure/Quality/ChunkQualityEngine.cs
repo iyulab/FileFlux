@@ -79,7 +79,7 @@ public class ChunkQualityEngine
     /// Same logic used in both internal tests and external API.
     /// </summary>
     internal async Task<List<GeneratedQuestion>> GenerateQuestionsAsync(
-        ParsedDocumentContent content,
+        ParsedContent content,
         int questionCount,
         CancellationToken cancellationToken = default)
     {
@@ -456,7 +456,7 @@ public class ChunkQualityEngine
     }
 
     private async Task<List<GeneratedQuestion>> GenerateQuestionsByType(
-        ParsedDocumentContent content,
+        ParsedContent content,
         QuestionType questionType,
         int count,
         CancellationToken cancellationToken)
@@ -503,7 +503,7 @@ public class ChunkQualityEngine
         return questions.Take(count).ToList();
     }
 
-    private GeneratedQuestion? GenerateQuestionForType(ParsedDocumentContent content, QuestionType questionType, int index)
+    private GeneratedQuestion? GenerateQuestionForType(ParsedContent content, QuestionType questionType, int index)
     {
         var contentSnippet = content.StructuredText.Length > 100 
             ? content.StructuredText.Substring(index * 20 % content.StructuredText.Length, Math.Min(100, content.StructuredText.Length - (index * 20 % content.StructuredText.Length)))
@@ -620,7 +620,7 @@ A: [expected answer]
     }
 
     private Task<List<GeneratedQuestion>> GenerateBasicQuestions(
-        ParsedDocumentContent content,
+        ParsedContent content,
         int count,
         CancellationToken cancellationToken)
     {
@@ -648,7 +648,7 @@ A: [expected answer]
     }
 
     private Task<List<GeneratedQuestion>> GenerateBasicQuestionsWithTypes(
-        ParsedDocumentContent content,
+        ParsedContent content,
         int count,
         CancellationToken cancellationToken)
     {

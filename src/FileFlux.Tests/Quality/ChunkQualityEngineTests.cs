@@ -298,9 +298,9 @@ public class ChunkQualityEngineTests
         };
     }
 
-    private static ParsedDocumentContent CreateSampleParsedContent()
+    private static ParsedContent CreateSampleParsedContent()
     {
-        return new ParsedDocumentContent
+        return new ParsedContent
         {
             OriginalText = "Sample document for testing quality analysis functionality.",
             StructuredText = "# Sample Document\n\nThis is a sample document for testing quality analysis functionality.\n\n## Technical Details\n\nThe document contains technical information and examples.",

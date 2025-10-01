@@ -62,7 +62,7 @@ public class ManualReaderTest
 
                 _logger.LogInformation("📊 Extraction Results:");
                 _logger.LogInformation("   ✅ Text length: {Length:N0} characters", result.Text.Length);
-                _logger.LogInformation("   📁 File size: {Size:N0} bytes", result.FileInfo.FileSize);
+                _logger.LogInformation("   📁 File size: {Size:N0} bytes", result.File.FileSize);
                 _logger.LogInformation("   ⚠️  Warnings: {Count}", result.ExtractionWarnings.Count);
                 
                 // 경고사항 출력
@@ -88,7 +88,7 @@ public class ManualReaderTest
 
                 Assert.NotNull(result);
                 Assert.NotNull(result.Text);
-                Assert.Equal(fileName, result.FileInfo.FileName);
+                Assert.Equal(fileName, result.File.FileName);
 
                 _logger.LogInformation("   ✅ {Type} Reader Test PASSED", type);
             }

@@ -35,12 +35,12 @@ public class DocumentReaderFactory : IDocumentReaderFactory
             .FirstOrDefault(reader => reader.SupportedExtensions.Contains(extension) && reader.CanRead(fileName));
     }
 
-    public IDocumentReader? GetReader(RawDocumentContent rawContent)
+    public IDocumentReader? GetReader(RawContent rawContent)
     {
-        if (rawContent?.FileInfo == null)
+        if (rawContent?.File == null)
             return null;
 
-        return GetReader(rawContent.FileInfo.FileName);
+        return GetReader(rawContent.File.FileName);
     }
 
     public void RegisterReader(IDocumentReader reader)

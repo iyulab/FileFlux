@@ -77,7 +77,7 @@ public sealed class FileSystemResultStorage : IDisposable
     /// <param name="fileHash">파일 해시</param>
     /// <param name="content">원본 문서 내용</param>
     /// <returns>저장된 파일 경로</returns>
-    public async Task<string> SaveRawContentAsync(string fileHash, RawDocumentContent content)
+    public async Task<string> SaveRawContentAsync(string fileHash, RawContent content)
     {
         var resultDir = GetResultDirectory(fileHash);
         Directory.CreateDirectory(resultDir);
@@ -90,10 +90,10 @@ public sealed class FileSystemResultStorage : IDisposable
         {
             FileHash = fileHash,
             ExtractedAt = DateTime.UtcNow,
-            FileInfo = content.FileInfo,
+            FileInfo = content.File,
             Text = content.Text,
-            StructuralHints = content.StructuralHints,
-            ExtractionWarnings = content.ExtractionWarnings,
+            StructuralHints = content.Hints,
+            ExtractionWarnings = content.Warnings,
             TextLength = content.Text.Length,
             WordCount = content.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length
         };
@@ -115,7 +115,7 @@ public sealed class FileSystemResultStorage : IDisposable
     /// <param name="fileHash">파일 해시</param>
     /// <param name="content">파싱된 문서 내용</param>
     /// <returns>저장된 파일 경로</returns>
-    public async Task<string> SaveParsedContentAsync(string fileHash, ParsedDocumentContent content)
+    public async Task<string> SaveParsedContentAsync(string fileHash, ParsedContent content)
     {
         var resultDir = GetResultDirectory(fileHash);
         Directory.CreateDirectory(resultDir);
@@ -128,12 +128,12 @@ public sealed class FileSystemResultStorage : IDisposable
         {
             FileHash = fileHash,
             ParsedAt = DateTime.UtcNow,
-            StructuredText = content.StructuredText,
-            OriginalText = content.OriginalText,
+            StructuredText = content.Text,
+            OriginalText = content.Text,
             Metadata = content.Metadata,
             Structure = content.Structure,
             Quality = content.Quality,
-            ParsingInfo = content.ParsingInfo
+            ParsingInfo = content.Info
         };
 
         var jsonPath = Path.Combine(parsingDir, "parsed-content.json");
@@ -142,7 +142,7 @@ public sealed class FileSystemResultStorage : IDisposable
 
         // 구조화된 텍스트도 별도 저장
         var structuredTextPath = Path.Combine(parsingDir, "structured-text.txt");
-        await File.WriteAllTextAsync(structuredTextPath, content.StructuredText);
+        await File.WriteAllTextAsync(structuredTextPath, content.Text);
 
         return jsonPath;
     }
@@ -175,11 +175,11 @@ public sealed class FileSystemResultStorage : IDisposable
             {
                 c.Id,
                 c.Content,
-                c.StartPosition,
-                c.EndPosition,
-                c.ChunkIndex,
+                StartPosition = c.Location.StartChar,
+                EndPosition = c.Location.EndChar,
+                ChunkIndex = c.Index,
                 c.Metadata,
-                c.Properties,
+                Properties = c.Props,
                 ContentLength = c.Content.Length,
                 WordCount = c.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length
             })
@@ -201,7 +201,7 @@ public sealed class FileSystemResultStorage : IDisposable
 
             var chunkContent = $"=== Chunk {i + 1}/{chunks.Length} ===\n" +
                               $"ID: {chunk.Id}\n" +
-                              $"Position: {chunk.StartPosition}-{chunk.EndPosition}\n" +
+                              $"Position: {chunk.Location.StartChar}-{chunk.Location.EndChar}\n" +
                               $"Length: {chunk.Content.Length} chars\n" +
                               $"Metadata: {JsonSerializer.Serialize(chunk.Metadata, _jsonOptions)}\n" +
                               $"{new string('=', 50)}\n\n" +
@@ -250,7 +250,7 @@ public sealed class FileSystemResultStorage : IDisposable
     /// </summary>
     /// <param name="fileHash">파일 해시</param>
     /// <returns>RawDocumentContent 또는 null</returns>
-    public async Task<RawDocumentContent?> LoadRawContentAsync(string fileHash)
+    public async Task<RawContent?> LoadRawContentAsync(string fileHash)
     {
         var resultDir = GetResultDirectory(fileHash);
         var jsonPath = Path.Combine(resultDir, "extraction", "raw-content.json");
@@ -259,7 +259,7 @@ public sealed class FileSystemResultStorage : IDisposable
             return null;
 
         var jsonContent = await File.ReadAllTextAsync(jsonPath);
-        var result = JsonSerializer.Deserialize<RawDocumentContent>(jsonContent, _jsonOptions);
+        var result = JsonSerializer.Deserialize<RawContent>(jsonContent, _jsonOptions);
         return result;
     }
 

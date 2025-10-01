@@ -15,7 +15,7 @@ namespace FileFlux.Infrastructure.Strategies;
 public class Phase14PreprocessingFeatures
 {
     public async Task<PreprocessingResult> ProcessDocumentAsync(
-        ParsedDocumentContent document,
+        ParsedContent document,
         PreprocessingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -62,7 +62,7 @@ public class Phase14PreprocessingFeatures
     /// T14-001: 문서 요약 시스템 (간단한 구현)
     /// </summary>
     private async Task<DocumentSummary> GenerateSummaryAsync(
-        ParsedDocumentContent document, 
+        ParsedContent document, 
         SummaryOptions options,
         CancellationToken cancellationToken)
     {
@@ -120,7 +120,7 @@ public class Phase14PreprocessingFeatures
     /// T14-002: 의미적 압축 시스템 (간단한 구현)
     /// </summary>
     private async Task<CompressedContent> CompressContentAsync(
-        ParsedDocumentContent document,
+        ParsedContent document,
         CompressionOptions options,
         CancellationToken cancellationToken)
     {
@@ -158,7 +158,7 @@ public class Phase14PreprocessingFeatures
     /// T14-003: 문서 증강 시스템 (간단한 구현)
     /// </summary>
     private async Task<AugmentedContent> AugmentContentAsync(
-        ParsedDocumentContent document,
+        ParsedContent document,
         AugmentationOptions options,
         CancellationToken cancellationToken)
     {
@@ -223,7 +223,7 @@ public class Phase14PreprocessingFeatures
     /// T14-004: 멀티모달 분석 (간단한 구현)
     /// </summary>
     private async Task<MultimodalAnalysis> AnalyzeMultimodalContentAsync(
-        ParsedDocumentContent document,
+        ParsedContent document,
         CancellationToken cancellationToken)
     {
         await Task.Yield();
@@ -332,7 +332,7 @@ public class AugmentationOptions
 
 public class PreprocessingResult
 {
-    public ParsedDocumentContent OriginalDocument { get; set; }
+    public ParsedContent OriginalDocument { get; set; }
     public DocumentSummary Summary { get; set; }
     public CompressedContent CompressedContent { get; set; }
     public AugmentedContent AugmentedContent { get; set; }

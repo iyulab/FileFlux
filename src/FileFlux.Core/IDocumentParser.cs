@@ -23,7 +23,7 @@ public interface IDocumentParser
     /// </summary>
     /// <param name="rawContent">Reader가 추출한 원시 텍스트</param>
     /// <returns>파싱 가능 여부</returns>
-    bool CanParse(RawDocumentContent rawContent);
+    bool CanParse(RawContent rawContent);
 
     /// <summary>
     /// 원시 텍스트를 구조화된 문서로 파싱
@@ -32,8 +32,8 @@ public interface IDocumentParser
     /// <param name="options">파싱 옵션</param>
     /// <param name="cancellationToken">취소 토큰</param>
     /// <returns>구조화된 문서 내용</returns>
-    Task<ParsedDocumentContent> ParseAsync(
-        RawDocumentContent rawContent,
+    Task<ParsedContent> ParseAsync(
+        RawContent rawContent,
         DocumentParsingOptions options,
         CancellationToken cancellationToken = default);
 }

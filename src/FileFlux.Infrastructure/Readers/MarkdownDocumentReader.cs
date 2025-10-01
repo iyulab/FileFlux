@@ -27,7 +27,7 @@ public class MarkdownDocumentReader : IDocumentReader
         return SupportedExtensions.Contains(extension);
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -48,14 +48,14 @@ public class MarkdownDocumentReader : IDocumentReader
         // 구조적 콘텐츠 추출
         var structuredContent = ExtractStructuredContent(document, markdownText);
 
-        return new RawDocumentContent
+        return new RawContent
         {
             Text = structuredContent,
             FileInfo = metadata
         };
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -79,17 +79,17 @@ public class MarkdownDocumentReader : IDocumentReader
         // 구조적 콘텐츠 추출
         var structuredContent = ExtractStructuredContent(document, markdownText);
 
-        return new RawDocumentContent
+        return new RawContent
         {
             Text = structuredContent,
             FileInfo = metadata
         };
     }
 
-    private static FileMetadata CreateMetadata(string filePath, string content)
+    private static SourceFileInfo CreateMetadata(string filePath, string content)
     {
         var fileInfo = new FileInfo(filePath);
-        return new FileMetadata
+        return new SourceFileInfo
         {
             FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
             FileExtension = fileInfo.Extension,
@@ -101,9 +101,9 @@ public class MarkdownDocumentReader : IDocumentReader
         };
     }
 
-    private static FileMetadata CreateStreamMetadata(string fileName, string content)
+    private static SourceFileInfo CreateStreamMetadata(string fileName, string content)
     {
-        return new FileMetadata
+        return new SourceFileInfo
         {
             FileName = fileName,
             FileExtension = Path.GetExtension(fileName),

@@ -138,15 +138,15 @@ public class WordDocumentReaderTests
         // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Text);
-        Assert.NotNull(result.FileInfo);
+        Assert.NotNull(result.File);
         Assert.NotNull(result.StructuralHints);
         Assert.NotNull(result.ExtractionWarnings);
 
         // FileInfo 검증
-        Assert.Equal("demo.docx", result.FileInfo.FileName);
-        Assert.Equal(".docx", result.FileInfo.FileExtension);
-        Assert.Equal("WordReader", result.FileInfo.ReaderType);
-        Assert.True(result.FileInfo.FileSize > 0);
+        Assert.Equal("demo.docx", result.File.FileName);
+        Assert.Equal(".docx", result.File.FileExtension);
+        Assert.Equal("WordReader", result.File.ReaderType);
+        Assert.True(result.File.FileSize > 0);
 
         // StructuralHints 검증
         Assert.Equal("word_document", result.StructuralHints["file_type"]);
@@ -185,11 +185,11 @@ public class WordDocumentReaderTests
         // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Text);
-        Assert.NotNull(result.FileInfo);
+        Assert.NotNull(result.File);
         
-        Assert.Equal("demo.docx", result.FileInfo.FileName);
-        Assert.Equal(".docx", result.FileInfo.FileExtension);
-        Assert.Equal("WordReader", result.FileInfo.ReaderType);
+        Assert.Equal("demo.docx", result.File.FileName);
+        Assert.Equal(".docx", result.File.FileExtension);
+        Assert.Equal("WordReader", result.File.ReaderType);
 
         _logger.LogInformation("Stream extraction - Text length: {Length}", result.Text.Length);
     }

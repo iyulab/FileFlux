@@ -37,7 +37,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         return _basePdfReader.CanRead(fileName);
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
     {
         // 기본 PDF 텍스트 추출
         var baseContent = await _basePdfReader.ExtractAsync(filePath, cancellationToken);
@@ -50,7 +50,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         return await ExtractWithImageProcessing(filePath, baseContent, cancellationToken);
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
         // 기본 PDF 텍스트 추출
         var baseContent = await _basePdfReader.ExtractAsync(stream, fileName, cancellationToken);
@@ -66,9 +66,9 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     /// <summary>
     /// 이미지 처리를 포함한 향상된 PDF 텍스트 추출
     /// </summary>
-    private async Task<RawDocumentContent> ExtractWithImageProcessing(
+    private async Task<RawContent> ExtractWithImageProcessing(
         string filePath, 
-        RawDocumentContent baseContent, 
+        RawContent baseContent, 
         CancellationToken cancellationToken)
     {
         var enhancedText = new StringBuilder(baseContent.Text);
@@ -195,19 +195,19 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             var warnings = baseContent.ExtractionWarnings?.ToList() ?? new List<string>();
             warnings.Add($"Image processing failed: {ex.Message}");
             
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = baseContent.Text,
-                FileInfo = baseContent.FileInfo,
+                FileInfo = baseContent.File,
                 StructuralHints = baseContent.StructuralHints ?? new Dictionary<string, object>(),
                 ExtractionWarnings = warnings
             };
         }
 
-        return new RawDocumentContent
+        return new RawContent
         {
             Text = enhancedText.ToString(),
-            FileInfo = baseContent.FileInfo,
+            FileInfo = baseContent.File,
             StructuralHints = structuralHints,
             ExtractionWarnings = baseContent.ExtractionWarnings
         };
@@ -310,7 +310,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     /// <summary>
     /// 문서 컨텍스트 준비 (관련성 평가용)
     /// </summary>
-    private DocumentContext PrepareDocumentContext(RawDocumentContent baseContent, string filePath)
+    private DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
     {
         var context = new DocumentContext
         {

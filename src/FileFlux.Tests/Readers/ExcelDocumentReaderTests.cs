@@ -148,15 +148,15 @@ public class ExcelDocumentReaderTests
         // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Text);
-        Assert.NotNull(result.FileInfo);
+        Assert.NotNull(result.File);
         Assert.NotNull(result.StructuralHints);
         Assert.NotNull(result.ExtractionWarnings);
 
         // FileInfo 검증
-        Assert.Equal(Path.GetFileName(fileToTest), result.FileInfo.FileName);
-        Assert.Equal(".xlsx", result.FileInfo.FileExtension);
-        Assert.Equal("ExcelReader", result.FileInfo.ReaderType);
-        Assert.True(result.FileInfo.FileSize > 0);
+        Assert.Equal(Path.GetFileName(fileToTest), result.File.FileName);
+        Assert.Equal(".xlsx", result.File.FileExtension);
+        Assert.Equal("ExcelReader", result.File.ReaderType);
+        Assert.True(result.File.FileSize > 0);
 
         // StructuralHints 검증
         Assert.Equal("excel_workbook", result.StructuralHints["file_type"]);
@@ -203,9 +203,9 @@ public class ExcelDocumentReaderTests
             
             // If it doesn't throw an exception, verify the structure
             Assert.NotNull(result);
-            Assert.Equal("test.xlsx", result.FileInfo.FileName);
-            Assert.Equal(".xlsx", result.FileInfo.FileExtension);
-            Assert.Equal("ExcelReader", result.FileInfo.ReaderType);
+            Assert.Equal("test.xlsx", result.File.FileName);
+            Assert.Equal(".xlsx", result.File.FileExtension);
+            Assert.Equal("ExcelReader", result.File.ReaderType);
         }
         catch (Exception ex)
         {

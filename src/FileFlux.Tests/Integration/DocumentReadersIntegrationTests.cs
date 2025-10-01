@@ -93,7 +93,7 @@ public class DocumentReadersIntegrationTests
         Assert.NotNull(result.Text);
         
         _logger.LogInformation("📄 Word Document Test Results:");
-        _logger.LogInformation("  File: {FileName} ({FileSize:N0} bytes)", result.FileInfo.FileName, result.FileInfo.FileSize);
+        _logger.LogInformation("  File: {FileName} ({FileSize:N0} bytes)", result.File.FileName, result.File.FileSize);
         _logger.LogInformation("  Extracted text length: {Length:N0} characters", result.Text.Length);
         _logger.LogInformation("  Warnings: {Count}", result.ExtractionWarnings.Count);
         
@@ -118,8 +118,8 @@ public class DocumentReadersIntegrationTests
             _logger.LogInformation("  📝 Preview: {Preview}", preview);
         }
 
-        Assert.Equal("WordReader", result.FileInfo.ReaderType);
-        Assert.Equal(".docx", result.FileInfo.FileExtension);
+        Assert.Equal("WordReader", result.File.ReaderType);
+        Assert.Equal(".docx", result.File.FileExtension);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public class DocumentReadersIntegrationTests
         Assert.NotNull(result.Text);
         
         _logger.LogInformation("🎞️ PowerPoint Document Test Results:");
-        _logger.LogInformation("  File: {FileName} ({FileSize:N0} bytes)", result.FileInfo.FileName, result.FileInfo.FileSize);
+        _logger.LogInformation("  File: {FileName} ({FileSize:N0} bytes)", result.File.FileName, result.File.FileSize);
         _logger.LogInformation("  Extracted text length: {Length:N0} characters", result.Text.Length);
         _logger.LogInformation("  Warnings: {Count}", result.ExtractionWarnings.Count);
         
@@ -168,8 +168,8 @@ public class DocumentReadersIntegrationTests
             _logger.LogInformation("  ✅ Slide structure preserved");
         }
         
-        Assert.Equal("PowerPointReader", result.FileInfo.ReaderType);
-        Assert.Equal(".pptx", result.FileInfo.FileExtension);
+        Assert.Equal("PowerPointReader", result.File.ReaderType);
+        Assert.Equal(".pptx", result.File.FileExtension);
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public class DocumentReadersIntegrationTests
         Assert.NotNull(result.Text);
         
         _logger.LogInformation("📑 PDF Document Test Results:");
-        _logger.LogInformation("  File: {FileName} ({FileSize:N0} bytes)", result.FileInfo.FileName, result.FileInfo.FileSize);
+        _logger.LogInformation("  File: {FileName} ({FileSize:N0} bytes)", result.File.FileName, result.File.FileSize);
         _logger.LogInformation("  Extracted text length: {Length:N0} characters", result.Text.Length);
         _logger.LogInformation("  Warnings: {Count}", result.ExtractionWarnings.Count);
         
@@ -212,8 +212,8 @@ public class DocumentReadersIntegrationTests
             _logger.LogInformation("  📊 {Key}: {Value}", hint.Key, hint.Value);
         }
         
-        Assert.Equal("PdfReader", result.FileInfo.ReaderType);
-        Assert.Equal(".pdf", result.FileInfo.FileExtension);
+        Assert.Equal("PdfReader", result.File.ReaderType);
+        Assert.Equal(".pdf", result.File.FileExtension);
     }
 
     [Fact]
@@ -238,7 +238,7 @@ public class DocumentReadersIntegrationTests
         Assert.NotNull(result.Text);
         
         _logger.LogInformation("📝 Markdown Document Test Results:");
-        _logger.LogInformation("  File: {FileName} ({FileSize:N0} bytes)", result.FileInfo.FileName, result.FileInfo.FileSize);
+        _logger.LogInformation("  File: {FileName} ({FileSize:N0} bytes)", result.File.FileName, result.File.FileSize);
         _logger.LogInformation("  Extracted text length: {Length:N0} characters", result.Text.Length);
         _logger.LogInformation("  Warnings: {Count}", result.ExtractionWarnings.Count);
         
@@ -253,8 +253,8 @@ public class DocumentReadersIntegrationTests
             _logger.LogInformation("  ✅ Code blocks detected: {Count}", result.StructuralHints["code_block_count"]);
         }
         
-        Assert.Equal("TextReader", result.FileInfo.ReaderType);
-        Assert.Equal(".md", result.FileInfo.FileExtension);
+        Assert.Equal("TextReader", result.File.ReaderType);
+        Assert.Equal(".md", result.File.FileExtension);
         Assert.True(result.Text.Length > 0, "Markdown file should have extractable content");
     }
 
@@ -304,7 +304,7 @@ public class DocumentReadersIntegrationTests
             ["Markdown"] = Path.Combine(TestDataPath, "test-markdown", "test.md")
         };
 
-        var results = new Dictionary<string, RawDocumentContent>();
+        var results = new Dictionary<string, RawContent>();
 
         // Act & Assert
         foreach (var (type, filePath) in testFiles)
@@ -326,13 +326,13 @@ public class DocumentReadersIntegrationTests
             // 모든 결과가 유효한지 검증
             Assert.NotNull(result);
             Assert.NotNull(result.Text);
-            Assert.NotNull(result.FileInfo);
+            Assert.NotNull(result.File);
             Assert.NotNull(result.StructuralHints);
             Assert.NotNull(result.ExtractionWarnings);
             
-            Assert.Equal(fileName, result.FileInfo.FileName);
-            Assert.True(result.FileInfo.FileSize > 0);
-            Assert.True(result.FileInfo.ExtractedAt > DateTime.UtcNow.AddMinutes(-1));
+            Assert.Equal(fileName, result.File.FileName);
+            Assert.True(result.File.FileSize > 0);
+            Assert.True(result.File.ExtractedAt > DateTime.UtcNow.AddMinutes(-1));
             
             _logger.LogInformation("✅ {Type}: {Length:N0} chars extracted", type, result.Text.Length);
         }

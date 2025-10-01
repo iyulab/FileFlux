@@ -31,7 +31,7 @@ public interface IDocumentReader
     /// <param name="filePath">파일 경로</param>
     /// <param name="cancellationToken">취소 토큰</param>
     /// <returns>추출된 원시 텍스트 내용</returns>
-    Task<RawDocumentContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default);
+    Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 스트림에서 순수 텍스트 추출
@@ -40,5 +40,5 @@ public interface IDocumentReader
     /// <param name="fileName">원본 파일명</param>
     /// <param name="cancellationToken">취소 토큰</param>
     /// <returns>추출된 원시 텍스트 내용</returns>
-    Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default);
+    Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default);
 }

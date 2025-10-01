@@ -1,131 +1,108 @@
 namespace FileFlux.Domain;
 
 /// <summary>
-/// RAG 시스템에 최적화된 문서 청크
+/// Stage 3 output: RAG-optimized document chunk
 /// </summary>
 public class DocumentChunk
 {
     /// <summary>
-    /// 청크 고유 식별자
+    /// Unique chunk ID
     /// </summary>
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public Guid Id { get; init; } = Guid.NewGuid();
 
     /// <summary>
-    /// 청크 내용
+    /// Reference to parsing stage
+    /// </summary>
+    public Guid ParsedId { get; set; }
+
+    /// <summary>
+    /// Reference to extraction stage (for full traceability)
+    /// </summary>
+    public Guid RawId { get; set; }
+
+    /// <summary>
+    /// Chunk content text
     /// </summary>
     public string Content { get; set; } = string.Empty;
 
     /// <summary>
-    /// 원본 문서 메타데이터
+    /// Chunk index in sequence
+    /// </summary>
+    public int Index { get; set; }
+
+    /// <summary>
+    /// Source location in original document
+    /// </summary>
+    public SourceLocation Location { get; set; } = new();
+
+    /// <summary>
+    /// Document metadata
     /// </summary>
     public DocumentMetadata Metadata { get; set; } = new();
 
     /// <summary>
-    /// 원본 문서에서의 시작 위치
+    /// Chunk quality score (0.0 - 1.0)
     /// </summary>
-    public int StartPosition { get; set; }
+    public double Quality { get; set; } = 0.5;
 
     /// <summary>
-    /// 원본 문서에서의 종료 위치
-    /// </summary>
-    public int EndPosition { get; set; }
-
-    /// <summary>
-    /// 청크 순서 번호
-    /// </summary>
-    public int ChunkIndex { get; set; }
-
-    /// <summary>
-    /// 청크가 속한 페이지 번호 (해당되는 경우)
-    /// </summary>
-    public int? PageNumber { get; set; }
-
-    /// <summary>
-    /// 청크가 속한 섹션/챕터 정보
-    /// </summary>
-    public string? Section { get; set; }
-
-    /// <summary>
-    /// 청크의 의미적 중요도 (0.0 ~ 1.0)
+    /// Semantic importance score (0.0 - 1.0)
     /// </summary>
     public double Importance { get; set; } = 0.5;
 
     /// <summary>
-    /// 청크 생성에 사용된 전략
+    /// Information density (0.0 - 1.0)
+    /// </summary>
+    public double Density { get; set; } = 0.5;
+
+    /// <summary>
+    /// Chunking strategy used
     /// </summary>
     public string Strategy { get; set; } = string.Empty;
 
     /// <summary>
-    /// 청크별 사용자 정의 속성
+    /// Estimated token count
     /// </summary>
-    public Dictionary<string, object> Properties { get; set; } = new();
+    public int Tokens { get; set; }
 
     /// <summary>
-    /// 청크 생성 일시
+    /// Chunk creation timestamp
     /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 
     /// <summary>
-    /// 텍스트 토큰 수 (추정치)
+    /// Custom properties for extensibility
     /// </summary>
-    public int EstimatedTokens { get; set; }
+    public Dictionary<string, object> Props { get; set; } = new();
+}
 
-    // 고급 메타데이터 - RAG 품질 향상을 위한 확장
+/// <summary>
+/// Source location in original document
+/// </summary>
+public class SourceLocation
+{
+    /// <summary>
+    /// Start character position
+    /// </summary>
+    public int StartChar { get; set; }
 
     /// <summary>
-    /// 콘텐츠 타입 분류
+    /// End character position
     /// </summary>
-    public string ContentType { get; set; } = "text"; // "text", "table", "code", "list", "heading"
+    public int EndChar { get; set; }
 
     /// <summary>
-    /// 청크 품질 점수 (0.0-1.0)
+    /// Start page number (if applicable)
     /// </summary>
-    public double QualityScore { get; set; } = 0.5;
+    public int? StartPage { get; set; }
 
     /// <summary>
-    /// 문서 맥락 관련성 점수 (0.0-1.0)
+    /// End page number (if applicable)
     /// </summary>
-    public double RelevanceScore { get; set; } = 0.5;
+    public int? EndPage { get; set; }
 
     /// <summary>
-    /// 구조적 역할 분류
+    /// Section path (e.g., "Introduction/Background")
     /// </summary>
-    public string StructuralRole { get; set; } = "content"; // "title", "content", "code_block", "table_cell", "list_item"
-
-    /// <summary>
-    /// 주제 분류
-    /// </summary>
-    public string? TopicCategory { get; set; }
-
-    /// <summary>
-    /// 구조적 경계 마커 - 청크의 구조적 요소 표시
-    /// </summary>
-    public string? BoundaryMarkers { get; set; }
-
-    /// <summary>
-    /// 다양한 맥락 점수들 - 확장 가능한 품질 지표
-    /// </summary>
-    public Dictionary<string, double> ContextualScores { get; set; } = new();
-
-    /// <summary>
-    /// 정보 밀도 (단위 길이당 정보량)
-    /// </summary>
-    public double InformationDensity { get; set; } = 0.5;
-
-    // LLM 최적화 메타데이터
-
-    /// <summary>
-    /// LLM용 구조적 컨텍스트 헤더 - 검색 정확도 향상
-    /// </summary>
-    public string? ContextualHeader { get; set; }
-
-    /// <summary>
-    /// 문서 도메인 (Technical, Business, Academic 등)
-    /// </summary>
-    public string DocumentDomain { get; set; } = "General";
-
-    /// <summary>
-    /// 감지된 기술 키워드 (기술 문서용)
-    /// </summary>
-    public List<string> TechnicalKeywords { get; set; } = new();
+    public string? Section { get; set; }
 }

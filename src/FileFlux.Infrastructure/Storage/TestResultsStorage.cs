@@ -44,7 +44,7 @@ public class TestResultsStorage
     /// <summary>
     /// 추출 결과 저장
     /// </summary>
-    public async Task SaveExtractionResultAsync(string fileName, RawDocumentContent rawContent)
+    public async Task SaveExtractionResultAsync(string fileName, RawContent rawContent)
     {
         var sanitizedName = SanitizeFileName(fileName);
         var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
@@ -52,11 +52,11 @@ public class TestResultsStorage
         // JSON 메타데이터 저장
         var metadata = new
         {
-            FileName = rawContent.FileInfo.FileName,
-            FileSize = rawContent.FileInfo.FileSize,
-            FileExtension = rawContent.FileInfo.FileExtension,
-            ExtractedAt = rawContent.FileInfo.ExtractedAt,
-            ReaderType = rawContent.FileInfo.ReaderType,
+            FileName = rawContent.File.FileName,
+            FileSize = rawContent.File.FileSize,
+            FileExtension = rawContent.File.FileExtension,
+            ExtractedAt = rawContent.File.ExtractedAt,
+            ReaderType = rawContent.File.ReaderType,
             TextLength = rawContent.Text.Length,
             WarningCount = rawContent.ExtractionWarnings.Count,
             Warnings = rawContent.ExtractionWarnings,
@@ -74,7 +74,7 @@ public class TestResultsStorage
     /// <summary>
     /// 파싱 결과 저장
     /// </summary>
-    public async Task SaveParsingResultAsync(string fileName, ParsedDocumentContent parsedContent)
+    public async Task SaveParsingResultAsync(string fileName, ParsedContent parsedContent)
     {
         var sanitizedName = SanitizeFileName(fileName);
         var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");

@@ -91,7 +91,7 @@ public class DocumentProcessor : IDocumentProcessor
     }
 
     public async IAsyncEnumerable<DocumentChunk> ProcessAsync(
-        RawDocumentContent rawContent,
+        RawContent rawContent,
         ChunkingOptions? options = null,
         DocumentParsingOptions? parsingOptions = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -112,8 +112,8 @@ public class DocumentProcessor : IDocumentProcessor
         }
     }
 
-    public async Task<ParsedDocumentContent> ParseAsync(
-        RawDocumentContent rawContent,
+    public async Task<ParsedContent> ParseAsync(
+        RawContent rawContent,
         DocumentParsingOptions? parsingOptions = null,
         CancellationToken cancellationToken = default)
     {
@@ -146,12 +146,12 @@ public class DocumentProcessor : IDocumentProcessor
         }
         catch (Exception ex) when (!(ex is FileFluxException))
         {
-            throw new DocumentProcessingException(rawContent.FileInfo.FileName, $"Document parsing failed: {ex.Message}", ex);
+            throw new DocumentProcessingException(rawContent.File.FileName, $"Document parsing failed: {ex.Message}", ex);
         }
     }
 
     public async Task<DocumentChunk[]> ChunkAsync(
-        ParsedDocumentContent parsedContent,
+        ParsedContent parsedContent,
         ChunkingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -171,7 +171,7 @@ public class DocumentProcessor : IDocumentProcessor
 
             _logger?.LogDebug("Using chunking strategy: {StrategyName}", strategy.StrategyName);
 
-            // ParsedDocumentContent를 기존 DocumentContent로 변환
+            // ParsedContent를 기존 DocumentContent로 변환
             var documentContent = ConvertToDocumentContent(parsedContent);
 
             // 청킹 실행
@@ -185,7 +185,7 @@ public class DocumentProcessor : IDocumentProcessor
         }
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(
+    public async Task<RawContent> ExtractAsync(
         string filePath,
         CancellationToken cancellationToken = default)
     {
@@ -195,7 +195,7 @@ public class DocumentProcessor : IDocumentProcessor
     /// <summary>
     /// 내부 텍스트 추출 메서드 (파일 경로)
     /// </summary>
-    private async Task<RawDocumentContent> ExtractTextInternalAsync(
+    private async Task<RawContent> ExtractTextInternalAsync(
         string filePath,
         CancellationToken cancellationToken = default)
     {
@@ -233,7 +233,7 @@ public class DocumentProcessor : IDocumentProcessor
     /// <summary>
     /// 내부 텍스트 추출 메서드 (스트림)
     /// </summary>
-    private async Task<RawDocumentContent> ExtractTextInternalAsync(
+    private async Task<RawContent> ExtractTextInternalAsync(
         Stream stream,
         string fileName,
         CancellationToken cancellationToken = default)
@@ -317,9 +317,9 @@ public class DocumentProcessor : IDocumentProcessor
     }
 
     /// <summary>
-    /// ParsedDocumentContent를 기존 DocumentContent로 변환
+    /// ParsedContent를 기존 DocumentContent로 변환
     /// </summary>
-    private static DocumentContent ConvertToDocumentContent(ParsedDocumentContent parsedContent)
+    private static DocumentContent ConvertToDocumentContent(ParsedContent parsedContent)
     {
         return new DocumentContent
         {

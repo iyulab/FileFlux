@@ -24,7 +24,7 @@ public interface IDocumentReaderFactory
     /// </summary>
     /// <param name="rawContent">추출된 원시 내용</param>
     /// <returns>적합한 Reader, 없으면 null</returns>
-    IDocumentReader? GetReader(RawDocumentContent rawContent);
+    IDocumentReader? GetReader(RawContent rawContent);
 
     /// <summary>
     /// 새로운 Reader를 팩토리에 등록

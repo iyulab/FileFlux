@@ -25,7 +25,7 @@ public partial class PdfDocumentReader : IDocumentReader
         return extension == ".pdf";
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(filePath))
             throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
@@ -39,7 +39,7 @@ public partial class PdfDocumentReader : IDocumentReader
         return await Task.Run(() => ExtractPdfContent(filePath, cancellationToken), cancellationToken);
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
@@ -49,7 +49,7 @@ public partial class PdfDocumentReader : IDocumentReader
         return await Task.Run(() => ExtractPdfContentFromStream(stream, fileName, cancellationToken), cancellationToken);
     }
 
-    private RawDocumentContent ExtractPdfContent(string filePath, CancellationToken cancellationToken)
+    private RawContent ExtractPdfContent(string filePath, CancellationToken cancellationToken)
     {
         var extractionWarnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
@@ -127,10 +127,10 @@ public partial class PdfDocumentReader : IDocumentReader
                 extractionWarnings.Add($"일부 페이지 처리 실패: {processedPages}/{totalPages} 페이지만 처리됨");
             }
 
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = Path.GetFileName(filePath),
                     FileExtension = ".pdf",
@@ -148,7 +148,7 @@ public partial class PdfDocumentReader : IDocumentReader
         }
     }
 
-    private RawDocumentContent ExtractPdfContentFromStream(Stream stream, string fileName, CancellationToken cancellationToken)
+    private RawContent ExtractPdfContentFromStream(Stream stream, string fileName, CancellationToken cancellationToken)
     {
         var extractionWarnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
@@ -226,10 +226,10 @@ public partial class PdfDocumentReader : IDocumentReader
                 extractionWarnings.Add($"일부 페이지 처리 실패: {processedPages}/{totalPages} 페이지만 처리됨");
             }
 
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = fileName,
                     FileExtension = ".pdf",

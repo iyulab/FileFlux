@@ -27,7 +27,7 @@ public class PowerPointDocumentReader : IDocumentReader
         return extension == ".pptx";
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(filePath))
             throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
@@ -48,7 +48,7 @@ public class PowerPointDocumentReader : IDocumentReader
         }
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
@@ -65,7 +65,7 @@ public class PowerPointDocumentReader : IDocumentReader
         }
     }
 
-    private static RawDocumentContent ExtractPowerPointContent(string filePath, CancellationToken cancellationToken)
+    private static RawContent ExtractPowerPointContent(string filePath, CancellationToken cancellationToken)
     {
         var fileInfo = new FileInfo(filePath);
         var warnings = new List<string>();
@@ -139,10 +139,10 @@ public class PowerPointDocumentReader : IDocumentReader
             structuralHints["slide_count"] = slideCount;
             structuralHints["total_shapes"] = totalShapes;
 
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = ".pptx",
@@ -163,7 +163,7 @@ public class PowerPointDocumentReader : IDocumentReader
         }
     }
 
-    private static RawDocumentContent ExtractPowerPointContentFromStream(Stream stream, string fileName, CancellationToken cancellationToken)
+    private static RawContent ExtractPowerPointContentFromStream(Stream stream, string fileName, CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
@@ -236,10 +236,10 @@ public class PowerPointDocumentReader : IDocumentReader
             structuralHints["slide_count"] = slideCount;
             structuralHints["total_shapes"] = totalShapes;
 
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = fileName,
                     FileExtension = ".pptx",
@@ -381,12 +381,12 @@ public class PowerPointDocumentReader : IDocumentReader
         }
     }
 
-    private static RawDocumentContent CreateEmptyResult(FileInfo fileInfo, List<string> warnings, Dictionary<string, object> structuralHints)
+    private static RawContent CreateEmptyResult(FileInfo fileInfo, List<string> warnings, Dictionary<string, object> structuralHints)
     {
-        return new RawDocumentContent
+        return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new FileMetadata
+            FileInfo = new SourceFileInfo
             {
                 FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                 FileExtension = ".pptx",
@@ -401,12 +401,12 @@ public class PowerPointDocumentReader : IDocumentReader
         };
     }
 
-    private static RawDocumentContent CreateEmptyStreamResult(Stream stream, string fileName, List<string> warnings, Dictionary<string, object> structuralHints)
+    private static RawContent CreateEmptyStreamResult(Stream stream, string fileName, List<string> warnings, Dictionary<string, object> structuralHints)
     {
-        return new RawDocumentContent
+        return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new FileMetadata
+            FileInfo = new SourceFileInfo
             {
                 FileName = fileName,
                 FileExtension = ".pptx",

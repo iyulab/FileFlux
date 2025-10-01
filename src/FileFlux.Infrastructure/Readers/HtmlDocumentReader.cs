@@ -26,7 +26,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         return extension == ".html" || extension == ".htm";
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(filePath))
             throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
@@ -48,7 +48,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    public async Task<RawDocumentContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
@@ -67,7 +67,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    private static RawDocumentContent ExtractHtmlContent(string htmlContent, string fileName, FileInfo fileInfo, CancellationToken cancellationToken)
+    private static RawContent ExtractHtmlContent(string htmlContent, string fileName, FileInfo fileInfo, CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
@@ -101,10 +101,10 @@ public partial class HtmlDocumentReader : IDocumentReader
             structuralHints["file_type"] = "html_document";
             structuralHints["character_count"] = extractedText.Length;
 
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                     FileExtension = fileInfo.Extension,
@@ -125,7 +125,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    private static RawDocumentContent ExtractHtmlContentFromStream(string htmlContent, string fileName, Stream stream, CancellationToken cancellationToken)
+    private static RawContent ExtractHtmlContentFromStream(string htmlContent, string fileName, Stream stream, CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
@@ -159,10 +159,10 @@ public partial class HtmlDocumentReader : IDocumentReader
             structuralHints["file_type"] = "html_document";
             structuralHints["character_count"] = extractedText.Length;
 
-            return new RawDocumentContent
+            return new RawContent
             {
                 Text = extractedText,
-                FileInfo = new FileMetadata
+                FileInfo = new SourceFileInfo
                 {
                     FileName = fileName,
                     FileExtension = Path.GetExtension(fileName),
@@ -674,12 +674,12 @@ public partial class HtmlDocumentReader : IDocumentReader
         return blockElements.Contains(tagName);
     }
 
-    private static RawDocumentContent CreateEmptyResult(FileInfo fileInfo, List<string> warnings, Dictionary<string, object> structuralHints)
+    private static RawContent CreateEmptyResult(FileInfo fileInfo, List<string> warnings, Dictionary<string, object> structuralHints)
     {
-        return new RawDocumentContent
+        return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new FileMetadata
+            FileInfo = new SourceFileInfo
             {
                 FileName = FileNameHelper.ExtractSafeFileName(fileInfo),
                 FileExtension = fileInfo.Extension,
@@ -694,12 +694,12 @@ public partial class HtmlDocumentReader : IDocumentReader
         };
     }
 
-    private static RawDocumentContent CreateEmptyStreamResult(Stream stream, string fileName, List<string> warnings, Dictionary<string, object> structuralHints)
+    private static RawContent CreateEmptyStreamResult(Stream stream, string fileName, List<string> warnings, Dictionary<string, object> structuralHints)
     {
-        return new RawDocumentContent
+        return new RawContent
         {
             Text = string.Empty,
-            FileInfo = new FileMetadata
+            FileInfo = new SourceFileInfo
             {
                 FileName = fileName,
                 FileExtension = Path.GetExtension(fileName),

@@ -17,7 +17,7 @@ public interface IDocumentParserFactory
     /// </summary>
     /// <param name="rawContent">Reader가 추출한 원시 텍스트</param>
     /// <returns>적합한 Parser, 없으면 기본 Parser</returns>
-    IDocumentParser GetParser(RawDocumentContent rawContent);
+    IDocumentParser GetParser(RawContent rawContent);
 
     /// <summary>
     /// 문서 유형을 지정하여 특정 Parser를 반환

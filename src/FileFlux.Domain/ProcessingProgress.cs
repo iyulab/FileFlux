@@ -167,12 +167,12 @@ public class ProcessingResult<T>
     /// <summary>
     /// 추출된 원시 문서 내용 (Extracting 단계에서 설정)
     /// </summary>
-    public RawDocumentContent? RawContent { get; set; }
+    public RawContent? RawContent { get; set; }
 
     /// <summary>
     /// 파싱된 문서 내용 (Parsing 단계에서 설정)
     /// </summary>
-    public ParsedDocumentContent? ParsedContent { get; set; }
+    public ParsedContent? ParsedContent { get; set; }
 
     /// <summary>
     /// 처리 성공 여부
