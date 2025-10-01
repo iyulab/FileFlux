@@ -243,7 +243,7 @@ public class TextDocumentReader : IDocumentReader
     /// <summary>
     /// 진행률을 추적하면서 문서를 읽습니다
     /// </summary>
-    public async Task<RawContent> ExtractWithProgressAsync(
+    public async Task<RawContent> ExtractStreamAsync(
         string filePath,
         Action<ProcessingProgress>? progressCallback = null,
         CancellationToken cancellationToken = default)
@@ -391,7 +391,7 @@ public class TextDocumentReader : IDocumentReader
     /// <summary>
     /// 진행률을 추적하면서 스트림에서 문서를 읽습니다
     /// </summary>
-    public async Task<RawContent> ExtractWithProgressAsync(
+    public async Task<RawContent> ExtractStreamAsync(
         Stream stream,
         string fileName,
         Action<ProcessingProgress>? progressCallback = null,

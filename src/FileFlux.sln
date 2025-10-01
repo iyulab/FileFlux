@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.Core", "FileFlux.C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.Infrastructure", "FileFlux.Infrastructure\FileFlux.Infrastructure.csproj", "{10EB479F-01F8-4082-B8AA-E911B4D6BB6A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.Tests", "..\test\FileFlux.Tests\FileFlux.Tests.csproj", "{E9FF2502-8AF8-45DC-8246-86753542B788}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.Tests", "..\tests\FileFlux.Tests\FileFlux.Tests.csproj", "{E9FF2502-8AF8-45DC-8246-86753542B788}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.SampleApp", "..\samples\FileFlux.SampleApp\FileFlux.SampleApp.csproj", "{A818B454-5265-411E-8999-035C36256C3E}"
 EndProject

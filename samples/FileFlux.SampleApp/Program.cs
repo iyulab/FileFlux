@@ -97,7 +97,7 @@ class Program
             using var host = CreateHost();
             await host.StartAsync();
             var app = host.Services.GetRequiredService<FileFluxApp>();
-            await app.ProcessDocumentWithProgressAsync(filePath, strategy);
+            await app.ProcessDocumentStreamAsync(filePath, strategy);
             await host.StopAsync();
         }, filePathArgument, strategyOption);
 

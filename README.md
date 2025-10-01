@@ -74,7 +74,7 @@ var embeddingService = provider.GetRequiredService<IEmbeddingService>();
 var vectorStore = provider.GetRequiredService<IVectorStore>();
 
 // Streaming processing (recommended - memory efficient, parallel optimized)
-await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
+await foreach (var result in processor.ProcessStreamAsync("document.pdf"))
 {
     if (result.IsSuccess && result.Result != null)
     {
@@ -305,7 +305,7 @@ public class RagService
             OverlapSize = 64
         };
 
-        await foreach (var result in _processor.ProcessWithProgressAsync(filePath, options))
+        await foreach (var result in _processor.ProcessStreamAsync(filePath, options))
         {
             if (result.IsSuccess && result.Result != null)
             {

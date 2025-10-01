@@ -367,7 +367,6 @@ claudedocs/
 CLAUDE.local.md
 /src/FileFlux.SampleApp/fileflux.db
 .env.local
-test/
 
 *.db
 benchmark-report-*

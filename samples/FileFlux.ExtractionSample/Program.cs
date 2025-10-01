@@ -24,7 +24,7 @@ class Program
         var pdfReader = services.GetRequiredService<IDocumentReader>();
 
         // Target PDF path
-        var pdfPath = @"D:\data\FileFlux\test\test-pdf\oai_gpt-oss_model_card.pdf";
+        var pdfPath = @"D:\data\FileFlux\tests\test-pdf\oai_gpt-oss_model_card.pdf";
 
         try
         {

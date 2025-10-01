@@ -69,7 +69,7 @@ var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
 // Method 1: Streaming processing (recommended - memory efficient, parallel optimized)
-await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
+await foreach (var result in processor.ProcessStreamAsync("document.pdf"))
 {
     if (result.IsSuccess && result.Result != null)
     {
@@ -141,7 +141,7 @@ public class OpenAiImageToTextService : IImageToTextService
 services.AddScoped<IImageToTextService, OpenAiImageToTextService>();
 
 // Process PDF with images
-await foreach (var result in processor.ProcessWithProgressAsync("document-with-images.pdf"))
+await foreach (var result in processor.ProcessStreamAsync("document-with-images.pdf"))
 {
     if (result.IsSuccess && result.Result != null)
     {
@@ -166,7 +166,7 @@ services.AddScoped<ITextCompletionService, YourLlmService>();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 
 // Method 1: Direct processing (recommended)
-await foreach (var result in processor.ProcessWithProgressAsync("technical-doc.md", new ChunkingOptions 
+await foreach (var result in processor.ProcessStreamAsync("technical-doc.md", new ChunkingOptions 
 { 
     Strategy = "Intelligent" 
 }))
@@ -367,7 +367,7 @@ public class RagService
     
     public async Task IndexDocumentAsync(string filePath)
     {
-        await foreach (var result in _processor.ProcessWithProgressAsync(filePath, new ChunkingOptions
+        await foreach (var result in _processor.ProcessStreamAsync(filePath, new ChunkingOptions
         {
             Strategy = "Intelligent",
             MaxChunkSize = 512
@@ -404,7 +404,7 @@ var options = new ChunkingOptions
     PreserveStructure = true
 };
 
-await foreach (var result in processor.ProcessWithProgressAsync("document.pdf", options))
+await foreach (var result in processor.ProcessStreamAsync("document.pdf", options))
 {
     if (result.IsSuccess && result.Result != null)
     {
@@ -482,7 +482,7 @@ var chunks = await processor.ChunkAsync(parsedContent, new ChunkingOptions
 Console.WriteLine($"Generated chunks: {chunks.Count()}");
 
 // Integrated processing (recommended)
-await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
+await foreach (var result in processor.ProcessStreamAsync("document.pdf"))
 {
     if (result.IsSuccess && result.Result != null)
     {
@@ -501,7 +501,7 @@ await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
 try
 {
     var chunks = new List<DocumentChunk>();
-    await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
+    await foreach (var result in processor.ProcessStreamAsync("document.pdf"))
     {
         if (result.IsSuccess && result.Result != null)
         {
@@ -528,7 +528,7 @@ catch (FileNotFoundException)
 }
 
 // Error handling in streaming
-await foreach (var result in processor.ProcessWithProgressAsync("document.pdf"))
+await foreach (var result in processor.ProcessStreamAsync("document.pdf"))
 {
     if (!result.IsSuccess)
     {

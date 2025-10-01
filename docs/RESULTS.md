@@ -192,7 +192,7 @@ var options = new ChunkingOptions
 };
 
 // 3. 파일 처리
-await foreach (var result in processor.ProcessWithProgressAsync("document.pdf", options))
+await foreach (var result in processor.ProcessStreamAsync("document.pdf", options))
 {
     if (result.IsSuccess && result.Result != null)
     {

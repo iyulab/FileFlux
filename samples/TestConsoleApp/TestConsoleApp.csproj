@@ -11,7 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileFlux.Core\FileFlux.Core.csproj" />
     <ProjectReference Include="..\..\src\FileFlux.Infrastructure\FileFlux.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\test\FileFlux.Tests\FileFlux.Tests.csproj" />
+    <ProjectReference Include="..\..\tests\FileFlux.Tests\FileFlux.Tests.csproj" />
   </ItemGroup>
 
   <ItemGroup>

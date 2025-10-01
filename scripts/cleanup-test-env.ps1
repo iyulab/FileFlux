@@ -1,7 +1,7 @@
 # FileFlux Test Environment Cleanup Script
 # Keeps only the PDF file and removes all processing results
 
-$testDir = "D:\data\FileFlux\test\test-pdf"
+$testDir = "D:\data\FileFlux\tests\test-pdf"
 
 Write-Host "🧹 FileFlux Test Environment Cleanup" -ForegroundColor Cyan
 Write-Host "Target Directory: $testDir" -ForegroundColor Yellow

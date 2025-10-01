@@ -348,7 +348,7 @@ public class FileFluxApp
     /// <summary>
     /// 스트리밍 방식으로 문서를 처리합니다 (새로운 간소화된 API 사용)
     /// </summary>
-    public async Task ProcessDocumentWithProgressAsync(string filePath, string strategy)
+    public async Task ProcessDocumentStreamAsync(string filePath, string strategy)
     {
         try
         {

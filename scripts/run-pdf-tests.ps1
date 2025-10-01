@@ -98,7 +98,7 @@ if ($ragTestExitCode -eq 0) {
 }
 
 # Show test results location
-$testResultsDir = "D:\data\FileFlux\test\test-a\chunking-results"
+$testResultsDir = "D:\data\FileFlux\tests\test-a\chunking-results"
 if (Test-Path $testResultsDir) {
     Write-Host "`n📁 Test Results Location:" -ForegroundColor Yellow
     Write-Host "  $testResultsDir" -ForegroundColor White

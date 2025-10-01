@@ -74,7 +74,7 @@ FileFlux/
 │   ├── FileFlux.Contracts/        # 외부 계약
 │   ├── FileFlux.Infrastructure/   # 구현체 (NuGet 패키지)
 │   └── FileFlux.sln
-├── test/
+├── tests/
 │   └── FileFlux.Tests/            # 테스트 (단위, 통합, 벤치마크)
 ├── samples/
 │   ├── FileFlux.SampleApp/        # 사용 예제

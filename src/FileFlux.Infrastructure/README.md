@@ -135,7 +135,7 @@ services.AddSingleton<IChunkingStrategy, CustomChunkingStrategy>();
 ### 진행률 추적
 
 ```csharp
-await foreach (var progress in processor.ProcessWithProgressAsync(filePath, options))
+await foreach (var progress in processor.ProcessStreamAsync(filePath, options))
 {
     if (progress.IsSuccess && progress.Result != null)
     {

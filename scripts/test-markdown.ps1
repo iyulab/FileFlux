@@ -11,7 +11,7 @@ param(
 )
 
 $projectRoot = "D:\data\FileFlux"
-$testDir = "$projectRoot\test\test-markdown"
+$testDir = "$projectRoot\tests\test-markdown"
 $testProject = "$projectRoot\src\FileFlux.Tests\FileFlux.Tests.csproj"
 
 Write-Host "📝 FileFlux Markdown Test Environment Manager" -ForegroundColor Cyan
