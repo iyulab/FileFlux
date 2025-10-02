@@ -202,6 +202,8 @@ public static class ServiceCollectionExtensions
     private static void RegisterChunkingStrategies(IServiceCollection services)
     {
         // Auto 전략을 지원하는 팩토리 사용 (DI 지원)
-        services.AddSingleton<IChunkingStrategyFactory, ChunkingStrategyFactory>();
+        // Scoped로 등록: IDocumentProcessor (Scoped)가 주입받고,
+        // scoped ServiceProvider를 통해 scoped IAdaptiveStrategySelector를 resolve할 수 있음
+        services.AddScoped<IChunkingStrategyFactory, ChunkingStrategyFactory>();
     }
 }
