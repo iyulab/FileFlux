@@ -6,9 +6,11 @@
 
 ### 1. Clean Architecture
 
-- **Domain Layer**: Core models and interface definitions
-- **Core Layer**: Business logic and processing orchestration
-- **Infrastructure Layer**: Concrete implementations (readers, strategies)
+FileFlux follows clean architecture principles within a **unified single project**:
+
+- **Core/ folder**: Interface definitions and abstractions
+- **Domain/ folder**: Core models and domain entities
+- **Infrastructure/ folder**: Concrete implementations (readers, strategies, services)
 
 ### 2. Interface-Driven Design
 
@@ -60,6 +62,29 @@ graph TB
     style W fill:#e8f5e8
 ```
 
+### Project Structure
+
+FileFlux is a **unified single project** with internal organization:
+
+```
+FileFlux/
+├── Core/                      # Interfaces & Abstractions
+│   ├── IDocumentProcessor
+│   ├── IDocumentReader
+│   ├── IChunkingStrategy
+│   └── Factories
+├── Domain/                    # Domain Models
+│   ├── DocumentChunk
+│   ├── RawContent
+│   ├── ParsedDocumentContent
+│   └── ChunkingOptions
+└── Infrastructure/           # Implementations
+    ├── Readers/             # Document Readers
+    ├── Strategies/          # Chunking Strategies
+    ├── Services/            # Processing Services
+    └── Utilities/           # Helper Classes
+```
+
 ### Layer Structure
 
 ```
@@ -69,26 +94,33 @@ graph TB
 │ • RAG Systems Integration       │
 │ • Service Configuration         │
 ├─────────────────────────────────┤
-│       Abstraction Layer         │
-│ • IDocumentProcessor            │
-│ • IDocumentReader               │
-│ • IChunkingStrategy             │
-├─────────────────────────────────┤
-│          Core Layer             │
-│ • DocumentProcessor             │
-│ • DocumentReaderFactory         │
-│ • ChunkingStrategyFactory       │
-├─────────────────────────────────┤
-│     Implementation Layer        │
-│ • Document Readers              │
-│ • Chunking Strategies           │
-│ • Text Processing Utilities     │
-├─────────────────────────────────┤
-│         Model Layer             │
-│ • DocumentChunk                 │
-│ • RawContent                    │
-│ • ParsedDocumentContent         │
-│ • ChunkingOptions               │
+│                                 │
+│      FileFlux Package           │
+│  (Unified Single Project)       │
+│                                 │
+│  ┌───────────────────────────┐  │
+│  │    Core/ (Abstractions)   │  │
+│  │  • IDocumentProcessor     │  │
+│  │  • IDocumentReader        │  │
+│  │  • IChunkingStrategy      │  │
+│  └───────────────────────────┘  │
+│                                 │
+│  ┌───────────────────────────┐  │
+│  │    Domain/ (Models)       │  │
+│  │  • DocumentChunk          │  │
+│  │  • RawContent             │  │
+│  │  • ParsedDocumentContent  │  │
+│  │  • ChunkingOptions        │  │
+│  └───────────────────────────┘  │
+│                                 │
+│  ┌───────────────────────────┐  │
+│  │ Infrastructure/ (Impls)   │  │
+│  │  • Document Readers       │  │
+│  │  • Chunking Strategies    │  │
+│  │  • Processing Services    │  │
+│  │  • Utilities              │  │
+│  └───────────────────────────┘  │
+│                                 │
 └─────────────────────────────────┘
 ```
 
@@ -371,7 +403,7 @@ FileFlux focuses on transforming documents into structured chunks, leaving embed
 ## Related Documentation
 
 - [Tutorial](TUTORIAL.md) - Detailed usage guide
-- [RAG Design](RAG-DESIGN.md) - RAG system integration patterns
 - [Building](../BUILDING.md) - Build and test guide
+- [Test Results](RESULTS.md) - Real-world API test results
 - [GitHub Repository](https://github.com/iyulab/FileFlux)
 - [NuGet Package](https://www.nuget.org/packages/FileFlux)

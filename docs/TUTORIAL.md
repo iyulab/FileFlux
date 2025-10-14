@@ -636,7 +636,7 @@ services.AddScoped<ITextCompletionService, CustomTextCompletionService>();
 ## Related Documentation
 
 - [Architecture](ARCHITECTURE.md) - System design and architecture
-- [RAG Design](RAG-DESIGN.md) - RAG system integration patterns
 - [Building](../BUILDING.md) - Build and test guide
+- [Test Results](RESULTS.md) - Real-world API test results
 - [GitHub Repository](https://github.com/iyulab/FileFlux)
 - [NuGet Package](https://www.nuget.org/packages/FileFlux)
