@@ -69,16 +69,16 @@ GitHub Actions는 빌드만 수행하여 빠른 피드백을 제공합니다.
 ```
 FileFlux/
 ├── src/
-│   ├── FileFlux.Domain/          # 도메인 모델
-│   ├── FileFlux.Core/             # 인터페이스
-│   ├── FileFlux.Contracts/        # 외부 계약
-│   ├── FileFlux.Infrastructure/   # 구현체 (NuGet 패키지)
+│   ├── FileFlux/                  # 통합 프로젝트 (NuGet 패키지)
+│   │   ├── Core/                  # 인터페이스
+│   │   ├── Domain/                # 도메인 모델
+│   │   └── Infrastructure/        # 구현체
+│   ├── Directory.Build.props      # 빌드 설정
 │   └── FileFlux.sln
 ├── tests/
 │   └── FileFlux.Tests/            # 테스트 (단위, 통합, 벤치마크)
 ├── samples/
-│   ├── FileFlux.SampleApp/        # 사용 예제
-│   └── ...
+│   └── FileFlux.SampleApp/        # 사용 예제
 └── scripts/
     ├── quick-build.ps1            # 빠른 빌드 & 단위 테스트
     └── full-test.ps1              # 전체 테스트 스위트

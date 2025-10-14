@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, develop ]
     paths:
-      - 'Directory.Build.props'
+      - 'src/Directory.Build.props'
   workflow_dispatch:
     inputs:
       force_publish:
@@ -33,7 +33,7 @@ jobs:
       - name: 📊 Extract Version from Directory.Build.props
         id: extract-version
         run: |
-          VERSION=$(grep -oP '(?<=<VersionPrefix>)[^<]*' Directory.Build.props)
+          VERSION=$(grep -oP '(?<=<VersionPrefix>)[^<]*' src/Directory.Build.props)
           echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -58,7 +58,7 @@ jobs:
 
       - name: 📦 Create NuGet Package
         run: |
-          dotnet pack src/FileFlux.Infrastructure/FileFlux.Infrastructure.csproj \
+          dotnet pack src/FileFlux/FileFlux.csproj \
             --configuration Release \
             --output nupkg/ \
             -p:PackageVersion=${{ needs.detect-version.outputs.version }} \

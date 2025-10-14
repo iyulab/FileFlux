@@ -2,7 +2,7 @@
 <Project>
   <!-- Version Information (can be overridden by build scripts) -->
   <PropertyGroup>
-    <VersionPrefix>0.2.13</VersionPrefix>
+    <VersionPrefix>0.3.0</VersionPrefix>
     <VersionSuffix Condition="'$(Configuration)' == 'Debug'">-dev</VersionSuffix>
     <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
     <FileVersion>$(VersionPrefix)</FileVersion>
@@ -92,21 +92,9 @@
   </ItemGroup>
 
   <!-- Project-specific overrides using conditions -->
-  
-  <!-- Domain Project - Internal library, NOT packaged separately -->
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.Domain'">
-    <IsPackable>false</IsPackable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
 
-  <!-- Core Project - Internal interfaces, NOT packaged separately -->
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.Core'">
-    <IsPackable>false</IsPackable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
-
-  <!-- Infrastructure Project - Main NuGet package -->
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.Infrastructure'">
+  <!-- FileFlux - Main NuGet package -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux'">
     <IsPackable>true</IsPackable>
     <PackageId>FileFlux</PackageId>
     <Title>FileFlux - Document Processing SDK for RAG</Title>

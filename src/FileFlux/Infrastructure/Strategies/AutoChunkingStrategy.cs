@@ -126,8 +126,8 @@ public class AutoChunkingStrategy : IChunkingStrategy
             // 파일 경로가 메타데이터에 있는지 확인
             var filePath = content.Metadata?.FileName ?? "unknown.txt";
             
-            // 타임아웃 설정
-            var maxAnalysisTime = GetStrategyOption(options, "MaxAnalysisTime", 10);
+            // 타임아웃 설정 (GPT-5 등 최신 모델은 응답이 느릴 수 있으므로 충분한 시간 확보)
+            var maxAnalysisTime = GetStrategyOption(options, "MaxAnalysisTime", 300); // 10초 → 300초 (5분)
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(maxAnalysisTime));
             

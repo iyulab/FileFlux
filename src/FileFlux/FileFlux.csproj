@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- All common properties inherited from Directory.Build.props -->
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>FileFlux</PackageId>
+    <Title>FileFlux - Document Processing SDK for RAG</Title>
+    <Description>Complete document processing SDK optimized for RAG systems. Transform PDF, DOCX, Excel, PowerPoint, Markdown and other formats into high-quality chunks with intelligent semantic boundary detection. Includes advanced chunking strategies, metadata extraction, and performance optimization.</Description>
+    <PackageTags>rag;document;processing;chunking;ai;llm;fileflux;complete;sdk;readers;pdf;docx;excel;powerpoint;markdown;semantic;intelligent</PackageTags>
+    <PackageReleaseNotes>Complete FileFlux SDK with document readers, intelligent chunking strategies, and RAG optimization - Now in a single unified package</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft Extensions packages -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.9" />
+
+    <!-- Document Processing Libraries -->
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
+    <PackageReference Include="PdfPig" Version="0.1.11" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.3" />
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="Markdig" Version="0.42.0" />
+  </ItemGroup>
+
+</Project>

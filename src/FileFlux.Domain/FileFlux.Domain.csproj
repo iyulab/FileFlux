@@ -1,6 +1,0 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <!-- All common properties inherited from Directory.Build.props -->
-  <!-- Project-specific properties are defined in Directory.Build.props based on MSBuildProjectName -->
-
-</Project>

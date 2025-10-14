@@ -125,8 +125,12 @@ For AI service implementation examples, see the `samples/` directory.
 ```
 FileFlux/
 ├── src/
-│   └── FileFlux.Infrastructure/    # Main package
-├── test/
+│   ├── FileFlux/                    # Main package (unified project)
+│   │   ├── Core/                    # Interfaces
+│   │   ├── Domain/                  # Domain models
+│   │   └── Infrastructure/          # Implementations
+│   └── Directory.Build.props        # Build configuration
+├── tests/
 │   └── FileFlux.Tests/              # Test suite
 └── samples/
     └── FileFlux.SampleApp/          # Usage examples

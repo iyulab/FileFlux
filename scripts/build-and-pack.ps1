@@ -81,7 +81,7 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 $Projects = @(
     @{
         Name = "FileFlux"
-        Path = "FileFlux.Infrastructure\FileFlux.Infrastructure.csproj"
+        Path = "FileFlux\FileFlux.csproj"
         Description = "Complete FileFlux SDK for RAG-optimized document processing"
     }
 )
@@ -199,9 +199,9 @@ try {
     
     if ($PublishToNuGet) {
         Write-Host "NuGet 발행: 완료" -ForegroundColor Cyan
-        Write-Host "설치 명령: dotnet add package FileFlux.Infrastructure --version $Version" -ForegroundColor Yellow
+        Write-Host "설치 명령: dotnet add package FileFlux --version $Version" -ForegroundColor Yellow
     } else {
-        Write-Host "로컬 테스트: dotnet add package FileFlux.Infrastructure --source $OutputPath --version $Version" -ForegroundColor Yellow
+        Write-Host "로컬 테스트: dotnet add package FileFlux --source $OutputPath --version $Version" -ForegroundColor Yellow
     }
 
 } catch {
