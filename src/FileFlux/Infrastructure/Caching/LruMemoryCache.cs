@@ -56,7 +56,7 @@ public class LruMemoryCache : IMemoryCache
                 // Move to front (most recently used)
                 _lruList.Remove(node.ListNode!);
                 _lruList.AddFirst(node.ListNode!);
-                
+
                 _hits++;
                 value = (T)node.Value;
                 return true;
@@ -82,10 +82,10 @@ public class LruMemoryCache : IMemoryCache
             if (_cache.TryGetValue(key, out var existingNode))
             {
                 existingNode.Value = value!;
-                existingNode.ExpiresAt = expiration.HasValue 
-                    ? DateTime.UtcNow.Add(expiration.Value) 
+                existingNode.ExpiresAt = expiration.HasValue
+                    ? DateTime.UtcNow.Add(expiration.Value)
                     : null;
-                
+
                 // Move to front
                 _lruList.Remove(existingNode.ListNode!);
                 _lruList.AddFirst(existingNode.ListNode!);
@@ -108,8 +108,8 @@ public class LruMemoryCache : IMemoryCache
             {
                 Key = key,
                 Value = value!,
-                ExpiresAt = expiration.HasValue 
-                    ? DateTime.UtcNow.Add(expiration.Value) 
+                ExpiresAt = expiration.HasValue
+                    ? DateTime.UtcNow.Add(expiration.Value)
                     : null
             };
 
@@ -158,7 +158,7 @@ public class LruMemoryCache : IMemoryCache
         lock (_lock)
         {
             long memoryUsage = 0;
-            
+
             // Estimate memory usage
             foreach (var node in _cache.Values)
             {
@@ -253,7 +253,7 @@ public static class LruMemoryCacheExtensions
     public static Dictionary<string, T> GetMany<T>(this IMemoryCache cache, IEnumerable<string> keys)
     {
         var result = new Dictionary<string, T>();
-        
+
         foreach (var key in keys)
         {
             if (cache.TryGet<T>(key, out var value) && value != null)
@@ -261,7 +261,7 @@ public static class LruMemoryCacheExtensions
                 result[key] = value;
             }
         }
-        
+
         return result;
     }
 }

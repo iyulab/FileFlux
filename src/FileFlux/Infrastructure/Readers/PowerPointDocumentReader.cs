@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using FileFlux;
 using FileFlux.Exceptions;
@@ -111,7 +111,7 @@ public class PowerPointDocumentReader : IDocumentReader
                     if (slide == null) continue;
 
                     var slideContent = ExtractSlideContent(slide, slidePart, slideCount + 1, warnings, cancellationToken);
-                    
+
                     if (!string.IsNullOrWhiteSpace(slideContent.Content))
                     {
                         if (textBuilder.Length > 0)
@@ -208,7 +208,7 @@ public class PowerPointDocumentReader : IDocumentReader
                     if (slide == null) continue;
 
                     var slideContent = ExtractSlideContent(slide, slidePart, slideCount + 1, warnings, cancellationToken);
-                    
+
                     if (!string.IsNullOrWhiteSpace(slideContent.Content))
                     {
                         if (textBuilder.Length > 0)
@@ -271,7 +271,7 @@ public class PowerPointDocumentReader : IDocumentReader
 
             // 슬라이드의 모든 텍스트 요소 추출
             var shapes = slide.CommonSlideData?.ShapeTree?.Elements<Shape>().ToList() ?? new List<Shape>();
-            
+
             foreach (var shape in shapes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -349,7 +349,7 @@ public class PowerPointDocumentReader : IDocumentReader
         try
         {
             var shapes = notesSlide.CommonSlideData?.ShapeTree?.Elements<Shape>().ToList() ?? new List<Shape>();
-            
+
             foreach (var shape in shapes)
             {
                 var shapeText = ExtractTextFromShape(shape);

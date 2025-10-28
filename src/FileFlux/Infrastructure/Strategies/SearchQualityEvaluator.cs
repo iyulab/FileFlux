@@ -1,4 +1,4 @@
-﻿using FileFlux.Domain;
+using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
@@ -10,7 +10,7 @@ namespace FileFlux.Infrastructure.Strategies;
 public class SearchQualityEvaluator
 {
     private static readonly Regex SentenceRegex = new(@"[.!?]+\s+", RegexOptions.Compiled);
-    
+
     /// <summary>
     /// Evaluate comprehensive search quality for a chunk
     /// </summary>
@@ -266,17 +266,17 @@ public class SearchQualityEvaluator
     {
         var words = chunk.Content.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var contentWords = words.Where(w => w.Length > 3 && !IsStopWord(w)).ToList();
-        
+
         if (contentWords.Count == 0) return 0;
 
         // Calculate term frequency distribution
         var termFreq = contentWords.GroupBy(w => w).ToDictionary(g => g.Key, g => g.Count());
         var maxFreq = termFreq.Values.Max();
-        
+
         // Higher overlap potential if terms are well distributed
         var distributionScore = termFreq.Values.Average() / (double)maxFreq;
         var uniquenessScore = (double)termFreq.Count / contentWords.Count;
-        
+
         return (distributionScore + uniquenessScore) / 2.0;
     }
 
@@ -292,7 +292,7 @@ public class SearchQualityEvaluator
 
         // Combine factors for semantic potential
         var lengthScore = Math.Min(1.0, avgSentenceLength / 20.0); // Normalize to 20 words
-        
+
         return (lengthScore + vocabularyRichness + conceptDensity) / 3.0;
     }
 
@@ -302,7 +302,7 @@ public class SearchQualityEvaluator
         var content = chunk.Content.ToLowerInvariant();
 
         // Factual query compatibility
-        compatibility.FactualQueries = content.Contains("what") || content.Contains("who") || 
+        compatibility.FactualQueries = content.Contains("what") || content.Contains("who") ||
                                      content.Contains("when") || content.Contains("where") ? 0.8 : 0.4;
 
         // How-to query compatibility  
@@ -336,7 +336,7 @@ public class SearchQualityEvaluator
     {
         var score = recall.PredictedRecallScore;
         var uncertainty = CalculateUncertainty(chunk);
-        
+
         return new ConfidenceInterval
         {
             Lower = Math.Max(0, score - uncertainty),
@@ -351,9 +351,9 @@ public class SearchQualityEvaluator
     {
         var words = chunk.Content.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var uniqueWords = words.Distinct().Count();
-        
+
         if (words.Length == 0) return 0;
-        
+
         // Lexical diversity ratio
         return (double)uniqueWords / words.Length;
     }
@@ -363,7 +363,7 @@ public class SearchQualityEvaluator
         // Estimate based on concept density and topic specificity
         var conceptDensity = EstimateConceptDensity(chunk.Content);
         var topicSpecificity = EstimateTopicSpecificity(chunk.Content);
-        
+
         return (conceptDensity + topicSpecificity) / 2.0;
     }
 
@@ -385,7 +385,7 @@ public class SearchQualityEvaluator
             structuralFeatures += 0.3;
 
         // Tables
-        if (content.Contains("|") && content.Split('\n').Count(l => l.Contains('|')) > 2)
+        if (content.Contains('|') && content.Split('\n').Count(l => l.Contains('|')) > 2)
             structuralFeatures += 0.3;
 
         return Math.Min(1.0, structuralFeatures);
@@ -396,7 +396,7 @@ public class SearchQualityEvaluator
         // Measure information density and novelty
         var informationDensity = EstimateInformationDensity(chunk.Content);
         var noveltyScore = EstimateNovelty(chunk.Content);
-        
+
         return (informationDensity + noveltyScore) / 2.0;
     }
 
@@ -405,7 +405,7 @@ public class SearchQualityEvaluator
         // Consider position, relationships, and contextual factors
         var positionScore = chunk.Index == 0 ? 0.8 : Math.Max(0.2, 1.0 - (chunk.Index / 100.0));
         var qualityScore = chunk.Quality;
-        
+
         return (positionScore + qualityScore) / 2.0;
     }
 
@@ -414,7 +414,7 @@ public class SearchQualityEvaluator
         var riskLevel = distinctiveness.OverallDistinctiveness switch
         {
             < 0.3 => "High",
-            < 0.6 => "Medium", 
+            < 0.6 => "Medium",
             _ => "Low"
         };
 
@@ -432,8 +432,8 @@ public class SearchQualityEvaluator
     {
         // Check if main concepts are fully explained
         var sentences = SentenceRegex.Split(chunk.Content).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-        
-        var definitionCount = sentences.Count(s => s.ToLowerInvariant().Contains("is") || 
+
+        var definitionCount = sentences.Count(s => s.ToLowerInvariant().Contains("is") ||
                                                    s.ToLowerInvariant().Contains("means"));
         var explanationCount = sentences.Count(s => s.ToLowerInvariant().Contains("because") ||
                                                      s.ToLowerInvariant().Contains("due to"));
@@ -464,7 +464,7 @@ public class SearchQualityEvaluator
     private double AssessLogicalCompleteness(DocumentChunk chunk)
     {
         var sentences = SentenceRegex.Split(chunk.Content).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-        
+
         var logicalConnectors = new[]
         {
             "therefore", "thus", "hence", "consequently",
@@ -473,7 +473,7 @@ public class SearchQualityEvaluator
             "first", "second", "finally", "next"
         };
 
-        var connectorCount = sentences.Count(s => 
+        var connectorCount = sentences.Count(s =>
             logicalConnectors.Any(connector => s.ToLowerInvariant().Contains(connector)));
 
         return Math.Min(1.0, (double)connectorCount / Math.Max(1, sentences.Count / 3));
@@ -483,14 +483,14 @@ public class SearchQualityEvaluator
     {
         // Check if chunk provides sufficient context
         var hasIntroduction = chunk.Content.Substring(0, Math.Min(200, chunk.Content.Length))
-            .ToLowerInvariant().Contains("introduction") || 
+            .ToLowerInvariant().Contains("introduction") ||
             chunk.Index == 0;
 
         var hasConclusion = chunk.Content.Substring(Math.Max(0, chunk.Content.Length - 200))
             .ToLowerInvariant().Contains("conclusion") ||
             chunk.Content.ToLowerInvariant().Contains("summary");
 
-        var hasReferences = chunk.Content.Contains("see") || 
+        var hasReferences = chunk.Content.Contains("see") ||
                            chunk.Content.Contains("refer") ||
                            chunk.Content.Contains("section");
 
@@ -505,7 +505,7 @@ public class SearchQualityEvaluator
     private double AssessChunkIndependence(DocumentChunk chunk)
     {
         var content = chunk.Content.ToLowerInvariant();
-        
+
         // Penalty for strong dependencies
         var dependencyIndicators = new[]
         {
@@ -515,10 +515,10 @@ public class SearchQualityEvaluator
         };
 
         var dependencyCount = dependencyIndicators.Count(indicator => content.Contains(indicator));
-        var sentences = SentenceRegex.Split(chunk.Content).Count();
-        
+        var sentences = SentenceRegex.Split(chunk.Content).Length;
+
         var dependencyRatio = (double)dependencyCount / Math.Max(1, sentences);
-        
+
         return Math.Max(0.0, 1.0 - dependencyRatio);
     }
 
@@ -537,16 +537,16 @@ public class SearchQualityEvaluator
 
         if (completeness.ConceptualCompleteness < 0.6)
             gaps.Add("Insufficient concept explanation");
-        
+
         if (completeness.InformationalCompleteness < 0.5)
             gaps.Add("Missing key information elements (who/what/when/where/why/how)");
-        
+
         if (completeness.LogicalCompleteness < 0.4)
             gaps.Add("Weak logical structure and flow");
-        
+
         if (completeness.ContextualCompleteness < 0.5)
             gaps.Add("Inadequate contextual information");
-        
+
         if (completeness.Independence < 0.6)
             gaps.Add("Heavy dependency on external context");
 
@@ -614,7 +614,7 @@ public class SearchQualityEvaluator
     {
         var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var informativeWords = words.Where(w => w.Length > 4 && !IsStopWord(w.ToLowerInvariant())).Count();
-        
+
         return words.Length > 0 ? (double)informativeWords / words.Length : 0;
     }
 
@@ -624,9 +624,9 @@ public class SearchQualityEvaluator
         var rareWords = content.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length > 8)
             .Count();
-        
+
         var totalWords = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-        
+
         return totalWords > 0 ? Math.Min(1.0, (double)rareWords / totalWords * 5) : 0;
     }
 
@@ -635,7 +635,7 @@ public class SearchQualityEvaluator
         // Higher uncertainty for shorter chunks or lower quality
         var lengthFactor = Math.Max(0.1, Math.Min(0.5, 1.0 - (chunk.Content.Length / 2000.0)));
         var qualityFactor = Math.Max(0.1, 1.0 - chunk.Quality);
-        
+
         return (lengthFactor + qualityFactor) / 2.0;
     }
 
@@ -663,7 +663,7 @@ public class SearchQualityEvaluator
             "has", "had", "do", "does", "did", "will", "would", "could", "should",
             "may", "might", "must", "can", "shall", "a", "an", "this", "that"
         };
-        
+
         return stopWords.Contains(word);
     }
 
@@ -734,13 +734,13 @@ public class SearchQualityEvaluator
     private List<string> RecommendContentImprovements(SearchQualityResult result)
     {
         var improvements = new List<string>();
-        
+
         if (result.RetrievalRecall?.PredictedRecallScore < 0.6)
             improvements.Add("Add more descriptive keywords and key phrases");
-        
+
         if (result.SemanticCompleteness?.SelfContainment < 0.7)
             improvements.Add("Improve logical flow and completeness");
-        
+
         if (result.DistinctivenessScore?.OverallDistinctiveness < 0.5)
             improvements.Add("Enhance unique content elements");
 
@@ -750,7 +750,7 @@ public class SearchQualityEvaluator
     private List<string> RecommendStructureImprovements(SearchQualityResult result)
     {
         var improvements = new List<string>();
-        
+
         improvements.Add("Consider adding section headers");
         improvements.Add("Use bullet points for key information");
         improvements.Add("Add clear topic sentences");
@@ -781,7 +781,7 @@ public class SearchQualityEvaluator
     private List<RecommendationPriority> RankRecommendationsByPriority(ImprovementRecommendations recommendations)
     {
         var priorities = new List<RecommendationPriority>();
-        
+
         // Rank by expected impact
         priorities.Add(new() { Category = "Content", Priority = 1, Impact = "High" });
         priorities.Add(new() { Category = "Structure", Priority = 2, Impact = "Medium" });
@@ -792,7 +792,7 @@ public class SearchQualityEvaluator
     }
 
     private Dictionary<string, double> EstimateRecommendationImpacts(
-        ImprovementRecommendations recommendations, 
+        ImprovementRecommendations recommendations,
         SearchQualityResult result)
     {
         return new Dictionary<string, double>
@@ -818,7 +818,7 @@ public class SearchQualityEvaluator
     private RelevanceScores PredictRelevanceScores(SearchQualityResult result)
     {
         var baseScore = result.OverallQualityScore;
-        
+
         return new RelevanceScores
         {
             TopicalRelevance = baseScore * 0.9,
@@ -831,7 +831,7 @@ public class SearchQualityEvaluator
     private UserSatisfactionMetrics PredictUserSatisfaction(SearchQualityResult result)
     {
         var qualityScore = result.OverallQualityScore;
-        
+
         return new UserSatisfactionMetrics
         {
             ClickThroughRate = Math.Min(0.95, qualityScore + 0.1),

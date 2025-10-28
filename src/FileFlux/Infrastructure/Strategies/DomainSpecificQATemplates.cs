@@ -40,7 +40,7 @@ namespace FileFlux.Infrastructure.Strategies
             DomainQAOptions? options = null)
         {
             options ??= new DomainQAOptions();
-            
+
             var result = new DomainQAResult
             {
                 ChunkId = chunk.Id.ToString(),
@@ -101,7 +101,7 @@ namespace FileFlux.Infrastructure.Strategies
             DomainType domain)
         {
             var enhanced = new List<DomainEnhancedQuestion>();
-            var template = _domainTemplates.GetValueOrDefault(domain) ?? 
+            var template = _domainTemplates.GetValueOrDefault(domain) ??
                           _domainTemplates[DomainType.General];
 
             foreach (var question in questions)
@@ -122,7 +122,7 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         private DomainQualityMetrics CalculateDomainQualityMetrics(
-            DomainQAResult result, 
+            DomainQAResult result,
             DomainType domain)
         {
             var metrics = new DomainQualityMetrics
@@ -147,7 +147,7 @@ namespace FileFlux.Infrastructure.Strategies
 
             if (!questions.Any()) return 0.0;
 
-            var relevantQuestions = questions.Count(q => 
+            var relevantQuestions = questions.Count(q =>
                 domainKeywords.Any(k => q.QuestionText.Contains(k, StringComparison.OrdinalIgnoreCase)));
 
             return (double)relevantQuestions / questions.Count;
@@ -161,7 +161,7 @@ namespace FileFlux.Infrastructure.Strategies
             var questions = result.Questions ?? result.QAPairs.Select(p => p.Question).ToList();
             if (!questions.Any()) return 0.0;
 
-            var conformingQuestions = questions.Count(q => 
+            var conformingQuestions = questions.Count(q =>
                 template.ValidateQuestion(q));
 
             return (double)conformingQuestions / questions.Count;
@@ -213,7 +213,7 @@ namespace FileFlux.Infrastructure.Strategies
         public List<GeneratedQuestion> GenerateQuestions(DocumentChunk chunk, DomainQAOptions options)
         {
             var questions = new List<GeneratedQuestion>();
-            
+
             // Extract technical entities
             var functions = ExtractFunctions(chunk.Content);
             var components = ExtractComponents(chunk.Content);
@@ -235,11 +235,11 @@ namespace FileFlux.Infrastructure.Strategies
         private List<string> ExtractFunctions(string content)
         {
             var functions = new List<string>();
-            
+
             // Pattern for function names (simplified)
             var pattern = @"\b(?:function|def|func|method)\s+(\w+)";
             var matches = Regex.Matches(content, pattern);
-            
+
             foreach (Match match in matches)
             {
                 functions.Add(match.Groups[1].Value);
@@ -248,7 +248,7 @@ namespace FileFlux.Infrastructure.Strategies
             // Also look for camelCase or PascalCase function names
             pattern = @"\b([a-z]+[A-Z]\w+)\s*\(";
             matches = Regex.Matches(content, pattern);
-            
+
             foreach (Match match in matches)
             {
                 functions.Add(match.Groups[1].Value);
@@ -260,11 +260,11 @@ namespace FileFlux.Infrastructure.Strategies
         private List<string> ExtractComponents(string content)
         {
             var components = new List<string>();
-            
+
             // Look for class names, module names, etc.
             var pattern = @"\b(?:class|module|component|service|controller)\s+(\w+)";
             var matches = Regex.Matches(content, pattern);
-            
+
             foreach (Match match in matches)
             {
                 components.Add(match.Groups[1].Value);
@@ -307,7 +307,7 @@ namespace FileFlux.Infrastructure.Strategies
             {
                 questionText = questionText.Replace("{COMPONENT}", components.First());
             }
-            
+
             if (questionText.Contains("{COMPONENT2}") && components.Count > 1)
             {
                 questionText = questionText.Replace("{COMPONENT2}", components[1]);
@@ -371,21 +371,21 @@ namespace FileFlux.Infrastructure.Strategies
                 return "error-handling";
             if (questionText.Contains("API") || questionText.Contains("REST"))
                 return "api-design";
-            
+
             return "general";
         }
 
         public string GetExpectedAnswerPattern(GeneratedQuestion question)
         {
-            if (question.QuestionText.StartsWith("What is the purpose"))
+            if (question.QuestionText.StartsWith("What is the purpose", StringComparison.Ordinal))
                 return "The purpose of {X} is to {action/goal}";
-            if (question.QuestionText.StartsWith("How does"))
+            if (question.QuestionText.StartsWith("How does", StringComparison.Ordinal))
                 return "{Subject} {action} by {method/process}";
             if (question.QuestionText.Contains("parameters"))
                 return "The parameters are: {param1}, {param2}, ...";
             if (question.QuestionText.Contains("return type"))
                 return "The return type is {type}";
-            
+
             return "Direct factual or explanatory answer";
         }
 
@@ -403,7 +403,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             // Check if question contains technical terms
             var technicalTerms = GetDomainKeywords("");
-            return technicalTerms.Any(term => 
+            return technicalTerms.Any(term =>
                 question.QuestionText.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -433,7 +433,7 @@ namespace FileFlux.Infrastructure.Strategies
         public List<GeneratedQuestion> GenerateQuestions(DocumentChunk chunk, DomainQAOptions options)
         {
             var questions = new List<GeneratedQuestion>();
-            
+
             // Extract legal entities
             var parties = ExtractParties(chunk.Content);
             var clauses = ExtractClauses(chunk.Content);
@@ -472,11 +472,11 @@ namespace FileFlux.Infrastructure.Strategies
         private List<string> ExtractParties(string content)
         {
             var parties = new List<string>();
-            
+
             // Look for typical party designations
             var pattern = @"(?:party|parties|contractor|client|vendor|buyer|seller|lessor|lessee)\s+[A-Z]\w+";
             var matches = Regex.Matches(content, pattern, RegexOptions.IgnoreCase);
-            
+
             foreach (Match match in matches)
             {
                 parties.Add(match.Value);
@@ -488,11 +488,11 @@ namespace FileFlux.Infrastructure.Strategies
         private List<string> ExtractClauses(string content)
         {
             var clauses = new List<string>();
-            
+
             // Look for clause references
             var pattern = @"(?:clause|section|article|paragraph)\s+\d+(?:\.\d+)*";
             var matches = Regex.Matches(content, pattern, RegexOptions.IgnoreCase);
-            
+
             foreach (Match match in matches)
             {
                 clauses.Add(match.Value);
@@ -521,7 +521,7 @@ namespace FileFlux.Infrastructure.Strategies
                 "clause", "termination", "dispute", "confidentiality"
             };
 
-            return legalTerms.Where(term => 
+            return legalTerms.Where(term =>
                 questionText.Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
@@ -543,7 +543,7 @@ namespace FileFlux.Infrastructure.Strategies
                 return "The conditions are: {condition1} and {condition2}";
             if (question.QuestionText.Contains("liability"))
                 return "{Party} is liable for {scope} subject to {limitations}";
-            
+
             return "Legal provision or requirement statement";
         }
 
@@ -559,7 +559,7 @@ namespace FileFlux.Infrastructure.Strategies
         public bool ValidateQuestion(GeneratedQuestion question)
         {
             var legalTerms = GetDomainKeywords("");
-            return legalTerms.Any(term => 
+            return legalTerms.Any(term =>
                 question.QuestionText.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -588,7 +588,7 @@ namespace FileFlux.Infrastructure.Strategies
         public List<GeneratedQuestion> GenerateQuestions(DocumentChunk chunk, DomainQAOptions options)
         {
             var questions = new List<GeneratedQuestion>();
-            
+
             // Extract medical entities
             var conditions = ExtractMedicalConditions(chunk.Content);
             var medications = ExtractMedications(chunk.Content);
@@ -614,7 +614,7 @@ namespace FileFlux.Infrastructure.Strategies
                 }
 
                 // Skip if placeholders couldn't be replaced
-                if (questionText.Contains("{") && questionText.Contains("}"))
+                if (questionText.Contains('{') && questionText.Contains('}'))
                     continue;
 
                 questions.Add(new GeneratedQuestion
@@ -638,7 +638,7 @@ namespace FileFlux.Infrastructure.Strategies
                 "disease", "syndrome", "disorder", "condition"
             };
 
-            return commonConditions.Where(c => 
+            return commonConditions.Where(c =>
                 content.Contains(c, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
@@ -646,11 +646,11 @@ namespace FileFlux.Infrastructure.Strategies
         {
             // Look for medication patterns
             var medications = new List<string>();
-            
+
             // Pattern for medications (often end in common suffixes)
             var pattern = @"\b\w+(?:cillin|mycin|azole|pril|sartan|statin|prazole)\b";
             var matches = Regex.Matches(content, pattern, RegexOptions.IgnoreCase);
-            
+
             foreach (Match match in matches)
             {
                 medications.Add(match.Value);
@@ -667,7 +667,7 @@ namespace FileFlux.Infrastructure.Strategies
                 "treatment", "procedure", "intervention"
             };
 
-            return treatments.Where(t => 
+            return treatments.Where(t =>
                 content.Contains(t, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
@@ -679,7 +679,7 @@ namespace FileFlux.Infrastructure.Strategies
                 "dosage", "side effect", "contraindication"
             };
 
-            return medicalTerms.Where(term => 
+            return medicalTerms.Where(term =>
                 questionText.Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
@@ -701,7 +701,7 @@ namespace FileFlux.Infrastructure.Strategies
                 return "The treatment involves {method} for {duration}";
             if (question.QuestionText.Contains("dosage"))
                 return "{amount} {unit} {frequency}";
-            
+
             return "Medical information statement";
         }
 
@@ -717,7 +717,7 @@ namespace FileFlux.Infrastructure.Strategies
         public bool ValidateQuestion(GeneratedQuestion question)
         {
             var medicalTerms = GetDomainKeywords("");
-            return medicalTerms.Any(term => 
+            return medicalTerms.Any(term =>
                 question.QuestionText.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -735,7 +735,7 @@ namespace FileFlux.Infrastructure.Strategies
         public List<GeneratedQuestion> GenerateQuestions(DocumentChunk chunk, DomainQAOptions options)
         {
             var questions = new List<GeneratedQuestion>();
-            
+
             // Educational question patterns
             var patterns = new List<QuestionTemplate>
             {
@@ -748,7 +748,7 @@ namespace FileFlux.Infrastructure.Strategies
             };
 
             var concepts = ExtractEducationalConcepts(chunk.Content);
-            
+
             foreach (var pattern in patterns.Take(options.MaxQuestionsPerDomain))
             {
                 if (concepts.Any())
@@ -756,10 +756,10 @@ namespace FileFlux.Infrastructure.Strategies
                     var questionText = pattern.Pattern;
                     questionText = questionText.Replace("{CONCEPT}", concepts.First());
                     questionText = questionText.Replace("{CONCEPT1}", concepts.First());
-                    
+
                     if (concepts.Count > 1)
                         questionText = questionText.Replace("{CONCEPT2}", concepts[1]);
-                    
+
                     questionText = questionText.Replace("{TOPIC}", concepts.First());
                     questionText = questionText.Replace("{PROCESS}", concepts.First());
 
@@ -780,11 +780,11 @@ namespace FileFlux.Infrastructure.Strategies
         {
             // Extract key concepts (simplified)
             var concepts = new List<string>();
-            
+
             // Look for defined terms
             var pattern = @"(?:is defined as|refers to|means|is called)\s+(\w+(?:\s+\w+)*)";
             var matches = Regex.Matches(content, pattern, RegexOptions.IgnoreCase);
-            
+
             foreach (Match match in matches)
             {
                 concepts.Add(match.Groups[1].Value.Trim());
@@ -793,7 +793,7 @@ namespace FileFlux.Infrastructure.Strategies
             // Also look for emphasized terms
             pattern = @"\*\*(\w+(?:\s+\w+)*)\*\*";
             matches = Regex.Matches(content, pattern);
-            
+
             foreach (Match match in matches)
             {
                 concepts.Add(match.Groups[1].Value);
@@ -814,13 +814,13 @@ namespace FileFlux.Infrastructure.Strategies
 
         public string GetExpectedAnswerPattern(GeneratedQuestion question)
         {
-            if (question.QuestionText.StartsWith("Define"))
+            if (question.QuestionText.StartsWith("Define", StringComparison.Ordinal))
                 return "{Term} is {definition}";
             if (question.QuestionText.Contains("difference"))
                 return "{Concept1} is {description1}, while {Concept2} is {description2}";
             if (question.QuestionText.Contains("example"))
                 return "An example of {concept} is {specific_example}";
-            
+
             return "Educational explanation";
         }
 
@@ -835,8 +835,8 @@ namespace FileFlux.Infrastructure.Strategies
 
         public bool ValidateQuestion(GeneratedQuestion question)
         {
-            return question.QuestionText.Length > 10 && 
-                   (question.QuestionText.EndsWith("?") || question.QuestionText.EndsWith("."));
+            return question.QuestionText.Length > 10 &&
+                   (question.QuestionText.EndsWith("?", StringComparison.Ordinal) || question.QuestionText.EndsWith(".", StringComparison.Ordinal));
         }
 
         public List<string> GetRequiredTopics()
@@ -853,7 +853,7 @@ namespace FileFlux.Infrastructure.Strategies
         public List<GeneratedQuestion> GenerateQuestions(DocumentChunk chunk, DomainQAOptions options)
         {
             var questions = new List<GeneratedQuestion>();
-            
+
             var patterns = new List<QuestionTemplate>
             {
                 new QuestionTemplate { Pattern = "What is the target market for {PRODUCT}?", Type = QuestionType.Factual },
@@ -864,11 +864,11 @@ namespace FileFlux.Infrastructure.Strategies
             };
 
             var businessTerms = ExtractBusinessTerms(chunk.Content);
-            
+
             foreach (var pattern in patterns.Take(options.MaxQuestionsPerDomain))
             {
                 var questionText = pattern.Pattern;
-                
+
                 if (businessTerms.Any())
                 {
                     questionText = questionText.Replace("{PRODUCT}", businessTerms.First());
@@ -904,7 +904,7 @@ namespace FileFlux.Infrastructure.Strategies
                 "market", "revenue", "KPI", "competitive", "growth", "projection"
             };
 
-            return keywords.Where(k => 
+            return keywords.Where(k =>
                 questionText.Contains(k, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
@@ -923,7 +923,7 @@ namespace FileFlux.Infrastructure.Strategies
                 return "The target market is {demographic} with {characteristics}";
             if (question.QuestionText.Contains("revenue model"))
                 return "The revenue model is based on {model_type}";
-            
+
             return "Business metric or strategy statement";
         }
 
@@ -939,7 +939,7 @@ namespace FileFlux.Infrastructure.Strategies
         public bool ValidateQuestion(GeneratedQuestion question)
         {
             var businessTerms = GetDomainKeywords("");
-            return businessTerms.Any(term => 
+            return businessTerms.Any(term =>
                 question.QuestionText.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -957,7 +957,7 @@ namespace FileFlux.Infrastructure.Strategies
         public List<GeneratedQuestion> GenerateQuestions(DocumentChunk chunk, DomainQAOptions options)
         {
             var questions = new List<GeneratedQuestion>();
-            
+
             var patterns = new List<QuestionTemplate>
             {
                 new QuestionTemplate { Pattern = "What is the hypothesis of this study?", Type = QuestionType.Factual },
@@ -989,7 +989,7 @@ namespace FileFlux.Infrastructure.Strategies
                 "study", "experiment", "data", "analysis", "conclusion"
             };
 
-            return keywords.Where(k => 
+            return keywords.Where(k =>
                 questionText.Contains(k, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
@@ -1010,7 +1010,7 @@ namespace FileFlux.Infrastructure.Strategies
                 return "The study used {method} to {purpose}";
             if (question.QuestionText.Contains("findings"))
                 return "The main findings were: (1) {finding1}, (2) {finding2}";
-            
+
             return "Scientific statement or explanation";
         }
 
@@ -1026,7 +1026,7 @@ namespace FileFlux.Infrastructure.Strategies
         public bool ValidateQuestion(GeneratedQuestion question)
         {
             var scientificTerms = GetDomainKeywords("");
-            return scientificTerms.Any(term => 
+            return scientificTerms.Any(term =>
                 question.QuestionText.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -1159,7 +1159,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             // Find sentences that might contain the answer
             var sentences = content.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
-            
+
             foreach (var sentence in sentences)
             {
                 if (question.Keywords.Any(k => sentence.Contains(k, StringComparison.OrdinalIgnoreCase)))

@@ -1,4 +1,4 @@
-﻿using FileFlux;
+using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Utils;
@@ -129,18 +129,18 @@ public class TextDocumentReader : IDocumentReader
         const int bufferSize = 8192; // 8KB 버퍼 사용
         var charPool = ArrayPool<char>.Shared;
         var bytePool = ArrayPool<byte>.Shared;
-        
+
         var encoding = Encoding.UTF8;
         var hasBom = false;
-        
+
         using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, useAsync: true);
-        
+
         // BOM 감지를 위해 처음 몇 바이트 읽기
         var bomBuffer = bytePool.Rent(4);
         try
         {
             var bomBytesRead = await fileStream.ReadAsync(bomBuffer.AsMemory(0, 4), cancellationToken).ConfigureAwait(false);
-            
+
             if (bomBytesRead >= 3 && bomBuffer[0] == 0xEF && bomBuffer[1] == 0xBB && bomBuffer[2] == 0xBF)
             {
                 hasBom = true;
@@ -158,14 +158,14 @@ public class TextDocumentReader : IDocumentReader
         {
             bytePool.Return(bomBuffer);
         }
-        
+
         // 스트리밍 방식으로 텍스트 읽기
         using var reader = new StreamReader(fileStream, encoding, !hasBom, bufferSize, leaveOpen: false);
-        
+
         // StringBuilder 풀링을 통한 메모리 효율성
         var stringBuilder = new StringBuilder();
         var charBuffer = charPool.Rent(bufferSize);
-        
+
         try
         {
             int charsRead;
@@ -174,7 +174,7 @@ public class TextDocumentReader : IDocumentReader
                 cancellationToken.ThrowIfCancellationRequested();
                 stringBuilder.Append(charBuffer, 0, charsRead);
             }
-            
+
             return stringBuilder.ToString();
         }
         catch (DecoderFallbackException) when (!hasBom && encoding == Encoding.UTF8)
@@ -216,7 +216,7 @@ public class TextDocumentReader : IDocumentReader
             {
                 hints["has_headers"] = true;
                 hints["header_count"] = headerLines.Count;
-                hints["top_level_headers"] = headerLines.Where(h => h.TrimStart().StartsWith("# ")).Count();
+                hints["top_level_headers"] = headerLines.Where(h => h.TrimStart().StartsWith("# ", StringComparison.Ordinal)).Count();
             }
 
             // 코드 블록 감지
@@ -471,7 +471,7 @@ public class TextDocumentReader : IDocumentReader
                     Extension = Path.GetExtension(fileName).ToLowerInvariant(),
                     Size = stream.Length,
                     CreatedAt = DateTime.Now,
-                    
+
                 },
                 Hints = structuralHints,
                 Warnings = warnings

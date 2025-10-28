@@ -1,4 +1,4 @@
-﻿using FileFlux;
+using FileFlux;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Utils;
 using Markdig;
@@ -230,7 +230,7 @@ public class MarkdownDocumentReader : IDocumentReader
     {
         var headingText = ExtractInlines(heading.Inline);
         var prefix = new string('#', heading.Level);
-        
+
         // 헤딩 시작 마커
         content.AppendLine($"<!-- HEADING_START:H{heading.Level} -->");
         content.AppendLine($"{prefix} {headingText}");
@@ -249,7 +249,7 @@ public class MarkdownDocumentReader : IDocumentReader
         // 리스트 시작 마커
         var listType = list.IsOrdered ? "ORDERED" : "UNORDERED";
         content.AppendLine($"<!-- LIST_START:{listType} -->");
-        
+
         foreach (var item in list)
         {
             if (item is ListItemBlock listItem)
@@ -267,7 +267,7 @@ public class MarkdownDocumentReader : IDocumentReader
                 }
             }
         }
-        
+
         // 리스트 종료 마커
         content.AppendLine($"<!-- LIST_END:{listType} -->");
     }
@@ -276,7 +276,7 @@ public class MarkdownDocumentReader : IDocumentReader
     {
         // 코드 블록 시작 마커
         content.AppendLine("<!-- CODE_START -->");
-        
+
         if (codeBlock is FencedCodeBlock fenced)
         {
             content.AppendLine($"```{fenced.Info ?? ""}");
@@ -289,7 +289,7 @@ public class MarkdownDocumentReader : IDocumentReader
             content.AppendLine(codeBlock.Lines.ToString());
             content.AppendLine("```");
         }
-        
+
         // 코드 블록 종료 마커
         content.AppendLine("<!-- CODE_END -->");
     }

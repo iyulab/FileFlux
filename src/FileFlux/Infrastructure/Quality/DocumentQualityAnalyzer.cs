@@ -27,8 +27,8 @@ public class DocumentQualityAnalyzer : IDocumentQualityAnalyzer
     /// Uses the same internal logic as benchmarking tests to ensure consistency.
     /// </summary>
     public async Task<DocumentQualityReport> AnalyzeQualityAsync(
-        string filePath, 
-        ChunkingOptions? options = null, 
+        string filePath,
+        ChunkingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         options ??= new ChunkingOptions();
@@ -68,7 +68,7 @@ public class DocumentQualityAnalyzer : IDocumentQualityAnalyzer
             var parseResult = await _documentProcessor.ParseAsync(
                 await _documentProcessor.ExtractAsync(filePath, cancellationToken),
                 cancellationToken: cancellationToken).ConfigureAwait(false);
-            
+
             var questions = await _qualityEngine.GenerateQuestionsAsync(parseResult, 10, cancellationToken).ConfigureAwait(false);
             var qaValidation = await _qualityEngine.ValidateAnswerabilityAsync(questions, chunks, cancellationToken).ConfigureAwait(false);
 
@@ -101,7 +101,7 @@ public class DocumentQualityAnalyzer : IDocumentQualityAnalyzer
     /// Useful for analyzing chunks from different processing strategies.
     /// </summary>
     public async Task<ChunkingQualityMetrics> EvaluateChunksAsync(
-        IEnumerable<DocumentChunk> chunks, 
+        IEnumerable<DocumentChunk> chunks,
         CancellationToken cancellationToken = default)
     {
         return await _qualityEngine.CalculateQualityMetricsAsync(chunks, cancellationToken).ConfigureAwait(false);
@@ -112,8 +112,8 @@ public class DocumentQualityAnalyzer : IDocumentQualityAnalyzer
     /// Essential for measuring RAG system performance and chunk answerability.
     /// </summary>
     public async Task<QABenchmark> GenerateQABenchmarkAsync(
-        string filePath, 
-        int questionCount = 20, 
+        string filePath,
+        int questionCount = 20,
         CancellationToken cancellationToken = default)
     {
         try
@@ -149,8 +149,8 @@ public class DocumentQualityAnalyzer : IDocumentQualityAnalyzer
     /// Provides A/B testing capabilities for chunking optimization.
     /// </summary>
     public async Task<QualityBenchmarkResult> BenchmarkChunkingAsync(
-        string filePath, 
-        string[] strategies, 
+        string filePath,
+        string[] strategies,
         CancellationToken cancellationToken = default)
     {
         var qualityReports = new List<DocumentQualityReport>();
@@ -183,9 +183,9 @@ public class DocumentQualityAnalyzer : IDocumentQualityAnalyzer
     }
 
     private static double CalculateOverallQualityScore(
-        ChunkingQualityMetrics chunkingQuality, 
-        InformationDensityMetrics informationDensity, 
-        StructuralCoherenceMetrics structuralCoherence, 
+        ChunkingQualityMetrics chunkingQuality,
+        InformationDensityMetrics informationDensity,
+        StructuralCoherenceMetrics structuralCoherence,
         QAValidationResult qaValidation)
     {
         // Weighted average of different quality dimensions
@@ -194,20 +194,20 @@ public class DocumentQualityAnalyzer : IDocumentQualityAnalyzer
         const double structuralWeight = 0.25;
         const double answerabilityWeight = 0.15;
 
-        var chunkingScore = (chunkingQuality.AverageCompleteness + 
-                            chunkingQuality.ContentConsistency + 
-                            chunkingQuality.BoundaryQuality + 
-                            chunkingQuality.SizeDistribution + 
+        var chunkingScore = (chunkingQuality.AverageCompleteness +
+                            chunkingQuality.ContentConsistency +
+                            chunkingQuality.BoundaryQuality +
+                            chunkingQuality.SizeDistribution +
                             chunkingQuality.OverlapEffectiveness) / 5.0;
 
-        var informationScore = (informationDensity.AverageInformationDensity + 
-                               informationDensity.KeywordRichness + 
-                               informationDensity.FactualContentRatio + 
+        var informationScore = (informationDensity.AverageInformationDensity +
+                               informationDensity.KeywordRichness +
+                               informationDensity.FactualContentRatio +
                                (1.0 - informationDensity.RedundancyLevel)) / 4.0;
 
-        var structuralScore = (structuralCoherence.StructurePreservation + 
-                              structuralCoherence.ContextContinuity + 
-                              structuralCoherence.ReferenceIntegrity + 
+        var structuralScore = (structuralCoherence.StructurePreservation +
+                              structuralCoherence.ContextContinuity +
+                              structuralCoherence.ReferenceIntegrity +
                               structuralCoherence.MetadataRichness) / 4.0;
 
         var answerabilityScore = qaValidation.AnswerabilityRatio;
@@ -219,8 +219,8 @@ public class DocumentQualityAnalyzer : IDocumentQualityAnalyzer
     }
 
     private static List<QualityRecommendation> GenerateQualityRecommendations(
-        ChunkingQualityMetrics qualityMetrics, 
-        QAValidationResult qaValidation, 
+        ChunkingQualityMetrics qualityMetrics,
+        QAValidationResult qaValidation,
         ChunkingOptions options)
     {
         var recommendations = new List<QualityRecommendation>();
@@ -302,7 +302,7 @@ public class DocumentQualityAnalyzer : IDocumentQualityAnalyzer
         var scores = reports.Select(r => r.OverallQualityScore).ToArray();
         var mean = scores.Average();
         var variance = scores.Select(s => System.Math.Pow(s - mean, 2)).Average();
-        
+
         return System.Math.Sqrt(variance); // Return standard deviation
     }
 }

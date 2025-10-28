@@ -1,4 +1,4 @@
-﻿using FileFlux;
+using FileFlux;
 using FileFlux.Domain;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;

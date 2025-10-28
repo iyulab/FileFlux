@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -188,10 +188,10 @@ public class ChunkQualityEngine
         var densityWeight = 0.3;
         var structureWeight = 0.3;
 
-        var chunkingScore = (chunkingQuality.AverageCompleteness + 
-                           chunkingQuality.ContentConsistency + 
-                           chunkingQuality.BoundaryQuality + 
-                           chunkingQuality.SizeDistribution + 
+        var chunkingScore = (chunkingQuality.AverageCompleteness +
+                           chunkingQuality.ContentConsistency +
+                           chunkingQuality.BoundaryQuality +
+                           chunkingQuality.SizeDistribution +
                            chunkingQuality.OverlapEffectiveness) / 5;
 
         var densityScore = (informationDensity.AverageInformationDensity +
@@ -204,8 +204,8 @@ public class ChunkQualityEngine
                              structuralCoherence.ReferenceIntegrity +
                              structuralCoherence.MetadataRichness) / 4;
 
-        return (chunkingScore * chunkingWeight) + 
-               (densityScore * densityWeight) + 
+        return (chunkingScore * chunkingWeight) +
+               (densityScore * densityWeight) +
                (structureScore * structureWeight);
     }
 
@@ -338,7 +338,7 @@ public class ChunkQualityEngine
 
         // Check for transition words
         var transitionWords = new[] { "however", "therefore", "additionally", "furthermore", "moreover", "consequently" };
-        var transitionCount = transitionWords.Count(word => 
+        var transitionCount = transitionWords.Count(word =>
             content.Contains(word, StringComparison.OrdinalIgnoreCase));
 
         coherenceScore += Math.Min(0.3, transitionCount * 0.1);
@@ -347,7 +347,7 @@ public class ChunkQualityEngine
         var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var uniqueWords = words.Distinct(StringComparer.OrdinalIgnoreCase).Count();
         var repetitionRatio = 1.0 - ((double)uniqueWords / words.Length);
-        
+
         if (repetitionRatio > 0.1 && repetitionRatio < 0.5)
             coherenceScore += 0.2;
 
@@ -464,7 +464,7 @@ public class ChunkQualityEngine
         if (count <= 0) return new List<GeneratedQuestion>();
 
         var questions = new List<GeneratedQuestion>();
-        
+
         // If no text completion service is available, use fallback generation
         if (_textCompletionService == null)
         {
@@ -505,12 +505,12 @@ public class ChunkQualityEngine
 
     private GeneratedQuestion? GenerateQuestionForType(ParsedContent content, QuestionType questionType, int index)
     {
-        var contentSnippet = content.Text.Length > 100 
+        var contentSnippet = content.Text.Length > 100
             ? content.Text.Substring(index * 20 % content.Text.Length, Math.Min(100, content.Text.Length - (index * 20 % content.Text.Length)))
             : content.Text;
 
         var keyword = GetKeywordFromContent(contentSnippet);
-        
+
         var question = questionType switch
         {
             QuestionType.Factual => $"What specific information is provided about {keyword}?",
@@ -545,7 +545,7 @@ public class ChunkQualityEngine
             .Where(w => w.Length > 4 && !IsStopWord(w))
             .Select(w => w.Trim('.', ',', '!', '?', ';', ':'))
             .ToList();
-        
+
         return words.Any() ? words[Random.Shared.Next(words.Count)] : "this topic";
     }
 
@@ -702,7 +702,7 @@ A: [expected answer]
         var words = sentence.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length > 4 && !IsStopWord(w))
             .ToList();
-        
+
         return words.Any() ? words.First() : "this topic";
     }
 
@@ -713,7 +713,7 @@ A: [expected answer]
     {
         // Find chunks that might contain the answer
         var relevantChunks = FindRelevantChunks(question, chunks);
-        
+
         if (!relevantChunks.Any())
             return Task.FromResult((false, false, 0.0));
 
@@ -795,7 +795,7 @@ A: [expected answer]
     private double CalculateInformationDensity(List<DocumentChunk> chunks)
     {
         if (!chunks.Any()) return 0.0;
-        
+
         // Simple heuristic: ratio of meaningful words to total words
         var densities = chunks.Select(chunk =>
         {
@@ -810,34 +810,34 @@ A: [expected answer]
     private double CalculateKeywordRichness(List<DocumentChunk> chunks)
     {
         if (!chunks.Any()) return 0.0;
-        
+
         // Measure density of technical/important keywords
         var keywordPatterns = new[] { "api", "data", "system", "method", "process", "result", "analysis" };
         var totalWords = chunks.Sum(c => c.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
-        var keywordCount = chunks.Sum(c => keywordPatterns.Count(kw => 
+        var keywordCount = chunks.Sum(c => keywordPatterns.Count(kw =>
             c.Content.ToLowerInvariant().Contains(kw)));
-            
+
         return totalWords > 0 ? Math.Min(1.0, (double)keywordCount / totalWords * 10) : 0.0;
     }
 
     private double CalculateFactualContentRatio(List<DocumentChunk> chunks)
     {
         if (!chunks.Any()) return 0.0;
-        
+
         // Simple heuristic: chunks with numbers, specific terms, etc.
         var factualChunks = chunks.Count(chunk =>
             System.Text.RegularExpressions.Regex.IsMatch(chunk.Content, @"\d+") ||
             chunk.Content.Contains("percent") ||
             chunk.Content.Contains("result") ||
             chunk.Content.Contains("data"));
-            
+
         return (double)factualChunks / chunks.Count;
     }
 
     private double CalculateRedundancyLevel(List<DocumentChunk> chunks)
     {
         if (chunks.Count < 2) return 0.0;
-        
+
         // Measure similarity between consecutive chunks
         var similarities = new List<double>();
         for (int i = 0; i < chunks.Count - 1; i++)
@@ -845,7 +845,7 @@ A: [expected answer]
             var similarity = CalculateSimilarity(chunks[i].Content, chunks[i + 1].Content);
             similarities.Add(similarity);
         }
-        
+
         return similarities.Average();
     }
 
@@ -856,21 +856,21 @@ A: [expected answer]
     private double CalculateStructurePreservation(List<DocumentChunk> chunks)
     {
         if (!chunks.Any()) return 0.0;
-        
+
         // Check for structure markers (headers, lists, etc.)
         var structuredChunks = chunks.Count(chunk =>
-            chunk.Content.Contains("#") ||
+            chunk.Content.Contains('#') ||
             chunk.Content.Contains("- ") ||
             chunk.Content.Contains("1.") ||
-            chunk.Content.Contains("•"));
-            
+            chunk.Content.Contains('•'));
+
         return (double)structuredChunks / chunks.Count;
     }
 
     private double CalculateContextContinuity(List<DocumentChunk> chunks)
     {
         if (chunks.Count < 2) return 1.0;
-        
+
         // Measure logical flow between consecutive chunks
         var continuityScores = new List<double>();
         for (int i = 0; i < chunks.Count - 1; i++)
@@ -878,34 +878,34 @@ A: [expected answer]
             var score = MeasureContextualContinuity(chunks[i], chunks[i + 1]);
             continuityScores.Add(score);
         }
-        
+
         return continuityScores.Average();
     }
 
     private double CalculateReferenceIntegrity(List<DocumentChunk> chunks)
     {
         if (!chunks.Any()) return 0.0;
-        
+
         // Check for proper handling of references, citations, etc.
         var chunksWithReferences = chunks.Count(chunk =>
             chunk.Content.Contains("see") ||
             chunk.Content.Contains("refer") ||
             chunk.Content.Contains("above") ||
             chunk.Content.Contains("below"));
-            
+
         return (double)chunksWithReferences / chunks.Count;
     }
 
     private double CalculateMetadataRichness(List<DocumentChunk> chunks)
     {
         if (!chunks.Any()) return 0.0;
-        
+
         // Measure richness of chunk metadata
         var richChunks = chunks.Count(chunk =>
             chunk.Metadata != null &&
             !string.IsNullOrEmpty(chunk.Metadata.FileName) &&
             chunk.Metadata.FileSize > 0);
-            
+
         return (double)richChunks / chunks.Count;
     }
 
@@ -923,13 +923,13 @@ A: [expected answer]
     {
         var words1 = text1.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w => w.ToLowerInvariant()).ToHashSet();
         var words2 = text2.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w => w.ToLowerInvariant()).ToHashSet();
-        
+
         if (!words1.Any() && !words2.Any()) return 1.0;
         if (!words1.Any() || !words2.Any()) return 0.0;
-        
+
         var intersection = words1.Intersect(words2).Count();
         var union = words1.Union(words2).Count();
-        
+
         return union > 0 ? (double)intersection / union : 0.0;
     }
 
@@ -937,14 +937,14 @@ A: [expected answer]
     {
         // Simple heuristic based on content similarity and flow
         var similarity = CalculateSimilarity(chunk1.Content, chunk2.Content);
-        
+
         // Bonus for logical connectors
         var hasConnectors = chunk2.Content.ToLowerInvariant().Any(c =>
             chunk2.Content.Contains("however") ||
             chunk2.Content.Contains("therefore") ||
             chunk2.Content.Contains("furthermore") ||
             chunk2.Content.Contains("moreover"));
-            
+
         return Math.Min(1.0, similarity + (hasConnectors ? 0.2 : 0.0));
     }
 

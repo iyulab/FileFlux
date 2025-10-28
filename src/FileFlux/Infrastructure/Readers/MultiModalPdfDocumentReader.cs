@@ -1,4 +1,4 @@
-﻿using FileFlux;
+using FileFlux;
 using FileFlux.Domain;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
@@ -41,7 +41,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     {
         // 기본 PDF 텍스트 추출
         var baseContent = await _basePdfReader.ExtractAsync(filePath, cancellationToken);
-        
+
         // 이미지 서비스가 없으면 기본 결과 반환
         if (_imageToTextService == null)
             return baseContent;
@@ -54,7 +54,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     {
         // 기본 PDF 텍스트 추출
         var baseContent = await _basePdfReader.ExtractAsync(stream, fileName, cancellationToken);
-        
+
         // 이미지 서비스가 없으면 기본 결과 반환
         if (_imageToTextService == null)
             return baseContent;
@@ -67,13 +67,13 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     /// 이미지 처리를 포함한 향상된 PDF 텍스트 추출
     /// </summary>
     private async Task<RawContent> ExtractWithImageProcessing(
-        string filePath, 
-        RawContent baseContent, 
+        string filePath,
+        RawContent baseContent,
         CancellationToken cancellationToken)
     {
         var enhancedText = new StringBuilder(baseContent.Text);
         var imageProcessingResults = new List<string>();
-        var structuralHints = baseContent.Hints?.ToDictionary(kv => kv.Key, kv => kv.Value) 
+        var structuralHints = baseContent.Hints?.ToDictionary(kv => kv.Key, kv => kv.Value)
                              ?? new Dictionary<string, object>();
 
         // 문서 컨텍스트 준비 (관련성 평가용)
@@ -82,7 +82,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         try
         {
             using var document = PdfDocument.Open(filePath);
-            
+
             var totalPages = document.NumberOfPages;
             var imageCount = 0;
             var includedImageCount = 0;
@@ -94,16 +94,16 @@ public class MultiModalPdfDocumentReader : IDocumentReader
 
                 var page = document.GetPage(pageNum);
                 documentContext.PageNumber = pageNum;
-                
+
                 // 페이지 주변 텍스트 추출
                 var pageText = page.Text;
                 if (!string.IsNullOrEmpty(pageText))
                 {
                     documentContext.SurroundingText = TruncateText(pageText, 500);
                 }
-                
+
                 var pageImages = await ExtractPageImages(page, pageNum, cancellationToken);
-                
+
                 if (pageImages.Any())
                 {
                     // 관련성 평가가 활성화된 경우 배치 평가 수행
@@ -114,35 +114,35 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                         relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
                             imageTexts, documentContext, cancellationToken)).ToList();
                     }
-                    
+
                     // 페이지 이미지 섹션 시작
                     var hasRelevantImages = false;
                     var pageImageTexts = new StringBuilder();
-                    
+
                     for (int i = 0; i < pageImages.Count; i++)
                     {
                         var imageResult = pageImages[i];
                         imageCount++;
-                        
+
                         // 관련성 평가 결과 확인
                         bool shouldInclude = true;
                         string? processedText = imageResult.ExtractedText;
                         string inclusionReason = "No relevance evaluation";
-                        
+
                         if (relevanceResults != null && i < relevanceResults.Count)
                         {
                             var relevance = relevanceResults[i];
                             shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
                                           relevance.Recommendation != InclusionRecommendation.ShouldExclude;
-                            
+
                             if (!string.IsNullOrEmpty(relevance.ProcessedText))
                             {
                                 processedText = relevance.ProcessedText;
                             }
-                            
+
                             inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
                         }
-                        
+
                         if (shouldInclude)
                         {
                             if (!hasRelevantImages)
@@ -150,12 +150,12 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                                 pageImageTexts.AppendLine($"<!-- PAGE_{pageNum}_IMAGES_START -->");
                                 hasRelevantImages = true;
                             }
-                            
+
                             pageImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
                             pageImageTexts.AppendLine($"Page {pageNum} - Image {imageCount}:");
                             pageImageTexts.AppendLine(processedText);
                             pageImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
-                            
+
                             includedImageCount++;
                             imageProcessingResults.Add($"Page {pageNum}: {imageResult.ImageType} image INCLUDED - {inclusionReason}");
                         }
@@ -165,7 +165,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                             imageProcessingResults.Add($"Page {pageNum}: {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
                         }
                     }
-                    
+
                     if (hasRelevantImages)
                     {
                         pageImageTexts.AppendLine($"<!-- PAGE_{pageNum}_IMAGES_END -->");
@@ -182,7 +182,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                 structuralHints["IncludedImageCount"] = includedImageCount;
                 structuralHints["ExcludedImageCount"] = excludedImageCount;
                 structuralHints["ImageProcessingResults"] = imageProcessingResults;
-                
+
                 if (_relevanceEvaluator != null)
                 {
                     structuralHints["ImageRelevanceEvaluationEnabled"] = true;
@@ -194,7 +194,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             // 이미지 처리 실패 시 기본 결과 사용하되 경고 추가
             var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
             warnings.Add($"Image processing failed: {ex.Message}");
-            
+
             return new RawContent
             {
                 Text = baseContent.Text,
@@ -219,8 +219,8 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     /// 페이지에서 이미지를 추출하고 텍스트 변환 처리
     /// </summary>
     private async Task<List<ImageToTextResult>> ExtractPageImages(
-        Page page, 
-        int pageNum, 
+        Page page,
+        int pageNum,
         CancellationToken cancellationToken)
     {
         var results = new List<ImageToTextResult>();
@@ -232,7 +232,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         {
             // PdfPig을 통한 이미지 추출
             var images = page.GetImages();
-            
+
             foreach (var image in images)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -284,11 +284,11 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             // PdfPig API를 통한 이미지 데이터 추출
             // 현재 PdfPig 버전에서는 직접적인 이미지 바이트 추출이 제한적
             // Mock 데이터를 반환하여 기능 시연 (실제 구현에서는 이미지 처리 라이브러리 사용)
-            
+
             // 이미지 크기 정보를 기반으로 Mock 이미지 생성
             var width = (int)(image.Bounds.Width);
             var height = (int)(image.Bounds.Height);
-            
+
             // 간단한 Mock 이미지 데이터 (PNG 헤더 + 기본 데이터)
             var mockImageData = new byte[]
             {
@@ -299,7 +299,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                 (byte)(height >> 8), (byte)(height & 0xFF),
                 0x08, 0x02, 0x00, 0x00, 0x00 // PNG parameters
             };
-            
+
             return await Task.FromResult(mockImageData);
         }
         catch (Exception)
@@ -350,7 +350,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     {
         if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
             return text;
-        
-        return text.Substring(0, maxLength) + "...";
+
+        return string.Concat(text.AsSpan(0, maxLength), "...");
     }
 }

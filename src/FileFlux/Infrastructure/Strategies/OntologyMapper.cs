@@ -31,7 +31,7 @@ namespace FileFlux.Infrastructure.Strategies
             // Select appropriate ontology template based on domain detection
             var detectedDomain = DetectDomain(graphResult, options);
             var template = GetOntologyTemplate(detectedDomain);
-            
+
             result.DomainOntology = template;
             result.InferredSchema = InferSchema(graphResult, template, options);
             result.MappedTriples = MapTriplesToOntology(graphResult.Triples, result.InferredSchema, options);
@@ -68,10 +68,10 @@ namespace FileFlux.Infrastructure.Strategies
             // Check entity type overlap
             foreach (var entityType in template.ExpectedEntityTypes)
             {
-                var matchCount = graphResult.Triples.Count(t => 
+                var matchCount = graphResult.Triples.Count(t =>
                     t.Subject.Type.Equals(entityType, StringComparison.OrdinalIgnoreCase) ||
                     t.Object.Type.Equals(entityType, StringComparison.OrdinalIgnoreCase));
-                
+
                 relevanceScore += matchCount > 0 ? 1.0 : 0.0;
                 totalChecks++;
             }
@@ -79,9 +79,9 @@ namespace FileFlux.Infrastructure.Strategies
             // Check relationship pattern overlap
             foreach (var relationPattern in template.CommonRelationships)
             {
-                var matchCount = graphResult.Triples.Count(t => 
+                var matchCount = graphResult.Triples.Count(t =>
                     t.Predicate.Equals(relationPattern, StringComparison.OrdinalIgnoreCase));
-                
+
                 relevanceScore += matchCount > 0 ? 1.0 : 0.0;
                 totalChecks++;
             }
@@ -91,8 +91,8 @@ namespace FileFlux.Infrastructure.Strategies
 
         private OntologyTemplate GetOntologyTemplate(string domain)
         {
-            return _domainTemplates.TryGetValue(domain, out var template) 
-                ? template 
+            return _domainTemplates.TryGetValue(domain, out var template)
+                ? template
                 : _domainTemplates["general"];
         }
 
@@ -170,19 +170,19 @@ namespace FileFlux.Infrastructure.Strategies
         private string InferDataType(IEnumerable<string> values)
         {
             var sampleValues = values.Take(10).ToList();
-            
+
             if (sampleValues.All(v => DateTime.TryParse(v, out _)))
                 return "DateTime";
-            
+
             if (sampleValues.All(v => double.TryParse(v, out _)))
                 return "Number";
-            
+
             if (sampleValues.All(v => bool.TryParse(v, out _)))
                 return "Boolean";
-            
+
             if (sampleValues.All(v => Uri.TryCreate(v, UriKind.Absolute, out _)))
                 return "URI";
-            
+
             return "String";
         }
 
@@ -190,7 +190,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             var subjectGroups = triples.GroupBy(t => t.Subject.Value);
             var maxObjectsPerSubject = subjectGroups.Max(g => g.Count());
-            
+
             return maxObjectsPerSubject == 1 ? "1:1" : "1:N";
         }
 
@@ -212,7 +212,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             // Simple transitivity check: if (A,R,B) and (B,R,C) then (A,R,C) should exist
             var tripleDict = relationshipTriples.ToDictionary(t => $"{t.Subject.Value}_{t.Object.Value}", t => t);
-            
+
             foreach (var triple1 in relationshipTriples)
             {
                 foreach (var triple2 in relationshipTriples)
@@ -225,7 +225,7 @@ namespace FileFlux.Infrastructure.Strategies
                     }
                 }
             }
-            
+
             return true;
         }
 
@@ -252,7 +252,7 @@ namespace FileFlux.Infrastructure.Strategies
 
         private OntologyEntity MapEntityToOntology(RdfEntity entity, SchemaDefinition schema)
         {
-            var entityType = schema.EntityTypes.FirstOrDefault(et => 
+            var entityType = schema.EntityTypes.FirstOrDefault(et =>
                 et.TypeName.Equals(entity.Type, StringComparison.OrdinalIgnoreCase));
 
             return new OntologyEntity
@@ -297,7 +297,7 @@ namespace FileFlux.Infrastructure.Strategies
             // Remove titles, standardize format
             var cleanName = name.Trim();
             var titles = new[] { "Mr.", "Mrs.", "Ms.", "Dr.", "Prof." };
-            
+
             foreach (var title in titles)
             {
                 if (cleanName.StartsWith(title, StringComparison.OrdinalIgnoreCase))
@@ -305,7 +305,7 @@ namespace FileFlux.Infrastructure.Strategies
                     cleanName = cleanName.Substring(title.Length).Trim();
                 }
             }
-            
+
             return cleanName;
         }
 
@@ -314,7 +314,7 @@ namespace FileFlux.Infrastructure.Strategies
             // Remove common suffixes, standardize format
             var suffixes = new[] { "Inc.", "Corp.", "Ltd.", "LLC", "Co." };
             var cleanName = orgName.Trim();
-            
+
             foreach (var suffix in suffixes)
             {
                 if (cleanName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
@@ -322,7 +322,7 @@ namespace FileFlux.Infrastructure.Strategies
                     cleanName = cleanName.Substring(0, cleanName.Length - suffix.Length).Trim();
                 }
             }
-            
+
             return cleanName;
         }
 
@@ -344,11 +344,11 @@ namespace FileFlux.Infrastructure.Strategies
         private List<string> GetTypeHierarchy(EntityTypeDefinition entityType)
         {
             var hierarchy = new List<string>();
-            
+
             if (entityType != null)
             {
                 hierarchy.Add(entityType.TypeName);
-                
+
                 var currentType = new TypeDefinition { TypeName = entityType.TypeName, BaseType = entityType.BaseType };
                 while (!string.IsNullOrEmpty(currentType.BaseType))
                 {
@@ -357,7 +357,7 @@ namespace FileFlux.Infrastructure.Strategies
                     if (currentType == null) break;
                 }
             }
-            
+
             return hierarchy;
         }
 
@@ -519,12 +519,12 @@ namespace FileFlux.Infrastructure.Strategies
 
             // Calculate completeness
             var mappedTriples = result.MappedTriples.Count(mt => mt.ConfidenceScore > 0.5);
-            metrics.Completeness = result.MappedTriples.Count > 0 
-                ? (double)mappedTriples / result.MappedTriples.Count 
+            metrics.Completeness = result.MappedTriples.Count > 0
+                ? (double)mappedTriples / result.MappedTriples.Count
                 : 0.0;
 
             // Calculate consistency
-            var consistentMappings = result.MappedTriples.Count(mt => 
+            var consistentMappings = result.MappedTriples.Count(mt =>
                 ValidateMappingConsistency(mt, result.InferredSchema));
             metrics.Consistency = result.MappedTriples.Count > 0
                 ? (double)consistentMappings / result.MappedTriples.Count
@@ -533,8 +533,8 @@ namespace FileFlux.Infrastructure.Strategies
             // Calculate coverage
             var uniqueEntityTypes = result.TypedEntities.Select(te => te.TypeDefinition?.TypeName).Distinct().Count();
             var schemaEntityTypes = result.InferredSchema.EntityTypes.Count;
-            metrics.Coverage = schemaEntityTypes > 0 
-                ? (double)uniqueEntityTypes / schemaEntityTypes 
+            metrics.Coverage = schemaEntityTypes > 0
+                ? (double)uniqueEntityTypes / schemaEntityTypes
                 : 0.0;
 
             // Calculate average confidence
@@ -798,7 +798,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             if (x == null && y == null) return true;
             if (x == null || y == null) return false;
-            
+
             return x.Subject.Value == y.Subject.Value &&
                    x.Predicate == y.Predicate &&
                    x.Object.Value == y.Object.Value;

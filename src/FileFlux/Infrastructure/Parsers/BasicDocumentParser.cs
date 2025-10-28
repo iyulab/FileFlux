@@ -1,4 +1,4 @@
-﻿using FileFlux;
+using FileFlux;
 using FileFlux.Domain;
 using System.Text.RegularExpressions;
 using DocumentStructure = FileFlux.Domain.DocumentStructure;
@@ -208,7 +208,7 @@ public partial class BasicDocumentParser : IDocumentParser
                         Title = headerMatch.Groups[3].Value.Trim(),
                         Type = "Header",
                         Level = headerMatch.Groups[2].Value.Length,
-                        Start = text.IndexOf(line),
+                        Start = text.IndexOf(line, StringComparison.Ordinal),
                         Content = line
                     };
                 }
@@ -246,7 +246,7 @@ public partial class BasicDocumentParser : IDocumentParser
                 Type = "Paragraph",
                 Content = paragraph,
                 Level = 1,
-                Start = text.IndexOf(paragraph)
+                Start = text.IndexOf(paragraph, StringComparison.Ordinal)
             });
         }
 

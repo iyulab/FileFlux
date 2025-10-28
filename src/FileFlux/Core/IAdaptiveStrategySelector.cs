@@ -31,17 +31,17 @@ public class StrategySelectionResult
     /// 선택된 전략 이름
     /// </summary>
     public string StrategyName { get; set; } = "";
-    
+
     /// <summary>
     /// 선택 이유 설명
     /// </summary>
     public string Reasoning { get; set; } = "";
-    
+
     /// <summary>
     /// 선택 신뢰도 (0.0 ~ 1.0)
     /// </summary>
     public double Confidence { get; set; }
-    
+
     /// <summary>
     /// LLM 사용 여부
     /// </summary>

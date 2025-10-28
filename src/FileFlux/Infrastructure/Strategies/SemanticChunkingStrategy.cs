@@ -11,9 +11,6 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
 {
     private static readonly Regex SentenceEndRegex = MyRegex();
     private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
-    
-    // Phase 10: Boundary Quality 일관성 개선을 위한 경계 품질 매니저
-    private static readonly BoundaryQualityManager _boundaryQualityManager = new();
 
     public string StrategyName => ChunkingStrategies.Semantic;
 
@@ -137,12 +134,12 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
         {
             // 문장 추출 (문장 종료 부호 포함)
             var sentence = text.Substring(lastIndex, match.Index + match.Length - lastIndex).Trim();
-            
+
             if (!string.IsNullOrWhiteSpace(sentence) && sentence.Length >= minLength)
             {
                 sentences.Add(sentence);
             }
-            
+
             lastIndex = match.Index + match.Length;
         }
 
@@ -202,7 +199,7 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
 
         // 다음에 두 개 이상의 줄바꿈이 있는지 확인
         var remaining = fullText.Substring(endIndex);
-        return remaining.StartsWith("\n\n") || remaining.StartsWith("\r\n\r\n");
+        return remaining.StartsWith("\n\n", StringComparison.Ordinal) || remaining.StartsWith("\r\n\r\n", StringComparison.Ordinal);
     }
 
     private static string NormalizeText(string text)

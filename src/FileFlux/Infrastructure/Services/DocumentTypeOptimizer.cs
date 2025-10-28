@@ -46,12 +46,12 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
     public ChunkingOptions GetOptimalOptions(DocumentTypeInfo documentType)
     {
         var metrics = _performanceMetrics[documentType.Category];
-        
+
         var options = new ChunkingOptions
         {
             Strategy = metrics.RecommendedStrategy,
             MaxChunkSize = (metrics.OptimalTokenRange.Min + metrics.OptimalTokenRange.Max) / 2,
-            OverlapSize = (int)(((metrics.OptimalOverlapRange.Min + metrics.OptimalOverlapRange.Max) / 2) 
+            OverlapSize = (int)(((metrics.OptimalOverlapRange.Min + metrics.OptimalOverlapRange.Max) / 2)
                 * ((metrics.OptimalTokenRange.Min + metrics.OptimalTokenRange.Max) / 2) / 100)
         };
 
@@ -222,7 +222,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         DocumentMetadata? metadata)
     {
         var scores = new Dictionary<DocumentCategory, double>();
-        
+
         // 키워드 기반 점수 계산
         scores[DocumentCategory.Technical] = ScoreTechnical(content);
         scores[DocumentCategory.Legal] = ScoreLegal(content);
@@ -240,10 +240,10 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
 
         // 최고 점수 카테고리 선택
         var bestCategory = scores.OrderByDescending(kvp => kvp.Value).First();
-        
+
         // 신뢰도 계산 (최고 점수와 두 번째 점수의 차이)
         var sortedScores = scores.Values.OrderByDescending(s => s).ToList();
-        var confidence = sortedScores.Count > 1 
+        var confidence = sortedScores.Count > 1
             ? Math.Min(1.0, (sortedScores[0] - sortedScores[1]) * 2 + sortedScores[0])
             : sortedScores[0];
 
@@ -261,7 +261,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
 
     private double ScoreTechnical(string content)
     {
-        var keywords = new[] { "code", "function", "api", "algorithm", "system", "software", 
+        var keywords = new[] { "code", "function", "api", "algorithm", "system", "software",
                                "implementation", "class", "method", "debug", "compile", "syntax" };
         return CalculateKeywordScore(content, keywords);
     }
@@ -312,10 +312,10 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
     {
         var lowerContent = content.ToLower();
         var wordCount = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-        
+
         if (wordCount == 0) return 0;
 
-        var keywordCount = keywords.Sum(keyword => 
+        var keywordCount = keywords.Sum(keyword =>
             Regex.Matches(lowerContent, $@"\b{Regex.Escape(keyword)}\b").Count);
 
         // 정규화된 점수 (0-1)
@@ -481,9 +481,9 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         typeInfo.Characteristics["WordCount"] = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
         typeInfo.Characteristics["LineCount"] = content.Split('\n').Length;
         typeInfo.Characteristics["HasCode"] = content.Contains("```") || content.Contains("def ") || content.Contains("function ");
-        typeInfo.Characteristics["HasTables"] = content.Contains("|") && content.Count(c => c == '|') > 5;
+        typeInfo.Characteristics["HasTables"] = content.Contains('|') && content.Count(c => c == '|') > 5;
         typeInfo.Characteristics["HasLists"] = Regex.IsMatch(content, @"^\s*[-*+]\s+", RegexOptions.Multiline);
-        typeInfo.Characteristics["HasHeaders"] = content.Contains("#") || content.Contains("Chapter") || content.Contains("Section");
+        typeInfo.Characteristics["HasHeaders"] = content.Contains('#') || content.Contains("Chapter") || content.Contains("Section");
     }
 
     private void AdjustStrategyByStructure(ChunkingOptions options, DocumentTypeInfo documentType)
@@ -532,17 +532,17 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
                 options["PreserveCodeBlocks"] = true;
                 options["MaintainIndentation"] = true;
                 break;
-                
+
             case DocumentCategory.Legal:
                 options["PreserveClauseBoundaries"] = true;
                 options["MaintainCitations"] = true;
                 break;
-                
+
             case DocumentCategory.Academic:
                 options["PreserveCitations"] = true;
                 options["MaintainSectionStructure"] = true;
                 break;
-                
+
             case DocumentCategory.Financial:
                 options["PreserveTables"] = true;
                 options["MaintainNumericalContext"] = true;

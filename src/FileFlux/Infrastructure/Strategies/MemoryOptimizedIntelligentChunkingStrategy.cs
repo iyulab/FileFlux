@@ -14,24 +14,15 @@ namespace FileFlux.Infrastructure.Strategies;
 /// </summary>
 public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrategy
 {
-    private static readonly Regex SentenceEndRegex = MyRegex();
-    private static readonly Regex ParagraphRegex = new(@"\n\s*\n+", RegexOptions.Compiled);
     private static readonly Regex HeaderRegex = new(@"^#{1,6}\s+.+$|^.+\n[=\-]+\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex ListItemRegex = new(@"^\s*[-*+]\s+|^\s*\d+\.\s+", RegexOptions.Compiled | RegexOptions.Multiline);
-    private static readonly Regex ImportantKeywordRegex = new(@"\b(중요|핵심|요약|결론|참고|주의|경고|important|key|summary|conclusion|note|warning|attention)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     // 테이블 감지를 위한 정규식
     private static readonly Regex TableRegex = new(@"^\s*\|[^|]+\|[^|]+\|", RegexOptions.Compiled | RegexOptions.Multiline);
-    private static readonly Regex MarkdownSectionRegex = new(@"^#{1,6}\s+.*$", RegexOptions.Compiled | RegexOptions.Multiline);
 
-    // Phase 10: 메모리 최적화 컴포넌트
-    private static readonly AdaptiveOverlapManager _overlapManager = new();
-    private static readonly BoundaryQualityManager _boundaryQualityManager = new();
-    
     // Phase 10: 메모리 풀링 시스템
     private static readonly ObjectPool<List<SemanticUnitStruct>> _listPool = new DefaultObjectPool<List<SemanticUnitStruct>>(new ListPooledObjectPolicy<SemanticUnitStruct>());
     private static readonly ObjectPool<StringBuilder> _stringBuilderPool = new DefaultObjectPool<StringBuilder>(new StringBuilderPooledObjectPolicy());
-    private static readonly ArrayPool<char> _charArrayPool = ArrayPool<char>.Shared;
 
     public string StrategyName => "MemoryOptimizedIntelligent";
 
@@ -51,15 +42,15 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
     {
         // Phase 10: 메모리 사용량 모니터링
         var initialMemory = GC.GetTotalMemory(false);
-        
+
         try
         {
             // 1단계: 스트리밍 방식으로 의미 단위 추출 (메모리 최적화)
             var semanticUnits = await ExtractSemanticUnitsStreamingAsync(content.Text, cancellationToken);
-            
+
             // 2단계: 문서 구조 분석 (최소 메모리 사용)
             var documentStructure = AnalyzeDocumentStructureLightweight(content.Text);
-            
+
             // 3단계: 메모리 효율적인 청킹
             var chunks = await CreateMemoryEfficientChunksAsync(
                 semanticUnits,
@@ -70,12 +61,12 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
             // Phase 10: 메모리 사용량 리포트
             var finalMemory = GC.GetTotalMemory(true); // 강제 GC 실행
             var memoryUsed = finalMemory - initialMemory;
-            
+
             // 메타데이터에 메모리 사용량 포함
             foreach (var chunk in chunks)
             {
                 chunk.Metadata.CustomProperties["MemoryOptimized"] = true;
-                chunk.Metadata.CustomProperties["MemoryUsageBytes"] = memoryUsed / chunks.Count(); // 청크당 평균 메모리
+                chunk.Metadata.CustomProperties["MemoryUsageBytes"] = memoryUsed / chunks.Count; // 청크당 평균 메모리
             }
 
             return chunks;
@@ -99,11 +90,11 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
     /// 스트리밍 방식으로 의미 단위 추출 (메모리 최적화)
     /// </summary>
     private async Task<IEnumerable<SemanticUnitStruct>> ExtractSemanticUnitsStreamingAsync(
-        string text, 
+        string text,
         CancellationToken cancellationToken)
     {
         var units = _listPool.Get();
-        
+
         try
         {
             var lines = text.Split('\n');
@@ -113,7 +104,7 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
             for (int i = 0; i < lines.Length; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 var line = lines[i];
                 if (string.IsNullOrWhiteSpace(line))
                 {
@@ -162,25 +153,25 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
         var chunks = new List<DocumentChunk>();
         var currentUnits = _listPool.Get();
         var stringBuilder = _stringBuilderPool.Get();
-        
+
         try
         {
             var maxSize = options.MaxChunkSize;
             var currentSize = 0;
             var previousChunkText = string.Empty;
-            
+
             foreach (var unit in units)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 var unitSize = unit.Content.Length;
-                
+
                 // 청크 크기 초과 시 분할 결정
                 if (currentUnits.Count > 0 && currentSize + unitSize > maxSize)
                 {
                     // 메모리 효율적인 청크 생성
                     var chunkText = BuildChunkTextEfficiently(currentUnits, stringBuilder);
-                    
+
                     var chunk = new DocumentChunk
                     {
                         Content = chunkText,
@@ -190,14 +181,14 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
                             EndChar = currentUnits[^1].Position + currentUnits[^1].Content.Length
                         }
                     };
-                    
+
                     chunk.Metadata.CustomProperties["Strategy"] = StrategyName;
                     chunk.Metadata.CustomProperties["SemanticUnits"] = currentUnits.Count;
                     chunk.Metadata.CustomProperties["MemoryOptimized"] = true;
 
                     chunks.Add(chunk);
                     previousChunkText = chunkText;
-                    
+
                     // 현재 청크 초기화 (메모리 재사용)
                     currentUnits.Clear();
                     stringBuilder.Clear();
@@ -221,7 +212,7 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
                         EndChar = currentUnits[^1].Position + currentUnits[^1].Content.Length
                     }
                 };
-                
+
                 chunk.Metadata.CustomProperties["Strategy"] = StrategyName;
                 chunk.Metadata.CustomProperties["SemanticUnits"] = currentUnits.Count;
                 chunk.Metadata.CustomProperties["MemoryOptimized"] = true;
@@ -246,13 +237,13 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
     private string BuildChunkTextEfficiently(List<SemanticUnitStruct> units, StringBuilder stringBuilder)
     {
         stringBuilder.Clear();
-        
+
         for (int i = 0; i < units.Count; i++)
         {
             if (i > 0) stringBuilder.AppendLine();
             stringBuilder.Append(units[i].Content);
         }
-        
+
         return stringBuilder.ToString();
     }
 
@@ -263,18 +254,18 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
     private double CalculateSemanticWeightFast(ReadOnlySpan<char> content)
     {
         if (content.IsEmpty) return 0.0;
-        
+
         double weight = 0.5; // 기본값
-        
+
         // 중요 키워드 존재 여부 (간단한 검사)
         if (content.Contains("중요", StringComparison.OrdinalIgnoreCase) ||
             content.Contains("important", StringComparison.OrdinalIgnoreCase))
             weight += 0.3;
-            
+
         // 문장 완결성
         if (content.EndsWith('.') || content.EndsWith('!') || content.EndsWith('?'))
             weight += 0.2;
-            
+
         return Math.Min(weight, 1.0);
     }
 
@@ -285,17 +276,17 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
     private double CalculateContextualRelevanceFast(string content, int lineIndex, string[] lines)
     {
         if (string.IsNullOrEmpty(content)) return 0.0;
-        
+
         // 간단한 맥락 관련성 계산
         double relevance = 0.5;
-        
+
         // 이전/다음 줄과의 연관성 (키워드 기반)
         if (lineIndex > 0 && HasCommonWords(content, lines[lineIndex - 1]))
             relevance += 0.2;
-            
+
         if (lineIndex < lines.Length - 1 && HasCommonWords(content, lines[lineIndex + 1]))
             relevance += 0.2;
-            
+
         return Math.Min(relevance, 1.0);
     }
 
@@ -306,17 +297,17 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
     private double CalculateImportanceFast(ReadOnlySpan<char> content)
     {
         if (content.IsEmpty) return 0.0;
-        
+
         double importance = 0.5;
-        
+
         // 헤더 감지
         if (content.StartsWith('#'))
             importance += 0.4;
-            
+
         // 리스트 항목
         if (content.TrimStart().StartsWith('-') || content.TrimStart().StartsWith('*'))
             importance += 0.2;
-            
+
         return Math.Min(importance, 1.0);
     }
 
@@ -328,11 +319,11 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
     {
         if (string.IsNullOrEmpty(text1) || string.IsNullOrEmpty(text2))
             return false;
-            
+
         // 간단한 단어 비교 (성능 최적화)
         var words1 = text1.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var words2 = text2.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        
+
         return words1.Take(5).Intersect(words2.Take(5), StringComparer.OrdinalIgnoreCase).Any();
     }
 
@@ -364,6 +355,33 @@ public struct SemanticUnitStruct
     public double SemanticWeight { get; set; }
     public double ContextualRelevance { get; set; }
     public double Importance { get; set; }
+
+    public override bool Equals(object obj)
+    {
+        if (obj is not SemanticUnitStruct other)
+            return false;
+
+        return Content == other.Content &&
+               Position == other.Position &&
+               SemanticWeight == other.SemanticWeight &&
+               ContextualRelevance == other.ContextualRelevance &&
+               Importance == other.Importance;
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Content, Position, SemanticWeight, ContextualRelevance, Importance);
+    }
+
+    public static bool operator ==(SemanticUnitStruct left, SemanticUnitStruct right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(SemanticUnitStruct left, SemanticUnitStruct right)
+    {
+        return !(left == right);
+    }
 }
 
 /// <summary>
@@ -375,6 +393,32 @@ public struct DocumentStructureLightweight
     public bool HasTables { get; set; }
     public bool HasLists { get; set; }
     public int EstimatedComplexity { get; set; }
+
+    public override bool Equals(object obj)
+    {
+        if (obj is not DocumentStructureLightweight other)
+            return false;
+
+        return HasHeaders == other.HasHeaders &&
+               HasTables == other.HasTables &&
+               HasLists == other.HasLists &&
+               EstimatedComplexity == other.EstimatedComplexity;
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(HasHeaders, HasTables, HasLists, EstimatedComplexity);
+    }
+
+    public static bool operator ==(DocumentStructureLightweight left, DocumentStructureLightweight right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(DocumentStructureLightweight left, DocumentStructureLightweight right)
+    {
+        return !(left == right);
+    }
 }
 
 /// <summary>

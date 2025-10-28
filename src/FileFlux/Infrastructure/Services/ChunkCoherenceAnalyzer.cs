@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using FileFlux.Domain;
 
 namespace FileFlux.Infrastructure.Services;
@@ -35,7 +35,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
 
         // Split chunk into sentences for analysis
         var sentences = SplitIntoSentences(chunk.Content);
-        
+
         if (sentences.Count < 2)
         {
             // Single sentence or very short chunk
@@ -59,20 +59,20 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
 
         // Calculate pairwise similarities
         var similarities = CalculatePairwiseSimilarities(embeddingArray, embeddingService);
-        
+
         // Calculate coherence metrics
         var avgSimilarity = similarities.Average();
         var variance = CalculateVariance(similarities, avgSimilarity);
-        
+
         // Detect coherence issues
         var issues = DetectCoherenceIssues(sentences, similarities, avgSimilarity);
-        
+
         // Calculate overall coherence score
         var coherenceScore = CalculateCoherenceScore(avgSimilarity, variance, issues);
-        
+
         // Determine cohesion level
         var level = DetermineCohesionLevel(coherenceScore);
-        
+
         // Generate suggestions
         var suggestions = GenerateSuggestions(issues, level, avgSimilarity);
 
@@ -94,7 +94,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         CancellationToken cancellationToken = default)
     {
         var results = new List<CoherenceAnalysisResult>();
-        
+
         foreach (var chunk in chunks)
         {
             var result = await AnalyzeCoherenceAsync(chunk, embeddingService, cancellationToken);
@@ -127,10 +127,10 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         CancellationToken cancellationToken = default)
     {
         var boundaries = new List<ChunkBoundary>();
-        
+
         // Split content into paragraphs or sentences
         var segments = SplitIntoSegments(content, options.MaxChunkSize);
-        
+
         // Detect semantic boundaries
         var boundaryPoints = await _boundaryDetector.DetectBoundariesAsync(
             segments,
@@ -140,7 +140,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         // Convert boundary points to chunk boundaries
         int currentPosition = 0;
         int lastBoundaryIndex = -1;
-        
+
         foreach (var point in boundaryPoints.OrderBy(p => p.SegmentIndex))
         {
             // Calculate positions
@@ -149,7 +149,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
             {
                 startPos += segments[i].Length + 1; // +1 for separator
             }
-            
+
             int endPos = startPos;
             for (int i = lastBoundaryIndex + 1; i <= point.SegmentIndex; i++)
             {
@@ -226,13 +226,13 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
                 // Split large paragraphs into sentences
                 var sentences = SplitIntoSentences(paragraph);
                 var currentSegment = "";
-                
+
                 foreach (var sentence in sentences)
                 {
                     if ((currentSegment + " " + sentence).Length <= targetSize)
                     {
-                        currentSegment = string.IsNullOrEmpty(currentSegment) 
-                            ? sentence 
+                        currentSegment = string.IsNullOrEmpty(currentSegment)
+                            ? sentence
                             : currentSegment + " " + sentence;
                     }
                     else
@@ -244,7 +244,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
                         currentSegment = sentence;
                     }
                 }
-                
+
                 if (!string.IsNullOrEmpty(currentSegment))
                 {
                     segments.Add(currentSegment);
@@ -258,7 +258,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
     private List<double> CalculatePairwiseSimilarities(float[][] embeddings, IEmbeddingService embeddingService)
     {
         var similarities = new List<double>();
-        
+
         for (int i = 0; i < embeddings.Length - 1; i++)
         {
             for (int j = i + 1; j < embeddings.Length; j++)
@@ -267,25 +267,25 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
                 similarities.Add(similarity);
             }
         }
-        
+
         return similarities;
     }
 
     private double CalculateVariance(List<double> values, double mean)
     {
         if (values.Count == 0) return 0;
-        
+
         var sumOfSquares = values.Sum(v => Math.Pow(v - mean, 2));
         return Math.Sqrt(sumOfSquares / values.Count);
     }
 
     private List<CoherenceIssue> DetectCoherenceIssues(
-        List<string> sentences, 
+        List<string> sentences,
         List<double> similarities,
         double avgSimilarity)
     {
         var issues = new List<CoherenceIssue>();
-        
+
         // Check for very low similarities (topic shifts)
         int pairIndex = 0;
         for (int i = 0; i < sentences.Count - 1; i++)
@@ -317,7 +317,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
                 Severity = IssueSeverity.Medium
             });
         }
-        
+
         if (sentences.Last().Length < 20)
         {
             issues.Add(new CoherenceIssue
@@ -332,7 +332,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         // Check for broken references
         foreach (var sentence in sentences)
         {
-            if (Regex.IsMatch(sentence, @"\b(this|that|these|those|it|they)\b", RegexOptions.IgnoreCase) 
+            if (Regex.IsMatch(sentence, @"\b(this|that|these|those|it|they)\b", RegexOptions.IgnoreCase)
                 && sentences.IndexOf(sentence) == 0)
             {
                 issues.Add(new CoherenceIssue
@@ -353,10 +353,10 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
     {
         // Start with average similarity as base score
         double score = avgSimilarity;
-        
+
         // Penalize high variance (inconsistent coherence)
         score *= (1.0 - variance * 0.5);
-        
+
         // Penalize based on issues
         foreach (var issue in issues)
         {
@@ -373,7 +373,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
                     break;
             }
         }
-        
+
         return Math.Max(0, Math.Min(1, score));
     }
 
@@ -433,19 +433,19 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
     {
         var length = Math.Min(100, end - start);
         var preview = content.Substring(start, Math.Min(length, content.Length - start));
-        
+
         if (preview.Length == 100)
         {
-            preview = preview.Substring(0, preview.LastIndexOf(' ')) + "...";
+            preview = string.Concat(preview.AsSpan(0, preview.LastIndexOf(' ')), "...");
         }
-        
+
         return preview.Replace("\n", " ").Trim();
     }
 
     private IEnumerable<ChunkBoundary> OptimizeBoundaries(List<ChunkBoundary> boundaries, ChunkingOptions options)
     {
         var optimized = new List<ChunkBoundary>();
-        
+
         foreach (var boundary in boundaries)
         {
             var chunkSize = boundary.EndPosition - boundary.StartPosition;
@@ -484,7 +484,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
                 optimized.Add(boundary);
             }
         }
-        
+
         return optimized;
     }
 }

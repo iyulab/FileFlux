@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -83,9 +83,9 @@ public class AutoChunkingStrategy : IChunkingStrategy
         {
             throw new InvalidOperationException($"Failed to select or create strategy: {_selectedStrategyName}");
         }
-        
+
         var chunks = await _selectedStrategy.ChunkAsync(content, options, cancellationToken);
-        
+
         // 각 청크에 Auto 전략 메타데이터 추가
         return chunks.Select(chunk =>
         {
@@ -109,7 +109,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
             var smartStrategy = _strategyFactory.CreateStrategy("Smart");
             return smartStrategy?.EstimateChunkCount(content, options) ?? 0;
         }
-        
+
         return _selectedStrategy.EstimateChunkCount(content, options);
     }
 
@@ -125,26 +125,26 @@ public class AutoChunkingStrategy : IChunkingStrategy
         {
             // 파일 경로가 메타데이터에 있는지 확인
             var filePath = content.Metadata?.FileName ?? "unknown.txt";
-            
+
             // 타임아웃 설정 (GPT-5 등 최신 모델은 응답이 느릴 수 있으므로 충분한 시간 확보)
             var maxAnalysisTime = GetStrategyOption(options, "MaxAnalysisTime", 300); // 10초 → 300초 (5분)
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(maxAnalysisTime));
-            
+
             // 전략 선택
             var selectionResult = await _strategySelector.SelectOptimalStrategyAsync(
                 filePath,
                 content,
                 cts.Token);
-            
+
             // 신뢰도 확인
             var confidenceThreshold = GetStrategyOption(options, "ConfidenceThreshold", 0.6);
-            
+
             if (selectionResult.Confidence >= confidenceThreshold)
             {
                 _selectedStrategyName = selectionResult.StrategyName;
                 _selectionReasoning = selectionResult.Reasoning;
-                
+
                 // 속도/품질 우선 모드 확인
                 if (GetStrategyOption(options, "PreferSpeed", false))
                 {
@@ -163,7 +163,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
                 _selectedStrategyName = DetermineDefaultStrategy(null);
                 _selectionReasoning = $"Low confidence ({selectionResult.Confidence:P0}), using default strategy";
             }
-            
+
             // 전략 인스턴스 생성
             _selectedStrategy = _strategyFactory.CreateStrategy(_selectedStrategyName);
         }
@@ -190,17 +190,17 @@ public class AutoChunkingStrategy : IChunkingStrategy
     {
         // 속도 우선순위: FixedSize > Paragraph > Semantic > Intelligent > Smart
         var speedPriority = new[] { "FixedSize", "Paragraph", "Semantic", "Intelligent", "Smart" };
-        
+
         var allStrategies = new List<string> { currentStrategy };
         if (alternatives != null)
             allStrategies.AddRange(alternatives.Select(a => a.StrategyName));
-        
+
         foreach (var fast in speedPriority)
         {
             if (allStrategies.Contains(fast))
                 return fast;
         }
-        
+
         return currentStrategy;
     }
 
@@ -211,17 +211,17 @@ public class AutoChunkingStrategy : IChunkingStrategy
     {
         // 품질 우선순위: Smart > Intelligent > Semantic > Paragraph > FixedSize
         var qualityPriority = new[] { "Smart", "Intelligent", "Semantic", "Paragraph", "FixedSize" };
-        
+
         var allStrategies = new List<string> { currentStrategy };
         if (alternatives != null)
             allStrategies.AddRange(alternatives.Select(a => a.StrategyName));
-        
+
         foreach (var quality in qualityPriority)
         {
             if (allStrategies.Contains(quality))
                 return quality;
         }
-        
+
         return currentStrategy;
     }
 
@@ -233,23 +233,23 @@ public class AutoChunkingStrategy : IChunkingStrategy
         // characteristics가 null이면 기본값 반환
         if (characteristics == null)
             return "Smart";
-        
+
         // 간단한 규칙 기반 기본 전략 선택
         if (characteristics.HasCodeBlocks && characteristics.HasMarkdownHeaders)
             return "Intelligent";
-        
+
         if (characteristics.Domain == "Legal" || characteristics.Domain == "Medical")
             return "Smart";
-        
+
         if (characteristics.StructureComplexity > 5)
             return "Intelligent";
-        
+
         if (characteristics.AverageSentenceLength > 25)
             return "Semantic";
-        
+
         if (characteristics.StructureComplexity < 3 && characteristics.ParagraphCount > 5)
             return "Paragraph";
-        
+
         // 기본값
         return "Smart";
     }

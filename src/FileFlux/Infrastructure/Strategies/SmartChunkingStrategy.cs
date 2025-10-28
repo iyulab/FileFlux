@@ -1,4 +1,4 @@
-﻿using FileFlux;
+using FileFlux;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Services;
 using System.Text.RegularExpressions;
@@ -12,12 +12,11 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
 {
     // 문장 종료 패턴 (더 정확한 패턴)
     private static readonly Regex SentenceEndRegex = new(@"[.!?]+[\s\n]+|[.!?]+$", RegexOptions.Compiled);
-    private static readonly Regex ParagraphRegex = new(@"\n\s*\n+", RegexOptions.Compiled);
     private static readonly Regex HeaderRegex = new(@"^#{1,6}\s+.+$", RegexOptions.Compiled | RegexOptions.Multiline);
-    
+
     // 약어 패턴 (문장 중간의 마침표를 구분하기 위함)
     private static readonly Regex AbbreviationRegex = new(@"\b(?:Dr|Mr|Mrs|Ms|Prof|Sr|Jr|Ph\.D|M\.D|B\.A|M\.A|D\.D\.S|Ph\.D|U\.S|U\.K|i\.e|e\.g|etc|vs|Inc|Ltd|Co|Corp|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    
+
     public string StrategyName => "Smart";
 
     public IEnumerable<string> SupportedOptions => new[]
@@ -49,11 +48,11 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
 
         // 문장 단위로 텍스트 분할
         var sentences = ExtractCompleteSentences(text);
-        
+
         // 문장 기반 청킹 수행
         var rawChunks = CreateSentenceBasedChunks(
-            sentences, 
-            options.MaxChunkSize, 
+            sentences,
+            options.MaxChunkSize,
             options.OverlapSize,
             minCompleteness,
             smartOverlap);
@@ -96,24 +95,24 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     private List<string> ExtractCompleteSentences(string text)
     {
         var sentences = new List<string>();
-        
+
         // 약어 처리를 위해 임시로 마침표 대체
         var processedText = AbbreviationRegex.Replace(text, match => match.Value.Replace(".", "§DOT§"));
-        
+
         // 문장 분할
         var sentenceParts = SentenceEndRegex.Split(processedText);
         var matches = SentenceEndRegex.Matches(processedText);
-        
+
         for (int i = 0; i < sentenceParts.Length; i++)
         {
             var sentence = sentenceParts[i].Trim();
-            
+
             // 마침표 복원
             sentence = sentence.Replace("§DOT§", ".");
-            
+
             if (string.IsNullOrWhiteSpace(sentence))
                 continue;
-            
+
             // 문장 종료 문자 추가 (있는 경우)
             if (i < matches.Count)
             {
@@ -123,14 +122,14 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
                     sentence += endChar;
                 }
             }
-            
+
             // 최소 길이 확인 (너무 짧은 문장 제외)
             if (sentence.Length >= 10)
             {
                 sentences.Add(sentence);
             }
         }
-        
+
         return sentences;
     }
 
@@ -162,13 +161,13 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
                 {
                     var chunkContent = CreateChunkWithOverlap(currentChunk, previousSentences, smartOverlap, overlapSize);
                     chunks.Add(chunkContent);
-                    
+
                     // 오버랩을 위해 마지막 문장들 저장
                     if (smartOverlap && overlapSize > 0)
                     {
                         previousSentences = GetOverlapSentences(currentChunk, overlapSize);
                     }
-                    
+
                     currentChunk.Clear();
                     currentSize = 0;
                 }
@@ -179,13 +178,13 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
                 {
                     chunks.Add(part);
                 }
-                
+
                 // 마지막 부분을 오버랩에 사용
                 if (smartOverlap && splitSentences.Count > 0)
                 {
                     previousSentences = new List<string> { splitSentences.Last() };
                 }
-                
+
                 continue;
             }
 
@@ -194,19 +193,19 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
             {
                 // 완성도 확인
                 var completeness = CalculateChunkCompleteness(currentChunk, sentences, i);
-                
+
                 // 완성도가 임계값 이상이거나 더 이상 추가할 수 없는 경우
                 if (completeness >= minCompleteness || currentSize >= maxSize * 0.9)
                 {
                     var chunkContent = CreateChunkWithOverlap(currentChunk, previousSentences, smartOverlap, overlapSize);
                     chunks.Add(chunkContent);
-                    
+
                     // 오버랩을 위해 마지막 문장들 저장
                     if (smartOverlap && overlapSize > 0)
                     {
                         previousSentences = GetOverlapSentences(currentChunk, overlapSize);
                     }
-                    
+
                     currentChunk.Clear();
                     currentSize = 0;
                 }
@@ -262,12 +261,12 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     private bool IsCompleteSentence(string sentence)
     {
         if (string.IsNullOrWhiteSpace(sentence)) return false;
-        
+
         var trimmed = sentence.Trim();
-        
+
         // 문장 종료 문자로 끝나는지 확인
-        return trimmed.EndsWith('.') || 
-               trimmed.EndsWith('!') || 
+        return trimmed.EndsWith('.') ||
+               trimmed.EndsWith('!') ||
                trimmed.EndsWith('?') ||
                trimmed.EndsWith('。') || // 한국어/일본어 마침표
                trimmed.EndsWith('」') || // 인용 종료
@@ -280,26 +279,26 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     private double CalculateParagraphCompleteness(List<string> chunk, List<string> allSentences, int nextIndex)
     {
         if (chunk.Count == 0) return 1.0;
-        
+
         // 다음 문장이 새 단락으로 시작하는지 확인
         if (nextIndex < allSentences.Count)
         {
             var nextSentence = allSentences[nextIndex];
-            
+
             // 헤더로 시작하면 현재 청크는 완전함
             if (HeaderRegex.IsMatch(nextSentence))
                 return 1.0;
-            
+
             // 빈 줄로 시작하면 단락이 끝났음
-            if (nextSentence.StartsWith("\n\n"))
+            if (nextSentence.StartsWith("\n\n", StringComparison.Ordinal))
                 return 1.0;
         }
-        
+
         // 마지막 문장이 단락을 완결하는지 확인
         var lastSentence = chunk.Last();
-        if (lastSentence.EndsWith("\n\n") || lastSentence.EndsWith("\n"))
+        if (lastSentence.EndsWith("\n\n", StringComparison.Ordinal) || lastSentence.EndsWith("\n", StringComparison.Ordinal))
             return 1.0;
-        
+
         // 기본적으로 80% 완결성
         return 0.8;
     }
@@ -311,26 +310,26 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     {
         if (chunk.Count == 0 || overlapSize <= 0)
             return new List<string>();
-        
+
         var overlapSentences = new List<string>();
         var currentSize = 0;
-        
+
         // 뒤에서부터 문장 선택
         for (int i = chunk.Count - 1; i >= 0; i--)
         {
             var sentence = chunk[i];
             var sentenceSize = EstimateTokenCount(sentence);
-            
+
             if (currentSize + sentenceSize > overlapSize * 1.2) // 20% 초과 허용
                 break;
-            
+
             overlapSentences.Insert(0, sentence);
             currentSize += sentenceSize;
-            
+
             if (currentSize >= overlapSize)
                 break;
         }
-        
+
         return overlapSentences;
     }
 
@@ -338,13 +337,13 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     /// 오버랩을 포함한 청크 생성
     /// </summary>
     private string CreateChunkWithOverlap(
-        List<string> currentSentences, 
+        List<string> currentSentences,
         List<string> previousSentences,
         bool smartOverlap,
         int overlapSize)
     {
         var content = new List<string>();
-        
+
         // 스마트 오버랩: 이전 청크의 마지막 문장들 추가
         if (smartOverlap && overlapSize > 0 && previousSentences.Count > 0)
         {
@@ -352,7 +351,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
             if (currentSentences.Count == 0 || currentSentences[0] != previousSentences.Last())
             {
                 content.AddRange(previousSentences);
-                
+
                 // 오버랩 마커 추가 (선택적)
                 if (content.Count > 0 && currentSentences.Count > 0)
                 {
@@ -361,10 +360,10 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
                 }
             }
         }
-        
+
         // 현재 문장들 추가
         content.AddRange(currentSentences);
-        
+
         // 문장 사이에 적절한 공백 추가
         return string.Join(" ", content.Where(s => !string.IsNullOrWhiteSpace(s)));
     }
@@ -375,17 +374,17 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     private List<string> SplitLongSentence(string sentence, int maxSize)
     {
         var parts = new List<string>();
-        
+
         // 먼저 쉼표, 세미콜론 등으로 분할 시도
         var subClauses = sentence.Split(new[] { ", ", "; ", " - ", " — " }, StringSplitOptions.RemoveEmptyEntries);
-        
+
         var currentPart = new List<string>();
         var currentSize = 0;
-        
+
         foreach (var clause in subClauses)
         {
             var clauseSize = EstimateTokenCount(clause);
-            
+
             if (currentSize + clauseSize > maxSize && currentPart.Count > 0)
             {
                 // 구두점 복원
@@ -395,15 +394,15 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
                     part += "..."; // 미완성 표시
                 }
                 parts.Add(part);
-                
+
                 currentPart.Clear();
                 currentSize = 0;
             }
-            
+
             currentPart.Add(clause);
             currentSize += clauseSize;
         }
-        
+
         // 마지막 부분
         if (currentPart.Count > 0)
         {
@@ -419,7 +418,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
             }
             parts.Add(part);
         }
-        
+
         // 여전히 너무 긴 부분이 있으면 단어 단위로 분할
         var finalParts = new List<string>();
         foreach (var part in parts)
@@ -433,7 +432,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
                 finalParts.Add(part);
             }
         }
-        
+
         return finalParts;
     }
 
@@ -450,7 +449,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         foreach (var word in words)
         {
             var wordSize = EstimateTokenCount(word);
-            
+
             if (currentSize + wordSize > maxSize && currentChunk.Count > 0)
             {
                 var chunk = string.Join(" ", currentChunk);
@@ -459,11 +458,11 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
                     chunk += "..."; // 미완성 표시
                 }
                 result.Add(chunk);
-                
+
                 currentChunk.Clear();
                 currentSize = 0;
             }
-            
+
             currentChunk.Add(word);
             currentSize += wordSize;
         }
@@ -508,18 +507,18 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         var completeness = CalculateFinalCompleteness(content);
         var coherence = CalculateSemanticCoherence(content);
         var sentenceIntegrity = CalculateSentenceIntegrity(content);
-        
+
         chunk.Props["Completeness"] = completeness;
         chunk.Props["SemanticCoherence"] = coherence;
         chunk.Props["SentenceIntegrity"] = sentenceIntegrity;
         chunk.Props["HasOverlap"] = options.OverlapSize > 0;
-        
+
         // 품질 점수 계산
         chunk.Quality = (completeness + coherence + sentenceIntegrity) / 3.0;
 
         // Context7 스타일 메타데이터 강화
         EnhanceWithContext7Metadata(chunk, metadata);
-        
+
         return chunk;
     }
 
@@ -569,7 +568,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
             return "General";
 
         var words = content.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        
+
         // 기술 도메인 키워드
         var techKeywords = new[] { "api", "code", "function", "class", "method", "database", "server", "client", "framework", "library" };
         var techCount = words.Count(w => techKeywords.Contains(w));
@@ -586,13 +585,13 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         var fileType = metadata.FileType?.ToLowerInvariant() ?? "";
         if (fileType.Contains("pdf") && academicCount > techCount && academicCount > businessCount)
             return "Academic";
-        
+
         if (techCount > businessCount && techCount > academicCount)
             return "Technical";
-        
+
         if (businessCount > techCount && businessCount > academicCount)
             return "Business";
-        
+
         if (academicCount > 0)
             return "Academic";
 
@@ -605,7 +604,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     private double CalculateRagSuitabilityScore(DocumentChunk chunk)
     {
         var score = 0.0;
-        
+
         // 완성도 기여 (40%)
         if (chunk.Props.ContainsKey("Completeness"))
         {
@@ -639,7 +638,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         var ragSuitability = chunk.Props.ContainsKey("RagSuitability")
             ? Convert.ToDouble(chunk.Props["RagSuitability"])
             : 0.0;
-        
+
         chunk.Props["QualityGrade"] = ragSuitability switch
         {
             >= 0.9 => "A", // 최고 품질
@@ -656,14 +655,14 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     private double CalculateFinalCompleteness(string content)
     {
         if (string.IsNullOrWhiteSpace(content)) return 0.0;
-        
+
         var sentences = ExtractCompleteSentences(content);
         if (sentences.Count == 0) return 0.0;
-        
+
         // 모든 문장이 완전한지 확인
         var completeSentences = sentences.Count(s => IsCompleteSentence(s));
         var completeness = (double)completeSentences / sentences.Count;
-        
+
         // 최소 70% 보장
         return Math.Max(0.7, completeness);
     }
@@ -674,16 +673,16 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     private double CalculateSentenceIntegrity(string content)
     {
         if (string.IsNullOrWhiteSpace(content)) return 0.0;
-        
+
         // 미완성 표시가 있는지 확인
         if (content.Contains("...") && !content.Contains("etc.") && !content.Contains("e.g."))
             return 0.5;
-        
+
         // 문장이 중간에 끊겼는지 확인
         var lastChar = content.Trim().LastOrDefault();
         if (char.IsLetterOrDigit(lastChar) || lastChar == ',')
             return 0.3;
-        
+
         return 1.0;
     }
 

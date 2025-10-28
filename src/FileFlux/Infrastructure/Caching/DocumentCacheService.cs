@@ -16,26 +16,26 @@ public sealed class DocumentCacheService : IDocumentCacheService
     private readonly DocumentCacheOptions _options;
     private readonly object _cleanupLock = new();
     private readonly Timer _cleanupTimer;
-    
+
     public DocumentCacheService(
         DocumentCacheOptions options,
         ILogger<DocumentCacheService> logger)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        
+
         _cache = new MemoryCache(new MemoryCacheOptions
         {
             SizeLimit = _options.MaxCacheSize,
             CompactionPercentage = 0.25
         });
         _accessTimes = new ConcurrentDictionary<string, DateTime>();
-        
+
         // Start periodic cleanup
-        _cleanupTimer = new Timer(PerformCleanup, null, 
-            TimeSpan.FromMinutes(_options.CleanupIntervalMinutes), 
+        _cleanupTimer = new Timer(PerformCleanup, null,
+            TimeSpan.FromMinutes(_options.CleanupIntervalMinutes),
             TimeSpan.FromMinutes(_options.CleanupIntervalMinutes));
-        
+
         _logger.LogInformation("DocumentCacheService initialized with {MaxItems} max items, {MaxMemoryMB}MB limit",
             _options.MaxCacheSize, _options.MaxMemoryUsageMB);
     }
@@ -46,22 +46,22 @@ public sealed class DocumentCacheService : IDocumentCacheService
     public Task<CachedDocumentResult?> GetAsync(string cacheKey, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(cacheKey);
-        
+
         if (_cache.TryGetValue(cacheKey, out var cachedValue) && cachedValue is CachedDocumentResult result)
         {
             // Update access time for LRU
             _accessTimes.AddOrUpdate(cacheKey, DateTime.UtcNow, (_, _) => DateTime.UtcNow);
-            
+
             // Update hit statistics
             result.HitCount++;
             result.LastAccessed = DateTime.UtcNow;
-            
-            _logger.LogDebug("Cache hit for key: {CacheKey}, chunks: {ChunkCount}", 
+
+            _logger.LogDebug("Cache hit for key: {CacheKey}, chunks: {ChunkCount}",
                 cacheKey, result.Chunks.Count);
-            
+
             return Task.FromResult<CachedDocumentResult?>(result);
         }
-        
+
         _logger.LogDebug("Cache miss for key: {CacheKey}", cacheKey);
         return Task.FromResult<CachedDocumentResult?>(null);
     }
@@ -70,8 +70,8 @@ public sealed class DocumentCacheService : IDocumentCacheService
     /// 문서 처리 결과를 캐시에 저장
     /// </summary>
     public Task SetAsync(
-        string cacheKey, 
-        IEnumerable<DocumentChunk> chunks, 
+        string cacheKey,
+        IEnumerable<DocumentChunk> chunks,
         DocumentMetadata metadata,
         TimeSpan? expiration = null,
         CancellationToken cancellationToken = default)
@@ -82,11 +82,11 @@ public sealed class DocumentCacheService : IDocumentCacheService
 
         var chunkList = chunks.ToList();
         var estimatedSize = EstimateMemoryUsage(chunkList, metadata);
-        
+
         // Check memory limits
         if (estimatedSize > _options.MaxItemSizeMB * 1024 * 1024)
         {
-            _logger.LogWarning("Document too large for cache: {SizeMB}MB > {MaxMB}MB", 
+            _logger.LogWarning("Document too large for cache: {SizeMB}MB > {MaxMB}MB",
                 estimatedSize / (1024 * 1024), _options.MaxItemSizeMB);
             return Task.CompletedTask;
         }
@@ -104,7 +104,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
 
         var entryOptions = new MemoryCacheEntryOptions
         {
-            AbsoluteExpiration = expiration.HasValue 
+            AbsoluteExpiration = expiration.HasValue
                 ? DateTimeOffset.UtcNow.Add(expiration.Value)
                 : DateTimeOffset.UtcNow.AddHours(_options.DefaultExpirationHours),
             Size = estimatedSize / 1024, // Size in KB for cache management
@@ -118,13 +118,13 @@ public sealed class DocumentCacheService : IDocumentCacheService
 
         // Ensure cache size limits before adding
         EnsureCacheSize();
-        
+
         _cache.Set(cacheKey, cachedResult, entryOptions);
         _accessTimes.TryAdd(cacheKey, DateTime.UtcNow);
-        
-        _logger.LogDebug("Cached document: {CacheKey}, chunks: {ChunkCount}, size: {SizeMB:F2}MB", 
+
+        _logger.LogDebug("Cached document: {CacheKey}, chunks: {ChunkCount}, size: {SizeMB:F2}MB",
             cacheKey, chunkList.Count, estimatedSize / (1024.0 * 1024.0));
-        
+
         return Task.CompletedTask;
     }
 
@@ -134,10 +134,10 @@ public sealed class DocumentCacheService : IDocumentCacheService
     public Task RemoveAsync(string cacheKey, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(cacheKey);
-        
+
         _cache.Remove(cacheKey);
         _accessTimes.TryRemove(cacheKey, out _);
-        
+
         _logger.LogDebug("Removed from cache: {CacheKey}", cacheKey);
         return Task.CompletedTask;
     }
@@ -152,7 +152,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
             _cache.Remove(key);
         }
         _accessTimes.Clear();
-        
+
         _logger.LogInformation("Cache cleared");
         return Task.CompletedTask;
     }
@@ -174,7 +174,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
             {
                 totalMemoryUsage += item.EstimatedMemoryBytes;
                 totalHits += item.HitCount;
-                
+
                 if (item.LastAccessed < oldestAccess)
                     oldestAccess = item.LastAccessed;
                 if (item.LastAccessed > newestAccess)
@@ -200,7 +200,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
     /// 파일 해시 기반 캐시 키 생성
     /// </summary>
     public Task<string> GenerateCacheKeyAsync(
-        string filePath, 
+        string filePath,
         ChunkingOptions options,
         CancellationToken cancellationToken = default)
     {
@@ -216,12 +216,12 @@ public sealed class DocumentCacheService : IDocumentCacheService
 
         // Create cache key from file metadata and options
         var keyData = $"{filePath}|{fileInfo.LastWriteTimeUtc:O}|{fileInfo.Length}|{options.Strategy}|{options.MaxChunkSize}|{options.OverlapSize}";
-        
+
         // Generate SHA256 hash for consistent, collision-resistant key
         using var sha256 = System.Security.Cryptography.SHA256.Create();
         var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(keyData));
         var cacheKey = Convert.ToHexString(hashBytes)[..16]; // Use first 16 chars for readability
-        
+
         return Task.FromResult(cacheKey);
     }
 
@@ -231,16 +231,16 @@ public sealed class DocumentCacheService : IDocumentCacheService
     private static long EstimateMemoryUsage(IEnumerable<DocumentChunk> chunks, DocumentMetadata metadata)
     {
         var totalSize = 0L;
-        
+
         foreach (var chunk in chunks)
         {
             totalSize += chunk.Content.Length * 2; // UTF-16 strings
             totalSize += 200; // Estimated object overhead
         }
-        
+
         totalSize += metadata.FileName?.Length * 2 ?? 0;
         totalSize += 500; // Metadata overhead
-        
+
         return totalSize;
     }
 
@@ -318,7 +318,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
         if (key is string keyString)
         {
             _accessTimes.TryRemove(keyString, out _);
-            
+
             _logger.LogDebug("Cache item evicted: {Key}, reason: {Reason}", keyString, reason);
         }
     }

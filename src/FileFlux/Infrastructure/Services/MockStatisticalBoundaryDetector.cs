@@ -32,17 +32,17 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
     {
         // 세그먼트와 컨텍스트 기반 모의 uncertainty 계산
         var uncertainty = CalculateMockUncertainty(segment, context);
-        
+
         // 토큰 확률 시뮬레이션
         var tokens = segment.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var tokenProbabilities = new List<TokenProbability>();
-        
+
         double sumLogProb = 0;
         for (int i = 0; i < Math.Min(tokens.Length, 10); i++)
         {
             var logProb = -Math.Log(uncertainty) - _random.NextDouble() * 2;
             sumLogProb += logProb;
-            
+
             tokenProbabilities.Add(new TokenProbability
             {
                 Token = tokens[i],
@@ -130,16 +130,16 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
             var contextWords = new HashSet<string>(
                 context.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries));
             var segmentWords = segment.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            
+
             var overlap = segmentWords.Count(w => contextWords.Contains(w));
             var overlapRatio = segmentWords.Length > 0 ? (double)overlap / segmentWords.Length : 0;
-            
+
             // 오버랩이 적으면 uncertainty 증가 (주제 변경)
             uncertainty *= (2 - overlapRatio);
         }
 
         // 구조적 변화 감지
-        if (segment.StartsWith("#") || segment.Contains("Chapter") || segment.Contains("Section"))
+        if (segment.StartsWith("#", StringComparison.Ordinal) || segment.Contains("Chapter") || segment.Contains("Section"))
         {
             uncertainty *= 1.5; // 섹션 변경
         }
@@ -149,7 +149,7 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
             uncertainty *= 1.8; // 코드 블록
         }
 
-        if (segment.Contains("|") && segment.Count(c => c == '|') > 3)
+        if (segment.Contains('|') && segment.Count(c => c == '|') > 3)
         {
             uncertainty *= 1.6; // 테이블
         }
@@ -171,7 +171,7 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
     {
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length == 0) return 0;
-        
+
         return words.Average(w => w.Length);
     }
 

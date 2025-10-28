@@ -34,7 +34,7 @@ public class MockEmbeddingService : IEmbeddingService
 
         // Generate deterministic pseudo-embedding based on text content
         var embedding = GeneratePseudoEmbedding(text, purpose);
-        
+
         return Task.FromResult(embedding);
     }
 
@@ -44,13 +44,13 @@ public class MockEmbeddingService : IEmbeddingService
         CancellationToken cancellationToken = default)
     {
         var embeddings = new List<float[]>();
-        
+
         foreach (var text in texts)
         {
             var embedding = await GenerateEmbeddingAsync(text, purpose, cancellationToken);
             embeddings.Add(embedding);
         }
-        
+
         return embeddings;
     }
 
@@ -87,10 +87,10 @@ public class MockEmbeddingService : IEmbeddingService
     private float[] GeneratePseudoEmbedding(string text, EmbeddingPurpose purpose)
     {
         var embedding = new float[_dimension];
-        
+
         // Tokenize text (simple word split)
         var words = text.ToLower()
-            .Split(new[] { ' ', '\n', '\r', '\t', '.', ',', '!', '?', ';', ':', '-', '(', ')', '[', ']' }, 
+            .Split(new[] { ' ', '\n', '\r', '\t', '.', ',', '!', '?', ';', ':', '-', '(', ')', '[', ']' },
                    StringSplitOptions.RemoveEmptyEntries);
 
         if (words.Length == 0)
@@ -114,14 +114,14 @@ public class MockEmbeddingService : IEmbeddingService
         {
             var word = kvp.Key;
             var freq = kvp.Value / words.Length; // TF
-            
+
             // Simple IDF simulation
             if (!_idfCache.ContainsKey(word))
             {
                 _idfCache[word] = (float)Math.Log(1000.0 / (1 + _random.Next(1, 100)));
             }
             var idf = _idfCache[word];
-            
+
             // Hash word to get consistent indices
             using (var sha = SHA256.Create())
             {
@@ -151,19 +151,19 @@ public class MockEmbeddingService : IEmbeddingService
             // Length features
             [0] = text.Length / 1000f,
             [1] = words.Length / 100f,
-            
+
             // Punctuation features
             [2] = CountOccurrences(text, '.') / 10f,
             [3] = CountOccurrences(text, '?') / 5f,
             [4] = CountOccurrences(text, '!') / 5f,
-            
+
             // Structure features
             [5] = CountOccurrences(text, '\n') / 10f,
             [6] = CountOccurrences(text, '#') / 5f,  // Markdown headers
             [7] = text.Contains("```") ? 1f : 0f,    // Code blocks
             [8] = text.Contains("TABLE") ? 1f : 0f,  // Tables
             [9] = text.Contains("LIST") ? 1f : 0f,   // Lists
-            
+
             // Content type indicators
             [10] = ContainsPattern(text, @"\d+\.\d+") ? 1f : 0f,  // Numbers
             [11] = ContainsPattern(text, @"https?://") ? 1f : 0f, // URLs
@@ -210,17 +210,17 @@ public class MockEmbeddingService : IEmbeddingService
         {
             var keywords = topicKeywords[topic.Key];
             var score = 0f;
-            
+
             // Count keyword matches with boost for exact matches
             foreach (var keyword in keywords)
             {
                 var count = words.Count(w => w.ToLower().Contains(keyword.ToLower()));
                 score += count > 0 ? (float)count / words.Length : 0;
             }
-            
+
             // Boost score for stronger topic relevance
             score = Math.Min(1f, score * 2);
-            
+
             if (topic.Value < embedding.Length)
             {
                 embedding[topic.Value] += score;
@@ -235,9 +235,9 @@ public class MockEmbeddingService : IEmbeddingService
         {
             norm += embedding[i] * embedding[i];
         }
-        
+
         norm = (float)Math.Sqrt(norm);
-        
+
         if (norm > 0)
         {
             for (int i = 0; i < embedding.Length; i++)

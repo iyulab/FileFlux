@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -29,12 +29,12 @@ namespace FileFlux.Infrastructure.Strategies
         /// Extract answer for a specific question from a chunk
         /// </summary>
         public AnswerExtractionResult ExtractAnswer(
-            GeneratedQuestion question, 
+            GeneratedQuestion question,
             DocumentChunk chunk,
             AnswerExtractionOptions? options = null)
         {
             options ??= new AnswerExtractionOptions();
-            
+
             var result = new AnswerExtractionResult
             {
                 QuestionId = question.QuestionText.GetHashCode().ToString(),
@@ -47,8 +47,8 @@ namespace FileFlux.Infrastructure.Strategies
             {
                 // 1. Identify potential answer spans
                 var answerSpans = _spanIdentifier.IdentifyAnswerSpans(
-                    question, 
-                    chunk.Content, 
+                    question,
+                    chunk.Content,
                     options
                 );
 
@@ -67,15 +67,15 @@ namespace FileFlux.Infrastructure.Strategies
 
                 // 4. Evaluate confidence
                 extractedAnswer.Confidence = _confidenceEvaluator.EvaluateConfidence(
-                    extractedAnswer, 
-                    question, 
+                    extractedAnswer,
+                    question,
                     chunk
                 );
 
                 // 5. Verify answer
                 var verificationResult = _verificationEngine.VerifyAnswer(
-                    extractedAnswer, 
-                    question, 
+                    extractedAnswer,
+                    question,
                     chunk
                 );
 
@@ -152,7 +152,7 @@ namespace FileFlux.Infrastructure.Strategies
             foreach (var question in questionResult.Questions)
             {
                 var answerResult = ExtractAnswer(question, chunk, options);
-                
+
                 if (answerResult.Success && answerResult.Answer != null)
                 {
                     qaResult.QAPairs.Add(new QAPair
@@ -173,7 +173,7 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         private AnswerSpan SelectBestAnswerSpan(
-            List<AnswerSpan> spans, 
+            List<AnswerSpan> spans,
             GeneratedQuestion question,
             DocumentChunk chunk)
         {
@@ -188,7 +188,7 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         private double CalculateSpanScore(
-            AnswerSpan span, 
+            AnswerSpan span,
             GeneratedQuestion question,
             DocumentChunk chunk)
         {
@@ -219,7 +219,7 @@ namespace FileFlux.Infrastructure.Strategies
 
             var textLower = text.ToLower();
             var matchCount = keywords.Count(k => textLower.Contains(k.ToLower()));
-            
+
             return (double)matchCount / keywords.Count;
         }
 
@@ -283,16 +283,16 @@ namespace FileFlux.Infrastructure.Strategies
             // Determine answer type based on content and question type
             if (Regex.IsMatch(answerText, @"^\d+$"))
                 return AnswerType.Numerical;
-            
+
             if (Regex.IsMatch(answerText, @"\d{4}|\d{1,2}[/-]\d{1,2}"))
                 return AnswerType.Date;
-            
+
             if (answerText.Split(' ').Length <= 3)
                 return AnswerType.Entity;
-            
+
             if (answerText.Split(' ').Length > 20)
                 return AnswerType.Explanation;
-            
+
             return AnswerType.Phrase;
         }
 
@@ -301,17 +301,17 @@ namespace FileFlux.Infrastructure.Strategies
             // Extract 50 characters before and after the answer
             var contextStart = Math.Max(0, startPos - 50);
             var contextEnd = Math.Min(content.Length, endPos + 50);
-            
+
             return content.Substring(contextStart, contextEnd - contextStart);
         }
 
         private List<string> ExtractSupportingEvidence(string content, AnswerSpan span)
         {
             var evidence = new List<string>();
-            
+
             // Find sentences containing the answer
             var sentences = content.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
-            
+
             foreach (var sentence in sentences)
             {
                 if (sentence.Contains(span.Text))
@@ -408,7 +408,7 @@ namespace FileFlux.Infrastructure.Strategies
                     // Extract surrounding context as potential answer
                     var start = Math.Max(0, index - 20);
                     var end = Math.Min(content.Length, index + keyword.Length + 50);
-                    
+
                     spans.Add(new AnswerSpan
                     {
                         Text = content.Substring(start, end - start),
@@ -427,14 +427,14 @@ namespace FileFlux.Infrastructure.Strategies
         private List<AnswerSpan> ExtractPatternBasedSpans(GeneratedQuestion question, string content)
         {
             var spans = new List<AnswerSpan>();
-            
+
             // Extract based on question patterns
             if (question.QuestionText.StartsWith("What is", StringComparison.OrdinalIgnoreCase))
             {
                 // Look for definitions
                 var definitionPattern = @"(?:is|are|means|refers to)\s+([^.!?]+)";
                 var matches = Regex.Matches(content, definitionPattern);
-                
+
                 foreach (Match match in matches)
                 {
                     spans.Add(new AnswerSpan
@@ -454,7 +454,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             var spans = new List<AnswerSpan>();
             var sentences = content.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
-            
+
             var currentPos = 0;
             foreach (var sentence in sentences)
             {
@@ -479,7 +479,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             // Remove exact duplicates and highly overlapping spans
             var uniqueSpans = new List<AnswerSpan>();
-            
+
             foreach (var span in spans.OrderBy(s => s.StartPosition))
             {
                 if (!uniqueSpans.Any(s => IsOverlapping(s, span)))
@@ -614,7 +614,7 @@ namespace FileFlux.Infrastructure.Strategies
         private string CombineAnswerTexts(List<ExtractedAnswer> answers)
         {
             // Find common elements and unique additions
-            var allSentences = answers.SelectMany(a => 
+            var allSentences = answers.SelectMany(a =>
                 a.Text.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries)
             ).Select(s => s.Trim()).Distinct().ToList();
 
@@ -671,7 +671,7 @@ namespace FileFlux.Infrastructure.Strategies
             // Check if answer contains relevant information for the question type
             return question.Type switch
             {
-                QuestionType.Factual => answer.Type == AnswerType.Entity || 
+                QuestionType.Factual => answer.Type == AnswerType.Entity ||
                                         answer.Type == AnswerType.Numerical ||
                                         answer.Type == AnswerType.Date,
                 QuestionType.Conceptual => answer.Text.Split(' ').Length >= 10,
@@ -685,7 +685,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             // Simple consistency check - no contradictions in the chunk
             // This is a simplified implementation
-            return !chunk.Content.Contains("however") || 
+            return !chunk.Content.Contains("however") ||
                    !chunk.Content.Contains("contradiction") ||
                    !chunk.Content.Contains("incorrect");
         }

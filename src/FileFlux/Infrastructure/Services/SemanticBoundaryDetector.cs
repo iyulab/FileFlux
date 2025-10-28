@@ -176,7 +176,7 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
         }
 
         // Check paragraph boundaries
-        if (segment1.EndsWith(".") && char.IsUpper(segment2.FirstOrDefault()))
+        if (segment1.EndsWith(".", StringComparison.Ordinal) && char.IsUpper(segment2.FirstOrDefault()))
         {
             return similarity < 0.5 ? BoundaryType.Paragraph : BoundaryType.Sentence;
         }
@@ -186,7 +186,7 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
     }
 
     private IEnumerable<BoundaryPoint> PostProcessBoundaries(
-        List<BoundaryPoint> boundaries, 
+        List<BoundaryPoint> boundaries,
         IList<string> segments)
     {
         if (boundaries.Count == 0)
@@ -220,14 +220,14 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
         foreach (var boundary in processed)
         {
             var segmentLength = segments[boundary.SegmentIndex].Length;
-            var nextSegmentLength = boundary.SegmentIndex + 1 < segments.Count 
-                ? segments[boundary.SegmentIndex + 1].Length 
+            var nextSegmentLength = boundary.SegmentIndex + 1 < segments.Count
+                ? segments[boundary.SegmentIndex + 1].Length
                 : 0;
 
             // Boost confidence for boundaries between segments of very different lengths
-            var lengthRatio = Math.Min(segmentLength, nextSegmentLength) / 
+            var lengthRatio = Math.Min(segmentLength, nextSegmentLength) /
                              (double)Math.Max(segmentLength, nextSegmentLength);
-            
+
             if (lengthRatio < 0.3)
             {
                 boundary.Confidence = Math.Min(1.0, boundary.Confidence * 1.2);
@@ -239,23 +239,23 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
 
     private bool ContainsHeading(string text)
     {
-        return text.StartsWith("#") || 
+        return text.StartsWith("#", StringComparison.Ordinal) ||
                text.Contains("HEADING_START") ||
-               System.Text.RegularExpressions.Regex.IsMatch(text, @"^(Chapter|Section|\d+\.)\s+", 
+               System.Text.RegularExpressions.Regex.IsMatch(text, @"^(Chapter|Section|\d+\.)\s+",
                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 
     private bool ContainsCodeBlock(string text)
     {
-        return text.Contains("```") || 
+        return text.Contains("```") ||
                text.Contains("CODE_BLOCK_START") ||
                text.Contains("CODE_START");
     }
 
     private bool ContainsTable(string text)
     {
-        return text.Contains("TABLE_START") || 
-               text.Contains("|") && text.Count(c => c == '|') > 2;
+        return text.Contains("TABLE_START") ||
+               text.Contains('|') && text.Count(c => c == '|') > 2;
     }
 
     private bool ContainsList(string text)

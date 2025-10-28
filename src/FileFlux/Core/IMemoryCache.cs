@@ -83,6 +83,6 @@ public class CacheStatistics
     /// <summary>
     /// Cache hit rate percentage.
     /// </summary>
-    public double HitRatePercentage => 
+    public double HitRatePercentage =>
         (Hits + Misses) > 0 ? (double)Hits / (Hits + Misses) * 100 : 0;
 }

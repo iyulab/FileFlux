@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace FileFlux.Infrastructure.Strategies
 {
     // Core graph data types used across Phase 12 components
-    
+
     public class RdfEntity
     {
         public string Value { get; set; } = string.Empty;

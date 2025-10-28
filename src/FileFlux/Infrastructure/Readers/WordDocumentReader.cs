@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using DocumentFormat.OpenXml;
 using FileFlux;
@@ -87,7 +87,7 @@ public class WordDocumentReader : IDocumentReader
             // 문서 제목 및 메타데이터 추출
             var documentTitle = ExtractDocumentTitle(wordDocument);
             ExtractDocumentMetadata(wordDocument, structuralHints);
-            
+
             if (!string.IsNullOrEmpty(documentTitle))
             {
                 structuralHints["document_title"] = documentTitle;
@@ -171,7 +171,7 @@ public class WordDocumentReader : IDocumentReader
             // 문서 제목 및 메타데이터 추출
             var documentTitle = ExtractDocumentTitle(wordDocument);
             ExtractDocumentMetadata(wordDocument, structuralHints);
-            
+
             if (!string.IsNullOrEmpty(documentTitle))
             {
                 structuralHints["document_title"] = documentTitle;
@@ -253,7 +253,7 @@ public class WordDocumentReader : IDocumentReader
                     {
                         // 스타일 기반 헤더 감지
                         var styleId = paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
-                        if (!string.IsNullOrEmpty(styleId) && styleId.StartsWith("Heading"))
+                        if (!string.IsNullOrEmpty(styleId) && styleId.StartsWith("Heading", StringComparison.Ordinal))
                         {
                             headerCount++;
                             var level = ExtractHeadingLevel(styleId);
@@ -311,11 +311,11 @@ public class WordDocumentReader : IDocumentReader
             var runProperties = run.RunProperties;
             var isBold = runProperties?.Bold?.Val?.Value == true || runProperties?.Bold?.Val == null && runProperties?.Bold != null;
             var isItalic = runProperties?.Italic?.Val?.Value == true || runProperties?.Italic?.Val == null && runProperties?.Italic != null;
-            
+
             foreach (var text in run.Elements<Text>())
             {
                 var textContent = text.Text;
-                
+
                 if (isBold || isItalic)
                 {
                     hasImportantFormatting = true;
@@ -332,10 +332,10 @@ public class WordDocumentReader : IDocumentReader
                         textContent = $"*{textContent}*"; // Italic
                     }
                 }
-                
+
                 textBuilder.Append(textContent);
             }
-            
+
             // Handle footnote references
             foreach (var footnoteRef in run.Elements<FootnoteReference>())
             {
@@ -345,7 +345,7 @@ public class WordDocumentReader : IDocumentReader
                     textBuilder.Append($"[^{id.Value}]");
                 }
             }
-            
+
             // Handle endnote references  
             foreach (var endnoteRef in run.Elements<EndnoteReference>())
             {
@@ -358,7 +358,7 @@ public class WordDocumentReader : IDocumentReader
         }
 
         var result = textBuilder.ToString().Trim();
-        
+
         // Add formatting importance hint as a suffix if detected
         if (hasImportantFormatting && !string.IsNullOrWhiteSpace(result))
         {
@@ -422,22 +422,22 @@ public class WordDocumentReader : IDocumentReader
             {
                 if (!string.IsNullOrWhiteSpace(coreProperties.Creator))
                     structuralHints["author"] = coreProperties.Creator;
-                    
+
                 if (!string.IsNullOrWhiteSpace(coreProperties.Subject))
                     structuralHints["subject"] = coreProperties.Subject;
-                    
+
                 if (!string.IsNullOrWhiteSpace(coreProperties.Keywords))
                     structuralHints["keywords"] = coreProperties.Keywords.Split(',', ';').Select(k => k.Trim()).Where(k => !string.IsNullOrWhiteSpace(k)).ToArray();
-                    
+
                 if (!string.IsNullOrWhiteSpace(coreProperties.Description))
                     structuralHints["description"] = coreProperties.Description;
-                    
+
                 if (coreProperties.Created.HasValue)
                     structuralHints["created_date"] = coreProperties.Created.Value;
-                    
+
                 if (coreProperties.Modified.HasValue)
                     structuralHints["modified_date"] = coreProperties.Modified.Value;
-                    
+
                 if (!string.IsNullOrWhiteSpace(coreProperties.LastModifiedBy))
                     structuralHints["last_modified_by"] = coreProperties.LastModifiedBy;
             }
@@ -508,7 +508,7 @@ public class WordDocumentReader : IDocumentReader
     private static int ExtractHeadingLevel(string styleId)
     {
         // Heading1, Heading2, ... 에서 레벨 추출
-        if (styleId.StartsWith("Heading") && styleId.Length > 7)
+        if (styleId.StartsWith("Heading", StringComparison.Ordinal) && styleId.Length > 7)
         {
             if (int.TryParse(styleId.AsSpan(7), out var level) && level >= 1 && level <= 6)
             {
@@ -521,7 +521,7 @@ public class WordDocumentReader : IDocumentReader
     private static string ExtractFootnotes(WordprocessingDocument document)
     {
         var textBuilder = new StringBuilder();
-        
+
         try
         {
             var footnotesPart = document.MainDocumentPart?.FootnotesPart;
@@ -542,7 +542,7 @@ public class WordDocumentReader : IDocumentReader
                                 footnoteText.Append(' ');
                             }
                         }
-                        
+
                         var content = footnoteText.ToString().Trim();
                         if (!string.IsNullOrWhiteSpace(content))
                         {
@@ -556,14 +556,14 @@ public class WordDocumentReader : IDocumentReader
         {
             // 각주 추출 실패는 무시
         }
-        
+
         return textBuilder.ToString().Trim();
     }
 
     private static string ExtractEndnotes(WordprocessingDocument document)
     {
         var textBuilder = new StringBuilder();
-        
+
         try
         {
             var endnotesPart = document.MainDocumentPart?.EndnotesPart;
@@ -584,7 +584,7 @@ public class WordDocumentReader : IDocumentReader
                                 endnoteText.Append(' ');
                             }
                         }
-                        
+
                         var content = endnoteText.ToString().Trim();
                         if (!string.IsNullOrWhiteSpace(content))
                         {
@@ -598,7 +598,7 @@ public class WordDocumentReader : IDocumentReader
         {
             // 미주 추출 실패는 무시
         }
-        
+
         return textBuilder.ToString().Trim();
     }
 

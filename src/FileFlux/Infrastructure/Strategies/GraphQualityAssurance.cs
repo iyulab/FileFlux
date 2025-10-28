@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -33,13 +33,13 @@ namespace FileFlux.Infrastructure.Strategies
             result.CyclicReferenceReport = DetectCyclicReferences(ontologyResult, options);
             result.OrphanNodeReport = IdentifyOrphanNodes(ontologyResult, options);
             result.StructuralIntegrityReport = ValidateStructuralIntegrity(ontologyResult, options);
-            
+
             // Calculate overall quality scores
             result.QualityScores = CalculateQualityScores(result);
-            
+
             // Generate improvement recommendations
             result.ImprovementRecommendations = GenerateImprovementRecommendations(result, options);
-            
+
             // Apply quality fixes if enabled
             if (options.AutoFix)
             {
@@ -68,7 +68,7 @@ namespace FileFlux.Infrastructure.Strategies
 
             report.Violations = violations;
             report.ConsistencyScore = CalculateConsistencyScore(violations, ontologyResult);
-            report.IsConsistent = violations.Count(v => v.Severity == "Error") == 0;
+            report.IsConsistent = !violations.Any(v => v.Severity == "Error");
 
             return report;
         }
@@ -76,7 +76,7 @@ namespace FileFlux.Infrastructure.Strategies
         private List<ConsistencyViolation> ValidateTypeConsistency(OntologyMappingResult ontologyResult)
         {
             var violations = new List<ConsistencyViolation>();
-            
+
             // Group entities by value to check for type conflicts
             var entityGroups = ontologyResult.TypedEntities
                 .GroupBy(te => te.Entity.Value.ToLower())
@@ -223,8 +223,8 @@ namespace FileFlux.Infrastructure.Strategies
             report.EntityCompletenessScore = totalEntities > 0 ? (double)entitiesWithTypes / totalEntities : 1.0;
 
             // Relationship completeness - how many relationships are properly typed
-            var typedRelationships = ontologyResult.MappedTriples.Count(mt => 
-                ontologyResult.InferredSchema.RelationshipTypes.Any(rt => 
+            var typedRelationships = ontologyResult.MappedTriples.Count(mt =>
+                ontologyResult.InferredSchema.RelationshipTypes.Any(rt =>
                     rt.RelationshipName.Equals(mt.MappedPredicate, StringComparison.OrdinalIgnoreCase)));
             var totalRelationships = ontologyResult.MappedTriples.Count;
             report.RelationshipCompletenessScore = totalRelationships > 0 ? (double)typedRelationships / totalRelationships : 1.0;
@@ -465,8 +465,8 @@ namespace FileFlux.Infrastructure.Strategies
         {
             // Entities with important types should have higher impact
             var importantTypes = new[] { "Person", "Organization", "Key_Concept" };
-            
-            if (entity.TypeDefinition != null && 
+
+            if (entity.TypeDefinition != null &&
                 importantTypes.Contains(entity.TypeDefinition.TypeName, StringComparer.OrdinalIgnoreCase))
             {
                 return "High";
@@ -530,7 +530,7 @@ namespace FileFlux.Infrastructure.Strategies
 
             report.StructuralIssues = issues;
             report.IntegrityScore = CalculateIntegrityScore(issues, ontologyResult);
-            report.IsStructurallySound = issues.Count(i => i.Severity == "Critical") == 0;
+            report.IsStructurallySound = !issues.Any(i => i.Severity == "Critical");
 
             return report;
         }
@@ -538,7 +538,7 @@ namespace FileFlux.Infrastructure.Strategies
         private List<StructuralIssue> DetectDanglingReferences(OntologyMappingResult ontologyResult)
         {
             var issues = new List<StructuralIssue>();
-            
+
             // Find references to entities that don't exist
             var entityValues = ontologyResult.TypedEntities.Select(te => te.Entity.Value).ToHashSet();
             var referencedEntities = ontologyResult.MappedTriples
@@ -546,7 +546,7 @@ namespace FileFlux.Infrastructure.Strategies
                 .ToHashSet();
 
             var danglingRefs = referencedEntities.Except(entityValues).ToList();
-            
+
             foreach (var danglingRef in danglingRefs)
             {
                 issues.Add(new StructuralIssue
@@ -615,12 +615,12 @@ namespace FileFlux.Infrastructure.Strategies
 
                 // Simple cardinality check - if a relationship should be 1:1 but has multiple objects
                 var subjectGroups = relationshipTriples.GroupBy(t => t.MappedSubject.NormalizedValue);
-                
+
                 foreach (var group in subjectGroups.Where(g => g.Count() > 1))
                 {
                     // Heuristic: assume 1:1 for certain relationship types
                     var oneToOneRelationships = new[] { "married_to", "is_ceo_of", "born_in" };
-                    
+
                     if (oneToOneRelationships.Contains(relationshipType.RelationshipName, StringComparer.OrdinalIgnoreCase))
                     {
                         issues.Add(new StructuralIssue
@@ -824,7 +824,7 @@ namespace FileFlux.Infrastructure.Strategies
             {
                 // For type conflicts, choose the most frequent type
                 var entityValue = violation.EntityValue;
-                var conflictingEntities = ontologyResult.TypedEntities.Where(te => 
+                var conflictingEntities = ontologyResult.TypedEntities.Where(te =>
                     te.Entity.Value.Equals(entityValue, StringComparison.OrdinalIgnoreCase)).ToList();
 
                 if (conflictingEntities.Count > 1)

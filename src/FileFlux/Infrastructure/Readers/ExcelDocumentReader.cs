@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using FileFlux;
 using FileFlux.Exceptions;
@@ -83,7 +83,7 @@ public class ExcelDocumentReader : IDocumentReader
 
             var textBuilder = new StringBuilder();
             var sharedStringTable = workbookPart.SharedStringTablePart?.SharedStringTable;
-            
+
             // 문서 속성 추출
             var documentTitle = ExtractDocumentTitle(spreadsheetDocument);
             if (!string.IsNullOrEmpty(documentTitle))
@@ -112,7 +112,7 @@ public class ExcelDocumentReader : IDocumentReader
                     if (worksheet == null) continue;
 
                     var sheetContent = ExtractWorksheetContent(worksheetPart, sharedStringTable, sheet.Name?.Value ?? $"Sheet{worksheetCount + 1}", warnings, cancellationToken);
-                    
+
                     if (!string.IsNullOrWhiteSpace(sheetContent.Content))
                     {
                         if (textBuilder.Length > 0)
@@ -186,7 +186,7 @@ public class ExcelDocumentReader : IDocumentReader
 
             var textBuilder = new StringBuilder();
             var sharedStringTable = workbookPart.SharedStringTablePart?.SharedStringTable;
-            
+
             // 문서 속성 추출
             var documentTitle = ExtractDocumentTitle(spreadsheetDocument);
             if (!string.IsNullOrEmpty(documentTitle))
@@ -215,7 +215,7 @@ public class ExcelDocumentReader : IDocumentReader
                     if (worksheet == null) continue;
 
                     var sheetContent = ExtractWorksheetContent(worksheetPart, sharedStringTable, sheet.Name?.Value ?? $"Sheet{worksheetCount + 1}", warnings, cancellationToken);
-                    
+
                     if (!string.IsNullOrWhiteSpace(sheetContent.Content))
                     {
                         if (textBuilder.Length > 0)
@@ -279,7 +279,7 @@ public class ExcelDocumentReader : IDocumentReader
         try
         {
             var rows = worksheetPart.Worksheet.Descendants<Row>().ToList();
-            
+
             foreach (var row in rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -292,7 +292,7 @@ public class ExcelDocumentReader : IDocumentReader
                 {
                     var cellValue = GetCellValue(cell, sharedStringTable);
                     cellValues.Add(cellValue);
-                    
+
                     if (!string.IsNullOrWhiteSpace(cellValue))
                     {
                         hasContent = true;

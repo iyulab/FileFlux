@@ -41,7 +41,7 @@ public static class ServiceCollectionExtensions
 
         // 기본 Reader들 등록
         services.AddTransient<IDocumentReader, TextDocumentReader>();
-        
+
         // 이미지 처리 기능이 포함된 PDF Reader 등록
         services.AddTransient<IDocumentReader, MultiModalPdfDocumentReader>();
 
@@ -96,7 +96,7 @@ public static class ServiceCollectionExtensions
     /// <param name="imageToTextService">이미지-텍스트 변환 서비스 인스턴스 (선택사항)</param>
     /// <returns>서비스 컬렉션</returns>
     public static IServiceCollection AddFileFlux(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         ITextCompletionService textCompletionService,
         IImageToTextService? imageToTextService = null)
     {
@@ -109,7 +109,7 @@ public static class ServiceCollectionExtensions
         if (imageToTextService != null)
         {
             services.AddSingleton(imageToTextService);
-            
+
             // 이미지 서비스가 있을 때 기본 관련성 평가기 등록 가능
         }
 
@@ -126,7 +126,7 @@ public static class ServiceCollectionExtensions
     /// <param name="imageRelevanceEvaluator">이미지 관련성 평가 서비스 인스턴스 (선택사항)</param>
     /// <returns>서비스 컬렉션</returns>
     public static IServiceCollection AddFileFlux(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         ITextCompletionService textCompletionService,
         IImageToTextService? imageToTextService = null,
         IImageRelevanceEvaluator? imageRelevanceEvaluator = null)

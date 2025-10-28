@@ -1,4 +1,4 @@
-﻿using FileFlux.Domain;
+using FileFlux.Domain;
 using System.Runtime.CompilerServices;
 
 namespace FileFlux.Infrastructure;

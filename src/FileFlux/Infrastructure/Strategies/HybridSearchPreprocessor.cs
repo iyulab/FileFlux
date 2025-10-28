@@ -1,4 +1,4 @@
-﻿using FileFlux.Domain;
+using FileFlux.Domain;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -12,7 +12,7 @@ public class HybridSearchPreprocessor
 {
     private static readonly Regex WordRegex = new(@"\b\w+\b", RegexOptions.Compiled);
     private static readonly Regex StemRegex = new(@"(?:ing|ed|er|est|ly|s)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    
+
     /// <summary>
     /// Preprocess chunk for hybrid search
     /// </summary>
@@ -101,8 +101,8 @@ public class HybridSearchPreprocessor
     /// Calculate weight information for hybrid scoring
     /// </summary>
     private WeightCalculationInfo CalculateWeightInformation(
-        DocumentChunk chunk, 
-        HybridSearchResult result, 
+        DocumentChunk chunk,
+        HybridSearchResult result,
         HybridSearchOptions options)
     {
         var weightInfo = new WeightCalculationInfo();
@@ -256,7 +256,7 @@ public class HybridSearchPreprocessor
     private Dictionary<string, List<int>> CalculatePositionInformation(List<string> tokens)
     {
         var positions = new Dictionary<string, List<int>>();
-        
+
         for (int i = 0; i < tokens.Count; i++)
         {
             var token = tokens[i];
@@ -279,7 +279,7 @@ public class HybridSearchPreprocessor
         foreach (var termFreq in bm25.TermFrequencies)
         {
             var positions = bm25.PositionInformation.GetValueOrDefault(termFreq.Key, new List<int>());
-            
+
             entries.Add(new InvertedIndexEntry
             {
                 Term = termFreq.Key,
@@ -303,13 +303,13 @@ public class HybridSearchPreprocessor
         {
             var tfNorm = (double)term.Value / maxFreq;
             var positions = bm25.PositionInformation.GetValueOrDefault(term.Key, new List<int>());
-            
+
             // Position boost (earlier = more important)
             var positionBoost = positions.Any() ? 1.0 / (1.0 + positions.Min() / 100.0) : 1.0;
-            
+
             // Length penalty (very short or very long terms are less important)
             var lengthBoost = CalculateLengthBoost(term.Key);
-            
+
             scores[term.Key] = tfNorm * positionBoost * lengthBoost;
         }
 
@@ -349,7 +349,7 @@ public class HybridSearchPreprocessor
                 .GroupBy(t => t)
                 .Where(g => g.Count() > 1)
                 .Select(g => g.Key);
-            
+
             candidates.AddRange(commonTerms);
         }
 
@@ -451,7 +451,7 @@ public class HybridSearchPreprocessor
     private FreshnessFactors CalculateFreshnessFactors(DocumentChunk chunk)
     {
         var createdHoursAgo = (DateTime.UtcNow - chunk.CreatedAt).TotalHours;
-        
+
         return new FreshnessFactors
         {
             RecencyBoost = Math.Max(0.5, 1.0 - (createdHoursAgo / (24 * 30))), // Decay over 30 days
@@ -474,9 +474,9 @@ public class HybridSearchPreprocessor
 
     private HybridRatio CalculateOptimalHybridRatio(WeightCalculationInfo weightInfo)
     {
-        var keywordStrength = (weightInfo.KeywordWeightFactors.AverageTermFrequency / 10.0) + 
+        var keywordStrength = (weightInfo.KeywordWeightFactors.AverageTermFrequency / 10.0) +
                             (weightInfo.ContentTypeAdjustments.KeywordBoost - 1.0);
-        var semanticStrength = weightInfo.SemanticWeightFactors.EstimatedSemanticDensity + 
+        var semanticStrength = weightInfo.SemanticWeightFactors.EstimatedSemanticDensity +
                              (weightInfo.ContentTypeAdjustments.SemanticBoost - 1.0);
 
         var total = keywordStrength + semanticStrength;
@@ -501,7 +501,7 @@ public class HybridSearchPreprocessor
             "by", "from", "as", "is", "was", "are", "were", "been", "being", "have",
             "has", "had", "do", "does", "did", "will", "would", "could", "should"
         };
-        
+
         return stopWords.Contains(word);
     }
 
@@ -521,9 +521,9 @@ public class HybridSearchPreprocessor
     private List<string> GenerateMorphologicalVariants(string term)
     {
         var variants = new List<string>();
-        
+
         // Add plural/singular variants
-        if (term.EndsWith("s") && term.Length > 3)
+        if (term.EndsWith("s", StringComparison.Ordinal) && term.Length > 3)
         {
             variants.Add(term.Substring(0, term.Length - 1));
         }
@@ -531,7 +531,7 @@ public class HybridSearchPreprocessor
         {
             variants.Add(term + "s");
         }
-        
+
         // Add -ing, -ed variants
         if (term.Length > 4)
         {
@@ -546,15 +546,15 @@ public class HybridSearchPreprocessor
     {
         var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var uniqueWords = words.Select(w => w.ToLowerInvariant()).Distinct().Count();
-        
+
         if (words.Length == 0) return 0;
         return (double)uniqueWords / words.Length;
     }
 
     private bool IsCodeContent(string content)
     {
-        return content.Contains("function") || content.Contains("class") || 
-               content.Contains("{") && content.Contains("}") ||
+        return content.Contains("function") || content.Contains("class") ||
+               content.Contains('{') && content.Contains('}') ||
                content.Contains("def ") || content.Contains("import ");
     }
 
@@ -566,7 +566,7 @@ public class HybridSearchPreprocessor
 
     private bool IsNarrativeContent(string content)
     {
-        return content.Contains(" story") || content.Contains(" narrative") || 
+        return content.Contains(" story") || content.Contains(" narrative") ||
                content.Contains("once upon") || content.Contains("first person");
     }
 
@@ -626,20 +626,20 @@ public class HybridSearchPreprocessor
         return new MultiModalFeatures
         {
             HasImages = false, // Would be determined from chunk analysis
-            HasTables = result.BM25Preprocessing.OriginalContent.Contains("|"),
+            HasTables = result.BM25Preprocessing.OriginalContent.Contains('|'),
             HasCode = IsCodeContent(result.BM25Preprocessing.OriginalContent),
-            HasMath = result.BM25Preprocessing.OriginalContent.Contains("$") // LaTeX math
+            HasMath = result.BM25Preprocessing.OriginalContent.Contains('$') // LaTeX math
         };
     }
 
     private Dictionary<string, double> CalculateCrossFieldCorrelations(HybridSearchResult result)
     {
         var correlations = new Dictionary<string, double>();
-        
+
         // Calculate correlation between different field types
         var headerTerms = result.BM25Preprocessing.FieldTokens.GetValueOrDefault("headers", new List<string>());
         var bodyTerms = result.BM25Preprocessing.ProcessedTokens;
-        
+
         if (headerTerms.Any() && bodyTerms.Any())
         {
             var commonTerms = headerTerms.Intersect(bodyTerms).Count();
@@ -724,11 +724,11 @@ public class HybridSearchPreprocessor
     private List<string> ExtractExpertiseIndicators(string content)
     {
         var indicators = new List<string>();
-        
+
         // Look for technical jargon
         var technicalTerms = Regex.Matches(content, @"\b[A-Z]{2,}\b"); // Acronyms
         indicators.AddRange(technicalTerms.Select(m => m.Value));
-        
+
         // Look for professional language
         if (content.Contains("methodology") || content.Contains("framework") || content.Contains("implementation"))
         {

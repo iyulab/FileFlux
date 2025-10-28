@@ -19,8 +19,8 @@ public class MockImageToTextService : IImageToTextService
     public string ProviderName => "MockImageToText";
 
     public async Task<ImageToTextResult> ExtractTextAsync(
-        byte[] imageData, 
-        ImageToTextOptions? options = null, 
+        byte[] imageData,
+        ImageToTextOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -29,20 +29,20 @@ public class MockImageToTextService : IImageToTextService
         await Task.Delay(200, cancellationToken); // 실제 AI 서비스 호출 시뮬레이션
 
         var startTime = DateTime.UtcNow;
-        
+
         // 이미지 크기 정보 추출 (실제 구현에서는 이미지 헤더 파싱)
         var metadata = ExtractImageMetadata(imageData);
-        
+
         // Mock 텍스트 추출 시뮬레이션
         var result = GenerateMockResult(metadata, options);
         result.ProcessingTimeMs = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
-        
+
         return result;
     }
 
     public async Task<ImageToTextResult> ExtractTextAsync(
-        Stream imageStream, 
-        ImageToTextOptions? options = null, 
+        Stream imageStream,
+        ImageToTextOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -57,12 +57,12 @@ public class MockImageToTextService : IImageToTextService
     }
 
     public async Task<ImageToTextResult> ExtractTextAsync(
-        string imagePath, 
-        ImageToTextOptions? options = null, 
+        string imagePath,
+        ImageToTextOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        
+
         if (string.IsNullOrWhiteSpace(imagePath))
             throw new ArgumentException("Image path cannot be null or empty", nameof(imagePath));
 
@@ -81,7 +81,7 @@ public class MockImageToTextService : IImageToTextService
         // 실제 구현에서는 이미지 헤더를 파싱하여 메타데이터 추출
         // Mock에서는 기본값 제공
         var format = DetectImageFormat(imageData);
-        
+
         return new ImageMetadata
         {
             Width = 1024,  // Mock 크기
@@ -147,7 +147,7 @@ public class MockImageToTextService : IImageToTextService
         return hint switch
         {
             "chart" => "chart",
-            "table" => "table", 
+            "table" => "table",
             "document" => "document",
             "photo" => "photo",
             _ => "document" // 기본값

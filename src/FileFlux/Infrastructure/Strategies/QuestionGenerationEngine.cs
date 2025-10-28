@@ -25,7 +25,7 @@ namespace FileFlux.Infrastructure.Strategies
                 { QuestionType.Inferential, new InferentialQuestionGenerator() },
                 { QuestionType.MultiHop, new MultiHopQuestionGenerator() }
             };
-            
+
             _complexityAnalyzer = new QuestionComplexityAnalyzer();
             _diversityOptimizer = new QuestionDiversityOptimizer();
         }
@@ -44,7 +44,7 @@ namespace FileFlux.Infrastructure.Strategies
             {
                 // Extract key information from chunk
                 var keyInfo = ExtractKeyInformation(chunk);
-                
+
                 // Generate questions by type
                 foreach (var kvp in _generators)
                 {
@@ -63,7 +63,7 @@ namespace FileFlux.Infrastructure.Strategies
 
                 // Optimize diversity
                 result.Questions = _diversityOptimizer.OptimizeDiversity(
-                    result.Questions, 
+                    result.Questions,
                     options.MaxQuestions
                 );
 
@@ -94,7 +94,7 @@ namespace FileFlux.Infrastructure.Strategies
             {
                 var result = GenerateQuestions(chunk, options);
                 batchResult.ChunkResults.Add(result);
-                
+
                 if (result.Success)
                 {
                     batchResult.TotalQuestions += result.Questions.Count;
@@ -132,11 +132,11 @@ namespace FileFlux.Infrastructure.Strategies
         private List<string> ExtractEntities(string content)
         {
             var entities = new List<string>();
-            
+
             // Extract proper nouns (simplified NER)
             var properNounPattern = @"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b";
             var matches = Regex.Matches(content, properNounPattern);
-            
+
             foreach (Match match in matches)
             {
                 if (!CommonWords.IsCommon(match.Value))
@@ -171,11 +171,11 @@ namespace FileFlux.Infrastructure.Strategies
         private List<string> ExtractConcepts(string content)
         {
             var concepts = new List<string>();
-            
+
             // Extract abstract nouns and technical terms
             var technicalTerms = ExtractTechnicalTerms(content);
             var abstractNouns = ExtractAbstractNouns(content);
-            
+
             concepts.AddRange(technicalTerms);
             concepts.AddRange(abstractNouns);
 
@@ -185,7 +185,7 @@ namespace FileFlux.Infrastructure.Strategies
         private List<Relation> ExtractRelations(string content)
         {
             var relations = new List<Relation>();
-            
+
             // Extract relationships between entities
             var relationPatterns = new[]
             {
@@ -256,24 +256,24 @@ namespace FileFlux.Infrastructure.Strategies
             // Simple heuristic for identifying factual statements
             var factualIndicators = new[] { "is", "are", "was", "were", "has", "have", "contains", "includes" };
             var lowerSentence = sentence.ToLower();
-            
+
             return factualIndicators.Any(indicator => lowerSentence.Contains(indicator)) &&
-                   !sentence.Contains("?") &&
+                   !sentence.Contains('?') &&
                    sentence.Split(' ').Length > 3;
         }
 
         private double CalculateFactConfidence(string sentence)
         {
             var confidence = 0.5;
-            
+
             // Increase confidence for definitive language
             if (Regex.IsMatch(sentence, @"\b(?:always|never|definitely|certainly|must)\b", RegexOptions.IgnoreCase))
                 confidence += 0.2;
-            
+
             // Decrease confidence for hedging language
             if (Regex.IsMatch(sentence, @"\b(?:might|maybe|possibly|could|perhaps)\b", RegexOptions.IgnoreCase))
                 confidence -= 0.2;
-            
+
             // Increase confidence for numerical data
             if (Regex.IsMatch(sentence, @"\d+"))
                 confidence += 0.1;
@@ -284,11 +284,11 @@ namespace FileFlux.Infrastructure.Strategies
         private List<string> ExtractTechnicalTerms(string content)
         {
             var terms = new List<string>();
-            
+
             // Extract capitalized multi-word terms
             var technicalPattern = @"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b";
             var matches = Regex.Matches(content, technicalPattern);
-            
+
             foreach (Match match in matches)
             {
                 terms.Add(match.Value);
@@ -297,7 +297,7 @@ namespace FileFlux.Infrastructure.Strategies
             // Extract acronyms
             var acronymPattern = @"\b[A-Z]{2,}\b";
             matches = Regex.Matches(content, acronymPattern);
-            
+
             foreach (Match match in matches)
             {
                 terms.Add(match.Value);
@@ -309,7 +309,7 @@ namespace FileFlux.Infrastructure.Strategies
         private List<string> ExtractAbstractNouns(string content)
         {
             var abstractNouns = new List<string>();
-            
+
             // Common abstract noun suffixes
             var suffixes = new[] { "tion", "ment", "ness", "ity", "ance", "ence", "ship", "hood" };
             var words = content.Split(new[] { ' ', '.', ',', ';', ':', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
@@ -317,7 +317,7 @@ namespace FileFlux.Infrastructure.Strategies
             foreach (var word in words)
             {
                 var lowerWord = word.ToLower();
-                if (suffixes.Any(suffix => lowerWord.EndsWith(suffix)))
+                if (suffixes.Any(suffix => lowerWord.EndsWith(suffix, StringComparison.Ordinal)))
                 {
                     abstractNouns.Add(word);
                 }
@@ -327,7 +327,7 @@ namespace FileFlux.Infrastructure.Strategies
         }
 
         private List<GeneratedQuestion> GenerateCrossChunkQuestions(
-            List<DocumentChunk> chunks, 
+            List<DocumentChunk> chunks,
             QuestionGenerationOptions options)
         {
             var crossChunkQuestions = new List<GeneratedQuestion>();
@@ -367,7 +367,7 @@ namespace FileFlux.Infrastructure.Strategies
         private void RemoveDuplicateQuestions(BatchQuestionGenerationResult batchResult)
         {
             var allQuestions = new List<GeneratedQuestion>();
-            
+
             foreach (var chunkResult in batchResult.ChunkResults)
             {
                 allQuestions.AddRange(chunkResult.Questions);
@@ -382,7 +382,7 @@ namespace FileFlux.Infrastructure.Strategies
             foreach (var question in allQuestions.OrderByDescending(q => q.Quality))
             {
                 var normalizedText = NormalizeQuestionText(question.QuestionText);
-                
+
                 if (!addedQuestionTexts.Contains(normalizedText))
                 {
                     uniqueQuestions.Add(question);
@@ -396,7 +396,7 @@ namespace FileFlux.Infrastructure.Strategies
             {
                 chunkResult.Questions.Clear();
                 var chunkQuestionCount = Math.Min(5, uniqueQuestions.Count - questionIndex);
-                
+
                 for (int i = 0; i < chunkQuestionCount && questionIndex < uniqueQuestions.Count; i++)
                 {
                     chunkResult.Questions.Add(uniqueQuestions[questionIndex++]);
@@ -434,14 +434,14 @@ namespace FileFlux.Infrastructure.Strategies
 
             var uniqueTypes = questions.Select(q => q.Type).Distinct().Count();
             var uniqueComplexities = questions.Select(q => Math.Round(q.Complexity, 1)).Distinct().Count();
-            
+
             return (uniqueTypes / 4.0 + uniqueComplexities / questions.Count) / 2.0;
         }
 
         private double CalculateCoverageScore(List<GeneratedQuestion> questions)
         {
             var coveredTopics = new HashSet<string>();
-            
+
             foreach (var question in questions)
             {
                 foreach (var keyword in question.Keywords)
@@ -520,12 +520,12 @@ namespace FileFlux.Infrastructure.Strategies
 
         private string ExtractNumberContext(string content, string number)
         {
-            var index = content.IndexOf(number);
+            var index = content.IndexOf(number, StringComparison.Ordinal);
             if (index > 0)
             {
                 var words = content.Substring(Math.Max(0, index - 50), Math.Min(100, content.Length - index))
                     .Split(' ');
-                
+
                 // Find noun after the number
                 for (int i = 0; i < words.Length - 1; i++)
                 {
@@ -668,12 +668,12 @@ namespace FileFlux.Infrastructure.Strategies
     // Supporting data structures
     public class QuestionGenerationOptions
     {
-        public List<QuestionType> QuestionTypes { get; set; } = new List<QuestionType> 
-        { 
-            QuestionType.Factual, 
-            QuestionType.Conceptual, 
-            QuestionType.Inferential, 
-            QuestionType.MultiHop 
+        public List<QuestionType> QuestionTypes { get; set; } = new List<QuestionType>
+        {
+            QuestionType.Factual,
+            QuestionType.Conceptual,
+            QuestionType.Inferential,
+            QuestionType.MultiHop
         };
         public int MaxQuestions { get; set; } = 10;
         public bool EnableCrossChunkQuestions { get; set; } = true;

@@ -27,10 +27,10 @@ public class ParallelBatchProcessor : IParallelBatchProcessor
         int maxDegreeOfParallelism = 0)
     {
         _baseProcessor = baseProcessor ?? throw new ArgumentNullException(nameof(baseProcessor));
-        _maxDegreeOfParallelism = maxDegreeOfParallelism > 0 
-            ? maxDegreeOfParallelism 
+        _maxDegreeOfParallelism = maxDegreeOfParallelism > 0
+            ? maxDegreeOfParallelism
             : Environment.ProcessorCount;
-        
+
         _parallelOptions = new ParallelOptions
         {
             MaxDegreeOfParallelism = _maxDegreeOfParallelism
@@ -120,12 +120,12 @@ public class ParallelBatchProcessor : IParallelBatchProcessor
 
         // Partition the work
         var partitions = filePaths.Chunk(partitionSize);
-        
+
         // Process partitions in parallel
         var partitionTasks = partitions.Select(async partition =>
         {
             var partitionResults = new List<DocumentProcessingResult>();
-            
+
             await Parallel.ForEachAsync(
                 partition,
                 _parallelOptions,
@@ -137,7 +137,7 @@ public class ParallelBatchProcessor : IParallelBatchProcessor
                         partitionResults.Add(result);
                     }
                 });
-            
+
             return partitionResults;
         });
 
@@ -271,8 +271,8 @@ public class ParallelBatchProcessor : IParallelBatchProcessor
 
     private double CalculateThroughput(int documentCount, TimeSpan elapsed)
     {
-        return elapsed.TotalSeconds > 0 
-            ? documentCount / elapsed.TotalSeconds 
+        return elapsed.TotalSeconds > 0
+            ? documentCount / elapsed.TotalSeconds
             : 0;
     }
 }

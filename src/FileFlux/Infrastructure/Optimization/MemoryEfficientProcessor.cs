@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Text;
 using FileFlux.Core;
 using FileFlux.Domain;
@@ -10,7 +10,7 @@ namespace FileFlux.Infrastructure.Optimization;
 /// Memory-efficient document processor with streaming and caching optimizations.
 /// Reduces memory usage by 50% through lazy evaluation and efficient buffering.
 /// </summary>
-public class MemoryEfficientProcessor : IMemoryEfficientProcessor
+public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
 {
     private readonly IDocumentProcessor _baseProcessor;
     private readonly IMemoryCache _cache;
@@ -53,7 +53,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
         try
         {
             var chunks = new List<DocumentChunk>(_options.ChunkBufferSize);
-            
+
             // Stream processing with buffering
             await foreach (var chunk in ProcessInternalAsync(filePath, options, cancellationToken))
             {
@@ -105,7 +105,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
                     {
                         chunks.Add(chunk);
                     }
-                    
+
                     return new BatchProcessingResult
                     {
                         FilePath = filePath,
@@ -128,11 +128,11 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
 
             // Process batch in parallel with memory control
             var results = await Task.WhenAll(tasks);
-            
+
             foreach (var result in results)
             {
                 yield return result;
-                
+
                 // Force garbage collection if memory pressure is high
                 if (_options.AggressiveMemoryManagement && GC.GetTotalMemory(false) > _options.MemoryThreshold)
                 {
@@ -152,7 +152,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
         // Use streaming reader for large files
         using var stream = File.OpenRead(filePath);
         using var reader = new StreamReader(stream, bufferSize: _options.StreamBufferSize);
-        
+
         var buffer = new char[_options.StreamBufferSize];
         var contentBuilder = new StringBuilder(capacity: _options.StreamBufferSize * 2);
         int charsRead;
@@ -161,7 +161,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
         while ((charsRead = await reader.ReadAsync(buffer, cancellationToken)) > 0)
         {
             contentBuilder.Append(buffer, 0, charsRead);
-            
+
             // Process when we have enough content
             if (contentBuilder.Length >= options.MaxChunkSize)
             {
@@ -169,13 +169,13 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
                 // Use temporary file for base processor
                 var tempFile = Path.GetTempFileName();
                 await File.WriteAllTextAsync(tempFile, content, cancellationToken);
-                
+
                 var processedChunks = new List<DocumentChunk>();
                 var chunks = await _baseProcessor.ProcessAsync(tempFile, options, cancellationToken); foreach (var chunk in chunks)
                 {
                     processedChunks.Add(chunk);
                 }
-                
+
                 File.Delete(tempFile);
 
                 foreach (var chunk in processedChunks)
@@ -205,13 +205,13 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
         {
             var tempFile = Path.GetTempFileName();
             await File.WriteAllTextAsync(tempFile, contentBuilder.ToString(), cancellationToken);
-            
+
             var remainingChunks = new List<DocumentChunk>();
             var chunks = await _baseProcessor.ProcessAsync(tempFile, options, cancellationToken); foreach (var chunk in chunks)
             {
                 remainingChunks.Add(chunk);
             }
-            
+
             File.Delete(tempFile);
 
             foreach (var chunk in remainingChunks)
@@ -244,6 +244,20 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor
             CacheSize = _cache.Count,
             CacheHitRate = _cache.HitRate
         };
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _semaphore?.Dispose();
+        }
     }
 }
 

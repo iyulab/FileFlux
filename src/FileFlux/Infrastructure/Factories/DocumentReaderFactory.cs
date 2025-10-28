@@ -72,7 +72,7 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         if (string.IsNullOrWhiteSpace(extension))
             return false;
 
-        var normalizedExtension = extension.StartsWith(".") ? extension.ToLowerInvariant() : $".{extension.ToLowerInvariant()}";
+        var normalizedExtension = extension.StartsWith(".", StringComparison.Ordinal) ? extension.ToLowerInvariant() : $".{extension.ToLowerInvariant()}";
 
         return _readers.Values
             .Any(reader => reader.SupportedExtensions.Contains(normalizedExtension));

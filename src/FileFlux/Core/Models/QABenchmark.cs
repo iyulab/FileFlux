@@ -69,7 +69,7 @@ public class QABenchmark
 
         // Combine questions, avoiding duplicates based on similarity
         var allQuestions = new List<GeneratedQuestion>(existing.Questions);
-        
+
         foreach (var newQuestion in newQA.Questions)
         {
             if (!IsDuplicateQuestion(allQuestions, newQuestion))
@@ -96,7 +96,7 @@ public class QABenchmark
     /// </summary>
     private static bool IsDuplicateQuestion(List<GeneratedQuestion> existingQuestions, GeneratedQuestion newQuestion)
     {
-        return existingQuestions.Any(q => 
+        return existingQuestions.Any(q =>
             CalculateQuestionSimilarity(q.Question, newQuestion.Question) > 0.8);
     }
 
@@ -108,10 +108,10 @@ public class QABenchmark
         // Simplified similarity based on word overlap
         var words1 = question1.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var words2 = question2.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        
+
         var intersection = words1.Intersect(words2).Count();
         var union = words1.Union(words2).Count();
-        
+
         return union == 0 ? 0 : (double)intersection / union;
     }
 
@@ -124,7 +124,7 @@ public class QABenchmark
     {
         if (existingCount == 0) return newScore;
         if (newCount == 0) return existingScore;
-        
+
         var totalWeight = existingCount + newCount;
         return (existingScore * existingCount + newScore * newCount) / totalWeight;
     }
@@ -152,7 +152,7 @@ public class QABenchmark
         Dictionary<string, object> dict1, Dictionary<string, object> dict2)
     {
         var merged = new Dictionary<string, object>(dict1);
-        
+
         foreach (var kvp in dict2)
         {
             if (merged.ContainsKey(kvp.Key))
@@ -172,7 +172,7 @@ public class QABenchmark
                 merged[kvp.Key] = kvp.Value;
             }
         }
-        
+
         return merged;
     }
 }
@@ -234,22 +234,22 @@ public enum QuestionType
     /// Questions about specific facts or data points
     /// </summary>
     Factual,
-    
+
     /// <summary>
     /// Questions about concepts, definitions, or explanations
     /// </summary>
     Conceptual,
-    
+
     /// <summary>
     /// Questions requiring analysis or reasoning across multiple facts
     /// </summary>
     Analytical,
-    
+
     /// <summary>
     /// Questions about procedures or step-by-step processes
     /// </summary>
     Procedural,
-    
+
     /// <summary>
     /// Questions comparing different concepts or items
     /// </summary>

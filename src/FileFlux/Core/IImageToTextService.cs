@@ -16,8 +16,8 @@ public interface IImageToTextService
     /// <param name="cancellationToken">취소 토큰</param>
     /// <returns>추출된 텍스트 및 메타데이터</returns>
     Task<ImageToTextResult> ExtractTextAsync(
-        byte[] imageData, 
-        ImageToTextOptions? options = null, 
+        byte[] imageData,
+        ImageToTextOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -28,8 +28,8 @@ public interface IImageToTextService
     /// <param name="cancellationToken">취소 토큰</param>
     /// <returns>추출된 텍스트 및 메타데이터</returns>
     Task<ImageToTextResult> ExtractTextAsync(
-        Stream imageStream, 
-        ImageToTextOptions? options = null, 
+        Stream imageStream,
+        ImageToTextOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -40,8 +40,8 @@ public interface IImageToTextService
     /// <param name="cancellationToken">취소 토큰</param>
     /// <returns>추출된 텍스트 및 메타데이터</returns>
     Task<ImageToTextResult> ExtractTextAsync(
-        string imagePath, 
-        ImageToTextOptions? options = null, 
+        string imagePath,
+        ImageToTextOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

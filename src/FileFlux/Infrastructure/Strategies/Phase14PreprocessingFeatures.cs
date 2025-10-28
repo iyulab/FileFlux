@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -62,15 +62,15 @@ public class Phase14PreprocessingFeatures
     /// T14-001: 문서 요약 시스템 (간단한 구현)
     /// </summary>
     private async Task<DocumentSummary> GenerateSummaryAsync(
-        ParsedContent document, 
+        ParsedContent document,
         SummaryOptions options,
         CancellationToken cancellationToken)
     {
         await Task.Yield();
-        
+
         var summary = new DocumentSummary();
         var text = document.Text;
-        
+
         // 추출적 요약 - 첫 번째와 마지막 문장들
         var sentences = text.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries)
             .Where(s => !string.IsNullOrWhiteSpace(s) && s.Trim().Length > 10)
@@ -81,16 +81,16 @@ public class Phase14PreprocessingFeatures
         {
             var summaryLength = Math.Min(3, sentences.Count);
             var selectedSentences = new List<string>();
-            
+
             // 첫 번째 문장
             selectedSentences.Add(sentences[0]);
-            
+
             // 중간 문장
             if (sentences.Count > 2 && summaryLength > 1)
             {
                 selectedSentences.Add(sentences[sentences.Count / 2]);
             }
-            
+
             // 마지막 문장
             if (sentences.Count > 1 && summaryLength > 2)
             {
@@ -109,7 +109,7 @@ public class Phase14PreprocessingFeatures
             .Take(10)
             .Select(g => g.Key)
             .ToList();
-            
+
         summary.KeyPhrases = words;
         summary.ConfidenceScore = sentences.Count > 0 ? 0.7 : 0.3;
 
@@ -125,28 +125,28 @@ public class Phase14PreprocessingFeatures
         CancellationToken cancellationToken)
     {
         await Task.Yield();
-        
+
         var compressed = new CompressedContent();
         var text = document.Text;
-        
+
         // 중복 제거 - 반복되는 문장 제거
         var sentences = text.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries)
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .Select(s => s.Trim())
             .Distinct()
             .ToList();
-        
+
         compressed.DeduplicatedText = string.Join(". ", sentences);
-        
+
         // 핵심 정보 추출 - 긴 문장들 우선
         var coreSentences = sentences
             .Where(s => s.Length > 50) // 50자 이상의 문장들
             .OrderByDescending(s => s.Length)
             .Take(Math.Min(5, sentences.Count))
             .ToList();
-            
+
         compressed.CoreInformation = string.Join(". ", coreSentences);
-        
+
         // 압축률 계산
         compressed.CompressionRatio = (double)compressed.CoreInformation.Length / text.Length;
         compressed.QualityScore = compressed.CompressionRatio > 0.3 ? 0.8 : 0.5;
@@ -163,24 +163,24 @@ public class Phase14PreprocessingFeatures
         CancellationToken cancellationToken)
     {
         await Task.Yield();
-        
+
         var augmented = new AugmentedContent();
         var text = document.Text;
-        
+
         // 컨텍스트 확장 - 메타데이터 정보 추가
         var contextInfo = new StringBuilder();
         contextInfo.AppendLine("[문서 컨텍스트]");
         contextInfo.AppendLine($"파일명: {document.Metadata.FileName}");
         contextInfo.AppendLine($"생성일: {document.Metadata.CreatedAt}");
         contextInfo.AppendLine($"언어: {document.Metadata.Language}");
-        
+
         if (document.Structure.Keywords?.Any() == true)
         {
             contextInfo.AppendLine($"키워드: {string.Join(", ", document.Structure.Keywords)}");
         }
-        
+
         augmented.ContextInformation = contextInfo.ToString();
-        
+
         // 설명 주석 생성 - 복잡한 용어나 약어에 대한 간단한 설명
         var annotations = new List<string>();
         var complexTerms = ExtractComplexTerms(text);
@@ -188,16 +188,16 @@ public class Phase14PreprocessingFeatures
         {
             annotations.Add($"{term}: [복합 기술 용어]");
         }
-        
+
         augmented.Annotations = annotations;
-        
+
         // 참조 링크 강화 - URL이나 파일명 감지
         var references = text.Split(new[] { ' ', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.Contains("http") || w.Contains("www") || w.EndsWith(".pdf") || w.EndsWith(".doc"))
+            .Where(w => w.Contains("http") || w.Contains("www") || w.EndsWith(".pdf", StringComparison.Ordinal) || w.EndsWith(".doc", StringComparison.Ordinal))
             .Distinct()
             .Take(10)
             .ToList();
-            
+
         augmented.References = references;
         augmented.EnhancementScore = (annotations.Count + references.Count) / 10.0;
 
@@ -227,42 +227,42 @@ public class Phase14PreprocessingFeatures
         CancellationToken cancellationToken)
     {
         await Task.Yield();
-        
+
         var analysis = new MultimodalAnalysis();
-        
+
         // 구조화된 콘텐츠 분석
         var structuredContent = document.Text;
-        
+
         // 테이블 패턴 감지 (텍스트에서)
         var tablePatterns = new[] { "|", "┌", "└", "├", "─", "│", "표", "Table" };
         analysis.HasTables = tablePatterns.Any(pattern => structuredContent.Contains(pattern));
-        
+
         // 이미지 참조 감지
         var imagePatterns = new[] { "그림", "Figure", "Fig.", "이미지", "Image", ".png", ".jpg", ".jpeg" };
         analysis.HasImages = imagePatterns.Any(pattern => structuredContent.Contains(pattern, StringComparison.OrdinalIgnoreCase));
-        
+
         // 다이어그램 감지
         var diagramPatterns = new[] { "다이어그램", "diagram", "차트", "chart", "그래프", "graph", "플로우", "flow" };
         analysis.HasDiagrams = diagramPatterns.Any(pattern => structuredContent.Contains(pattern, StringComparison.OrdinalIgnoreCase));
-        
+
         // 레이아웃 복잡성 분석
         var sectionCount = document.Structure.Sections?.Count ?? 0;
         analysis.LayoutComplexity = sectionCount switch
         {
             0 => "Simple",
-            <= 3 => "Moderate", 
+            <= 3 => "Moderate",
             <= 7 => "Complex",
             _ => "Very Complex"
         };
-        
+
         // 분석 점수 계산
         var score = 0.5; // 기본 점수
         if (analysis.HasTables) score += 0.2;
         if (analysis.HasImages) score += 0.2;
         if (analysis.HasDiagrams) score += 0.1;
-        
+
         analysis.AnalysisScore = Math.Min(score, 1.0);
-        
+
         return analysis;
     }
 
@@ -306,7 +306,7 @@ public class PreprocessingOptions
     public bool EnableCompression { get; set; } = true;
     public bool EnableAugmentation { get; set; } = true;
     public bool EnableMultimodalEnhancement { get; set; } = true;
-    
+
     public SummaryOptions SummaryOptions { get; set; } = new();
     public CompressionOptions CompressionOptions { get; set; } = new();
     public AugmentationOptions AugmentationOptions { get; set; } = new();

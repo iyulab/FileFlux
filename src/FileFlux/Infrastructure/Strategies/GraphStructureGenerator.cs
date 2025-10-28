@@ -364,8 +364,8 @@ public class GraphStructureGenerator
         };
 
         // Simple hierarchy based on relationships
-        var hierarchyTriples = triples.Where(t => 
-            t.Predicate.Contains("works_for") || 
+        var hierarchyTriples = triples.Where(t =>
+            t.Predicate.Contains("works_for") ||
             t.Predicate.Contains("part_of") ||
             t.Predicate.Contains("reports_to")).ToList();
 
@@ -380,7 +380,7 @@ public class GraphStructureGenerator
     private HierarchicalStructure? BuildTaxonomicHierarchy(EntityExtractionResult extractionResult, List<RdfTriple> triples)
     {
         var typeTriples = triples.Where(t => t.Predicate == "rdf:type" || t.Predicate.Contains("subclass")).ToList();
-        
+
         if (!typeTriples.Any()) return null;
 
         var hierarchy = new HierarchicalStructure
@@ -395,8 +395,8 @@ public class GraphStructureGenerator
 
     private HierarchicalStructure? BuildCompositionalHierarchy(EntityExtractionResult extractionResult, List<RdfTriple> triples)
     {
-        var partOfTriples = triples.Where(t => 
-            t.Predicate.Contains("part_of") || 
+        var partOfTriples = triples.Where(t =>
+            t.Predicate.Contains("part_of") ||
             t.Predicate.Contains("contains") ||
             t.Predicate.Contains("component_of")).ToList();
 
@@ -416,12 +416,12 @@ public class GraphStructureGenerator
     {
         // Simplified hierarchy building - group by relationship depth
         var entityDepths = new Dictionary<string, int>();
-        
+
         foreach (var triple in hierarchyTriples)
         {
             var subject = triple.Subject.Value;
             var obj = triple.Object.Value;
-            
+
             if (!entityDepths.ContainsKey(obj))
                 entityDepths[obj] = 0;
             if (!entityDepths.ContainsKey(subject))
@@ -429,7 +429,7 @@ public class GraphStructureGenerator
         }
 
         var groupedByLevel = entityDepths.GroupBy(kvp => kvp.Value).OrderBy(g => g.Key);
-        
+
         foreach (var levelGroup in groupedByLevel)
         {
             var level = new HierarchyLevel
@@ -466,12 +466,12 @@ public class GraphStructureGenerator
 
     private DateTime? ExtractTimestamp(string entity, List<NamedEntity> dateEntities)
     {
-        var dateEntity = dateEntities.FirstOrDefault(d => 
+        var dateEntity = dateEntities.FirstOrDefault(d =>
             entity.Contains(d.Value, StringComparison.OrdinalIgnoreCase));
-        
+
         if (dateEntity != null && DateTime.TryParse(dateEntity.Value, out var date))
             return date;
-        
+
         return null;
     }
 
@@ -516,7 +516,7 @@ public class GraphStructureGenerator
     private void DepthFirstSearch(string nodeId, List<RdfTriple> triples, HashSet<string> visited)
     {
         visited.Add(nodeId);
-        
+
         var neighbors = triples
             .Where(t => t.Subject.Value == nodeId || t.Object.Value == nodeId)
             .SelectMany(t => new[] { t.Subject.Value, t.Object.Value })
@@ -559,7 +559,7 @@ public class GraphStructureGenerator
             {
                 foreach (var neighbor2 in neighbors.Where(n => n != neighbor1))
                 {
-                    if (triples.Any(t => 
+                    if (triples.Any(t =>
                         (t.Subject.Value == neighbor1 && t.Object.Value == neighbor2) ||
                         (t.Subject.Value == neighbor2 && t.Object.Value == neighbor1)))
                     {
@@ -637,12 +637,12 @@ public static class GraphStructureGeneratorExtensions
             SpatialRelationships = graph.SpatialRelations,
             CausalRelationships = graph.CausalRelations
         };
-        
+
         // Recalculate metrics
         var nodeCount = result.Triples.Select(t => t.Subject.Value).Union(result.Triples.Select(t => t.Object.Value)).Distinct().Count();
         var edgeCount = result.Triples.Count;
         var maxPossibleEdges = nodeCount * (nodeCount - 1) / 2;
-        
+
         return new GraphMetrics
         {
             NodeCount = nodeCount,

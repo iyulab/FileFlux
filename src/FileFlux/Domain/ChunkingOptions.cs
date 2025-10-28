@@ -35,7 +35,7 @@ public static class ChunkingStrategies
     /// 자동 적응형 청킹 - LLM이 문서를 분석하여 최적 전략 선택 (기본값)
     /// </summary>
     public const string Auto = nameof(Auto);
-    
+
     /// <summary>
     /// 스마트 청킹 - 문장 경계 기반 완성도 70% 보장
     /// </summary>
@@ -55,7 +55,7 @@ public static class ChunkingStrategies
     /// 문단 기반 청킹 - 자연스러운 문단 경계
     /// </summary>
     public const string Paragraph = nameof(Paragraph);
-    
+
     /// <summary>
     /// 고정 크기 청킹 - 일정한 토큰 수로 분할
     /// </summary>

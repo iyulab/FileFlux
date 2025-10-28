@@ -15,7 +15,7 @@ public class VectorSearchOptimizer
     private static readonly Regex NumberRegex = new(@"\b\d+\b", RegexOptions.Compiled);
     private static readonly Regex UrlRegex = new(@"https?://[^\s]+", RegexOptions.Compiled);
     private static readonly Regex EmailRegex = new(@"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", RegexOptions.Compiled);
-    
+
     private readonly HashSet<string> _stopWords = new()
     {
         "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with",
@@ -49,7 +49,7 @@ public class VectorSearchOptimizer
 
         // 4. Context window optimization
         optimized.WindowOptimizedContent = OptimizeContextWindow(
-            optimized.CleanedContent, 
+            optimized.CleanedContent,
             options.MaxTokensPerChunk ?? 512
         );
 
@@ -72,9 +72,9 @@ public class VectorSearchOptimizer
     {
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var contentWords = words.Where(w => !IsStopWord(w.ToLowerInvariant())).ToList();
-        
+
         var density = (double)contentWords.Count / Math.Max(1, words.Length);
-        
+
         // Adjust chunk size based on semantic density
         var optimizedText = text;
         if (density < options.MinSemanticDensity)
@@ -163,7 +163,7 @@ public class VectorSearchOptimizer
 
             uniqueSentences.Add(normalized);
             result.Append(cleaned);
-            
+
             // Add period if missing
             if (!cleaned.EndsWith('.') && !cleaned.EndsWith('!') && !cleaned.EndsWith('?'))
             {
@@ -181,7 +181,7 @@ public class VectorSearchOptimizer
     private string OptimizeContextWindow(string text, int maxTokens)
     {
         var estimatedTokens = EstimateTokenCount(text);
-        
+
         if (estimatedTokens <= maxTokens)
             return text;
 
@@ -193,7 +193,7 @@ public class VectorSearchOptimizer
         foreach (var sentence in sentences)
         {
             var sentenceTokens = EstimateTokenCount(sentence);
-            
+
             if (currentTokens + sentenceTokens > maxTokens)
                 break;
 
@@ -203,12 +203,12 @@ public class VectorSearchOptimizer
                 result.Append('.');
             }
             result.Append(' ');
-            
+
             currentTokens += sentenceTokens;
         }
 
         var optimized = result.ToString().Trim();
-        
+
         // Add continuation marker if truncated
         if (optimized.Length < text.Length * 0.9)
         {
@@ -225,13 +225,13 @@ public class VectorSearchOptimizer
     {
         var originalTokens = EstimateTokenCount(original);
         var optimizedTokens = EstimateTokenCount(optimized);
-        
+
         var originalWords = original.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var optimizedWords = optimized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        
+
         var compressionRatio = 1.0 - ((double)optimized.Length / Math.Max(1, original.Length));
         var tokenReduction = 1.0 - ((double)optimizedTokens / Math.Max(1, originalTokens));
-        
+
         var semanticPreservation = CalculateSemanticPreservation(originalWords, optimizedWords);
 
         return new OptimizationMetrics
@@ -251,19 +251,19 @@ public class VectorSearchOptimizer
     private EmbeddingHints GenerateEmbeddingHints(string text)
     {
         var hints = new EmbeddingHints();
-        
+
         // Detect primary language
         hints.PrimaryLanguage = DetectLanguage(text);
-        
+
         // Identify key entities
         hints.KeyEntities = ExtractKeyEntities(text);
-        
+
         // Determine text type
         hints.TextType = DetermineTextType(text);
-        
+
         // Suggest embedding model
         hints.RecommendedModel = SuggestEmbeddingModel(text, hints.TextType);
-        
+
         // Calculate expected dimensions
         hints.ExpectedDimensions = hints.RecommendedModel switch
         {
@@ -299,12 +299,12 @@ public class VectorSearchOptimizer
         {
             return $"[CODE SECTION] {text}";
         }
-        
+
         if (IsDataTable(text))
         {
             return $"[DATA TABLE] {text}";
         }
-        
+
         if (IsTechnicalContent(text))
         {
             return $"[TECHNICAL] {text}";
@@ -376,7 +376,7 @@ public class VectorSearchOptimizer
             .Where(w => !IsStopWord(w.ToLowerInvariant()))
             .Select(w => w.ToLowerInvariant())
             .ToHashSet();
-            
+
         var optimizedContent = optimizedWords
             .Where(w => !IsStopWord(w.ToLowerInvariant()))
             .Select(w => w.ToLowerInvariant())
@@ -401,7 +401,7 @@ public class VectorSearchOptimizer
             return "ja";
         if (Regex.IsMatch(text, @"[\uac00-\ud7af]"))
             return "ko";
-        
+
         return "en";
     }
 
@@ -411,7 +411,7 @@ public class VectorSearchOptimizer
     private List<string> ExtractKeyEntities(string text)
     {
         var entities = new List<string>();
-        
+
         // Extract capitalized words (potential proper nouns)
         var matches = Regex.Matches(text, @"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b");
         foreach (Match match in matches)
@@ -445,7 +445,7 @@ public class VectorSearchOptimizer
             return "technical";
         if (IsConversational(text))
             return "conversational";
-        
+
         return "general";
     }
 
@@ -469,7 +469,7 @@ public class VectorSearchOptimizer
     private bool DetectSpecialHandlingNeeds(string text)
     {
         // Check for special content that needs careful handling
-        return text.Contains("```") || 
+        return text.Contains("```") ||
                text.Contains("<code>") ||
                text.Contains("BEGIN") ||
                text.Contains("END") ||
@@ -495,7 +495,7 @@ public class VectorSearchOptimizer
             "rather", "somewhat", "indeed", "perhaps", "maybe", "probably",
             "definitely", "certainly", "obviously", "clearly"
         };
-        
+
         return fillerWords.Contains(word) || IsStopWord(word);
     }
 
@@ -504,10 +504,10 @@ public class VectorSearchOptimizer
     /// </summary>
     private bool IsCodeBlock(string text)
     {
-        return text.Contains("function") || 
-               text.Contains("class") || 
+        return text.Contains("function") ||
+               text.Contains("class") ||
                text.Contains("return") ||
-               text.Contains("{") && text.Contains("}") ||
+               text.Contains('{') && text.Contains('}') ||
                text.Contains("def ") ||
                text.Contains("import ");
     }

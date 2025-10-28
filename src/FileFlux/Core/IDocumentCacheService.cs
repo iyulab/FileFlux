@@ -24,8 +24,8 @@ public interface IDocumentCacheService : IDisposable
     /// <param name="expiration">만료 시간 (선택사항)</param>
     /// <param name="cancellationToken">취소 토큰</param>
     Task SetAsync(
-        string cacheKey, 
-        IEnumerable<DocumentChunk> chunks, 
+        string cacheKey,
+        IEnumerable<DocumentChunk> chunks,
         DocumentMetadata metadata,
         TimeSpan? expiration = null,
         CancellationToken cancellationToken = default);
@@ -58,7 +58,7 @@ public interface IDocumentCacheService : IDisposable
     /// <param name="cancellationToken">취소 토큰</param>
     /// <returns>생성된 캐시 키</returns>
     Task<string> GenerateCacheKeyAsync(
-        string filePath, 
+        string filePath,
         ChunkingOptions options,
         CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,4 @@
-﻿using FileFlux;
+using FileFlux;
 using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
@@ -19,19 +19,19 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     private static readonly Regex TableRegex = new(@"^\s*\|[^|]+\|[^|]+\|", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TableSeparatorRegex = new(@"^\s*\|[\s\-\|]+\|", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex MarkdownSectionRegex = new(@"^#{1,6}\s+.*$", RegexOptions.Compiled | RegexOptions.Multiline);
-    
+
     // Phase 10: Context Preservation 강화를 위한 적응형 오버랩 매니저
     private static readonly AdaptiveOverlapManager _overlapManager = new();
-    
+
     // Phase 10: Boundary Quality 일관성 개선을 위한 경계 품질 매니저
     private static readonly BoundaryQualityManager _boundaryQualityManager = new();
-    
+
     // Phase 11: Vector Search Optimization components
     private static readonly VectorSearchOptimizer _vectorSearchOptimizer = new();
     private static readonly SearchMetadataEnricher _metadataEnricher = new();
     private static readonly HybridSearchPreprocessor _hybridPreprocessor = new();
     private static readonly SearchQualityEvaluator _qualityEvaluator = new();
-    
+
     // Phase 12: Graph Search Optimization components
     private static readonly EntityExtractionSystem _entityExtractor = new();
     private static readonly GraphStructureGenerator _graphGenerator = new();
@@ -167,7 +167,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             .Select((p, i) => new StructuralElement
             {
                 Content = p.Trim(),
-                Position = text.IndexOf(p.Trim()),
+                Position = text.IndexOf(p.Trim(), StringComparison.Ordinal),
                 Type = "Paragraph",
                 Importance = CalculateParagraphImportance(p.Trim())
             })
@@ -356,7 +356,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 if (currentChunk.Count != 0 && currentSize + unitSize > maxSize)
                 {
                     var currentChunkText = string.Join(" ", currentChunk.Select(u => u.Content));
-                    
+
                     // Phase 10: 적응형 오버랩 적용
                     string overlapText = "";
                     if (adaptiveOverlap && !string.IsNullOrEmpty(previousChunkText))
@@ -369,13 +369,13 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                         var overlapUnits = GetOverlapUnits(currentChunk, options.OverlapSize, 1.0);
                         overlapText = string.Join(" ", overlapUnits.Select(u => u.Content));
                     }
-                    
+
                     var chunkContent = CreateCoherentChunk(currentChunk, options.OverlapSize, overlapText);
                     chunks.Add(chunkContent);
-                    
+
                     // 다음 청크를 위해 현재 청크 텍스트 저장
                     previousChunkText = currentChunkText;
-                    
+
                     currentChunk.Clear();
                     currentSize = 0;
                 }
@@ -398,7 +398,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                             var currentChunkText = string.Join(" ", currentChunk.Select(u => u.Content));
                             chunks.Add(CreateCoherentChunk(currentChunk, options.OverlapSize, ""));
                             previousChunkText = currentChunkText;
-                            
+
                             currentChunk.Clear();
                             currentSize = 0;
                         }
@@ -413,7 +413,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             if (isSectionHeader && currentChunk.Count != 0 && currentSize > maxSize * 0.3) // 30% 이상일 때만 분할
             {
                 var currentChunkText = string.Join(" ", currentChunk.Select(u => u.Content));
-                
+
                 // Phase 10: 적응형 오버랩 적용
                 string overlapText = "";
                 if (adaptiveOverlap && !string.IsNullOrEmpty(previousChunkText))
@@ -421,12 +421,12 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                     var optimalOverlap = _overlapManager.CalculateOptimalOverlap(previousChunkText, currentChunkText, options);
                     overlapText = _overlapManager.CreateContextPreservingOverlap(previousChunkText, optimalOverlap);
                 }
-                
+
                 var chunkContent = CreateCoherentChunk(currentChunk, options.OverlapSize, overlapText);
                 chunks.Add(chunkContent);
-                
+
                 previousChunkText = currentChunkText;
-                
+
                 currentChunk.Clear();
                 currentSize = 0;
             }
@@ -444,10 +444,10 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 var currentChunkText = string.Join("\n", currentChunk.Select(u => u.Content));
                 var entireText = string.Join("\n", units.Select(u => u.Content)); // 전체 텍스트 재구성
                 var proposedSplitPosition = unit.Position; // 현재 분할 위치
-                
+
                 // 경계 품질 평가 및 개선
                 var boundaryResult = _boundaryQualityManager.EvaluateAndImproveBoundary(entireText, proposedSplitPosition, options);
-                
+
                 // 품질이 개선되었다면 조정된 위치 사용
                 if (boundaryResult.ImprovedPosition != proposedSplitPosition && boundaryResult.QualityScore > 0.7)
                 {
@@ -455,7 +455,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                     // 현재는 로깅만 수행하고 기존 로직 유지
                     // 향후 정교한 위치 조정 로직 구현 예정
                 }
-                
+
                 var optimalOverlapSize = _overlapManager.CalculateOptimalOverlap(
                     previousChunkText, currentChunkText, options);
                 var chunkContent = CreateCoherentChunk(currentChunk, optimalOverlapSize, previousChunkText);
@@ -573,13 +573,13 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         chunk.Quality = CalculateRealQualityScore(content, contextQuality);
         chunk.Props["RelevanceScore"] = CalculateRelevanceScore(content, globalTechKeywords, globalDocumentDomain);
         chunk.Density = CalculateInformationDensity(content);
-        
+
         // LLM 최적화 메타데이터 자동 생성 (전역 컨텍스트 사용)
         EnhanceChunkForLlm(chunk, globalTechKeywords, globalDocumentDomain);
 
         // Phase 11: Vector Search Optimization
         ApplyVectorSearchOptimization(chunk, options);
-        
+
         // Phase 12: Graph Search Optimization
         ApplyGraphSearchOptimization(chunk, options);
 
@@ -635,7 +635,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         var trimmed = content.Trim();
 
         // 헤더 (마크다운 헤더)
-        if (trimmed.StartsWith('#'))
+        if (trimmed.StartsWith("#", StringComparison.Ordinal))
             return "header";
 
         // 테이블
@@ -643,11 +643,11 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             return "table";
 
         // 코드 블록
-        if (trimmed.StartsWith("```") || trimmed.Contains("```"))
+        if (trimmed.StartsWith("```", StringComparison.Ordinal) || trimmed.Contains("```"))
             return "code_block";
 
         // 리스트
-        if (trimmed.StartsWith("- ") || trimmed.StartsWith("* ") ||
+        if (trimmed.StartsWith("- ", StringComparison.Ordinal) || trimmed.StartsWith("* ", StringComparison.Ordinal) ||
             Regex.IsMatch(trimmed, @"^\d+\.\s"))
             return "list";
 
@@ -809,19 +809,19 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     private static string CreateCoherentChunk(List<SemanticUnit> units, int overlapSize, string previousChunk = "")
     {
         var content = string.Join(" ", units.Select(u => u.Content));
-        
+
         // Add adaptive overlap from previous chunk if provided
         if (!string.IsNullOrEmpty(previousChunk) && overlapSize > 0)
         {
             var contextPreservingOverlap = _overlapManager.CreateContextPreservingOverlap(previousChunk, overlapSize);
-            
+
             // Ensure we don't duplicate content that's already in the units
-            if (!string.IsNullOrEmpty(contextPreservingOverlap) && !content.StartsWith(contextPreservingOverlap))
+            if (!string.IsNullOrEmpty(contextPreservingOverlap) && !content.StartsWith(contextPreservingOverlap, StringComparison.Ordinal))
             {
                 content = contextPreservingOverlap + " " + content;
             }
         }
-        
+
         return content;
     }
 
@@ -853,28 +853,28 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     {
         if (targetOverlapSize <= 0 || currentChunk.Count == 0)
             return new List<SemanticUnit>();
-        
+
         // Calculate overlap size based on characters/tokens, not unit count
         var adjustedOverlapSize = (int)(targetOverlapSize * relevance);
         var overlapUnits = new List<SemanticUnit>();
         var currentOverlapSize = 0;
-        
+
         // Add units from the end until we reach the target overlap size
         for (int i = currentChunk.Count - 1; i >= 0; i--)
         {
             var unit = currentChunk[i];
             var unitSize = EstimateTokenCount(unit.Content);
-            
+
             if (currentOverlapSize + unitSize > adjustedOverlapSize * 1.5) // Allow 50% overshoot
                 break;
-                
+
             overlapUnits.Insert(0, unit); // Insert at beginning to maintain order
             currentOverlapSize += unitSize;
-            
+
             if (currentOverlapSize >= adjustedOverlapSize)
                 break;
         }
-        
+
         return overlapUnits;
     }
 
@@ -999,7 +999,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         // 🔥 다중 테이블 행 보호: | 문자가 많은 경우 (테이블로 추정)
         var tableRowCount = chunk.Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Count(line => line.Contains('|') && line.Count(c => c == '|') >= 2);
-        
+
         if (tableRowCount >= 3) // 3개 이상의 테이블 행이 있으면 테이블로 간주
         {
             return EnforceMaxSizeForTable(chunk, maxSize);
@@ -1117,7 +1117,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     {
         var result = new List<string>();
         var lines = tableChunk.Split('\n', StringSplitOptions.None);
-        
+
         var headerLines = new List<string>();
         var currentTableLines = new List<string>();
         var isInTable = false;
@@ -1136,7 +1136,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             if (line.Contains("<!-- TABLE_END -->"))
             {
                 currentTableLines.Add(line);
-                
+
                 // 전체 테이블 크기 확인
                 var completeTable = string.Join("\n", currentTableLines);
                 if (completeTable.Length <= maxSize * 2) // 2배까지 허용
@@ -1149,7 +1149,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                     var splitTables = SplitLargeTableContent(currentTableLines, maxSize);
                     result.AddRange(splitTables);
                 }
-                
+
                 currentTableLines.Clear();
                 isInTable = false;
                 continue;
@@ -1183,12 +1183,12 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     {
         var result = new List<string>();
         var lines = tableChunk.Split('\n', StringSplitOptions.None);
-        
+
         // 헤더와 구분자 식별
         var headerLine = "";
         var separatorLine = "";
         var dataLines = new List<string>();
-        
+
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
@@ -1227,12 +1227,12 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 // 현재 테이블 파트 완성
                 var tableContent = headerLine + "\n" + separatorLine + "\n" + string.Join("\n", currentLines);
                 result.Add(tableContent);
-                
+
                 // 다음 파트 시작
                 currentLines.Clear();
                 currentSize = headerSize;
             }
-            
+
             currentLines.Add(dataLine);
             currentSize += dataLine.Length + 1;
         }
@@ -1253,11 +1253,11 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     private static List<string> SplitLargeTableContent(List<string> tableLines, int maxSize)
     {
         var result = new List<string>();
-        
+
         // TABLE_START와 TABLE_END를 찾기
         var startIndex = tableLines.FindIndex(line => line.Contains("<!-- TABLE_START -->"));
         var endIndex = tableLines.FindIndex(line => line.Contains("<!-- TABLE_END -->"));
-        
+
         if (startIndex == -1 || endIndex == -1)
         {
             // 마커를 찾을 수 없으면 전체 반환
@@ -1297,14 +1297,14 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 tablePart.AddRange(headerAndStart);
                 tablePart.AddRange(currentLines);
                 tablePart.Add(endMarker);
-                
+
                 result.Add(string.Join("\n", tablePart));
-                
+
                 // 다음 파트 시작
                 currentLines.Clear();
                 currentSize = headerSize;
             }
-            
+
             currentLines.Add(dataLine);
             currentSize += dataLine.Length + 1;
         }
@@ -1316,7 +1316,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             tablePart.AddRange(headerAndStart);
             tablePart.AddRange(currentLines);
             tablePart.Add(endMarker);
-            
+
             result.Add(string.Join("\n", tablePart));
         }
 
@@ -1474,7 +1474,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
         // 가중 평균 계산
         var qualityScore = scores.Average();
-        
+
         return Math.Max(0.0, Math.Min(1.0, qualityScore));
     }
 
@@ -1540,7 +1540,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
         // 1. 문장 완성도 - 문장이 완전한지 확인
         var sentences = ExtractSentences(content);
-        var completeSentences = sentences.Count(s => s.Trim().EndsWith(".") || s.Trim().EndsWith("!") || s.Trim().EndsWith("?"));
+        var completeSentences = sentences.Count(s => s.Trim().EndsWith(".", StringComparison.Ordinal) || s.Trim().EndsWith("!", StringComparison.Ordinal) || s.Trim().EndsWith("?", StringComparison.Ordinal));
         var sentenceCompleteness = sentences.Count > 0 ? (double)completeSentences / sentences.Count : 0.0;
         scores.Add(sentenceCompleteness);
 
@@ -1586,7 +1586,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
         var contentLower = content.ToLowerInvariant();
         var matchedKeywords = keywords.Count(k => contentLower.Contains(k.ToLowerInvariant()));
-        
+
         return (double)matchedKeywords / keywords.Count;
     }
 
@@ -1611,7 +1611,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
     private static int CountTechnicalTerms(string content)
     {
-        var technicalPatterns = new[] { 
+        var technicalPatterns = new[] {
             @"\b[A-Z]{2,}\b", // 약어 (API, HTTP 등)
             @"\b\w+\.\w+\b", // 네임스페이스/도메인 형태
             @"\b\w*(?:Service|Manager|Controller|Repository|Factory|Builder|Strategy)\b" // 일반적인 패턴
@@ -1825,7 +1825,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     private static double CalculateListConsistency(string content)
     {
         var lines = content.Split('\n');
-        var listLines = lines.Where(line => 
+        var listLines = lines.Where(line =>
             Regex.IsMatch(line.Trim(), @"^[-•*]\s+") ||
             Regex.IsMatch(line.Trim(), @"^\d+\.\s+")
         ).ToList();
@@ -1942,7 +1942,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             // 5. Update overall quality score with search optimization
             var originalQuality = chunk.Quality;
             var searchQuality = qualityResult.OverallQualityScore;
-            
+
             // Weighted combination: 70% original quality + 30% search quality
             chunk.Quality = (originalQuality * 0.7) + (searchQuality * 0.3);
 
@@ -2068,7 +2068,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                     .ToList();
 
                 chunk.Props["GraphKeyEntities"] = keyEntities;
-                
+
                 // Add entity-based keywords to existing search keywords
                 if (chunk.Props.ContainsKey("SearchKeywords"))
                 {
@@ -2082,7 +2082,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             if (ontologyResult.DomainOntology.Domain != "general")
             {
                 chunk.Props["GraphDomain"] = ontologyResult.DomainOntology.Domain;
-                
+
                 // Update document domain if graph provides more specific classification
                 var currentDomain = chunk.Props.ContainsKey("Domain") ? chunk.Props["Domain"]?.ToString() : "General";
                 if (currentDomain == "General" || string.IsNullOrEmpty(currentDomain))
@@ -2123,7 +2123,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     /// <summary>
     /// Calculate relevance score based on graph structure quality
     /// </summary>
-    private static double CalculateGraphRelevanceScore(EntityExtractionResult entityResult, 
+    private static double CalculateGraphRelevanceScore(EntityExtractionResult entityResult,
         GraphStructureResult graphResult, GraphQualityResult qualityResult)
     {
         var scores = new List<double>();
@@ -2133,13 +2133,13 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         scores.Add(entityScore);
 
         // Relationship density score (0.0-1.0)
-        var relationshipScore = entityResult.NamedEntities.Count > 0 
+        var relationshipScore = entityResult.NamedEntities.Count > 0
             ? Math.Min(1.0, entityResult.ExtractedRelationships.Count / (double)entityResult.NamedEntities.Count)
             : 0.0;
         scores.Add(relationshipScore);
 
         // Graph connectivity score (0.0-1.0)
-        var connectivityScore = graphResult.Triples.Count > 0 
+        var connectivityScore = graphResult.Triples.Count > 0
             ? Math.Min(1.0, graphResult.Triples.Count / 20.0) // 20+ triples = max score
             : 0.0;
         scores.Add(connectivityScore);

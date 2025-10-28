@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -35,7 +35,7 @@ namespace FileFlux.Infrastructure.Strategies
             QAQualityOptions? options = null)
         {
             options ??= new QAQualityOptions();
-            
+
             var result = new QAQualityResult
             {
                 OriginalCount = qaPairs.Count,
@@ -54,7 +54,7 @@ namespace FileFlux.Infrastructure.Strategies
                 if (pair.Answer != null)
                 {
                     pair.Completeness = _completenessValidator.ValidateCompleteness(
-                        pair.Question, 
+                        pair.Question,
                         pair.Answer
                     );
                 }
@@ -100,7 +100,7 @@ namespace FileFlux.Infrastructure.Strategies
             QAImprovementOptions? options = null)
         {
             options ??= new QAImprovementOptions();
-            
+
             var result = new QAImprovementResult
             {
                 OriginalPairs = new List<QAPair>(qaPairs),
@@ -162,7 +162,7 @@ namespace FileFlux.Infrastructure.Strategies
             ValidationCriteria? criteria = null)
         {
             criteria ??= new ValidationCriteria();
-            
+
             var result = new QAValidationResult
             {
                 TotalPairs = qaPairs.Count,
@@ -216,13 +216,13 @@ namespace FileFlux.Infrastructure.Strategies
             QAQualityOptions options)
         {
             var balanced = new List<QAPair>();
-            
+
             // Group by difficulty
             var byDifficulty = pairs.GroupBy(p => GetDifficultyLevel(p.Difficulty)).ToList();
-            
+
             // Calculate target count per difficulty level
             var targetPerLevel = options.MaxQAPairs / 4; // Assuming 4 difficulty levels
-            
+
             foreach (var group in byDifficulty)
             {
                 var selected = group.OrderByDescending(p => p.Quality)
@@ -270,7 +270,7 @@ namespace FileFlux.Infrastructure.Strategies
             var improved = questionText;
 
             // Remove redundant words
-            improved = Regex.Replace(improved, @"\b(very|really|actually|basically)\b", "", 
+            improved = Regex.Replace(improved, @"\b(very|really|actually|basically)\b", "",
                                     RegexOptions.IgnoreCase);
 
             // Fix common grammar issues
@@ -278,7 +278,7 @@ namespace FileFlux.Infrastructure.Strategies
             improved = improved.Trim();
 
             // Ensure proper question ending
-            if (!improved.EndsWith("?"))
+            if (!improved.EndsWith("?", StringComparison.Ordinal))
             {
                 improved += "?";
             }
@@ -337,7 +337,7 @@ namespace FileFlux.Infrastructure.Strategies
                 // Find sentence boundaries
                 var sentenceStart = context.LastIndexOf('.', Math.Max(0, index - 1));
                 sentenceStart = sentenceStart < 0 ? 0 : sentenceStart + 1;
-                
+
                 var sentenceEnd = context.IndexOf('.', index + originalAnswer.Length);
                 sentenceEnd = sentenceEnd < 0 ? context.Length : sentenceEnd + 1;
 
@@ -372,7 +372,7 @@ namespace FileFlux.Infrastructure.Strategies
             }
 
             // Check for question mark
-            if (!question.QuestionText.EndsWith("?"))
+            if (!question.QuestionText.EndsWith("?", StringComparison.Ordinal))
             {
                 issues.Add("Question doesn't end with question mark");
             }
@@ -436,7 +436,7 @@ namespace FileFlux.Infrastructure.Strategies
             // Simple relevance check based on keyword overlap
             var answerLower = answer.Text.ToLower();
             var relevantKeywords = question.Keywords.Count(k => answerLower.Contains(k.ToLower()));
-            
+
             return relevantKeywords > 0 || question.Keywords.Count == 0;
         }
 
@@ -555,7 +555,7 @@ namespace FileFlux.Infrastructure.Strategies
         {
             return questionType switch
             {
-                QuestionType.Factual => answer.Type == AnswerType.Entity || 
+                QuestionType.Factual => answer.Type == AnswerType.Entity ||
                                         answer.Type == AnswerType.Numerical ||
                                         answer.Type == AnswerType.Date,
                 QuestionType.Conceptual => answer.Type == AnswerType.Explanation,
@@ -608,8 +608,8 @@ namespace FileFlux.Infrastructure.Strategies
                     continue;
 
                 // Check for duplicate answers (if strict mode)
-                if (options.StrictDuplicateRemoval && 
-                    !string.IsNullOrEmpty(answerNormalized) && 
+                if (options.StrictDuplicateRemoval &&
+                    !string.IsNullOrEmpty(answerNormalized) &&
                     seenAnswers.Contains(answerNormalized))
                     continue;
 
@@ -699,7 +699,7 @@ namespace FileFlux.Infrastructure.Strategies
         private bool IsIncomplete(ExtractedAnswer answer)
         {
             return answer.Text.Length < 10 ||
-                   answer.Text.EndsWith("...") ||
+                   answer.Text.EndsWith("...", StringComparison.Ordinal) ||
                    answer.Text.Contains("[incomplete]");
         }
 
@@ -708,8 +708,8 @@ namespace FileFlux.Infrastructure.Strategies
             // Simple domain relevance check
             var domainKeywords = GetDomainKeywords(domain);
             var text = pair.Question.QuestionText + " " + (pair.Answer?.Text ?? "");
-            
-            return domainKeywords.Any(keyword => 
+
+            return domainKeywords.Any(keyword =>
                 text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -740,7 +740,7 @@ namespace FileFlux.Infrastructure.Strategies
             {
                 score += pair.Answer.Confidence * 0.3;
                 score += pair.Answer.VerificationScore * 0.2;
-                
+
                 // Completeness contribution
                 if (pair.Completeness > 0)
                 {

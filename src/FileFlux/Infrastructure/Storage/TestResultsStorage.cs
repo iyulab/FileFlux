@@ -1,4 +1,4 @@
-﻿using FileFlux.Domain;
+using FileFlux.Domain;
 using FileFlux.Infrastructure.Utils;
 using System.Text.Json;
 using System.Text;

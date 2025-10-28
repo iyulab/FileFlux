@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using FileFlux.Domain;
 
 namespace FileFlux.Infrastructure.Services;
@@ -37,15 +37,15 @@ public class LLMChunkFilter : ILLMChunkFilter
         // Process chunks in parallel batches for efficiency
         var chunkList = chunks.ToList();
         var batchSize = 5;
-        
+
         for (int i = 0; i < chunkList.Count; i += batchSize)
         {
             var batch = chunkList.Skip(i).Take(batchSize);
             var tasks = batch.Select(chunk => AssessChunkWithOptionsAsync(
                 chunk, query, textCompletionService, options, cancellationToken));
-            
+
             var results = await Task.WhenAll(tasks);
-            
+
             foreach (var (chunk, assessment) in batch.Zip(results))
             {
                 var qualityScore = CalculateQualityScore(assessment);
@@ -54,7 +54,7 @@ public class LLMChunkFilter : ILLMChunkFilter
                     relevanceScore, qualityScore, options.QualityWeight);
 
                 var passed = combinedScore >= options.MinRelevanceScore;
-                
+
                 filteredChunks.Add(new FilteredChunk
                 {
                     Chunk = chunk,
@@ -93,7 +93,7 @@ public class LLMChunkFilter : ILLMChunkFilter
         CancellationToken cancellationToken = default)
     {
         return await AssessChunkWithOptionsAsync(
-            chunk, query, textCompletionService, 
+            chunk, query, textCompletionService,
             new ChunkFilterOptions(), cancellationToken);
     }
 
@@ -123,7 +123,7 @@ public class LLMChunkFilter : ILLMChunkFilter
                 chunk, query, initialScore, textCompletionService, cancellationToken);
             assessment.ReflectionScore = reflectionScore.Score;
             assessment.Reasoning["reflection"] = reflectionScore.Reasoning;
-            
+
             // Update factors based on reflection
             MergeFactors(assessment.Factors, reflectionScore.Factors);
         }
@@ -135,7 +135,7 @@ public class LLMChunkFilter : ILLMChunkFilter
                 chunk, query, assessment, textCompletionService, cancellationToken);
             assessment.CriticScore = criticScore.Score;
             assessment.Reasoning["critic"] = criticScore.Reasoning;
-            
+
             // Update factors based on critic
             MergeFactors(assessment.Factors, criticScore.Factors);
         }
@@ -150,7 +150,7 @@ public class LLMChunkFilter : ILLMChunkFilter
         return assessment;
     }
 
-    private async Task<(double Score, string Reasoning, List<AssessmentFactor> Factors)> 
+    private async Task<(double Score, string Reasoning, List<AssessmentFactor> Factors)>
         PerformInitialAssessmentAsync(
             DocumentChunk chunk,
             string? query,
@@ -234,7 +234,7 @@ public class LLMChunkFilter : ILLMChunkFilter
             CancellationToken cancellationToken)
     {
         var factors = new List<AssessmentFactor>();
-        
+
         // Reflect on initial assessment
         var biasCheck = CheckForBias(initial.Factors);
         if (Math.Abs(biasCheck) > 0.1)
@@ -274,7 +274,7 @@ public class LLMChunkFilter : ILLMChunkFilter
         // Calculate adjusted score
         var adjustment = factors.Sum(f => f.Contribution);
         var reflectedScore = Math.Max(0, Math.Min(1, initial.Score + adjustment));
-        
+
         var reasoning = $"Self-reflection identified {factors.Count} adjustments. " +
                        $"Score adjusted from {initial.Score:F2} to {reflectedScore:F2}";
 
@@ -290,7 +290,7 @@ public class LLMChunkFilter : ILLMChunkFilter
             CancellationToken cancellationToken)
     {
         var factors = new List<AssessmentFactor>();
-        
+
         // Critical evaluation of previous assessments
         var consistencyScore = EvaluateConsistency(assessment);
         if (consistencyScore < 0.8)
@@ -328,7 +328,7 @@ public class LLMChunkFilter : ILLMChunkFilter
         var previousScore = assessment.ReflectionScore ?? assessment.InitialScore;
         var criticAdjustment = factors.Sum(f => f.Contribution);
         var criticScore = Math.Max(0, Math.Min(1, previousScore + criticAdjustment));
-        
+
         var reasoning = $"Critic validation performed {factors.Count} checks. " +
                        $"Final validation score: {criticScore:F2}";
 
@@ -356,7 +356,7 @@ Output only the numeric score.";
         {
             var response = await textCompletionService.GenerateAsync(
                 prompt, cancellationToken);
-            
+
             if (double.TryParse(response.Trim(), out var score))
             {
                 return Math.Max(0, Math.Min(1, score));
@@ -378,7 +378,7 @@ Output only the numeric score.";
 
         var queryWords = query.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var contentLower = content.ToLower();
-        
+
         var matchCount = queryWords.Count(word => contentLower.Contains(word));
         return (double)matchCount / queryWords.Length;
     }
@@ -388,38 +388,38 @@ Output only the numeric score.";
         // Simple heuristic: ratio of unique words to total words
         var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length == 0) return 0;
-        
+
         var uniqueWords = words.Distinct(StringComparer.OrdinalIgnoreCase).Count();
         var density = (double)uniqueWords / words.Length;
-        
+
         // Also consider presence of numbers, technical terms
         var hasNumbers = words.Any(w => w.Any(char.IsDigit));
         var hasTechnical = words.Any(w => w.Contains('_') || w.Contains('-') || w.Contains('.'));
-        
+
         if (hasNumbers) density += 0.1;
         if (hasTechnical) density += 0.1;
-        
+
         return Math.Min(1, density);
     }
 
     private double EvaluateStructuralImportance(DocumentChunk chunk)
     {
         var score = 0.5; // Base score
-        
+
         // Check for structural markers
-        if (chunk.Content.StartsWith("#") || chunk.Content.Contains("HEADING"))
+        if (chunk.Content.StartsWith("#", StringComparison.Ordinal) || chunk.Content.Contains("HEADING"))
             score += 0.2;
-        
+
         if (chunk.Content.Contains("```") || chunk.Content.Contains("CODE"))
             score += 0.15;
-        
-        if (chunk.Content.Contains("TABLE") || chunk.Content.Contains("|"))
+
+        if (chunk.Content.Contains("TABLE") || chunk.Content.Contains('|'))
             score += 0.15;
-        
+
         // Position in document matters
         if (chunk.Index < 3) // Early chunks often important
             score += 0.1;
-        
+
         return Math.Min(1, score);
     }
 
@@ -463,21 +463,21 @@ Output only the numeric score.";
     {
         // Check for factual indicators
         var score = 0.5;
-        
+
         // Numbers and dates indicate factual content
         if (System.Text.RegularExpressions.Regex.IsMatch(content, @"\d+"))
             score += 0.2;
-        
+
         // Citations or references
-        if (content.Contains("[") && content.Contains("]"))
+        if (content.Contains('[') && content.Contains(']'))
             score += 0.15;
-        
+
         // Technical terms (capitalized words, acronyms)
         var words = content.Split(' ');
         var capitalizedCount = words.Count(w => w.Length > 2 && char.IsUpper(w[0]));
         if (capitalizedCount > 2)
             score += 0.15;
-        
+
         return Math.Min(1, score);
     }
 
@@ -516,15 +516,15 @@ Output only the numeric score.";
     {
         if (string.IsNullOrEmpty(query))
             return 0.7;
-        
+
         // Check if chunk appears to be a complete thought
         var hasStart = char.IsUpper(chunk.Content.TrimStart().FirstOrDefault());
         var hasEnd = chunk.Content.TrimEnd().LastOrDefault() is '.' or '!' or '?';
-        
+
         var score = 0.0;
         if (hasStart) score += 0.5;
         if (hasEnd) score += 0.5;
-        
+
         return score;
     }
 
@@ -532,14 +532,14 @@ Output only the numeric score.";
     {
         // Check if assessment is overly reliant on single factor
         if (factors.Count == 0) return 0;
-        
+
         var maxContribution = factors.Max(f => Math.Abs(f.Contribution));
         var totalContribution = factors.Sum(f => Math.Abs(f.Contribution));
-        
+
         if (totalContribution == 0) return 0;
-        
+
         var concentration = maxContribution / totalContribution;
-        
+
         // If >70% weight on single factor, there's bias
         return concentration > 0.7 ? (concentration - 0.7) * 0.5 : 0;
     }
@@ -549,31 +549,31 @@ Output only the numeric score.";
         // Simple alternative: focus on what's NOT mentioned
         if (string.IsNullOrEmpty(query))
             return 0.5;
-        
+
         // Inverse relevance - useful for finding contrasts
         var directRelevance = EvaluateContentRelevance(chunk.Content, query);
-        
+
         // If highly relevant, alternative view is same
         // If not relevant, might be useful as contrast
         if (directRelevance > 0.8) return directRelevance;
         if (directRelevance < 0.2) return 0.3; // Slight boost for contrast
-        
+
         return directRelevance;
     }
 
     private double EvaluateConsistency(ChunkAssessment assessment)
     {
         var scores = new List<double> { assessment.InitialScore };
-        
+
         if (assessment.ReflectionScore.HasValue)
             scores.Add(assessment.ReflectionScore.Value);
-        
+
         if (scores.Count < 2) return 1.0;
-        
+
         // Calculate variance
         var mean = scores.Average();
         var variance = scores.Select(s => Math.Pow(s - mean, 2)).Average();
-        
+
         // Low variance = high consistency
         return Math.Max(0, 1 - variance * 2);
     }
@@ -582,38 +582,38 @@ Output only the numeric score.";
     {
         // Validate against known good patterns
         var score = 0.5;
-        
+
         // Good patterns
         if (chunk.Content.Length > 100 && chunk.Content.Length < 2000)
             score += 0.1;
-        
+
         if (chunk.Content.Contains(". ") || chunk.Content.Contains(".\n"))
             score += 0.1; // Has sentence structure
-        
+
         // Bad patterns
         if (chunk.Content.Length < 50)
             score -= 0.2; // Too short
-        
+
         if (chunk.Content.Count(c => c == '\n') > chunk.Content.Length / 20)
             score -= 0.1; // Too fragmented
-        
+
         return Math.Max(0, Math.Min(1, score));
     }
 
     private double CheckEdgeCases(DocumentChunk chunk, string? query)
     {
         var adjustment = 0.0;
-        
+
         // Edge case: Very short chunk
         if (chunk.Content.Length < 50)
             adjustment -= 0.3;
-        
+
         // Edge case: Only numbers/data
         var words = chunk.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var numberWords = words.Count(w => w.All(c => char.IsDigit(c) || c == '.' || c == ','));
         if (words.Length > 0 && (double)numberWords / words.Length > 0.8)
             adjustment -= 0.2;
-        
+
         // Edge case: Repeated content
         if (words.Length > 10)
         {
@@ -621,7 +621,7 @@ Output only the numeric score.";
             if ((double)uniqueWords / words.Length < 0.3)
                 adjustment -= 0.2;
         }
-        
+
         return adjustment;
     }
 
@@ -631,16 +631,16 @@ Output only the numeric score.";
         {
             (assessment.InitialScore, 0.4)
         };
-        
+
         if (assessment.ReflectionScore.HasValue)
             scores.Add((assessment.ReflectionScore.Value, 0.3));
-        
+
         if (assessment.CriticScore.HasValue)
             scores.Add((assessment.CriticScore.Value, 0.3));
-        
+
         // Normalize weights
         var totalWeight = scores.Sum(s => s.Weight);
-        
+
         return scores.Sum(s => s.Score * s.Weight / totalWeight);
     }
 
@@ -648,13 +648,13 @@ Output only the numeric score.";
     {
         // Confidence based on consistency and factor agreement
         var consistency = EvaluateConsistency(assessment);
-        
+
         // Factor diversity (more factors = more confidence)
         var factorDiversity = Math.Min(1, assessment.Factors.Count / 10.0);
-        
+
         // Score extremity (very high or very low scores = more confidence)
         var extremity = Math.Abs(assessment.FinalScore - 0.5) * 2;
-        
+
         return (consistency * 0.5 + factorDiversity * 0.3 + extremity * 0.2);
     }
 
@@ -662,18 +662,18 @@ Output only the numeric score.";
     {
         // Quality based on multiple factors
         var quality = 0.5;
-        
+
         // Factors that indicate quality
         var densityFactor = assessment.Factors
             .FirstOrDefault(f => f.Name == "Information Density");
         if (densityFactor != null)
             quality = Math.Max(quality, densityFactor.Contribution + 0.5);
-        
+
         var completeness = assessment.Factors
             .FirstOrDefault(f => f.Name == "Completeness Adjustment");
         if (completeness != null)
             quality += completeness.Contribution * 0.5;
-        
+
         return Math.Max(0, Math.Min(1, quality));
     }
 
@@ -703,13 +703,13 @@ Output only the numeric score.";
     private List<string> GenerateSuggestions(ChunkAssessment assessment)
     {
         var suggestions = new List<string>();
-        
+
         // Low relevance score
         if (assessment.FinalScore < 0.5)
         {
             suggestions.Add("Consider refining chunk boundaries to capture more complete context");
         }
-        
+
         // High inconsistency
         if (assessment.InitialScore > 0 && assessment.ReflectionScore.HasValue)
         {
@@ -719,7 +719,7 @@ Output only the numeric score.";
                 suggestions.Add("Large score variance detected - consider re-chunking with different strategy");
             }
         }
-        
+
         // Low information density
         var densityFactor = assessment.Factors
             .FirstOrDefault(f => f.Name == "Information Density");
@@ -727,7 +727,7 @@ Output only the numeric score.";
         {
             suggestions.Add("Low information density - consider merging with adjacent chunks");
         }
-        
+
         // Edge cases detected
         var edgeFactor = assessment.Factors
             .FirstOrDefault(f => f.Name == "Edge Case Detection");
@@ -735,18 +735,18 @@ Output only the numeric score.";
         {
             suggestions.Add("Edge case detected - review chunk extraction logic");
         }
-        
+
         return suggestions;
     }
 
     private string GenerateReason(ChunkAssessment assessment, bool passed, ChunkFilterOptions options)
     {
         var reasons = new List<string>();
-        
+
         if (passed)
         {
             reasons.Add($"Relevance: {assessment.FinalScore:F2}");
-            
+
             // Top contributing factor
             var topFactor = assessment.Factors
                 .OrderByDescending(f => Math.Abs(f.Contribution))
@@ -759,7 +759,7 @@ Output only the numeric score.";
         else
         {
             reasons.Add($"Below threshold ({options.MinRelevanceScore:F2})");
-            
+
             // Main issue
             var worstFactor = assessment.Factors
                 .OrderBy(f => f.Contribution)
@@ -769,12 +769,12 @@ Output only the numeric score.";
                 reasons.Add($"Issue: {worstFactor.Name}");
             }
         }
-        
+
         if (assessment.Confidence < 0.5)
         {
             reasons.Add("Low confidence assessment");
         }
-        
+
         return string.Join(", ", reasons);
     }
 }

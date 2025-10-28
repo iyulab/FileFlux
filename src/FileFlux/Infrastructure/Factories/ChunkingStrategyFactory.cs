@@ -23,20 +23,20 @@ public class ChunkingStrategyFactory : IChunkingStrategyFactory
     public ChunkingStrategyFactory() : this(new EmptyServiceProvider())
     {
     }
-    
+
     public ChunkingStrategyFactory(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _strategyFactories = new Dictionary<string, Func<IChunkingStrategy>>(StringComparer.OrdinalIgnoreCase);
         _strategyMetadata = new Dictionary<string, IChunkingStrategyMetadata>(StringComparer.OrdinalIgnoreCase);
-        
+
         RegisterDefaultStrategies();
     }
 
     private void RegisterDefaultStrategies()
     {
         // 기본 전략들 등록 (DI 없이 생성 가능한 전략들)
-        RegisterStrategy("Intelligent", 
+        RegisterStrategy("Intelligent",
             () => new IntelligentChunkingStrategy(),
             new ChunkingStrategyMetadata
             {
@@ -50,7 +50,7 @@ public class ChunkingStrategyFactory : IChunkingStrategyFactory
             });
 
         // Phase 10: 메모리 최적화된 Intelligent 전략
-        RegisterStrategy("MemoryOptimizedIntelligent", 
+        RegisterStrategy("MemoryOptimizedIntelligent",
             () => new MemoryOptimizedIntelligentChunkingStrategy(),
             new ChunkingStrategyMetadata
             {
@@ -151,7 +151,7 @@ public class ChunkingStrategyFactory : IChunkingStrategyFactory
         var strategy = strategyFactory();
         var name = strategy.StrategyName;
         _strategyFactories[name] = strategyFactory;
-        
+
         // 기본 메타데이터 생성
         _strategyMetadata[name] = new ChunkingStrategyMetadata
         {
@@ -221,7 +221,7 @@ public class ChunkingStrategyFactory : IChunkingStrategyFactory
     /// <summary>
     /// 커스텀 전략 등록 (사용자 제공)
     /// </summary>
-    public void RegisterCustomStrategy<TStrategy>(string? customName = null) 
+    public void RegisterCustomStrategy<TStrategy>(string? customName = null)
         where TStrategy : IChunkingStrategy
     {
         RegisterStrategy(() =>

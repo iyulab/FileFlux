@@ -1,4 +1,4 @@
-﻿using FileFlux.Domain;
+using FileFlux.Domain;
 
 namespace FileFlux.Infrastructure.Services;
 
@@ -18,26 +18,26 @@ public class Context7MetadataEnricher
     {
         // 콘텐츠 타입 자동 감지 및 분류
         // chunk.Props.GetValueOrDefault("ContentType", "text") = DetectContentType(chunk.Content);
-        
+
         // 구조적 역할 자동 분류
         // chunk.Props.GetValueOrDefault("StructuralRole", "content") = DetermineStructuralRole(chunk.Content, chunk.Props.GetValueOrDefault("ContentType", "text"));
-        
+
         // 주제별 점수 계산
         // chunk.ContextualScores = CalculateTopicScores(chunk.Content, documentContext);
-        
+
         // 기술 키워드 추출
         // chunk.TechnicalKeywords = ExtractTechnicalKeywords(chunk.Content, documentcontext.DocumentType);
-        
+
         // 문서 도메인별 관련성 점수
         var relevanceScore = CalculateRelevanceScore(chunk.Content, documentContext);
         chunk.Props["RelevanceScore"] = relevanceScore;
-        
+
         // Context7 스타일 컨텍스트 헤더 생성
         // chunk.ContextualHeader = GenerateContextualHeader(chunk, documentContext);
-        
+
         // 정보 밀도 계산
         // chunk.InformationDensity = CalculateInformationDensity(chunk.Content);
-        
+
         // 청크 완성도 점수 (Smart 전략 특화)
         if (chunk.Strategy == "Smart")
         {
@@ -45,7 +45,7 @@ public class Context7MetadataEnricher
             chunk.Props["Completeness"] = completeness;
             chunk.Props["CompletenessScore"] = completeness;
         }
-        
+
         return chunk;
     }
 
@@ -58,10 +58,10 @@ public class Context7MetadataEnricher
             return "text";
 
         var trimmed = content.Trim();
-        
+
         // 코드 블록 감지
-        if (trimmed.StartsWith("```", StringComparison.Ordinal) || 
-            trimmed.Contains("function ") || 
+        if (trimmed.StartsWith("```", StringComparison.Ordinal) ||
+            trimmed.Contains("function ") ||
             trimmed.Contains("class ") ||
             trimmed.Contains("def ") ||
             trimmed.Contains("public ") ||
@@ -69,30 +69,30 @@ public class Context7MetadataEnricher
         {
             return "code";
         }
-        
+
         // 표 감지
         if (trimmed.Contains('|') && trimmed.Split('\n').Count(line => line.Contains('|')) >= 2)
         {
             return "table";
         }
-        
+
         // 리스트 감지
-        if (trimmed.StartsWith("- ") || 
-            trimmed.StartsWith("* ") || 
-            trimmed.StartsWith("1. ") ||
-            trimmed.Split('\n').Count(line => line.TrimStart().StartsWith("- ")) >= 2)
+        if (trimmed.StartsWith("- ", StringComparison.Ordinal) ||
+            trimmed.StartsWith("* ", StringComparison.Ordinal) ||
+            trimmed.StartsWith("1. ", StringComparison.Ordinal) ||
+            trimmed.Split('\n').Count(line => line.TrimStart().StartsWith("- ", StringComparison.Ordinal)) >= 2)
         {
             return "list";
         }
-        
+
         // 제목 감지 
-        if (trimmed.StartsWith("#") || 
-            trimmed.Length < 100 && trimmed.Split('\n').Length == 1 && 
+        if (trimmed.StartsWith("#", StringComparison.Ordinal) ||
+            trimmed.Length < 100 && trimmed.Split('\n').Length == 1 &&
             char.IsUpper(trimmed[0]))
         {
             return "heading";
         }
-        
+
         return "text";
     }
 
@@ -104,7 +104,7 @@ public class Context7MetadataEnricher
         return contentType switch
         {
             "heading" => "title",
-            "code" => "code_block", 
+            "code" => "code_block",
             "table" => "table_content",
             "list" => "list_content",
             _ => "content"
@@ -117,12 +117,12 @@ public class Context7MetadataEnricher
     private Dictionary<string, double> CalculateTopicScores(string content, DocumentContext context)
     {
         var scores = new Dictionary<string, double>();
-        
+
         if (string.IsNullOrWhiteSpace(content))
             return scores;
 
         var words = content.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        
+
         // 기술 문서 주제 점수
         if (context.DocumentType == "Technical")
         {
@@ -131,7 +131,7 @@ public class Context7MetadataEnricher
             scores["Database"] = CalculateKeywordDensity(words, ["database", "sql", "query", "table", "index"]);
             scores["Security"] = CalculateKeywordDensity(words, ["security", "auth", "token", "encryption", "ssl"]);
         }
-        
+
         // 비즈니스 문서 주제 점수
         else if (context.DocumentType == "Business")
         {
@@ -140,7 +140,7 @@ public class Context7MetadataEnricher
             scores["Marketing"] = CalculateKeywordDensity(words, ["marketing", "customer", "brand", "campaign"]);
             scores["Operations"] = CalculateKeywordDensity(words, ["process", "workflow", "operation", "efficiency"]);
         }
-        
+
         // 학술 문서 주제 점수
         else if (context.DocumentType == "Academic")
         {
@@ -149,7 +149,7 @@ public class Context7MetadataEnricher
             scores["Results"] = CalculateKeywordDensity(words, ["result", "finding", "conclusion", "data"]);
             scores["Literature"] = CalculateKeywordDensity(words, ["literature", "reference", "citation", "review"]);
         }
-        
+
         return scores;
     }
 
@@ -159,7 +159,7 @@ public class Context7MetadataEnricher
     private double CalculateKeywordDensity(string[] words, string[] keywords)
     {
         if (words.Length == 0) return 0.0;
-        
+
         var matches = words.Count(word => keywords.Contains(word));
         return (double)matches / words.Length;
     }
@@ -170,16 +170,16 @@ public class Context7MetadataEnricher
     private List<string> ExtractTechnicalKeywords(string content, string domain)
     {
         var keywords = new List<string>();
-        
+
         if (string.IsNullOrWhiteSpace(content))
             return keywords;
 
         var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        
+
         // 도메인별 기술 키워드 패턴
         var technicalPatterns = domain switch
         {
-            "Technical" => new[] { 
+            "Technical" => new[] {
                 "API", "REST", "GraphQL", "JSON", "XML", "HTTP", "HTTPS", "SSL", "TLS",
                 "JWT", "OAuth", "SQL", "NoSQL", "MongoDB", "PostgreSQL", "MySQL",
                 "Docker", "Kubernetes", "AWS", "Azure", "GCP", "CI/CD", "DevOps"
@@ -212,11 +212,11 @@ public class Context7MetadataEnricher
             return 0.0;
 
         var score = 0.5; // 기본 점수
-        
+
         // 콘텐츠 길이 기반 점수 조정
         if (content.Length > 200) score += 0.1;
         if (content.Length > 500) score += 0.1;
-        
+
         // 문장 완성도 기반 점수 조정
         var sentences = content.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
         if (sentences.Length > 0)
@@ -225,7 +225,7 @@ public class Context7MetadataEnricher
             var completeness = (double)completeSentences / sentences.Length;
             score += completeness * 0.3;
         }
-        
+
         return Math.Min(1.0, score);
     }
 
@@ -235,26 +235,26 @@ public class Context7MetadataEnricher
     private string GenerateContextualHeader(DocumentChunk chunk, DocumentContext context)
     {
         var headerParts = new List<string>();
-        
+
         // 문서 타입 정보
         headerParts.Add($"Document: {context.DocumentType}");
-        
+
         // 섹션 정보
         if (!string.IsNullOrEmpty(chunk.Metadata.FileName))
             headerParts.Add($"Section: {chunk.Metadata.FileName}");
-        
+
         // 콘텐츠 타입 정보
         if (chunk.Props.GetValueOrDefault("ContentType", "text") != "text")
             headerParts.Add($"Type: {chunk.Props.GetValueOrDefault("ContentType", "text")}");
-        
+
         // 구조적 역할
         if (chunk.Props.GetValueOrDefault("StructuralRole", "content") != "content")
             headerParts.Add($"Role: {chunk.Props.GetValueOrDefault("StructuralRole", "content")}");
-        
+
         // 도메인 정보
         if (context.DocumentType != "General")
             headerParts.Add($"Domain: {context.DocumentType}");
-        
+
         return string.Join(" | ", headerParts);
     }
 
@@ -269,7 +269,7 @@ public class Context7MetadataEnricher
         var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var uniqueWords = words.Where(w => w.Length > 3).Distinct().Count();
         var sentences = content.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries).Length;
-        
+
         // 정보 밀도 = (고유 단어 수 + 문장 수) / 총 문자 수 * 1000
         return (uniqueWords + sentences) * 1000.0 / content.Length;
     }
@@ -292,7 +292,7 @@ public class Context7MetadataEnricher
             if (!string.IsNullOrWhiteSpace(trimmed))
             {
                 // 완전한 문장 판별: "..." 로 끝나지 않고, 적절한 길이
-                if (!trimmed.EndsWith("...") && trimmed.Length > 10)
+                if (!trimmed.EndsWith("...", StringComparison.Ordinal) && trimmed.Length > 10)
                 {
                     completeSentences++;
                 }

@@ -45,7 +45,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         // 병렬로 통계적 분석과 임베딩 분석 수행
         var statisticalTask = CalculateStatisticalScoreAsync(
             segment1, segment2, textCompletionService, cancellationToken);
-        
+
         var similarityTask = CalculateSimilarityScoreAsync(
             segment1, segment2, embeddingService, cancellationToken);
 
@@ -121,7 +121,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
                 embeddingService,
                 cancellationToken);
 
-            if (result.HybridScore > options.BoundaryThreshold || 
+            if (result.HybridScore > options.BoundaryThreshold ||
                 (options.UseAdaptiveThreshold && result.HybridScore > GetAdaptiveThreshold(segments, i)))
             {
                 boundaries.Add(new HybridBoundaryPoint
@@ -206,7 +206,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         }
 
         // 구조적 마커 체크
-        if (segment2.StartsWith("#") || segment2.Contains("HEADING_START"))
+        if (segment2.StartsWith("#", StringComparison.Ordinal) || segment2.Contains("HEADING_START"))
         {
             return BoundaryType.Section;
         }
@@ -216,12 +216,12 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
             return BoundaryType.CodeBlock;
         }
 
-        if (segment2.Contains("TABLE_START") || (segment2.Contains("|") && segment2.Count(c => c == '|') > 3))
+        if (segment2.Contains("TABLE_START") || (segment2.Contains('|') && segment2.Count(c => c == '|') > 3))
         {
             return BoundaryType.Table;
         }
 
-        if (segment2.Contains("LIST_START") || 
+        if (segment2.Contains("LIST_START") ||
             System.Text.RegularExpressions.Regex.IsMatch(segment2, @"^\s*[-*+•]\s+"))
         {
             return BoundaryType.List;
@@ -240,10 +240,10 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
     {
         // 두 신호가 일치하면 신뢰도 높음
         var agreement = 1 - Math.Abs(statisticalScore - (1 - similarityScore));
-        
+
         // 경계 임계값과의 거리
         var distanceFromThreshold = Math.Abs(hybridScore - _boundaryThreshold);
-        
+
         // 종합 신뢰도
         return (agreement * 0.6 + distanceFromThreshold * 0.4);
     }
@@ -253,7 +253,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         // 문서 위치에 따른 적응형 임계값
         // 시작/끝 부분은 더 낮은 임계값
         var position = (double)index / segments.Count;
-        
+
         if (position < 0.1 || position > 0.9)
         {
             return _boundaryThreshold * 0.8;

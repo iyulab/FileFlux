@@ -1,4 +1,4 @@
-﻿using FileFlux.Domain;
+using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
@@ -14,7 +14,7 @@ public class EntityExtractionSystem
     private static readonly Regex LocationRegex = new(@"\b(?:in|at|from|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b", RegexOptions.Compiled);
     private static readonly Regex DateRegex = new(@"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b|\b\d{1,2}/\d{1,2}/\d{4}\b|\b\d{4}-\d{2}-\d{2}\b", RegexOptions.Compiled);
     private static readonly Regex TechnicalTermRegex = new(@"\b[A-Z]{2,}\b|\b[A-Z][a-z]+(?:[A-Z][a-z]*)+\b", RegexOptions.Compiled);
-    
+
     /// <summary>
     /// Extract entities and relationships from document chunk
     /// </summary>
@@ -142,8 +142,8 @@ public class EntityExtractionSystem
     /// Extract relationships between entities
     /// </summary>
     private List<ExtractedRelationship> ExtractRelationships(
-        string content, 
-        List<NamedEntity> entities, 
+        string content,
+        List<NamedEntity> entities,
         EntityExtractionOptions options)
     {
         var relationships = new List<ExtractedRelationship>();
@@ -186,7 +186,7 @@ public class EntityExtractionSystem
             for (int i = 0; i < sentences.Count; i++)
             {
                 var sentence = sentences[i];
-                
+
                 // Check if entity appears in this sentence
                 if (sentence.Contains(entity.Text, StringComparison.OrdinalIgnoreCase))
                 {
@@ -195,7 +195,7 @@ public class EntityExtractionSystem
                     {
                         var nextSentence = sentences[j];
                         var pronouns = ExtractPronouns(nextSentence, entity.Type);
-                        
+
                         foreach (var pronoun in pronouns)
                         {
                             chain.References.Add(new CoreferenceReference
@@ -223,7 +223,7 @@ public class EntityExtractionSystem
     /// Normalize and link entities to knowledge bases
     /// </summary>
     private List<NormalizedEntity> NormalizeAndLinkEntities(
-        List<NamedEntity> entities, 
+        List<NamedEntity> entities,
         EntityExtractionOptions options)
     {
         var normalized = new List<NormalizedEntity>();
@@ -236,7 +236,7 @@ public class EntityExtractionSystem
                 NormalizedForm = NormalizeEntityText(entity.Text, entity.Type),
                 EntityId = GenerateEntityId(entity),
                 Aliases = GenerateAliases(entity),
-                LinkedKnowledgeBase = options.EnableKnowledgeBaseLinking ? 
+                LinkedKnowledgeBase = options.EnableKnowledgeBaseLinking ?
                     LinkToKnowledgeBase(entity) : null
             };
 
@@ -259,7 +259,7 @@ public class EntityExtractionSystem
             return 0.0;
 
         var entityConfidence = result.NamedEntities.Average(e => e.Confidence);
-        var relationshipConfidence = result.ExtractedRelationships.Any() ? 
+        var relationshipConfidence = result.ExtractedRelationships.Any() ?
             result.ExtractedRelationships.Average(r => r.Confidence) : 0.5;
         var coreferenceConfidence = result.CoreferenceChains.Any() ?
             result.CoreferenceChains.SelectMany(c => c.References).Average(r => r.Confidence) : 0.5;
@@ -418,9 +418,9 @@ public class EntityExtractionSystem
                 var subject = match.Groups[1].Value.Trim();
                 var objectEntity = match.Groups[2].Value.Trim();
 
-                var subjectEntity = entities.FirstOrDefault(e => 
+                var subjectEntity = entities.FirstOrDefault(e =>
                     e.Text.Contains(subject, StringComparison.OrdinalIgnoreCase));
-                var targetEntity = entities.FirstOrDefault(e => 
+                var targetEntity = entities.FirstOrDefault(e =>
                     e.Text.Contains(objectEntity, StringComparison.OrdinalIgnoreCase));
 
                 if (subjectEntity != null && targetEntity != null)
@@ -484,7 +484,7 @@ public class EntityExtractionSystem
 
         foreach (var sentence in sentences)
         {
-            var sentenceEntities = entities.Where(e => 
+            var sentenceEntities = entities.Where(e =>
                 sentence.Contains(e.Text, StringComparison.OrdinalIgnoreCase)).ToList();
 
             if (sentenceEntities.Count >= 2)
@@ -502,8 +502,8 @@ public class EntityExtractionSystem
     }
 
     private List<ExtractedRelationship> ExtractDomainSpecificRelationships(
-        string content, 
-        List<NamedEntity> entities, 
+        string content,
+        List<NamedEntity> entities,
         EntityExtractionOptions options)
     {
         var relationships = new List<ExtractedRelationship>();
@@ -524,9 +524,9 @@ public class EntityExtractionSystem
                 foreach (Match match in matches)
                 {
                     // Create relationships based on technical patterns
-                    var subject = entities.FirstOrDefault(e => 
+                    var subject = entities.FirstOrDefault(e =>
                         e.Text.Equals(match.Groups[1].Value, StringComparison.OrdinalIgnoreCase));
-                    var objectEntity = entities.FirstOrDefault(e => 
+                    var objectEntity = entities.FirstOrDefault(e =>
                         e.Text.Equals(match.Groups[2].Value, StringComparison.OrdinalIgnoreCase));
 
                     if (subject != null && objectEntity != null)
@@ -550,7 +550,7 @@ public class EntityExtractionSystem
     }
 
     private List<ExtractedRelationship> FilterAndScoreRelationships(
-        List<ExtractedRelationship> relationships, 
+        List<ExtractedRelationship> relationships,
         EntityExtractionOptions options)
     {
         return relationships
@@ -573,7 +573,7 @@ public class EntityExtractionSystem
     private List<PronounReference> ExtractPronouns(string sentence, EntityType entityType)
     {
         var pronouns = new List<PronounReference>();
-        
+
         var pronounPatterns = entityType switch
         {
             EntityType.Person => new[] { "he", "she", "him", "her", "his", "hers", "they", "them", "their" },
@@ -585,7 +585,7 @@ public class EntityExtractionSystem
         {
             var pattern = $@"\b{pronoun}\b";
             var matches = Regex.Matches(sentence, pattern, RegexOptions.IgnoreCase);
-            
+
             foreach (Match match in matches)
             {
                 pronouns.Add(new PronounReference
@@ -600,9 +600,9 @@ public class EntityExtractionSystem
     }
 
     private double CalculatePronounConfidence(
-        NamedEntity entity, 
-        PronounReference pronoun, 
-        string entitySentence, 
+        NamedEntity entity,
+        PronounReference pronoun,
+        string entitySentence,
         string pronounSentence)
     {
         var baseConfidence = 0.6;
@@ -612,7 +612,7 @@ public class EntityExtractionSystem
         {
             var isMasculine = new[] { "he", "him", "his" }.Contains(pronoun.Text.ToLowerInvariant());
             var isFeminine = new[] { "she", "her", "hers" }.Contains(pronoun.Text.ToLowerInvariant());
-            
+
             // Simple heuristic: if entity name suggests gender
             if (entity.Text.Contains("Mr") && isMasculine) baseConfidence += 0.2;
             if (entity.Text.Contains("Mrs") && isFeminine) baseConfidence += 0.2;
@@ -630,7 +630,7 @@ public class EntityExtractionSystem
     {
         // Remove titles and honorifics
         var normalized = text.Trim();
-        
+
         if (type == EntityType.Person)
         {
             normalized = Regex.Replace(normalized, @"^(Dr|Mr|Mrs|Ms|Prof|Sir|Lady)\.?\s+", "", RegexOptions.IgnoreCase);
@@ -650,14 +650,14 @@ public class EntityExtractionSystem
             .Replace(" ", "_")
             .Replace(".", "")
             .Replace(",", "");
-        
+
         return $"{entity.Type}_{normalizedText}_{entity.GetHashCode():X8}";
     }
 
     private List<string> GenerateAliases(NamedEntity entity)
     {
         var aliases = new List<string>();
-        
+
         if (entity.Type == EntityType.Person)
         {
             // Generate initials
@@ -666,7 +666,7 @@ public class EntityExtractionSystem
             {
                 var initials = string.Join(".", parts.Select(p => p[0])) + ".";
                 aliases.Add(initials);
-                
+
                 // Last name only
                 aliases.Add(parts.Last());
             }
@@ -756,7 +756,7 @@ public class EntityExtractionSystem
         var end = Math.Max(entity1.EndPosition, entity2.EndPosition);
         var contextStart = Math.Max(0, start - 20);
         var contextEnd = Math.Min(content.Length, end + 20);
-        
+
         return content.Substring(contextStart, contextEnd - contextStart);
     }
 
@@ -764,19 +764,19 @@ public class EntityExtractionSystem
     {
         // Simplified SVO extraction
         var verbPatterns = new[] { "is", "was", "are", "were", "has", "have", "had", "does", "did" };
-        
+
         foreach (var verb in verbPatterns)
         {
             var pattern = $@"(\w+)\s+{verb}\s+(\w+)";
             var match = Regex.Match(sentence, pattern, RegexOptions.IgnoreCase);
-            
+
             if (match.Success)
             {
-                var subject = entities.FirstOrDefault(e => 
-                    sentence.Contains(e.Text, StringComparison.OrdinalIgnoreCase) && 
+                var subject = entities.FirstOrDefault(e =>
+                    sentence.Contains(e.Text, StringComparison.OrdinalIgnoreCase) &&
                     sentence.IndexOf(e.Text, StringComparison.OrdinalIgnoreCase) < match.Index);
-                var objectEntity = entities.FirstOrDefault(e => 
-                    sentence.Contains(e.Text, StringComparison.OrdinalIgnoreCase) && 
+                var objectEntity = entities.FirstOrDefault(e =>
+                    sentence.Contains(e.Text, StringComparison.OrdinalIgnoreCase) &&
                     sentence.IndexOf(e.Text, StringComparison.OrdinalIgnoreCase) > match.Index);
 
                 if (subject != null && objectEntity != null)
@@ -817,7 +817,7 @@ public class EntityExtractionOptions
     public bool EnableDomainSpecificExtraction { get; set; } = true;
     public bool EnableKnowledgeBaseLinking { get; set; } = false;
     public string DomainType { get; set; } = "General"; // General, Technical, Business, Academic
-    
+
     // Additional properties for compatibility
     public bool EnableNER { get; set; } = true;
     public bool EnableRelationshipExtraction { get; set; } = true;
@@ -869,7 +869,7 @@ public class CoreferenceChain
 {
     public NamedEntity MainEntity { get; set; } = null!;
     public List<CoreferenceReference> References { get; set; } = new();
-    
+
     // Compatibility properties
     public List<string> EntityMentions => References.Select(r => r.Text).ToList();
     public string CanonicalForm => MainEntity.Value;

@@ -44,19 +44,19 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
         // 1. 파일 정보 수집
         var fileInfo = new FileInfo(filePath);
         var extension = fileInfo.Extension.ToLowerInvariant();
-        
+
         // 2. 문서 샘플 추출 (첫 2000 토큰)
         var sampleContent = await ExtractSampleContentAsync(
-            filePath, 
-            extractedContent, 
+            filePath,
+            extractedContent,
             cancellationToken);
-        
+
         // 3. 문서 특성 분석
         var documentCharacteristics = await AnalyzeDocumentCharacteristicsAsync(
             sampleContent,
             extension,
             cancellationToken);
-        
+
         // 4. 전략 추천 (LLM 사용 가능시 사용, 없으면 규칙 기반)
         LLMStrategyRecommendation recommendedStrategy;
         bool usedLLM = false;
@@ -112,7 +112,7 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
             // 첫 2000자 정도 추출 (약 500 토큰)
             return text.Length > 2000 ? text.Substring(0, 2000) : text;
         }
-        
+
         // 파일에서 직접 읽기
         if (_documentReader != null && _documentReader.CanRead(filePath))
         {
@@ -120,7 +120,7 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
             var text = rawContent.Text;
             return text.Length > 2000 ? text.Substring(0, 2000) : text;
         }
-        
+
         // 텍스트 파일 직접 읽기 (fallback)
         try
         {
@@ -147,7 +147,7 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
             SampleContent = sampleContent,
             EstimatedTokenCount = EstimateTokenCount(sampleContent)
         };
-        
+
         // 구조적 특징 감지
         characteristics.HasMarkdownHeaders = DetectMarkdownHeaders(sampleContent);
         characteristics.HasCodeBlocks = DetectCodeBlocks(sampleContent);
@@ -156,17 +156,17 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
         characteristics.HasMathFormulas = DetectMathFormulas(sampleContent);
         characteristics.HasNumberedSections = DetectNumberedSections(sampleContent);
         characteristics.HasStructuredRequirements = DetectStructuredRequirements(sampleContent);
-        
+
         // 콘텐츠 타입 추론
         characteristics.ContentType = InferContentType(sampleContent, fileExtension);
         characteristics.Language = DetectLanguage(sampleContent);
         characteristics.Domain = InferDomain(sampleContent);
-        
+
         // 텍스트 특성 분석
         characteristics.AverageSentenceLength = CalculateAverageSentenceLength(sampleContent);
         characteristics.ParagraphCount = CountParagraphs(sampleContent);
         characteristics.StructureComplexity = CalculateStructureComplexity(characteristics);
-        
+
         return characteristics;
     }
 
@@ -271,13 +271,13 @@ Return your response in the following JSON format:
             // JSON 부분 추출
             var jsonStart = response.IndexOf('{');
             var jsonEnd = response.LastIndexOf('}') + 1;
-            
+
             if (jsonStart >= 0 && jsonEnd > jsonStart)
             {
                 var jsonString = response.Substring(jsonStart, jsonEnd - jsonStart);
                 var parsed = JsonDocument.Parse(jsonString);
                 var root = parsed.RootElement;
-                
+
                 var recommendation = new LLMStrategyRecommendation
                 {
                     StrategyName = root.GetProperty("primaryStrategy").GetString() ?? "Smart",
@@ -285,7 +285,7 @@ Return your response in the following JSON format:
                     Reasoning = root.GetProperty("reasoning").GetString() ?? "",
                     Alternatives = new List<AlternativeStrategy>()
                 };
-                
+
                 if (root.TryGetProperty("alternatives", out var alternatives))
                 {
                     foreach (var alt in alternatives.EnumerateArray())
@@ -298,7 +298,7 @@ Return your response in the following JSON format:
                         });
                     }
                 }
-                
+
                 return recommendation;
             }
         }
@@ -306,7 +306,7 @@ Return your response in the following JSON format:
         {
             // Parsing failed
         }
-        
+
         // Default fallback
         return new LLMStrategyRecommendation
         {
@@ -326,7 +326,7 @@ Return your response in the following JSON format:
         {
             Alternatives = new List<AlternativeStrategy>()
         };
-        
+
         // 규칙 기반 선택 로직 - 구조화 문서 우선 처리
         if (characteristics.HasNumberedSections || characteristics.HasStructuredRequirements)
         {
@@ -364,7 +364,7 @@ Return your response in the following JSON format:
             recommendation.Confidence = 0.7;
             recommendation.Reasoning = "Default selection - Smart strategy provides best general quality";
         }
-        
+
         // Add alternatives
         if (recommendation.StrategyName != "Smart")
         {
@@ -375,7 +375,7 @@ Return your response in the following JSON format:
                 Reasoning = "Universal fallback with quality guarantee"
             });
         }
-        
+
         if (recommendation.StrategyName != "Intelligent")
         {
             recommendation.Alternatives.Add(new AlternativeStrategy
@@ -385,7 +385,7 @@ Return your response in the following JSON format:
                 Reasoning = "Good for structured documents"
             });
         }
-        
+
         return recommendation;
     }
 
@@ -404,7 +404,7 @@ Return your response in the following JSON format:
             recommendation.Reasoning = "Selected strategy not available, using Smart as default";
             recommendation.Confidence *= 0.8; // 신뢰도 감소
         }
-        
+
         // Phase 10: 파일 형식별 최적화 (Phase 9 평가 결과 기반)
         var phase10OptimalStrategy = GetPhase10OptimalStrategy(characteristics.FileExtension);
         if (!string.IsNullOrEmpty(phase10OptimalStrategy) && phase10OptimalStrategy != recommendation.StrategyName)
@@ -416,12 +416,12 @@ Return your response in the following JSON format:
                 Confidence = recommendation.Confidence,
                 Reasoning = recommendation.Reasoning
             });
-            
+
             recommendation.StrategyName = phase10OptimalStrategy;
             recommendation.Reasoning = $"Phase 10 optimization: {characteristics.FileExtension} files perform best with {phase10OptimalStrategy} strategy (evaluation-based)";
             recommendation.Confidence = 0.92; // 높은 신뢰도 (실증 데이터 기반)
         }
-        
+
         // 특정 조건에서 추가 오버라이드
         if (characteristics.FileExtension == ".pdf" && characteristics.HasTables)
         {
@@ -434,13 +434,13 @@ Return your response in the following JSON format:
                     Confidence = recommendation.Confidence,
                     Reasoning = recommendation.Reasoning
                 });
-                
+
                 recommendation.StrategyName = "Intelligent";
                 recommendation.Reasoning = "Override: PDF with tables requires Intelligent strategy for structure preservation";
                 recommendation.Confidence = 0.95;
             }
         }
-        
+
         return recommendation;
     }
 
@@ -450,34 +450,34 @@ Return your response in the following JSON format:
     private Dictionary<string, IChunkingStrategyMetadata> InitializeStrategyMetadata()
     {
         var metadata = new Dictionary<string, IChunkingStrategyMetadata>();
-        
+
         // Smart 전략
         metadata["Smart"] = new ChunkingStrategyMetadata
         {
             StrategyName = "Smart",
             Description = "Advanced sentence-boundary aware chunking with 70% minimum completeness guarantee. Never breaks sentences in the middle.",
             OptimalForDocumentTypes = new[] { "Legal", "Medical", "Academic", "Q&A", "FAQ" },
-            Strengths = new[] 
-            { 
+            Strengths = new[]
+            {
                 "Guaranteed 70% chunk completeness",
                 "Perfect sentence integrity",
                 "Smart overlap with context preservation",
                 "High RAG retrieval quality"
             },
-            Limitations = new[] 
-            { 
+            Limitations = new[]
+            {
                 "Slightly slower processing",
                 "May create uneven chunk sizes"
             },
-            RecommendedScenarios = new[] 
-            { 
+            RecommendedScenarios = new[]
+            {
                 "RAG systems requiring high accuracy",
                 "Q&A applications",
                 "Legal/medical document processing",
                 "Customer-facing content"
             },
-            SelectionHints = new[] 
-            { 
+            SelectionHints = new[]
+            {
                 "sentence integrity", "completeness", "accuracy critical",
                 "legal", "medical", "compliance"
             },
@@ -490,34 +490,34 @@ Return your response in the following JSON format:
                 RequiresLLM = false
             }
         };
-        
+
         // Intelligent 전략
         metadata["Intelligent"] = new ChunkingStrategyMetadata
         {
             StrategyName = "Intelligent",
             Description = "Structure-aware chunking that preserves document formatting, headers, code blocks, and tables. Optimized for technical documentation.",
             OptimalForDocumentTypes = new[] { "Technical", "Markdown", "Code", "Documentation" },
-            Strengths = new[] 
-            { 
+            Strengths = new[]
+            {
                 "Preserves document structure",
                 "Maintains code blocks intact",
                 "Table and list preservation",
                 "Markdown-aware processing"
             },
-            Limitations = new[] 
-            { 
+            Limitations = new[]
+            {
                 "May break sentences",
                 "No completeness guarantee"
             },
-            RecommendedScenarios = new[] 
-            { 
+            RecommendedScenarios = new[]
+            {
                 "Technical documentation",
                 "API documentation",
                 "Code-heavy content",
                 "Structured markdown files"
             },
-            SelectionHints = new[] 
-            { 
+            SelectionHints = new[]
+            {
                 "markdown", "code blocks", "technical", "documentation",
                 "tables", "structured content"
             },
@@ -530,34 +530,34 @@ Return your response in the following JSON format:
                 RequiresLLM = true
             }
         };
-        
+
         // Semantic 전략
         metadata["Semantic"] = new ChunkingStrategyMetadata
         {
             StrategyName = "Semantic",
             Description = "Meaning-based chunking that groups related concepts together. Best for narrative and conceptual content.",
             OptimalForDocumentTypes = new[] { "Narrative", "Essay", "Article", "Report" },
-            Strengths = new[] 
-            { 
+            Strengths = new[]
+            {
                 "Maintains semantic coherence",
                 "Groups related concepts",
                 "Good for long-form content",
                 "Natural topic boundaries"
             },
-            Limitations = new[] 
-            { 
+            Limitations = new[]
+            {
                 "Requires semantic analysis",
                 "Variable chunk sizes"
             },
-            RecommendedScenarios = new[] 
-            { 
+            RecommendedScenarios = new[]
+            {
                 "Blog posts and articles",
                 "Research papers",
                 "Narrative documents",
                 "Conceptual content"
             },
-            SelectionHints = new[] 
-            { 
+            SelectionHints = new[]
+            {
                 "narrative", "article", "essay", "semantic",
                 "concepts", "topics"
             },
@@ -570,34 +570,34 @@ Return your response in the following JSON format:
                 RequiresLLM = false
             }
         };
-        
+
         // Paragraph 전략
         metadata["Paragraph"] = new ChunkingStrategyMetadata
         {
             StrategyName = "Paragraph",
             Description = "Simple paragraph-based chunking. Fast and efficient for well-structured documents.",
             OptimalForDocumentTypes = new[] { "Book", "Novel", "Simple Text" },
-            Strengths = new[] 
-            { 
+            Strengths = new[]
+            {
                 "Fast processing",
                 "Preserves natural paragraphs",
                 "Low resource usage",
                 "Predictable results"
             },
-            Limitations = new[] 
-            { 
+            Limitations = new[]
+            {
                 "May create very small/large chunks",
                 "No semantic awareness"
             },
-            RecommendedScenarios = new[] 
-            { 
+            RecommendedScenarios = new[]
+            {
                 "Books and novels",
                 "Simple text documents",
                 "Well-paragraphed content",
                 "High-volume processing"
             },
-            SelectionHints = new[] 
-            { 
+            SelectionHints = new[]
+            {
                 "paragraph", "book", "novel", "simple",
                 "fast processing", "high volume"
             },
@@ -610,34 +610,34 @@ Return your response in the following JSON format:
                 RequiresLLM = false
             }
         };
-        
+
         // FixedSize 전략
         metadata["FixedSize"] = new ChunkingStrategyMetadata
         {
             StrategyName = "FixedSize",
             Description = "Token-based fixed size chunking. Baseline strategy for consistent chunk sizes.",
             OptimalForDocumentTypes = new[] { "Log", "Data", "Uniform" },
-            Strengths = new[] 
-            { 
+            Strengths = new[]
+            {
                 "Predictable chunk sizes",
                 "Fast processing",
                 "Memory efficient",
                 "Good for embeddings"
             },
-            Limitations = new[] 
-            { 
+            Limitations = new[]
+            {
                 "Breaks semantic units",
                 "No structure awareness"
             },
-            RecommendedScenarios = new[] 
-            { 
+            RecommendedScenarios = new[]
+            {
                 "Log files",
                 "Data processing",
                 "Uniform content",
                 "Baseline testing"
             },
-            SelectionHints = new[] 
-            { 
+            SelectionHints = new[]
+            {
                 "fixed", "uniform", "logs", "data",
                 "baseline", "consistent size"
             },
@@ -650,28 +650,28 @@ Return your response in the following JSON format:
                 RequiresLLM = false
             }
         };
-        
+
         // Phase 10: 메모리 최적화된 Intelligent 전략
         metadata["MemoryOptimizedIntelligent"] = new ChunkingStrategyMetadata
         {
             StrategyName = "MemoryOptimizedIntelligent",
             Description = "Memory-optimized intelligent chunking with 50% reduced memory usage through object pooling and struct-based processing.",
             OptimalForDocumentTypes = new[] { "Large Documents", "Technical", "Markdown", "Memory-constrained environments" },
-            Strengths = new[] 
-            { 
+            Strengths = new[]
+            {
                 "50% lower memory usage",
                 "Object pooling optimization",
                 "Struct-based semantic units",
                 "Streaming processing",
                 "Structure preservation"
             },
-            Limitations = new[] 
-            { 
+            Limitations = new[]
+            {
                 "Slightly reduced feature set",
                 "No complex semantic analysis"
             },
-            RecommendedScenarios = new[] 
-            { 
+            RecommendedScenarios = new[]
+            {
                 "Large document processing",
                 "Memory-constrained servers",
                 "Batch processing scenarios",
@@ -686,20 +686,20 @@ Return your response in the following JSON format:
                 RequiresLLM = false
             }
         };
-        
+
         return metadata;
     }
 
     // Helper methods for document analysis
     private bool DetectMarkdownHeaders(string content) =>
-        content.Contains("\n#") || content.StartsWith("#");
-    
+        content.Contains("\n#") || content.StartsWith("#", StringComparison.Ordinal);
+
     private bool DetectCodeBlocks(string content) =>
         content.Contains("```") || content.Contains("~~~");
-    
+
     private bool DetectTables(string content) =>
         content.Contains(" | ") && content.Contains("\n|");
-    
+
     private bool DetectLists(string content) =>
         content.Contains("\n- ") || content.Contains("\n* ") ||
         content.Contains("\n1. ") || content.Contains("\n1)");
@@ -799,18 +799,18 @@ Return your response in the following JSON format:
             content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 
         // 구조 표시자 확인 (강화)
-        var checkboxMarkers = content.Contains("□") || content.Contains("▣") ||
-                              content.Contains("☐") || content.Contains("☑") ||
-                              content.Contains("✓") || content.Contains("✗");
+        var checkboxMarkers = content.Contains('□') || content.Contains('▣') ||
+                              content.Contains('☐') || content.Contains('☑') ||
+                              content.Contains('✓') || content.Contains('✗');
 
         var numberingMarkers = content.Contains("No.") || content.Contains("항목") ||
-                               content.Contains("#") || content.Contains("Item");
+                               content.Contains('#') || content.Contains("Item");
 
         var tableMarkers = content.Contains(" | ") && content.Contains("---");
 
         var bulletMarkers = content.Split('\n').Count(line =>
-            line.Trim().StartsWith("- ") || line.Trim().StartsWith("* ") ||
-            line.Trim().StartsWith("• ")) > 3;
+            line.Trim().StartsWith("- ", StringComparison.Ordinal) || line.Trim().StartsWith("* ", StringComparison.Ordinal) ||
+            line.Trim().StartsWith("• ", StringComparison.Ordinal)) > 3;
 
         // 종합 점수 계산
         var score = 0;
@@ -834,7 +834,7 @@ Return your response in the following JSON format:
 
         return score >= 5; // 임계값을 5로 설정하여 더 정확한 감지
     }
-    
+
     private string InferContentType(string content, string extension)
     {
         if (DetectCodeBlocks(content)) return "Technical";
@@ -842,7 +842,7 @@ Return your response in the following JSON format:
         if (content.Length > 1000 && CountParagraphs(content) > 3) return "Narrative";
         return "General";
     }
-    
+
     private string DetectLanguage(string content)
     {
         // Simple language detection
@@ -851,41 +851,41 @@ Return your response in the following JSON format:
         if (content.Any(c => c >= 0x3040 && c <= 0x309F)) return "Japanese";
         return "English";
     }
-    
+
     private string InferDomain(string content)
     {
         var lowerContent = content.ToLowerInvariant();
-        
-        if (lowerContent.Contains("patient") || lowerContent.Contains("diagnosis") || 
+
+        if (lowerContent.Contains("patient") || lowerContent.Contains("diagnosis") ||
             lowerContent.Contains("treatment")) return "Medical";
-        
-        if (lowerContent.Contains("pursuant") || lowerContent.Contains("whereas") || 
+
+        if (lowerContent.Contains("pursuant") || lowerContent.Contains("whereas") ||
             lowerContent.Contains("jurisdiction")) return "Legal";
-        
-        if (lowerContent.Contains("function") || lowerContent.Contains("class") || 
+
+        if (lowerContent.Contains("function") || lowerContent.Contains("class") ||
             lowerContent.Contains("api")) return "Technical";
-        
-        if (lowerContent.Contains("revenue") || lowerContent.Contains("profit") || 
+
+        if (lowerContent.Contains("revenue") || lowerContent.Contains("profit") ||
             lowerContent.Contains("market")) return "Business";
-        
-        if (lowerContent.Contains("research") || lowerContent.Contains("hypothesis") || 
+
+        if (lowerContent.Contains("research") || lowerContent.Contains("hypothesis") ||
             lowerContent.Contains("methodology")) return "Academic";
-        
+
         return "General";
     }
-    
+
     private double CalculateAverageSentenceLength(string content)
     {
         var sentences = content.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
         if (sentences.Length == 0) return 0;
-        
+
         var totalWords = sentences.Sum(s => s.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
         return (double)totalWords / sentences.Length;
     }
-    
+
     private int CountParagraphs(string content) =>
         content.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries).Length;
-    
+
     private int CalculateStructureComplexity(DocumentCharacteristics characteristics)
     {
         var complexity = 0;
@@ -901,10 +901,10 @@ Return your response in the following JSON format:
 
         return Math.Min(complexity, 10);
     }
-    
+
     private int EstimateTokenCount(string text) =>
         text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length * 4 / 3;
-    
+
     /// <summary>
     /// Phase 10: 파일 형식별 최적 전략 매핑 (Phase 9 평가 결과 기반)
     /// RAG 품질 평가를 통해 검증된 파일 형식별 최적 전략 반환
@@ -914,16 +914,16 @@ Return your response in the following JSON format:
         // Phase 10: 메모리 효율성을 고려한 전략 선택
         // 대용량 파일이나 메모리 제약 환경에서는 메모리 최적화 전략 우선
         var isMemoryConstrained = CheckMemoryConstraints();
-        
+
         return fileExtension.ToLowerInvariant() switch
         {
             ".pdf" => "Semantic",      // Phase 9: PDF는 Semantic이 최고 성능
             ".docx" => isMemoryConstrained ? "MemoryOptimizedIntelligent" : "Intelligent",  // 메모리 제약 시 최적화 버전
-            ".doc" => isMemoryConstrained ? "MemoryOptimizedIntelligent" : "Intelligent",   
+            ".doc" => isMemoryConstrained ? "MemoryOptimizedIntelligent" : "Intelligent",
             ".md" => "Semantic",       // Phase 9: Markdown은 Semantic이 우수
             ".txt" => "Semantic",      // 일반 텍스트는 Semantic 전략 적합
             ".xlsx" => isMemoryConstrained ? "MemoryOptimizedIntelligent" : "Intelligent",  // 구조화된 데이터
-            ".xls" => isMemoryConstrained ? "MemoryOptimizedIntelligent" : "Intelligent",   
+            ".xls" => isMemoryConstrained ? "MemoryOptimizedIntelligent" : "Intelligent",
             ".pptx" => isMemoryConstrained ? "MemoryOptimizedIntelligent" : "Intelligent",  // 프레젠테이션
             ".ppt" => isMemoryConstrained ? "MemoryOptimizedIntelligent" : "Intelligent",
             ".html" => "Semantic",     // HTML은 의미적 분할이 적합
@@ -932,7 +932,7 @@ Return your response in the following JSON format:
             _ => string.Empty          // 매핑 없음 - 기본 LLM 추천 사용
         };
     }
-    
+
     /// <summary>
     /// 현재 메모리 상황을 체크하여 메모리 최적화가 필요한지 판단
     /// </summary>
@@ -942,7 +942,7 @@ Return your response in the following JSON format:
         {
             // 현재 메모리 사용량 체크
             var currentMemoryMB = GC.GetTotalMemory(false) / 1024 / 1024;
-            
+
             // 사용 가능한 물리 메모리가 낮거나 현재 메모리 사용량이 높은 경우
             return currentMemoryMB > 500; // 500MB 이상 사용 중이면 메모리 최적화 전략 선택
         }

@@ -1,4 +1,4 @@
-﻿using FileFlux.Domain;
+using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
@@ -12,7 +12,7 @@ public class SearchMetadataEnricher
     private static readonly Regex HeaderRegex = new(@"^#{1,6}\s+(.+)$", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex SentenceRegex = new(@"[.!?]+[\s]+", RegexOptions.Compiled);
     private static readonly Regex KeywordRegex = new(@"\b[A-Za-z]{3,}\b", RegexOptions.Compiled);
-    
+
     /// <summary>
     /// Enrich chunk with search metadata
     /// </summary>
@@ -103,10 +103,10 @@ public class SearchMetadataEnricher
     private ExtractedKeywords ExtractAdvancedKeywords(string content, EnrichmentOptions options)
     {
         var keywords = new ExtractedKeywords();
-        
+
         // Calculate term frequency
         var termFrequency = CalculateTermFrequency(content);
-        
+
         // Apply TF-IDF scoring (simplified without corpus)
         var tfidfScores = new Dictionary<string, double>();
         foreach (var term in termFrequency)
@@ -177,10 +177,10 @@ public class SearchMetadataEnricher
         };
 
         // Sequential relationships
-        relationships.PreviousChunkId = chunk.Index > 0 
-            ? GenerateChunkId(chunk.Metadata?.FileName, chunk.Index - 1) 
+        relationships.PreviousChunkId = chunk.Index > 0
+            ? GenerateChunkId(chunk.Metadata?.FileName, chunk.Index - 1)
             : null;
-            
+
         relationships.NextChunkId = GenerateChunkId(chunk.Metadata?.FileName, chunk.Index + 1);
 
         // Hierarchical relationships
@@ -272,17 +272,17 @@ public class SearchMetadataEnricher
     private SectionInfo ExtractSectionInfo(DocumentChunk chunk)
     {
         var info = new SectionInfo();
-        
+
         var headerMatch = HeaderRegex.Match(chunk.Content);
         if (headerMatch.Success)
         {
             info.Title = headerMatch.Groups[1].Value;
             info.Depth = headerMatch.Value.TakeWhile(c => c == '#').Count();
         }
-        
+
         info.Number = chunk.Index / 10; // Simplified section numbering
         info.SubsectionCount = HeaderRegex.Matches(chunk.Content).Count - 1;
-        
+
         return info;
     }
 
@@ -300,7 +300,7 @@ public class SearchMetadataEnricher
     {
         var sentences = SentenceRegex.Split(text).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
         if (sentences.Count == 0) return 0;
-        
+
         return sentences.Average(s => s.Split(' ').Length);
     }
 
@@ -310,9 +310,9 @@ public class SearchMetadataEnricher
         var sentences = CountSentences(text);
         var words = CountWords(text);
         var syllables = EstimateSyllables(text);
-        
+
         if (sentences == 0 || words == 0) return 0;
-        
+
         var score = 206.835 - 1.015 * (words / (double)sentences) - 84.6 * (syllables / (double)words);
         return Math.Max(0, Math.Min(100, score));
     }
@@ -328,13 +328,13 @@ public class SearchMetadataEnricher
         var words = KeywordRegex.Matches(content)
             .Select(m => m.Value.ToLowerInvariant())
             .Where(w => w.Length > 3 && !IsStopWord(w));
-            
+
         var frequency = new Dictionary<string, int>();
         foreach (var word in words)
         {
             frequency[word] = frequency.GetValueOrDefault(word, 0) + 1;
         }
-        
+
         return frequency;
     }
 
@@ -358,7 +358,7 @@ public class SearchMetadataEnricher
             @"\b\w+\.\w+", // Dot notation
             @"\b(?:class|interface|struct|enum)\s+\w+", // Type definitions
         };
-        
+
         var terms = new HashSet<string>();
         foreach (var pattern in technicalPatterns)
         {
@@ -368,7 +368,7 @@ public class SearchMetadataEnricher
                 terms.Add(match.Value);
             }
         }
-        
+
         return terms.Take(15).ToList();
     }
 
@@ -376,7 +376,7 @@ public class SearchMetadataEnricher
     {
         var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var phrases = new List<string>();
-        
+
         // Extract bigrams
         for (int i = 0; i < words.Length - 1; i++)
         {
@@ -385,7 +385,7 @@ public class SearchMetadataEnricher
                 phrases.Add($"{words[i]} {words[i + 1]}");
             }
         }
-        
+
         // Extract trigrams
         for (int i = 0; i < words.Length - 2; i++)
         {
@@ -394,26 +394,26 @@ public class SearchMetadataEnricher
                 phrases.Add($"{words[i]} {words[i + 1]} {words[i + 2]}");
             }
         }
-        
+
         return phrases.Distinct().Take(maxPhrases).ToList();
     }
 
     private List<string> ClassifyTopics(string content, ExtractedKeywords keywords)
     {
         var topics = new List<string>();
-        
+
         // Technology topics
         if (keywords.TechnicalTerms.Any() || content.Contains("software") || content.Contains("code"))
             topics.Add("Technology");
-            
+
         // Business topics
         if (content.Contains("business") || content.Contains("market") || content.Contains("revenue"))
             topics.Add("Business");
-            
+
         // Science topics
         if (content.Contains("research") || content.Contains("study") || content.Contains("analysis"))
             topics.Add("Science");
-            
+
         return topics;
     }
 
@@ -425,7 +425,7 @@ public class SearchMetadataEnricher
             return "Business";
         if (content.Length > 1000 && keywords.TfIdfKeywords.Count > 10)
             return "Academic";
-            
+
         return "General";
     }
 
@@ -433,11 +433,11 @@ public class SearchMetadataEnricher
     {
         if (content.Contains("how to") || content.Contains("guide") || content.Contains("tutorial"))
             return "Instructional";
-        if (content.Contains("?") || content.Contains("what") || content.Contains("why"))
+        if (content.Contains('?') || content.Contains("what") || content.Contains("why"))
             return "Informational";
         if (content.Contains("buy") || content.Contains("purchase") || content.Contains("order"))
             return "Transactional";
-            
+
         return "Descriptive";
     }
 
@@ -445,10 +445,10 @@ public class SearchMetadataEnricher
     {
         var positiveWords = new[] { "good", "great", "excellent", "positive", "success" };
         var negativeWords = new[] { "bad", "poor", "negative", "failure", "problem" };
-        
+
         var positiveCount = positiveWords.Count(word => content.ToLowerInvariant().Contains(word));
         var negativeCount = negativeWords.Count(word => content.ToLowerInvariant().Contains(word));
-        
+
         if (positiveCount > negativeCount) return "Positive";
         if (negativeCount > positiveCount) return "Negative";
         return "Neutral";
@@ -458,11 +458,11 @@ public class SearchMetadataEnricher
     {
         if (Regex.IsMatch(content, @"```|<code>"))
             return "Code";
-        if (content.Contains("|") && content.Split('\n').Count(l => l.Contains('|')) > 2)
+        if (content.Contains('|') && content.Split('\n').Count(l => l.Contains('|')) > 2)
             return "Table";
         if (Regex.IsMatch(content, @"^\d+\.|^[-*+]\s", RegexOptions.Multiline))
             return "List";
-            
+
         return "Prose";
     }
 
@@ -470,12 +470,12 @@ public class SearchMetadataEnricher
     {
         var avgSentenceLength = CalculateAverageSentenceLength(content);
         var technicalTermDensity = (double)ExtractTechnicalTerms(content).Count / CountWords(content);
-        
+
         if (avgSentenceLength > 25 || technicalTermDensity > 0.1)
             return "High";
         if (avgSentenceLength > 15 || technicalTermDensity > 0.05)
             return "Medium";
-            
+
         return "Low";
     }
 
@@ -485,7 +485,7 @@ public class SearchMetadataEnricher
             return "Expert";
         if (complexity == "Medium")
             return "Professional";
-            
+
         return "General";
     }
 
@@ -499,22 +499,22 @@ public class SearchMetadataEnricher
         // Simplified parent determination
         if (chunk.Index == 0)
             return null;
-            
+
         return GenerateChunkId(chunk.Metadata?.FileName, 0);
     }
 
     private List<string> ExtractReferences(string content)
     {
         var references = new List<string>();
-        
+
         // Extract figure references
         var figureRefs = Regex.Matches(content, @"(?:Figure|Fig\.?)\s+\d+");
         references.AddRange(figureRefs.Select(m => m.Value));
-        
+
         // Extract section references
         var sectionRefs = Regex.Matches(content, @"(?:Section|Sec\.?)\s+\d+");
         references.AddRange(sectionRefs.Select(m => m.Value));
-        
+
         return references.Distinct().ToList();
     }
 
@@ -527,7 +527,7 @@ public class SearchMetadataEnricher
     private double CalculateKeywordMatchPotential(ExtractedKeywords keywords)
     {
         var score = 0.0;
-        
+
         if (keywords.TfIdfKeywords.Any())
             score += 0.4;
         if (keywords.NamedEntities.Any())
@@ -536,14 +536,14 @@ public class SearchMetadataEnricher
             score += 0.2;
         if (keywords.KeyPhrases.Any())
             score += 0.1;
-            
+
         return Math.Min(1.0, score);
     }
 
     private double CalculateSemanticRelevance(SemanticTags tags)
     {
         var score = 0.0;
-        
+
         if (tags.Topics.Any())
             score += 0.3;
         if (!string.IsNullOrEmpty(tags.Domain) && tags.Domain != "General")
@@ -552,26 +552,26 @@ public class SearchMetadataEnricher
             score += 0.2;
         if (tags.ComplexityLevel == "High")
             score += 0.2;
-            
+
         return Math.Min(1.0, score);
     }
 
     private double CalculateStructuralImportance(HierarchicalMetadata metadata)
     {
         var score = 0.5; // Base score
-        
+
         // Headers are important
         if (!string.IsNullOrEmpty(metadata.SectionLevel.SectionTitle))
             score += 0.2;
-            
+
         // Early chunks often contain important info
         if (metadata.ChunkLevel.ChunkIndex < 3)
             score += 0.1;
-            
+
         // High-level sections are important
         if (metadata.SectionLevel.SectionDepth <= 2)
             score += 0.2;
-            
+
         return Math.Min(1.0, score);
     }
 
@@ -582,9 +582,9 @@ public class SearchMetadataEnricher
             .Select(w => w.ToLowerInvariant())
             .Distinct()
             .Count();
-            
+
         if (words == 0) return 0;
-        
+
         return (double)uniqueWords / words;
     }
 
@@ -598,26 +598,26 @@ public class SearchMetadataEnricher
     private List<string> GenerateSuggestedQueries(EnrichedChunk enriched)
     {
         var queries = new List<string>();
-        
+
         // Keyword-based queries
         if (enriched.ExtractedKeywords.TfIdfKeywords.Any())
         {
             var topKeywords = string.Join(" ", enriched.ExtractedKeywords.TfIdfKeywords.Take(3).Select(k => k.Keyword));
             queries.Add(topKeywords);
         }
-        
+
         // Entity-based queries
         if (enriched.ExtractedKeywords.NamedEntities.Any())
         {
             queries.Add(enriched.ExtractedKeywords.NamedEntities.First());
         }
-        
+
         // Intent-based queries
         if (enriched.SemanticTags.Intent == "Instructional")
         {
             queries.Add($"how to {enriched.ExtractedKeywords.TfIdfKeywords.FirstOrDefault()?.Keyword}");
         }
-        
+
         return queries;
     }
 
@@ -625,27 +625,27 @@ public class SearchMetadataEnricher
     {
         if (enriched.ExtractedKeywords.TechnicalTerms.Count > 5)
             return "Hybrid"; // Both keyword and semantic
-            
+
         if (enriched.SemanticTags.ContentType == "Code")
             return "Keyword";
-            
+
         return "Semantic";
     }
 
     private List<string> PredictQueryTypes(EnrichedChunk enriched)
     {
         var types = new List<string>();
-        
+
         if (enriched.SemanticTags.Intent == "Instructional")
             types.Add("How-to");
         if (enriched.ExtractedKeywords.NamedEntities.Any())
             types.Add("Entity-lookup");
         if (enriched.SemanticTags.ContentType == "Code")
             types.Add("Code-search");
-            
+
         if (!types.Any())
             types.Add("General");
-            
+
         return types;
     }
 
@@ -653,10 +653,10 @@ public class SearchMetadataEnricher
     {
         if (enriched.SemanticTags.ContentType == "Code")
             return "code-embedding-002";
-            
+
         if (enriched.SemanticTags.ComplexityLevel == "High")
             return "text-embedding-3-large";
-            
+
         return "text-embedding-3-small";
     }
 
@@ -669,7 +669,7 @@ public class SearchMetadataEnricher
             return "ja";
         if (Regex.IsMatch(text, @"[\uac00-\ud7af]"))
             return "ko";
-            
+
         return "en";
     }
 
@@ -681,7 +681,7 @@ public class SearchMetadataEnricher
             "by", "from", "as", "is", "was", "are", "were", "been", "being", "have",
             "has", "had", "do", "does", "did", "will", "would", "could", "should"
         };
-        
+
         return stopWords.Contains(word);
     }
 

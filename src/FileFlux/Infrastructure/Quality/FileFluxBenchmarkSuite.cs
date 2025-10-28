@@ -19,7 +19,7 @@ internal class FileFluxBenchmarkSuite
     private readonly ILogger<FileFluxBenchmarkSuite>? _logger;
 
     public FileFluxBenchmarkSuite(
-        ChunkQualityEngine qualityEngine, 
+        ChunkQualityEngine qualityEngine,
         IDocumentProcessor documentProcessor,
         ILogger<FileFluxBenchmarkSuite>? logger = null)
     {
@@ -53,7 +53,7 @@ internal class FileFluxBenchmarkSuite
             foreach (var strategy in chunkingStrategies)
             {
                 _logger?.LogDebug("Benchmarking strategy: {Strategy}", strategy);
-                
+
                 var strategyResult = await BenchmarkStrategyAsync(filePath, strategy, cancellationToken).ConfigureAwait(false);
                 benchmarkResult.StrategyResults.Add(strategyResult);
             }
@@ -77,7 +77,7 @@ internal class FileFluxBenchmarkSuite
             benchmarkResult.Success = false;
             benchmarkResult.Error = ex.Message;
             benchmarkResult.TotalDuration = stopwatch.Elapsed;
-            
+
             _logger?.LogError(ex, "Benchmark failed for file: {FilePath}", filePath);
         }
 
@@ -88,8 +88,8 @@ internal class FileFluxBenchmarkSuite
     /// Benchmarks a specific chunking strategy using internal quality engine.
     /// </summary>
     private async Task<StrategyBenchmarkResult> BenchmarkStrategyAsync(
-        string filePath, 
-        string strategy, 
+        string filePath,
+        string strategy,
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -156,11 +156,11 @@ internal class FileFluxBenchmarkSuite
             var internalMetrics = await _qualityEngine.CalculateQualityMetricsAsync(chunks, cancellationToken).ConfigureAwait(false);
 
             // Compare results
-            validation.ScoreDifference = Math.Abs(externalReport.OverallQualityScore - 
+            validation.ScoreDifference = Math.Abs(externalReport.OverallQualityScore -
                 CalculateOverallScore(internalMetrics, new QAValidationResult()));
 
             validation.MetricsConsistent = CompareQualityMetrics(externalReport.ChunkingQuality, internalMetrics);
-            
+
             validation.IsConsistent = validation.ScoreDifference < 0.01 && validation.MetricsConsistent;
             validation.ValidationDetails = new Dictionary<string, object>
             {
@@ -170,7 +170,7 @@ internal class FileFluxBenchmarkSuite
                 { "metrics_consistent", validation.MetricsConsistent }
             };
 
-            _logger?.LogDebug("Consistency validation - Consistent: {IsConsistent}, Score difference: {ScoreDifference:F4}", 
+            _logger?.LogDebug("Consistency validation - Consistent: {IsConsistent}, Score difference: {ScoreDifference:F4}",
                 validation.IsConsistent, validation.ScoreDifference);
         }
         catch (Exception ex)
@@ -186,7 +186,7 @@ internal class FileFluxBenchmarkSuite
     private static bool CompareQualityMetrics(ChunkingQualityMetrics external, ChunkingQualityMetrics internalMetrics)
     {
         const double tolerance = 0.01;
-        
+
         return Math.Abs(external.AverageCompleteness - internalMetrics.AverageCompleteness) < tolerance &&
                Math.Abs(external.ContentConsistency - internalMetrics.ContentConsistency) < tolerance &&
                Math.Abs(external.BoundaryQuality - internalMetrics.BoundaryQuality) < tolerance &&
@@ -199,10 +199,10 @@ internal class FileFluxBenchmarkSuite
         const double chunkingWeight = 0.8;
         const double answerabilityWeight = 0.2;
 
-        var chunkingScore = (qualityMetrics.AverageCompleteness + 
-                            qualityMetrics.ContentConsistency + 
-                            qualityMetrics.BoundaryQuality + 
-                            qualityMetrics.SizeDistribution + 
+        var chunkingScore = (qualityMetrics.AverageCompleteness +
+                            qualityMetrics.ContentConsistency +
+                            qualityMetrics.BoundaryQuality +
+                            qualityMetrics.SizeDistribution +
                             qualityMetrics.OverlapEffectiveness) / 5.0;
 
         var answerabilityScore = qaValidation.AnswerabilityRatio;
@@ -224,7 +224,7 @@ internal class FileFluxBenchmarkSuite
         var worstStrategy = strategyResults.Where(r => r.Success).OrderBy(r => r.OverallScore).First();
 
         recommendations.Add($"Best performing strategy: {bestStrategy.Strategy} (Score: {bestStrategy.OverallScore:F3})");
-        
+
         if (bestStrategy.OverallScore - worstStrategy.OverallScore > 0.1)
         {
             recommendations.Add($"Consider avoiding {worstStrategy.Strategy} strategy for this document type");

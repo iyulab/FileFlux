@@ -1,4 +1,4 @@
-﻿using FileFlux;
+using FileFlux;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Parsers;
 using System.Collections.Concurrent;

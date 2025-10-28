@@ -1,4 +1,4 @@
-﻿using HtmlAgilityPack;
+using HtmlAgilityPack;
 using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
@@ -206,7 +206,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 var name = meta.GetAttributeValue("name", "");
                 var property = meta.GetAttributeValue("property", "");
                 var content = meta.GetAttributeValue("content", "");
-                
+
                 // name 또는 property가 있는 경우만 처리
                 var attributeName = !string.IsNullOrWhiteSpace(name) ? name : property;
                 if (string.IsNullOrWhiteSpace(attributeName)) continue;
@@ -302,7 +302,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         {
             structuralHints["has_links"] = true;
             structuralHints["link_count"] = linkCount;
-            
+
             if (externalLinks.Count != 0)
             {
                 structuralHints["external_links"] = externalLinks.ToArray();
@@ -319,8 +319,8 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    private static void TraverseNode(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints, 
-        ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount, 
+    private static void TraverseNode(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
+        ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount,
         List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, CancellationToken cancellationToken, int depth = 0)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -344,7 +344,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         if (IsSkippedElement(tagName)) return;
 
         // 블록 레벨 요소 전 줄바꿈
-        if (IsBlockElement(tagName) && textBuilder.Length > 0 && !textBuilder.ToString().EndsWith("\n"))
+        if (IsBlockElement(tagName) && textBuilder.Length > 0 && !textBuilder.ToString().EndsWith("\n", StringComparison.Ordinal))
         {
             textBuilder.AppendLine();
         }
@@ -361,12 +361,12 @@ public partial class HtmlDocumentReader : IDocumentReader
                 break;
 
             case "p":
-                ProcessParagraph(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken, depth);
+                ProcessParagraph(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, depth, cancellationToken);
                 break;
 
             case "ul":
             case "ol":
-                ProcessList(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken, depth, tagName);
+                ProcessList(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, depth, tagName, cancellationToken);
                 listCount++;
                 break;
 
@@ -392,7 +392,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 break;
 
             case "figure":
-                ProcessFigure(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken, depth);
+                ProcessFigure(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, depth, cancellationToken);
                 break;
 
             case "br":
@@ -419,7 +419,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     {
         var level = int.Parse(tagName.Substring(1)); // h1 -> 1, h2 -> 2, etc.
         var headingText = HtmlEntity.DeEntitize(node.InnerText).Trim();
-        
+
         if (!string.IsNullOrWhiteSpace(headingText))
         {
             var prefix = new string('#', level);
@@ -427,9 +427,9 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    private static void ProcessParagraph(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints, 
-        ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount, 
-        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, CancellationToken cancellationToken, int depth)
+    private static void ProcessParagraph(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
+        ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount,
+        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, int depth, CancellationToken cancellationToken)
     {
         foreach (var childNode in node.ChildNodes)
         {
@@ -437,20 +437,20 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    private static void ProcessList(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints, 
-        ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount, 
-        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, CancellationToken cancellationToken, int depth, string tagName)
+    private static void ProcessList(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
+        ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount,
+        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, int depth, string tagName, CancellationToken cancellationToken)
     {
         var isOrdered = tagName == "ol";
         var items = node.SelectNodes(".//li");
-        
+
         if (items != null)
         {
             for (int i = 0; i < items.Count; i++)
             {
                 var item = items[i];
                 var indent = new string(' ', depth * 3);
-                
+
                 if (isOrdered)
                 {
                     textBuilder.Append($"{indent}{i + 1}. ");
@@ -467,9 +467,9 @@ public partial class HtmlDocumentReader : IDocumentReader
                         TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken, depth + 1);
                     }
                 }
-                
+
                 textBuilder.AppendLine();
-                
+
                 // 중첩된 리스트 처리
                 var nestedLists = item.SelectNodes("./ul | ./ol");
                 if (nestedLists != null)
@@ -487,7 +487,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     {
         var caption = node.SelectSingleNode(".//caption");
         var captionText = caption != null ? HtmlEntity.DeEntitize(caption.InnerText).Trim() : "";
-        
+
         if (!string.IsNullOrWhiteSpace(captionText))
         {
             textBuilder.AppendLine($"--- TABLE: {captionText} ---");
@@ -530,7 +530,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 linkCount++;
 
                 // 외부 링크 판별 (http/https로 시작하는 경우)
-                if (href.StartsWith("http://") || href.StartsWith("https://"))
+                if (href.StartsWith("http://", StringComparison.Ordinal) || href.StartsWith("https://", StringComparison.Ordinal))
                 {
                     externalLinks.Add(href);
                 }
@@ -546,7 +546,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     {
         var src = node.GetAttributeValue("src", "");
         var alt = node.GetAttributeValue("alt", "");
-        
+
         if (!string.IsNullOrWhiteSpace(src))
         {
             if (!string.IsNullOrWhiteSpace(alt))
@@ -575,7 +575,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         {
             var classAttr = codeNode.GetAttributeValue("class", "");
             var language = "";
-            
+
             if (!string.IsNullOrWhiteSpace(classAttr))
             {
                 var match = MyRegex().Match(classAttr);
@@ -587,7 +587,7 @@ public partial class HtmlDocumentReader : IDocumentReader
             }
 
             var codeText = HtmlEntity.DeEntitize(codeNode.InnerText);
-            
+
             if (!string.IsNullOrWhiteSpace(language))
             {
                 textBuilder.AppendLine($"```{language}");
@@ -596,10 +596,10 @@ public partial class HtmlDocumentReader : IDocumentReader
             {
                 textBuilder.AppendLine("```");
             }
-            
+
             textBuilder.AppendLine(codeText);
             textBuilder.AppendLine("```");
-            
+
             hasCode = true;
         }
         else
@@ -612,9 +612,9 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    private static void ProcessFigure(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints, 
-        ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount, 
-        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, CancellationToken cancellationToken, int depth)
+    private static void ProcessFigure(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
+        ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount,
+        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, int depth, CancellationToken cancellationToken)
     {
         // figure 내의 이미지 처리
         var imgNode = node.SelectSingleNode(".//img");
@@ -664,9 +664,9 @@ public partial class HtmlDocumentReader : IDocumentReader
 
     private static bool IsBlockElement(string tagName)
     {
-        var blockElements = new[] { 
-            "div", "p", "h1", "h2", "h3", "h4", "h5", "h6", 
-            "ul", "ol", "li", "table", "tr", "td", "th", 
+        var blockElements = new[] {
+            "div", "p", "h1", "h2", "h3", "h4", "h5", "h6",
+            "ul", "ol", "li", "table", "tr", "td", "th",
             "header", "nav", "main", "article", "section", "aside", "footer",
             "figure", "figcaption", "pre", "blockquote"
         };
