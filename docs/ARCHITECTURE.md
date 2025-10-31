@@ -35,6 +35,7 @@ graph TB
 
     C --> D[IDocumentReaderFactory]
     C --> E[IChunkingStrategyFactory]
+    C --> M[IMetadataEnricher]
 
     D --> F[PdfReader]
     D --> G[WordReader]
@@ -54,12 +55,16 @@ graph TB
     E --> U[FixedSizeChunkingStrategy]
     E --> V[MemoryOptimizedIntelligentStrategy]
 
+    M --> X[AIMetadataEnricher]
+    M --> Y[RuleBasedMetadataExtractor]
+
     C --> W[DocumentChunk[]]
 
     style A fill:#e1f5fe
     style B fill:#f3e5f5
     style C fill:#fff3e0
     style W fill:#e8f5e8
+    style M fill:#e8eaf6
 ```
 
 ### Project Structure
@@ -72,6 +77,7 @@ FileFlux/
 │   ├── IDocumentProcessor
 │   ├── IDocumentReader
 │   ├── IChunkingStrategy
+│   ├── IMetadataEnricher
 │   └── Factories
 ├── Domain/                    # Domain Models
 │   ├── DocumentChunk
@@ -82,6 +88,8 @@ FileFlux/
     ├── Readers/             # Document Readers
     ├── Strategies/          # Chunking Strategies
     ├── Services/            # Processing Services
+    │   ├── AIMetadataEnricher
+    │   └── RuleBasedMetadataExtractor
     └── Utilities/           # Helper Classes
 ```
 
@@ -146,9 +154,17 @@ FileFlux/
 2. Document type detection
 3. Reader selection
 4. Content extraction
-5. Strategy selection
-6. Chunking application
-7. Post-processing
+5. Optional metadata enrichment (if enabled)
+6. Structure parsing
+7. Strategy selection
+8. Chunking application
+9. Post-processing
+
+**Dependency Management**:
+- Optional logger support via NullLogger pattern
+- Optional IMetadataEnricher for advanced metadata features
+- Optional ITextCompletionService for AI-powered features
+- All optional dependencies use graceful fallback strategies
 
 ### 3. IDocumentReader (Content Extraction)
 
@@ -181,14 +197,16 @@ graph TB
     A[Document Input] --> B[Type Detection]
     B --> C[Reader Selection]
     C --> D[Content Extraction]
-    D --> E[Structure Parsing]
-    E --> F[Strategy Selection]
-    F --> G[Chunking Process]
-    G --> H[Post Processing]
-    H --> I[DocumentChunk[]]
+    D --> E[Metadata Enrichment]
+    E --> F[Structure Parsing]
+    F --> G[Strategy Selection]
+    G --> H[Chunking Process]
+    H --> I[Post Processing]
+    I --> J[DocumentChunk[]]
 
     style A fill:#e1f5fe
-    style I fill:#e8f5e8
+    style E fill:#e8eaf6
+    style J fill:#e8f5e8
 ```
 
 ### 1. Input Processing
@@ -203,7 +221,15 @@ graph TB
 - Text content and metadata extraction
 - Document structure preservation
 
-### 3. Chunking Processing
+### 3. Metadata Enrichment (Optional)
+
+- AI-powered metadata extraction with ITextCompletionService
+- Three-tier fallback: AI → Hybrid → Rule-based
+- Automatic caching based on file content hash
+- Schema-based extraction (General, ProductManual, TechnicalDoc)
+- Enriched metadata stored in CustomProperties with "enriched_" prefix
+
+### 4. Chunking Processing
 
 - Content splitting based on selected strategy
 - Overlap between chunks
@@ -234,10 +260,45 @@ graph TB
 - **OverlapSize**: Overlap size between chunks (default: 128 tokens)
 - **PreserveStructure**: Whether to preserve document structure
 - **StrategyOptions**: Strategy-specific detailed options
+- **CustomProperties**: Extensible configuration dictionary for features like metadata enrichment
+
+**Metadata Enrichment Configuration**:
+```csharp
+var options = new ChunkingOptions
+{
+    Strategy = "Auto",
+    CustomProperties = new Dictionary<string, object>
+    {
+        ["enableMetadataEnrichment"] = true,
+        ["metadataSchema"] = MetadataSchema.General,
+        ["metadataOptions"] = new MetadataEnrichmentOptions
+        {
+            ExtractionStrategy = MetadataExtractionStrategy.Smart,
+            MinConfidence = 0.7
+        }
+    }
+};
+```
 
 ### Dependency Injection Setup
 
-**Basic Registration**: `services.AddFileFlux()`
+**Basic Registration**:
+```csharp
+services.AddFileFlux();  // No logger registration required
+```
+
+**With Optional Services**:
+```csharp
+// Optional: Logger (uses NullLogger if not provided)
+services.AddLogging(builder => builder.AddConsole());
+
+// Optional: AI services for advanced features
+services.AddScoped<ITextCompletionService, YourLLMService>();
+services.AddScoped<IImageToTextService, YourVisionService>();
+
+// Register FileFlux
+services.AddFileFlux();
+```
 
 **Custom Configuration**: Configure defaults with options callback
 
@@ -381,6 +442,21 @@ chunk.Props["HasImages"] = true;
 // Maintain backward compatibility with extension methods
 public static string? ContextualHeader(this DocumentChunk chunk)
     => chunk.Props.TryGetValue("ContextualHeader", out var v) ? v?.ToString() : null;
+```
+
+### Metadata Enrichment Pattern
+
+```csharp
+// Enriched metadata storage in CustomProperties
+chunk.Metadata.CustomProperties["enriched_topics"] = new[] { "AI", "Machine Learning" };
+chunk.Metadata.CustomProperties["enriched_keywords"] = new[] { "neural networks", "deep learning" };
+chunk.Metadata.CustomProperties["enriched_description"] = "Introduction to AI concepts";
+chunk.Metadata.CustomProperties["enriched_confidence"] = 0.92;
+chunk.Metadata.CustomProperties["enriched_extractionMethod"] = "ai";
+
+// Access enriched metadata
+var topics = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_topics") as string[];
+var confidence = Convert.ToDouble(chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_confidence", 0.0));
 ```
 
 ### Pipeline Traceability

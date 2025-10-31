@@ -169,20 +169,31 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
             return BoundaryType.List;
         }
 
-        // Very low similarity indicates major topic change (after structural checks)
+        // Very low similarity indicates major topic change (highest priority for semantic boundaries)
         if (similarity < 0.3)
         {
             return BoundaryType.TopicChange;
         }
 
-        // Check paragraph boundaries
-        if (segment1.EndsWith(".", StringComparison.Ordinal) && char.IsUpper(segment2.FirstOrDefault()))
+        // Medium-low similarity with sentence boundary patterns
+        if (similarity < 0.5)
         {
-            return similarity < 0.5 ? BoundaryType.Paragraph : BoundaryType.Sentence;
+            // Check if it's a clear paragraph boundary
+            if (segment1.EndsWith(".", StringComparison.Ordinal) && char.IsUpper(segment2.FirstOrDefault()))
+            {
+                return BoundaryType.Paragraph;
+            }
+            return BoundaryType.TopicChange;
         }
 
-        // Default based on similarity
-        return similarity < 0.5 ? BoundaryType.TopicChange : BoundaryType.Paragraph;
+        // High similarity - check for sentence boundaries
+        if (segment1.EndsWith(".", StringComparison.Ordinal) && char.IsUpper(segment2.FirstOrDefault()))
+        {
+            return BoundaryType.Sentence;
+        }
+
+        // Default for high similarity content
+        return BoundaryType.Paragraph;
     }
 
     private IEnumerable<BoundaryPoint> PostProcessBoundaries(

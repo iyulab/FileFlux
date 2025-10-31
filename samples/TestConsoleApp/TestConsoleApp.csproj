@@ -9,9 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\FileFlux.Core\FileFlux.Core.csproj" />
-    <ProjectReference Include="..\..\src\FileFlux.Infrastructure\FileFlux.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\tests\FileFlux.Tests\FileFlux.Tests.csproj" />
+    <ProjectReference Include="..\..\src\FileFlux\FileFlux.csproj" />
   </ItemGroup>
 
   <ItemGroup>

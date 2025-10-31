@@ -31,11 +31,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-// Optional: Register AI services (implemented by your application)
+// Optional: Register AI services for advanced features
+// - ITextCompletionService: Required for intelligent chunking and AI-powered metadata enrichment
+// - IImageToTextService: Required for multimodal document processing with images
 services.AddScoped<ITextCompletionService, YourLLMService>();
 services.AddScoped<IImageToTextService, YourVisionService>();
 
 // Register FileFlux services
+// Note: Logger registration is optional - FileFlux uses NullLogger internally if not provided
 services.AddFileFlux();
 
 var provider = services.BuildServiceProvider();
@@ -244,6 +247,160 @@ var options = new ChunkingOptions
 Use for: Uniform processing requirements, simple splitting needs
 
 ## Advanced Features
+
+### Metadata Enrichment
+
+FileFlux can automatically extract structured metadata during document processing:
+
+```csharp
+using FileFlux.Core;
+
+var options = new ChunkingOptions
+{
+    Strategy = "Auto",
+    MaxChunkSize = 512,
+    CustomProperties = new Dictionary<string, object>
+    {
+        ["enableMetadataEnrichment"] = true,
+        ["metadataSchema"] = MetadataSchema.General,
+        ["metadataOptions"] = new MetadataEnrichmentOptions
+        {
+            ExtractionStrategy = MetadataExtractionStrategy.Smart,
+            MinConfidence = 0.7,
+            ContinueOnEnrichmentFailure = true
+        }
+    }
+};
+
+var chunks = await processor.ProcessAsync("document.pdf", options);
+
+// Access enriched metadata
+foreach (var chunk in chunks)
+{
+    if (chunk.Metadata.CustomProperties.TryGetValue("enriched_topics", out var topics))
+    {
+        Console.WriteLine($"Topics: {string.Join(", ", (string[])topics)}");
+    }
+
+    if (chunk.Metadata.CustomProperties.TryGetValue("enriched_keywords", out var keywords))
+    {
+        Console.WriteLine($"Keywords: {string.Join(", ", (string[])keywords)}");
+    }
+
+    if (chunk.Metadata.CustomProperties.TryGetValue("enriched_description", out var desc))
+    {
+        Console.WriteLine($"Description: {desc}");
+    }
+}
+```
+
+#### Metadata Schemas
+
+**General Schema**: For general documents
+```csharp
+var options = new ChunkingOptions
+{
+    CustomProperties = new Dictionary<string, object>
+    {
+        ["enableMetadataEnrichment"] = true,
+        ["metadataSchema"] = MetadataSchema.General
+    }
+};
+
+// Extracts: topics, keywords, description, documentType, language
+```
+
+**ProductManual Schema**: For product manuals
+```csharp
+var options = new ChunkingOptions
+{
+    CustomProperties = new Dictionary<string, object>
+    {
+        ["enableMetadataEnrichment"] = true,
+        ["metadataSchema"] = MetadataSchema.ProductManual
+    }
+};
+
+// Extracts: productName, company, version, model, releaseDate, topics, keywords
+```
+
+**TechnicalDoc Schema**: For technical documentation
+```csharp
+var options = new ChunkingOptions
+{
+    CustomProperties = new Dictionary<string, object>
+    {
+        ["enableMetadataEnrichment"] = true,
+        ["metadataSchema"] = MetadataSchema.TechnicalDoc
+    }
+};
+
+// Extracts: topics, libraries, frameworks, technologies, keywords
+```
+
+#### Extraction Strategies
+
+**Fast Strategy**: Quick extraction (2000 chars)
+```csharp
+var metadataOptions = new MetadataEnrichmentOptions
+{
+    ExtractionStrategy = MetadataExtractionStrategy.Fast
+};
+```
+
+**Smart Strategy**: Balanced extraction (4000 chars, default)
+```csharp
+var metadataOptions = new MetadataEnrichmentOptions
+{
+    ExtractionStrategy = MetadataExtractionStrategy.Smart
+};
+```
+
+**Deep Strategy**: Comprehensive extraction (8000 chars)
+```csharp
+var metadataOptions = new MetadataEnrichmentOptions
+{
+    ExtractionStrategy = MetadataExtractionStrategy.Deep
+};
+```
+
+#### Caching
+
+Metadata extraction results are automatically cached based on file content hash:
+
+```csharp
+// First call: Extracts metadata via AI/rules
+var chunks1 = await processor.ProcessAsync("document.pdf", options);
+
+// Second call with same file: Uses cached metadata
+var chunks2 = await processor.ProcessAsync("document.pdf", options);
+```
+
+Cache is valid for 1 hour and supports up to 100 documents by default.
+
+#### Fallback Strategy
+
+FileFlux uses a three-tier fallback strategy for robust metadata extraction:
+
+1. **AI Extraction**: Uses ITextCompletionService if available and registered
+2. **Hybrid Mode**: Combines AI and rule-based extraction if AI confidence is below threshold
+3. **Rule-Based**: Falls back to pattern matching if AI is unavailable or fails
+
+```csharp
+var metadataOptions = new MetadataEnrichmentOptions
+{
+    MinConfidence = 0.7,  // Trigger hybrid mode if AI confidence < 0.7
+    ContinueOnEnrichmentFailure = true,  // Continue processing on failure
+    MaxRetries = 2,  // Retry AI extraction on transient failures
+    TimeoutMs = 30000  // 30 second timeout per extraction attempt
+};
+```
+
+**Automatic Fallback Behavior**:
+- If ITextCompletionService is not registered → Rule-based extraction
+- If AI extraction times out → Retry, then rule-based fallback
+- If AI confidence < MinConfidence → Merge AI and rule-based results
+- If all retries fail → Rule-based fallback (or throw if ContinueOnEnrichmentFailure = false)
 
 ### Multimodal Processing
 

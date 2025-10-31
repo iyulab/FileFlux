@@ -15,7 +15,7 @@ public class DocumentReadersIntegrationTests
 {
     private readonly DocumentReaderFactory _factory;
     private readonly ILogger<DocumentReadersIntegrationTests> _logger;
-    private const string TestDataPath = @"D:\data\FileFlux\test";
+    private const string TestDataPath = @"D:\data\FileFlux\tests";
 
     public DocumentReadersIntegrationTests()
     {

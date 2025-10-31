@@ -15,6 +15,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, Markdown, HTML, TXT, JSON, CSV
 - **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize
+- **Metadata Enrichment**: AI-powered metadata extraction with caching and fallback
 - **Extensible Architecture**: Interface-based design for easy customization
 - **Async Processing**: Streaming and parallel processing for large documents
 
@@ -34,7 +35,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-// Register FileFlux services
+// Optional: Register AI services for advanced features
+// services.AddScoped<ITextCompletionService, YourLLMService>();
+
+// Register FileFlux services (no logger required)
 services.AddFileFlux();
 
 var provider = services.BuildServiceProvider();
@@ -77,6 +81,30 @@ var options = new ChunkingOptions
 var chunks = await processor.ProcessAsync("document.pdf", options);
 ```
 
+### Metadata Enrichment
+
+```csharp
+var options = new ChunkingOptions
+{
+    Strategy = "Auto",
+    MaxChunkSize = 512,
+    CustomProperties = new Dictionary<string, object>
+    {
+        ["enableMetadataEnrichment"] = true,
+        ["metadataSchema"] = MetadataSchema.General
+    }
+};
+
+var chunks = await processor.ProcessAsync("document.pdf", options);
+
+// Access enriched metadata
+foreach (var chunk in chunks)
+{
+    var topics = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_topics");
+    var keywords = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_keywords");
+}
+```
+
 ## Supported Document Formats
 
 | Format | Extension | Features |
@@ -102,16 +130,20 @@ var chunks = await processor.ProcessAsync("document.pdf", options);
 
 ## AI Service Integration
 
-FileFlux defines interfaces while implementation is up to the user.
+FileFlux defines interfaces while implementation is up to the consumer application.
 
 ```csharp
-// Register AI services (optional)
+// Optional: Register AI services for advanced features
+// - ITextCompletionService: For intelligent chunking and metadata enrichment
+// - IImageToTextService: For multimodal document processing
 services.AddScoped<ITextCompletionService, YourLLMService>();
 services.AddScoped<IImageToTextService, YourVisionService>();
 
-// Register FileFlux services
+// Register FileFlux services (works without AI services too)
 services.AddFileFlux();
 ```
+
+**Note**: Logger registration is optional. FileFlux uses NullLogger internally if no logger is provided.
 
 For AI service implementation examples, see the `samples/` directory.
 

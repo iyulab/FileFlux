@@ -1,6 +1,7 @@
 using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
+using FileFlux.Core;
 using FileFlux.Infrastructure.Quality;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
@@ -15,19 +16,22 @@ public partial class DocumentProcessor : IDocumentProcessor
     private readonly IDocumentReaderFactory _readerFactory;
     private readonly IDocumentParserFactory _parserFactory;
     private readonly IChunkingStrategyFactory _chunkingFactory;
-    private readonly ILogger<DocumentProcessor>? _logger;
+    private readonly ILogger<DocumentProcessor> _logger;
     private readonly Lazy<DocumentQualityAnalyzer> _qualityAnalyzer;
+    private readonly IMetadataEnricher? _metadataEnricher;
 
     public DocumentProcessor(
         IDocumentReaderFactory readerFactory,
         IDocumentParserFactory parserFactory,
         IChunkingStrategyFactory chunkingFactory,
+        IMetadataEnricher? metadataEnricher = null,
         ILogger<DocumentProcessor>? logger = null)
     {
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _parserFactory = parserFactory ?? throw new ArgumentNullException(nameof(parserFactory));
         _chunkingFactory = chunkingFactory ?? throw new ArgumentNullException(nameof(chunkingFactory));
-        _logger = logger;
+        _metadataEnricher = metadataEnricher; // Optional
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<DocumentProcessor>.Instance;
 
         // Lazy initialization to avoid circular dependencies
         _qualityAnalyzer = new Lazy<DocumentQualityAnalyzer>(() =>
@@ -47,6 +51,9 @@ public partial class DocumentProcessor : IDocumentProcessor
 
         // Step 1: Extract text
         var rawContent = await ExtractTextInternalAsync(filePath, cancellationToken);
+
+        // Step 1.5: Enrich metadata if enabled (Phase 16)
+        await EnrichMetadataIfEnabledAsync(filePath, rawContent, options, cancellationToken);
 
         // Step 2: Parse document
         var parsedContent = await ParseAsync(rawContent, (DocumentParsingOptions?)null, cancellationToken);
@@ -106,14 +113,14 @@ public partial class DocumentProcessor : IDocumentProcessor
 
         parsingOptions ??= new DocumentParsingOptions();
 
-        _logger?.LogDebug("Starting document parsing. UseLlmParsing: {UseLlmParsing}, Level: {Level}",
+        _logger.LogDebug("Starting document parsing. UseLlmParsing: {UseLlmParsing}, Level: {Level}",
             parsingOptions.UseLlmParsing, parsingOptions.StructuringLevel);
 
         try
         {
             // 적절한 Parser 선택
             var parser = _parserFactory.GetParser(rawContent);
-            _logger?.LogDebug("Using parser: {ParserType}", parser.ParserType);
+            _logger.LogDebug("Using parser: {ParserType}", parser.ParserType);
 
             // 문서 구조화
             var parsedContent = await parser.ParseAsync(rawContent, parsingOptions, cancellationToken);
@@ -123,7 +130,7 @@ public partial class DocumentProcessor : IDocumentProcessor
             {
                 foreach (var warning in parsedContent.Info.Warnings)
                 {
-                    _logger?.LogWarning("Parsing warning: {Warning}", warning);
+                    _logger.LogWarning("Parsing warning: {Warning}", warning);
                 }
             }
 
@@ -144,7 +151,7 @@ public partial class DocumentProcessor : IDocumentProcessor
 
         options ??= new ChunkingOptions();
 
-        _logger?.LogDebug("Starting chunking. Strategy: {Strategy}, MaxSize: {MaxSize}, Overlap: {Overlap}",
+        _logger.LogDebug("Starting chunking. Strategy: {Strategy}, MaxSize: {MaxSize}, Overlap: {Overlap}",
             options.Strategy, options.MaxChunkSize, options.OverlapSize);
 
         try
@@ -154,7 +161,7 @@ public partial class DocumentProcessor : IDocumentProcessor
             if (strategy == null)
                 throw new InvalidOperationException($"Chunking strategy '{options.Strategy}' not found");
 
-            _logger?.LogDebug("Using chunking strategy: {StrategyName}", strategy.StrategyName);
+            _logger.LogDebug("Using chunking strategy: {StrategyName}", strategy.StrategyName);
 
             // ParsedContent를 기존 DocumentContent로 변환
             var documentContent = ConvertToDocumentContent(parsedContent);
@@ -184,7 +191,7 @@ public partial class DocumentProcessor : IDocumentProcessor
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        _logger?.LogDebug("Starting text extraction for: {FilePath}", filePath);
+        _logger.LogDebug("Starting text extraction for: {FilePath}", filePath);
 
         try
         {
@@ -193,7 +200,7 @@ public partial class DocumentProcessor : IDocumentProcessor
             if (reader == null)
                 throw new UnsupportedFileFormatException(filePath, $"No suitable reader found for file: {filePath}");
 
-            _logger?.LogDebug("Using reader: {ReaderType}", reader.ReaderType);
+            _logger.LogDebug("Using reader: {ReaderType}", reader.ReaderType);
 
             // 텍스트 추출
             var rawContent = await reader.ExtractAsync(filePath, cancellationToken);
@@ -203,7 +210,7 @@ public partial class DocumentProcessor : IDocumentProcessor
             {
                 foreach (var warning in rawContent.Warnings)
                 {
-                    _logger?.LogWarning("Extraction warning: {Warning}", warning);
+                    _logger.LogWarning("Extraction warning: {Warning}", warning);
                 }
             }
 
@@ -235,7 +242,7 @@ public partial class DocumentProcessor : IDocumentProcessor
             {
                 foreach (var warning in rawContent.Warnings)
                 {
-                    _logger?.LogWarning("Extraction warning: {Warning}", warning);
+                    _logger.LogWarning("Extraction warning: {Warning}", warning);
                 }
             }
 
@@ -258,7 +265,7 @@ public partial class DocumentProcessor : IDocumentProcessor
         ChunkingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        _logger?.LogDebug("Starting quality analysis for: {FilePath}", filePath);
+        _logger.LogDebug("Starting quality analysis for: {FilePath}", filePath);
 
         try
         {
@@ -280,7 +287,7 @@ public partial class DocumentProcessor : IDocumentProcessor
         QABenchmark? existingQA = null,
         CancellationToken cancellationToken = default)
     {
-        _logger?.LogDebug("Starting QA generation for: {FilePath}, QuestionCount: {QuestionCount}", filePath, questionCount);
+        _logger.LogDebug("Starting QA generation for: {FilePath}, QuestionCount: {QuestionCount}", filePath, questionCount);
 
         try
         {
@@ -289,7 +296,7 @@ public partial class DocumentProcessor : IDocumentProcessor
             // Merge with existing QA if provided
             if (existingQA != null)
             {
-                _logger?.LogDebug("Merging with existing QA benchmark containing {ExistingCount} questions", existingQA.Questions.Count);
+                _logger.LogDebug("Merging with existing QA benchmark containing {ExistingCount} questions", existingQA.Questions.Count);
                 return QABenchmark.Merge(existingQA, newQABenchmark);
             }
 
@@ -323,5 +330,89 @@ public partial class DocumentProcessor : IDocumentProcessor
                 ["UsedLlm"] = parsedContent.Info.UsedLlm
             }
         };
+    }
+
+    /// <summary>
+    /// Enrich metadata if enabled in options (Phase 16)
+    /// </summary>
+    private async Task EnrichMetadataIfEnabledAsync(
+        string filePath,
+        RawContent rawContent,
+        ChunkingOptions? options,
+        CancellationToken cancellationToken)
+    {
+        if (options == null || _metadataEnricher == null)
+            return;
+
+        // Check if metadata enrichment is enabled
+        if (!options.CustomProperties.TryGetValue("enableMetadataEnrichment", out var enabledObj) ||
+            enabledObj is not bool enabled || !enabled)
+        {
+            return;
+        }
+
+        _logger.LogInformation("Metadata enrichment enabled for {FileName}", rawContent.File.Name);
+
+        try
+        {
+            // Get schema (default: General)
+            var schema = Core.MetadataSchema.General;
+            if (options.CustomProperties.TryGetValue("metadataSchema", out var schemaObj) &&
+                schemaObj is Core.MetadataSchema schemaValue)
+            {
+                schema = schemaValue;
+            }
+
+            // Get enrichment options
+            Core.MetadataEnrichmentOptions? enrichmentOptions = null;
+            if (options.CustomProperties.TryGetValue("metadataOptions", out var optionsObj) &&
+                optionsObj is Core.MetadataEnrichmentOptions opts)
+            {
+                enrichmentOptions = opts;
+            }
+
+            // Generate cache key
+            var cacheKey = _metadataEnricher.GenerateCacheKey(filePath, schema);
+
+            // Extract metadata with caching
+            var enrichedMetadata = await _metadataEnricher.EnrichWithCacheAsync(
+                content: rawContent.Text,
+                cacheKey: cacheKey,
+                schema: schema,
+                options: enrichmentOptions,
+                cancellationToken: cancellationToken);
+
+            // Store enriched metadata in ChunkingOptions.CustomProperties for later use
+            foreach (var (key, value) in enrichedMetadata)
+            {
+                options.CustomProperties[$"enriched_{key}"] = value;
+            }
+
+            _logger.LogInformation(
+                "Metadata enrichment completed: {Count} fields, confidence: {Confidence}, method: {Method}",
+                enrichedMetadata.Count,
+                enrichedMetadata.TryGetValue("confidence", out var confVal) ? confVal : 0.0,
+                enrichedMetadata.TryGetValue("extractionMethod", out var methodVal) ? methodVal : "unknown");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Metadata enrichment failed for {FileName}", rawContent.File.Name);
+
+            // Check if we should continue on failure (default: true)
+            var continueOnFailure = true;
+            if (options.CustomProperties.TryGetValue("metadataOptions", out var optionsObj) &&
+                optionsObj is Core.MetadataEnrichmentOptions opts)
+            {
+                continueOnFailure = opts.ContinueOnEnrichmentFailure;
+            }
+
+            if (!continueOnFailure)
+            {
+                throw;
+            }
+
+            // Store error in CustomProperties
+            options.CustomProperties["enriched_error"] = ex.Message;
+        }
     }
 }

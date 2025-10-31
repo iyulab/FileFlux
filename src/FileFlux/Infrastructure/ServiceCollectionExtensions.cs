@@ -66,6 +66,16 @@ public static class ServiceCollectionExtensions
             new FileFlux.Infrastructure.Quality.ChunkQualityEngine(
                 provider.GetService<ITextCompletionService>()));
 
+        // Metadata enrichment services (Phase 16)
+        services.AddSingleton<RuleBasedMetadataExtractor>();
+        services.AddSingleton<IMetadataEnricher, AIMetadataEnricher>();
+
+        // Memory cache for metadata enrichment
+        services.AddMemoryCache(options =>
+        {
+            options.SizeLimit = 100; // Cache up to 100 documents
+        });
+
         // Phase 15 성능 최적화 컴포넌트들은 별도로 등록 가능
 
         return services;
