@@ -42,7 +42,8 @@ public class DocumentReadersIntegrationTests
         Assert.Contains("ExcelReader", readerTypes);
         Assert.Contains("PowerPointReader", readerTypes);
         Assert.Contains("PdfReader", readerTypes);
-        
+        Assert.Contains("ZipArchiveReader", readerTypes); // ZIP support added
+
         _logger.LogInformation("✅ All expected readers are registered");
     }
 

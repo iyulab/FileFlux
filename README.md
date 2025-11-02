@@ -105,6 +105,42 @@ foreach (var chunk in chunks)
 }
 ```
 
+### ZIP Archive Processing
+
+FileFlux automatically processes ZIP archives containing supported document formats:
+
+```csharp
+// Process ZIP archive directly - no manual extraction needed
+var chunks = await processor.ProcessAsync("documents.zip");
+
+// Archive processing includes:
+// - Automatic extraction of supported files (PDF, DOCX, etc.)
+// - Security validation (path traversal, zip bomb detection)
+// - Resource limits (file size, count, compression ratio)
+// - Automatic cleanup of temporary files
+```
+
+**Security Features**:
+- **Path Traversal Protection**: Blocks malicious paths like `../../etc/passwd`
+- **Zip Bomb Detection**: Validates compression ratios (default max: 100x)
+- **Resource Limits**: Configurable size and file count limits
+- **Safe Extraction**: Isolated temporary directory with automatic cleanup
+
+**Configuration Options**:
+```csharp
+var options = new ZipProcessingOptions
+{
+    MaxZipFileSize = 100 * 1024 * 1024,      // 100MB (default)
+    MaxExtractedSize = 1024 * 1024 * 1024,   // 1GB (default)
+    MaxFileCount = 1000,                      // Max files (default)
+    MaxCompressionRatio = 100,                // Zip bomb threshold (default)
+    EnableParallelProcessing = true           // Parallel file processing (default)
+};
+
+var readerFactory = serviceProvider.GetRequiredService<IDocumentReaderFactory>();
+var zipReader = new ZipArchiveReader(readerFactory, options);
+```
+
 ## Supported Document Formats
 
 | Format | Extension | Features |
@@ -116,6 +152,7 @@ foreach (var chunk in chunks)
 | Markdown | .md | Structure preservation |
 | HTML | .html, .htm | Web content extraction |
 | Text | .txt, .json, .csv | Basic text processing |
+| **ZIP Archive** | **.zip** | **Automatic extraction and processing of supported documents** |
 
 ## Chunking Strategies
 
