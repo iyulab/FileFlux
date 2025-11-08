@@ -42,9 +42,9 @@ jobs:
           echo "Detected version: ${{ steps.extract-version.outputs.version }}"
           echo "This workflow will proceed to build and publish the NuGet package."
 
-  # NuGet 패키지 빌드 (빌드 포함)
-  build-package:
-    name: 📦 Build & Pack NuGet Package
+  # NuGet 패키지 빌드 (FileFlux SDK)
+  build-sdk:
+    name: 📦 Build FileFlux SDK
     runs-on: ubuntu-latest
     needs: detect-version
     steps:
@@ -56,7 +56,7 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: 📦 Create NuGet Package
+      - name: 📦 Create FileFlux NuGet Package
         run: |
           dotnet pack src/FileFlux/FileFlux.csproj \
             --configuration Release \
@@ -68,23 +68,23 @@ jobs:
       - name: 📋 List Generated Packages
         run: ls -la nupkg/
 
-      - name: 📤 Upload Package Artifacts
+      - name: 📤 Upload SDK Package
         uses: actions/upload-artifact@v4
         with:
-          name: nuget-packages
-          path: nupkg/*.nupkg
+          name: fileflux-sdk
+          path: nupkg/FileFlux.*.nupkg
 
-      - name: 📤 Upload Symbol Artifacts
+      - name: 📤 Upload SDK Symbols
         uses: actions/upload-artifact@v4
         with:
-          name: nuget-symbols
-          path: nupkg/*.snupkg
+          name: fileflux-sdk-symbols
+          path: nupkg/FileFlux.*.snupkg
 
-  # NuGet.org에 게시
-  publish-nuget:
-    name: 🚀 Publish to NuGet.org
+  # dotnet tool 빌드 (FileFlux.CLI)
+  build-cli:
+    name: 🔧 Build FileFlux CLI Tool
     runs-on: ubuntu-latest
-    needs: [detect-version, build-package]
+    needs: detect-version
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
@@ -94,25 +94,88 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: 📦 Download Package Artifacts
+      - name: 🔧 Create FileFlux.CLI Tool Package
+        run: |
+          dotnet pack src/FileFlux.CLI/FileFlux.CLI.csproj \
+            --configuration Release \
+            --output nupkg/ \
+            -p:PackageVersion=${{ needs.detect-version.outputs.version }} \
+            -p:AssemblyVersion=${{ needs.detect-version.outputs.version }} \
+            -p:FileVersion=${{ needs.detect-version.outputs.version }}
+
+      - name: 📋 List Generated Packages
+        run: ls -la nupkg/
+
+      - name: 📤 Upload CLI Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: fileflux-cli
+          path: nupkg/FileFlux.CLI.*.nupkg
+
+      - name: 📤 Upload CLI Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: fileflux-cli-symbols
+          path: nupkg/FileFlux.CLI.*.snupkg
+
+  # NuGet.org에 게시
+  publish-nuget:
+    name: 🚀 Publish to NuGet.org
+    runs-on: ubuntu-latest
+    needs: [detect-version, build-sdk, build-cli]
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 📦 Download SDK Package
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
+          name: fileflux-sdk
           path: nupkg/
 
-      - name: 📦 Download Symbol Artifacts
+      - name: 📦 Download SDK Symbols
         uses: actions/download-artifact@v4
         with:
-          name: nuget-symbols
+          name: fileflux-sdk-symbols
+          path: nupkg/
+
+      - name: 🔧 Download CLI Package
+        uses: actions/download-artifact@v4
+        with:
+          name: fileflux-cli
+          path: nupkg/
+
+      - name: 🔧 Download CLI Symbols
+        uses: actions/download-artifact@v4
+        with:
+          name: fileflux-cli-symbols
           path: nupkg/
 
       - name: 📋 Verify Downloaded Packages
         run: ls -la nupkg/
 
-      - name: 🚀 Publish to NuGet.org
+      - name: 🚀 Publish FileFlux SDK to NuGet.org
         run: |
-          for package in nupkg/*.nupkg; do
-            echo "Publishing $package..."
+          for package in nupkg/FileFlux.[0-9]*.nupkg; do
+            echo "Publishing SDK: $package..."
+            dotnet nuget push "$package" \
+              --api-key ${{ secrets.NUGET_API_KEY }} \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate \
+              --no-symbols
+          done
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
+      - name: 🔧 Publish FileFlux.CLI Tool to NuGet.org
+        run: |
+          for package in nupkg/FileFlux.CLI.*.nupkg; do
+            echo "Publishing CLI tool: $package..."
             dotnet nuget push "$package" \
               --api-key ${{ secrets.NUGET_API_KEY }} \
               --source https://api.nuget.org/v3/index.json \
@@ -140,10 +203,16 @@ jobs:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
-      - name: 📦 Download Package Artifacts
+      - name: 📦 Download SDK Package
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
+          name: fileflux-sdk
+          path: nupkg/
+
+      - name: 🔧 Download CLI Package
+        uses: actions/download-artifact@v4
+        with:
+          name: fileflux-cli
           path: nupkg/
 
       - name: 📝 Generate Release Notes
@@ -151,27 +220,41 @@ jobs:
         run: |
           cat > release-notes.md << 'EOF'
           ## 🚀 FileFlux v${{ needs.detect-version.outputs.version }}
-          
-          ### 📦 NuGet Package
+
+          ### 📦 FileFlux SDK (NuGet Package)
           ```bash
           dotnet add package FileFlux --version ${{ needs.detect-version.outputs.version }}
           ```
-          
+
+          ### 🔧 FileFlux CLI (dotnet tool)
+          ```bash
+          dotnet tool install --global FileFlux.CLI --version ${{ needs.detect-version.outputs.version }}
+          ```
+
           ### 🔗 Links
-          - [NuGet Package](https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }})
+          - [FileFlux SDK on NuGet](https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }})
+          - [FileFlux CLI on NuGet](https://www.nuget.org/packages/FileFlux.CLI/${{ needs.detect-version.outputs.version }})
           - [Documentation](https://github.com/iyulab/FileFlux#readme)
-          
+
           ### 📊 Benchmarks
           All document formats achieve **A+ performance grade** with excellent memory efficiency.
-          
+
           ### 🛠️ What's Included
+
+          **FileFlux SDK:**
           - Complete RAG-optimized document processing SDK
           - Support for PDF, DOCX, Excel, PowerPoint, Markdown and more
           - Intelligent chunking strategies with semantic boundary detection
           - Advanced metadata extraction and performance optimization
-          
+
+          **FileFlux CLI:**
+          - Command-line interface for document processing
+          - AI-powered metadata enrichment (OpenAI, Anthropic)
+          - Multiple output formats (JSON, JSONL, Markdown)
+          - Commands: info, extract, chunk, process
+
           ---
-          
+
           🤖 *This release was automatically generated and published by GitHub Actions*
           EOF
 
@@ -198,9 +281,10 @@ jobs:
         if: needs.create-release.result == 'success'
         run: |
           echo "🎉 Successfully published FileFlux v${{ needs.detect-version.outputs.version }} to NuGet.org!"
-          echo "📦 Package URL: https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }}"
+          echo "📦 SDK: https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }}"
+          echo "🔧 CLI: https://www.nuget.org/packages/FileFlux.CLI/${{ needs.detect-version.outputs.version }}"
 
-      - name: ❌ Failure Notification  
+      - name: ❌ Failure Notification
         if: needs.create-release.result != 'success'
         run: |
           echo "❌ Failed to publish FileFlux v${{ needs.detect-version.outputs.version }}"
