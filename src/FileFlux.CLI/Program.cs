@@ -1,6 +1,7 @@
 using FileFlux.CLI.Commands;
 using Spectre.Console;
 using System.CommandLine;
+using System.Text;
 
 namespace FileFlux.CLI;
 
@@ -8,6 +9,10 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
+        // Set console encoding to UTF-8 for proper Unicode character display
+        Console.OutputEncoding = Encoding.UTF8;
+        Console.InputEncoding = Encoding.UTF8;
+
         // Create root command
         var rootCommand = new RootCommand("FileFlux CLI - Document processing for RAG systems")
         {

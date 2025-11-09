@@ -43,6 +43,6 @@ public class MarkdownOutputWriter : IOutputWriter
             sb.AppendLine();
         }
 
-        await File.WriteAllTextAsync(outputPath, sb.ToString(), cancellationToken);
+        await File.WriteAllTextAsync(outputPath, sb.ToString(), Encoding.UTF8, cancellationToken);
     }
 }
