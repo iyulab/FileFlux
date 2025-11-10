@@ -45,8 +45,8 @@ public class OpenAIImageToTextService : IImageToTextService
         {
             Console.WriteLine($"[OpenAI-Vision] Processing image: {imageData.Length} bytes");
 
-            // Build prompt based on options
-            var prompt = BuildPrompt(options);
+            // Build prompt based on options (using Core prompt builder)
+            var prompt = ImageExtractionPromptBuilder.BuildPrompt(options);
             Console.WriteLine($"[OpenAI-Vision] Prompt: {prompt}");
 
             // Create messages with image using BinaryData (avoids URI length limit)
@@ -70,14 +70,49 @@ public class OpenAIImageToTextService : IImageToTextService
 
             Console.WriteLine($"[OpenAI-Vision] Response received, processing...");
 
-            var extractedText = response.Value?.Content?.FirstOrDefault()?.Text ?? string.Empty;
-            Console.WriteLine($"[OpenAI-Vision] Extracted content length: {extractedText.Length} characters");
+            var rawResponse = response.Value?.Content?.FirstOrDefault()?.Text ?? string.Empty;
+            Console.WriteLine($"[OpenAI-Vision] Raw response length: {rawResponse.Length} characters");
 
-            if (string.IsNullOrWhiteSpace(extractedText))
+            // Check for extraction failure
+            const string failurePrefix = "EXTRACTION_FAILED:";
+            bool extractionFailed = rawResponse.TrimStart().StartsWith(failurePrefix, StringComparison.OrdinalIgnoreCase);
+
+            string extractedText;
+            string? errorMessage = null;
+            double confidenceScore;
+
+            if (extractionFailed)
+            {
+                // Extract failure reason
+                var failureReason = rawResponse.TrimStart();
+                if (failureReason.StartsWith(failurePrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    failureReason = failureReason.Substring(failurePrefix.Length).Trim();
+                }
+
+                Console.WriteLine($"[OpenAI-Vision] Extraction failed: {failureReason}");
+
+                extractedText = string.Empty;
+                errorMessage = failureReason;
+                confidenceScore = 0.0;
+            }
+            else if (string.IsNullOrWhiteSpace(rawResponse))
             {
                 Console.WriteLine($"[OpenAI-Vision] WARNING: Empty response from OpenAI");
                 Console.WriteLine($"[OpenAI-Vision] Response value: {response.Value}");
                 Console.WriteLine($"[OpenAI-Vision] Content parts count: {response.Value?.Content?.Count ?? 0}");
+
+                extractedText = string.Empty;
+                errorMessage = "Vision API returned empty response";
+                confidenceScore = 0.0;
+            }
+            else
+            {
+                Console.WriteLine($"[OpenAI-Vision] Extraction successful: {rawResponse.Length} characters");
+
+                extractedText = rawResponse;
+                errorMessage = null;
+                confidenceScore = 0.85; // OpenAI doesn't provide confidence scores
             }
 
             var processingTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
@@ -85,10 +120,11 @@ public class OpenAIImageToTextService : IImageToTextService
             return new ImageToTextResult
             {
                 ExtractedText = extractedText,
-                ConfidenceScore = 0.85, // OpenAI doesn't provide confidence scores
+                ConfidenceScore = confidenceScore,
                 DetectedLanguage = options.Language == "auto" ? "unknown" : options.Language,
                 ImageType = options.ImageTypeHint ?? "unknown",
                 ProcessingTimeMs = processingTime,
+                ErrorMessage = errorMessage,
                 Metadata = new ImageMetadata
                 {
                     FileSize = imageData.Length,
@@ -140,39 +176,5 @@ public class OpenAIImageToTextService : IImageToTextService
 
         var imageData = await File.ReadAllBytesAsync(imagePath, cancellationToken);
         return await ExtractTextAsync(imageData, options, cancellationToken);
-    }
-
-    private static string BuildPrompt(ImageToTextOptions options)
-    {
-        var prompt = "Analyze this image and provide the following:\n";
-        prompt += "1. If there is readable text (OCR): Extract all visible text content\n";
-        prompt += "2. If there is no readable text: Describe the visual content of the image (objects, scenes, activities, etc.)\n";
-        prompt += "You MUST return either extracted text OR image description - never return empty content.";
-
-        if (options.ExtractStructure)
-        {
-            prompt += " When extracting text, preserve the structure and layout (tables, lists, headings, etc.).";
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.ImageTypeHint))
-        {
-            prompt += options.ImageTypeHint switch
-            {
-                "chart" => " This is a chart/graph - extract titles, labels, data values, or describe the chart type and trends.",
-                "table" => " This is a table - extract headers and cell values in structured format, or describe the table structure.",
-                "document" => " This is a document page - extract all text while preserving formatting.",
-                "diagram" => " This is a diagram - extract text labels and describe visual elements and their relationships.",
-                _ => ""
-            };
-        }
-
-        if (options.Quality == "high")
-        {
-            prompt += " Provide detailed and accurate extraction/description with high precision.";
-        }
-
-        prompt += "\n\nIMPORTANT: Return the content directly without any introductory phrases like 'This image shows' or 'The text says'.";
-
-        return prompt;
     }
 }

@@ -87,6 +87,12 @@ public class ImageToTextOptions
     public bool ExtractMetadata { get; set; } = true;
 
     /// <summary>
+    /// 커스텀 Prompt (null이면 provider의 기본 prompt 사용)
+    /// 소비 앱이 완전히 다른 prompt를 사용하고 싶을 때 설정
+    /// </summary>
+    public string? CustomPrompt { get; set; }
+
+    /// <summary>
     /// 커스텀 옵션 (서비스별 특화 설정)
     /// </summary>
     public Dictionary<string, object> CustomOptions { get; } = new();

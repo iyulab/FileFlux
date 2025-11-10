@@ -50,8 +50,8 @@ public class AnthropicImageToTextService : IImageToTextService
             var base64Image = Convert.ToBase64String(imageData);
             var mediaType = GetMediaType(imageData);
 
-            // Build prompt based on options
-            var prompt = BuildPrompt(options);
+            // Build prompt based on options (using Core prompt builder)
+            var prompt = ImageExtractionPromptBuilder.BuildPrompt(options);
 
             // Create message with image using Vision API
             var request = new
@@ -88,16 +88,52 @@ public class AnthropicImageToTextService : IImageToTextService
 
             var response = await PostAsync<AnthropicResponse>(request, cancellationToken);
 
-            var extractedText = response.Content?.FirstOrDefault()?.Text ?? string.Empty;
+            var rawResponse = response.Content?.FirstOrDefault()?.Text ?? string.Empty;
+
+            // Check for extraction failure
+            const string failurePrefix = "EXTRACTION_FAILED:";
+            bool extractionFailed = rawResponse.TrimStart().StartsWith(failurePrefix, StringComparison.OrdinalIgnoreCase);
+
+            string extractedText;
+            string? errorMessage = null;
+            double confidenceScore;
+
+            if (extractionFailed)
+            {
+                // Extract failure reason
+                var failureReason = rawResponse.TrimStart();
+                if (failureReason.StartsWith(failurePrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    failureReason = failureReason.Substring(failurePrefix.Length).Trim();
+                }
+
+                extractedText = string.Empty;
+                errorMessage = failureReason;
+                confidenceScore = 0.0;
+            }
+            else if (string.IsNullOrWhiteSpace(rawResponse))
+            {
+                extractedText = string.Empty;
+                errorMessage = "Vision API returned empty response";
+                confidenceScore = 0.0;
+            }
+            else
+            {
+                extractedText = rawResponse;
+                errorMessage = null;
+                confidenceScore = 0.90; // Claude has high vision accuracy
+            }
+
             var processingTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
 
             return new ImageToTextResult
             {
                 ExtractedText = extractedText,
-                ConfidenceScore = 0.90, // Claude has high vision accuracy
+                ConfidenceScore = confidenceScore,
                 DetectedLanguage = options.Language == "auto" ? "unknown" : options.Language,
                 ImageType = options.ImageTypeHint ?? "unknown",
                 ProcessingTimeMs = processingTime,
+                ErrorMessage = errorMessage,
                 Metadata = new ImageMetadata
                 {
                     FileSize = imageData.Length,
@@ -158,37 +194,6 @@ public class AnthropicImageToTextService : IImageToTextService
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<T>(responseJson) ?? throw new InvalidOperationException("Failed to deserialize response");
-    }
-
-    private static string BuildPrompt(ImageToTextOptions options)
-    {
-        var prompt = "Analyze this image and extract all visible text content.";
-
-        if (options.ExtractStructure)
-        {
-            prompt += " Preserve the structure and layout of the text (tables, lists, headings, etc.).";
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.ImageTypeHint))
-        {
-            prompt += options.ImageTypeHint switch
-            {
-                "chart" => " This is a chart or graph - extract titles, labels, legend, and data values.",
-                "table" => " This is a table - extract headers and all cell values in a structured format.",
-                "document" => " This is a document page - extract all text while preserving formatting.",
-                "diagram" => " This is a diagram - describe the visual elements and extract any text labels.",
-                _ => ""
-            };
-        }
-
-        if (options.Quality == "high")
-        {
-            prompt += " Provide detailed and accurate extraction with high precision. Pay special attention to small text and details.";
-        }
-
-        prompt += " Return only the extracted text content without any additional commentary or explanation.";
-
-        return prompt;
     }
 
     private static string GetMediaType(byte[] imageData)
