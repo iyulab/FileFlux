@@ -23,7 +23,7 @@
 
     <!-- AI Provider SDKs (CLI is a consumer app) -->
     <PackageReference Include="OpenAI" Version="2.1.0-beta.1" />
-    <!-- Anthropic support can be added later with correct SDK integration -->
+    <!-- Anthropic: Using HttpClient for direct REST API calls instead of SDK -->
   </ItemGroup>
 
 </Project>

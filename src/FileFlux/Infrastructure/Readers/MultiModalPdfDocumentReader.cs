@@ -239,6 +239,18 @@ public class MultiModalPdfDocumentReader : IDocumentReader
 
                 try
                 {
+                    // 이미지 크기 확인 - 너무 작은 이미지는 장식용으로 간주하고 제외
+                    var width = (int)(image.Bounds.Width);
+                    var height = (int)(image.Bounds.Height);
+
+                    if (ImageProcessingConstants.IsDecorativeImage(width, height))
+                    {
+                        // 작은 이미지(아이콘, 로고, 장식) 제외
+                        Console.WriteLine($"Skipping decorative image on page {pageNum}: {width}x{height}px " +
+                            $"(threshold: {ImageProcessingConstants.MinImageWidth}x{ImageProcessingConstants.MinImageHeight}px)");
+                        continue;
+                    }
+
                     // 이미지 데이터 추출
                     var imageBytes = await ExtractImageBytes(image);
                     if (imageBytes != null && imageBytes.Length > 0)

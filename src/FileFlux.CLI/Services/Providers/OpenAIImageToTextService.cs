@@ -71,23 +71,9 @@ public class OpenAIImageToTextService : IImageToTextService
             Console.WriteLine($"[OpenAI-Vision] Response received, processing...");
 
             var extractedText = response.Value?.Content?.FirstOrDefault()?.Text ?? string.Empty;
-            Console.WriteLine($"[OpenAI-Vision] Raw response length: {extractedText.Length} characters");
+            Console.WriteLine($"[OpenAI-Vision] Extracted content length: {extractedText.Length} characters");
 
-            // Check for NO_TEXT response
-            var hasNoText = extractedText.Trim().Equals("NO_TEXT", StringComparison.OrdinalIgnoreCase) ||
-                           extractedText.Trim().StartsWith("NO_TEXT", StringComparison.OrdinalIgnoreCase);
-
-            if (hasNoText)
-            {
-                Console.WriteLine($"[OpenAI-Vision] Vision API determined: No readable text in image");
-                extractedText = string.Empty;
-            }
-            else
-            {
-                Console.WriteLine($"[OpenAI-Vision] Extracted text length: {extractedText.Length} characters");
-            }
-
-            if (string.IsNullOrWhiteSpace(extractedText) && !hasNoText)
+            if (string.IsNullOrWhiteSpace(extractedText))
             {
                 Console.WriteLine($"[OpenAI-Vision] WARNING: Empty response from OpenAI");
                 Console.WriteLine($"[OpenAI-Vision] Response value: {response.Value}");
@@ -99,7 +85,7 @@ public class OpenAIImageToTextService : IImageToTextService
             return new ImageToTextResult
             {
                 ExtractedText = extractedText,
-                ConfidenceScore = hasNoText ? 0.0 : 0.85, // 0.0 if no text, 0.85 otherwise
+                ConfidenceScore = 0.85, // OpenAI doesn't provide confidence scores
                 DetectedLanguage = options.Language == "auto" ? "unknown" : options.Language,
                 ImageType = options.ImageTypeHint ?? "unknown",
                 ProcessingTimeMs = processingTime,
@@ -158,33 +144,34 @@ public class OpenAIImageToTextService : IImageToTextService
 
     private static string BuildPrompt(ImageToTextOptions options)
     {
-        var prompt = "First, determine if there is any readable text in this image. ";
-        prompt += "If there is NO readable text (only images, graphics, or blank space), respond with exactly 'NO_TEXT'. ";
-        prompt += "If there IS readable text, extract all visible text content.";
+        var prompt = "Analyze this image and provide the following:\n";
+        prompt += "1. If there is readable text (OCR): Extract all visible text content\n";
+        prompt += "2. If there is no readable text: Describe the visual content of the image (objects, scenes, activities, etc.)\n";
+        prompt += "You MUST return either extracted text OR image description - never return empty content.";
 
         if (options.ExtractStructure)
         {
-            prompt += " Preserve the structure and layout of the text (tables, lists, headings, etc.).";
+            prompt += " When extracting text, preserve the structure and layout (tables, lists, headings, etc.).";
         }
 
         if (!string.IsNullOrWhiteSpace(options.ImageTypeHint))
         {
             prompt += options.ImageTypeHint switch
             {
-                "chart" => " This is a chart or graph - extract titles, labels, and data values.",
-                "table" => " This is a table - extract headers and all cell values in a structured format.",
+                "chart" => " This is a chart/graph - extract titles, labels, data values, or describe the chart type and trends.",
+                "table" => " This is a table - extract headers and cell values in structured format, or describe the table structure.",
                 "document" => " This is a document page - extract all text while preserving formatting.",
-                "diagram" => " This is a diagram - describe the visual elements and extract any text labels.",
+                "diagram" => " This is a diagram - extract text labels and describe visual elements and their relationships.",
                 _ => ""
             };
         }
 
         if (options.Quality == "high")
         {
-            prompt += " Provide detailed and accurate extraction with high precision.";
+            prompt += " Provide detailed and accurate extraction/description with high precision.";
         }
 
-        prompt += " IMPORTANT: If text is present, return ONLY the extracted text content without any additional commentary or explanation. If no text is present, return only 'NO_TEXT'.";
+        prompt += "\n\nIMPORTANT: Return the content directly without any introductory phrases like 'This image shows' or 'The text says'.";
 
         return prompt;
     }

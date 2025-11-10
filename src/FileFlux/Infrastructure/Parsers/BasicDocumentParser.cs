@@ -25,11 +25,12 @@ public partial class BasicDocumentParser : IDocumentParser
 
     public bool CanParse(RawContent rawContent)
     {
-        if (rawContent == null || string.IsNullOrWhiteSpace(rawContent.Text))
+        if (rawContent == null)
             return false;
 
-        // 최소 길이 요구사항
-        return rawContent.Text.Length >= 30;
+        // 빈 텍스트도 허용 (이미지만 있는 문서 등)
+        // null이 아니면 처리 가능
+        return rawContent.Text != null;
     }
 
     public async Task<ParsedContent> ParseAsync(

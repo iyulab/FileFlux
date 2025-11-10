@@ -9,6 +9,7 @@ Complete guide to using FileFlux for document processing and RAG system integrat
 - [Document Formats](#document-formats)
 - [Chunking Strategies](#chunking-strategies)
 - [Advanced Features](#advanced-features)
+- [CLI Usage](#cli-usage)
 - [RAG Integration](#rag-integration)
 - [Error Handling](#error-handling)
 - [Customization](#customization)
@@ -518,6 +519,39 @@ foreach (var question in questions)
 var validation = await qualityEngine.ValidateAnswerabilityAsync(questions, chunks);
 Console.WriteLine($"Answerable: {validation.AnswerableQuestions}/{validation.TotalQuestions}");
 ```
+
+## CLI Usage
+
+FileFlux provides a command-line interface for quick document processing without writing code.
+
+### Quick Start
+
+```powershell
+# Install CLI
+.\scripts\deploy-cli-local.ps1
+
+# Basic usage
+fileflux extract "document.pdf"                    # Extract text
+fileflux chunk "document.pdf" -s Smart             # Create semantic chunks
+fileflux process "document.pdf" --enable-vision    # Full pipeline with AI
+
+# With AI providers (OpenAI or Anthropic)
+$env:OPENAI_API_KEY = "sk-..."                     # OpenAI
+$env:ANTHROPIC_API_KEY = "sk-ant-..."              # Anthropic
+fileflux process "slides.pptx" --enable-vision
+```
+
+### Comprehensive Documentation
+
+For complete CLI documentation including:
+- **Installation and setup**: Deployment scripts, PATH configuration
+- **All commands**: Extract, Chunk, Process, Info with examples
+- **AI provider integration**: OpenAI and Anthropic Vision API setup
+- **Environment variables**: Complete reference with priority order
+- **Cost optimization**: Provider comparison and best practices
+- **Troubleshooting**: Common issues and solutions
+
+See **[CLI Documentation](CLI.md)** for detailed information.
 
 ## RAG Integration
 

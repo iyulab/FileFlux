@@ -1,5 +1,6 @@
 using FileFlux;
 using FileFlux.CLI.Output;
+using FileFlux.CLI.Services;
 using FileFlux.Domain;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
@@ -19,11 +20,13 @@ public class ExtractCommand : Command
         var outputOpt = new Option<string>(new[] { "-o", "--output" }, "Output file path (default: input.extracted.json)");
         var formatOpt = new Option<string>(new[] { "-f", "--format" }, () => "json", "Output format (json, jsonl, markdown)");
         var quietOpt = new Option<bool>(new[] { "-q", "--quiet" }, "Minimal output");
+        var enableVisionOpt = new Option<bool>(new[] { "--enable-vision" }, "Enable image extraction using AI vision (requires OpenAI API key)");
 
         AddArgument(inputArg);
         AddOption(outputOpt);
         AddOption(formatOpt);
         AddOption(quietOpt);
+        AddOption(enableVisionOpt);
 
         this.SetHandler(async (InvocationContext context) =>
         {
@@ -31,9 +34,10 @@ public class ExtractCommand : Command
             var output = context.ParseResult.GetValueForOption(outputOpt);
             var format = context.ParseResult.GetValueForOption(formatOpt);
             var quiet = context.ParseResult.GetValueForOption(quietOpt);
+            var enableVision = context.ParseResult.GetValueForOption(enableVisionOpt);
             var cancellationToken = context.GetCancellationToken();
 
-            await ExecuteAsync(input, output, format, quiet, cancellationToken);
+            await ExecuteAsync(input, output, format, quiet, enableVision, cancellationToken);
         });
     }
 
@@ -42,6 +46,7 @@ public class ExtractCommand : Command
         string? output,
         string? format,
         bool quiet,
+        bool enableVision,
         CancellationToken cancellationToken)
     {
         if (!File.Exists(input))
@@ -74,6 +79,10 @@ public class ExtractCommand : Command
             AnsiConsole.MarkupLine($"  Input:  {input}");
             AnsiConsole.MarkupLine($"  Output: {output}");
             AnsiConsole.MarkupLine($"  Format: {format}");
+            if (enableVision)
+            {
+                AnsiConsole.MarkupLine($"  Vision: [green]Enabled[/] (AI image extraction)");
+            }
             AnsiConsole.WriteLine();
         }
 
@@ -83,8 +92,27 @@ public class ExtractCommand : Command
                 .Spinner(Spinner.Known.Dots)
                 .StartAsync("Extracting document...", async ctx =>
                 {
-                    // Create basic services without AI
+                    // Create services with optional AI
                     var services = new ServiceCollection();
+
+                    // Configure AI provider if vision is enabled
+                    if (enableVision)
+                    {
+                        var config = new CliEnvironmentConfig();
+                        var factory = new AIProviderFactory(config, enableVision: true);
+
+                        if (config.HasAnyProvider())
+                        {
+                            ctx.Status($"Extracting document with AI vision ({factory.GetProviderStatus()})...");
+                            factory.ConfigureServices(services);
+                        }
+                        else
+                        {
+                            AnsiConsole.MarkupLine("[yellow]Warning:[/] Vision enabled but no API key found. Set OPENAI_API_KEY environment variable.");
+                            AnsiConsole.MarkupLine("[yellow]Falling back to basic extraction...[/]");
+                        }
+                    }
+
                     services.AddFileFlux();
                     using var provider = services.BuildServiceProvider();
                     var processor = provider.GetRequiredService<IDocumentProcessor>();

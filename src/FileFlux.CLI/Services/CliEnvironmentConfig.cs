@@ -43,16 +43,21 @@ public class CliEnvironmentConfig
         if (!string.IsNullOrWhiteSpace(Provider))
         {
             var provider = Provider.ToLowerInvariant();
-            // Only support OpenAI for now
-            if (provider == "openai")
+            if (provider == "openai" || provider == "anthropic")
             {
                 return provider;
             }
         }
 
+        // Auto-detect from API keys (OpenAI has priority)
         if (!string.IsNullOrWhiteSpace(OpenAIApiKey))
         {
             return "openai";
+        }
+
+        if (!string.IsNullOrWhiteSpace(AnthropicApiKey))
+        {
+            return "anthropic";
         }
 
         return "none";

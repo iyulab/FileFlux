@@ -10,17 +10,36 @@ namespace FileFlux.Infrastructure.Factories;
 /// </summary>
 public class DocumentReaderFactory : IDocumentReaderFactory
 {
-    private readonly ConcurrentDictionary<string, IDocumentReader> _readers = new();
+    // List를 사용하여 등록 순서 보장 (나중에 등록된 것이 우선순위 높음)
+    private readonly List<IDocumentReader> _readers = new();
+    private readonly object _lock = new();
 
     public DocumentReaderFactory()
     {
-        // 기본 Reader들 등록
+        // 기본 Reader들 등록 (DI 없이 사용 시)
         RegisterDefaultReaders();
+    }
+
+    /// <summary>
+    /// DI 컨테이너로부터 Reader들을 주입받는 생성자
+    /// </summary>
+    public DocumentReaderFactory(IEnumerable<IDocumentReader> readers)
+    {
+        ArgumentNullException.ThrowIfNull(readers);
+
+        // DI로 주입된 Reader들 등록
+        foreach (var reader in readers)
+        {
+            RegisterReader(reader);
+        }
     }
 
     public IEnumerable<IDocumentReader> GetAvailableReaders()
     {
-        return _readers.Values.ToList();
+        lock (_lock)
+        {
+            return _readers.ToList();
+        }
     }
 
     public IDocumentReader? GetReader(string fileName)
@@ -31,8 +50,20 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         // 확장자 기반 매칭
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
 
-        return _readers.Values
-            .FirstOrDefault(reader => reader.SupportedExtensions.Contains(extension) && reader.CanRead(fileName));
+        lock (_lock)
+        {
+            // 역순으로 검색 (나중에 등록된 Reader가 우선순위 높음 - MultiModal Reader 우선)
+            for (int i = _readers.Count - 1; i >= 0; i--)
+            {
+                var reader = _readers[i];
+                if (reader.SupportedExtensions.Contains(extension) && reader.CanRead(fileName))
+                {
+                    return reader;
+                }
+            }
+        }
+
+        return null;
     }
 
     public IDocumentReader? GetReader(RawContent rawContent)
@@ -47,7 +78,12 @@ public class DocumentReaderFactory : IDocumentReaderFactory
     {
         ArgumentNullException.ThrowIfNull(reader);
 
-        _readers.AddOrUpdate(reader.ReaderType, reader, (key, existingReader) => reader);
+        lock (_lock)
+        {
+            // 같은 ReaderType이 이미 있으면 제거하고 새로 추가
+            _readers.RemoveAll(r => r.ReaderType == reader.ReaderType);
+            _readers.Add(reader);
+        }
     }
 
     public bool UnregisterReader(string readerType)
@@ -55,16 +91,23 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         if (string.IsNullOrWhiteSpace(readerType))
             return false;
 
-        return _readers.TryRemove(readerType, out _);
+        lock (_lock)
+        {
+            var removed = _readers.RemoveAll(r => r.ReaderType == readerType);
+            return removed > 0;
+        }
     }
 
     public IEnumerable<string> GetSupportedExtensions()
     {
-        return _readers.Values
-            .SelectMany(reader => reader.SupportedExtensions)
-            .Distinct()
-            .OrderBy(ext => ext)
-            .ToList();
+        lock (_lock)
+        {
+            return _readers
+                .SelectMany(reader => reader.SupportedExtensions)
+                .Distinct()
+                .OrderBy(ext => ext)
+                .ToList();
+        }
     }
 
     public bool IsExtensionSupported(string extension)
@@ -74,19 +117,30 @@ public class DocumentReaderFactory : IDocumentReaderFactory
 
         var normalizedExtension = extension.StartsWith(".", StringComparison.Ordinal) ? extension.ToLowerInvariant() : $".{extension.ToLowerInvariant()}";
 
-        return _readers.Values
-            .Any(reader => reader.SupportedExtensions.Contains(normalizedExtension));
+        lock (_lock)
+        {
+            return _readers
+                .Any(reader => reader.SupportedExtensions.Contains(normalizedExtension));
+        }
     }
 
     public IReadOnlyDictionary<string, string> GetExtensionReaderMapping()
     {
         var mapping = new Dictionary<string, string>();
 
-        foreach (var reader in _readers.Values)
+        lock (_lock)
         {
-            foreach (var extension in reader.SupportedExtensions)
+            // 역순으로 처리하여 나중에 등록된 Reader가 매핑에 남도록
+            for (int i = _readers.Count - 1; i >= 0; i--)
             {
-                mapping[extension] = reader.ReaderType;
+                var reader = _readers[i];
+                foreach (var extension in reader.SupportedExtensions)
+                {
+                    if (!mapping.ContainsKey(extension))
+                    {
+                        mapping[extension] = reader.ReaderType;
+                    }
+                }
             }
         }
 

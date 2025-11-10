@@ -184,9 +184,26 @@ services.AddFileFlux();
 
 For AI service implementation examples, see the `samples/` directory.
 
+## CLI Tool
+
+FileFlux includes a command-line interface for quick document processing:
+
+```powershell
+# Deploy CLI locally
+.\scripts\deploy-cli-local.ps1
+
+# Extract documents with Vision API
+fileflux extract "document.pptx" --enable-vision
+
+# Process with specific strategy
+fileflux chunk "document.pdf" -s Smart
+```
+
+See [CLI Usage](docs/TUTORIAL.md#cli-usage) in the tutorial for complete guide.
+
 ## Documentation
 
-- [**Tutorial**](docs/TUTORIAL.md) - Detailed usage guide
+- [**Tutorial**](docs/TUTORIAL.md) - Detailed usage guide including CLI
 - [**Architecture**](docs/ARCHITECTURE.md) - System design document
 
 ## Project Structure

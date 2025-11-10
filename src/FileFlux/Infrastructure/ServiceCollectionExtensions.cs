@@ -22,8 +22,31 @@ public static class ServiceCollectionExtensions
     /// <returns>서비스 컬렉션</returns>
     public static IServiceCollection AddFileFlux(this IServiceCollection services)
     {
-        // 핵심 팩토리들 등록 - AI 서비스들은 선택적 의존성
-        services.AddSingleton<IDocumentReaderFactory, DocumentReaderFactory>();
+        // 기본 텍스트 Reader들 등록 (Factory보다 먼저 등록)
+        services.AddTransient<IDocumentReader, TextDocumentReader>();
+        services.AddTransient<IDocumentReader, MarkdownDocumentReader>();
+        services.AddTransient<IDocumentReader, HtmlDocumentReader>();
+
+        // 이미지 처리 기능이 포함된 멀티모달 Reader들 등록
+        // IImageToTextService가 제공되면 vision API 사용, 없으면 기본 텍스트만 추출
+        services.AddTransient<IDocumentReader, MultiModalPdfDocumentReader>();
+        services.AddTransient<IDocumentReader, MultiModalPowerPointDocumentReader>();
+        services.AddTransient<IDocumentReader, MultiModalWordDocumentReader>();
+        services.AddTransient<IDocumentReader, MultiModalExcelDocumentReader>();
+
+        // ZIP Archive Reader는 Factory를 필요로 하므로 나중에 등록
+
+        // 핵심 팩토리들 등록 - DI로 주입된 Reader들 사용
+        services.AddSingleton<IDocumentReaderFactory>(provider =>
+        {
+            // DI로 주입된 Reader들로 Factory 생성
+            var factory = new DocumentReaderFactory(provider.GetServices<IDocumentReader>());
+
+            // ZipArchiveReader는 Factory를 필요로 하므로 수동으로 등록
+            factory.RegisterReader(new ZipArchiveReader(factory));
+
+            return factory;
+        });
         services.AddSingleton<IDocumentParserFactory>(provider =>
             new DocumentParserFactory(provider.GetService<ITextCompletionService>()));
 
@@ -38,12 +61,6 @@ public static class ServiceCollectionExtensions
 
         // 메인 문서 처리기 등록
         services.AddScoped<IDocumentProcessor, DocumentProcessor>();
-
-        // 기본 Reader들 등록
-        services.AddTransient<IDocumentReader, TextDocumentReader>();
-
-        // 이미지 처리 기능이 포함된 PDF Reader 등록
-        services.AddTransient<IDocumentReader, MultiModalPdfDocumentReader>();
 
         // 기본 Parser들 등록 - AI 서비스 선택적
         services.AddTransient<IDocumentParser>(provider =>

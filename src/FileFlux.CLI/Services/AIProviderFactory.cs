@@ -1,5 +1,6 @@
 using FileFlux.CLI.Services.Providers;
 using FileFlux.Core;
+using FileFlux;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FileFlux.CLI.Services;
@@ -10,10 +11,12 @@ namespace FileFlux.CLI.Services;
 public class AIProviderFactory
 {
     private readonly CliEnvironmentConfig _config;
+    private readonly bool _enableVision;
 
-    public AIProviderFactory(CliEnvironmentConfig config)
+    public AIProviderFactory(CliEnvironmentConfig config, bool enableVision = false)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _enableVision = enableVision;
     }
 
     /// <summary>
@@ -29,12 +32,16 @@ public class AIProviderFactory
                 ConfigureOpenAI(services);
                 break;
 
+            case "anthropic":
+                ConfigureAnthropic(services);
+                break;
+
             case "none":
                 // No AI provider configured - FileFlux will work without AI features
                 break;
 
             default:
-                throw new InvalidOperationException($"Provider '{provider}' is not supported. Currently only 'openai' is supported.");
+                throw new InvalidOperationException($"Provider '{provider}' is not supported. Currently 'openai' and 'anthropic' are supported.");
         }
     }
 
@@ -44,10 +51,12 @@ public class AIProviderFactory
     public string GetProviderStatus()
     {
         var provider = _config.DetectProvider();
+        var visionStatus = _enableVision ? " + Vision" : "";
 
         return provider switch
         {
-            "openai" => $"OpenAI ({_config.OpenAIModel})",
+            "openai" => $"OpenAI ({_config.OpenAIModel}){visionStatus}",
+            "anthropic" => $"Anthropic ({_config.AnthropicModel}){visionStatus}",
             "none" => "No AI provider (basic processing only)",
             _ => $"Unsupported: {provider}"
         };
@@ -72,8 +81,39 @@ public class AIProviderFactory
                 "OpenAI API key not found. Set OPENAI_API_KEY or FILEFLUX_OPENAI_API_KEY environment variable.");
         }
 
+        // Register text completion service
         services.AddScoped<ITextCompletionService>(sp =>
             new OpenAITextCompletionService(apiKey, model));
+
+        // Register image-to-text service if vision is enabled
+        if (_enableVision)
+        {
+            services.AddScoped<IImageToTextService>(sp =>
+                new OpenAIImageToTextService(apiKey, model));
+        }
+    }
+
+    private void ConfigureAnthropic(IServiceCollection services)
+    {
+        var apiKey = _config.AnthropicApiKey;
+        var model = _config.AnthropicModel ?? "claude-3-5-sonnet-20241022";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException(
+                "Anthropic API key not found. Set ANTHROPIC_API_KEY or FILEFLUX_ANTHROPIC_API_KEY environment variable.");
+        }
+
+        // Register text completion service
+        services.AddScoped<ITextCompletionService>(sp =>
+            new AnthropicTextCompletionService(apiKey, model));
+
+        // Register image-to-text service if vision is enabled
+        if (_enableVision)
+        {
+            services.AddScoped<IImageToTextService>(sp =>
+                new AnthropicImageToTextService(apiKey, model));
+        }
     }
 
 }
