@@ -3,7 +3,7 @@ using FileFlux.CLI.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
 
 namespace FileFlux.CLI.Commands;
 
@@ -14,16 +14,20 @@ public class InfoCommand : Command
 {
     public InfoCommand() : base("info", "Display document information and metadata")
     {
-        var inputArg = new Argument<string>("input", "Input file path");
-
-        AddArgument(inputArg);
-
-        this.SetHandler(async (InvocationContext context) =>
+        var inputArg = new Argument<string>("input")
         {
-            var input = context.ParseResult.GetValueForArgument(inputArg);
-            var cancellationToken = context.GetCancellationToken();
+            Description = "Input file path"
+        };
 
-            await ExecuteAsync(input, cancellationToken);
+        Arguments.Add(inputArg);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var input = parseResult.GetValue(inputArg);
+            if (input != null)
+            {
+                await ExecuteAsync(input, cancellationToken);
+            }
         });
     }
 

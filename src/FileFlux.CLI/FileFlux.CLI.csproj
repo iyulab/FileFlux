@@ -14,14 +14,13 @@
   <ItemGroup>
     <!-- CLI Framework -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-    <!-- Note: Keeping beta4 - 2.0.0 has breaking changes (Argument/Option constructors, SetHandler removed) -->
+    <PackageReference Include="System.CommandLine" Version="2.0.0" />
 
     <!-- Console UI -->
     <PackageReference Include="Spectre.Console" Version="0.54.0" />
 
-    <!-- JSON serialization -->
-    <PackageReference Include="System.Text.Json" Version="10.0.0" />
+    <!-- JSON serialization - Implicit via .NET 10.0, removing explicit reference -->
+    <!-- <PackageReference Include="System.Text.Json" Version="10.0.0" /> -->
 
     <!-- AI Provider SDKs (CLI is a consumer app) -->
     <PackageReference Include="OpenAI" Version="2.7.0" />

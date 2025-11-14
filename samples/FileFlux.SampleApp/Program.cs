@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenAI;
 using System.CommandLine;
+using System.CommandLine.Parsing;
 
 namespace FileFlux.SampleApp;
 
@@ -27,108 +28,123 @@ class Program
         var qualityAnalyzeCommand = CreateQualityAnalyzeCommand();
         var visionTestCommand = CreateVisionTestCommand();
 
-        rootCommand.AddCommand(processCommand);
-        rootCommand.AddCommand(processProgressCommand);
-        rootCommand.AddCommand(queryCommand);
-        rootCommand.AddCommand(listCommand);
-        rootCommand.AddCommand(historyCommand);
-        rootCommand.AddCommand(readersCommand);
-        rootCommand.AddCommand(benchmarkCommand);
-        rootCommand.AddCommand(qualityAnalyzeCommand);
-        rootCommand.AddCommand(visionTestCommand);
+        rootCommand.Subcommands.Add(processCommand);
+        rootCommand.Subcommands.Add(processProgressCommand);
+        rootCommand.Subcommands.Add(queryCommand);
+        rootCommand.Subcommands.Add(listCommand);
+        rootCommand.Subcommands.Add(historyCommand);
+        rootCommand.Subcommands.Add(readersCommand);
+        rootCommand.Subcommands.Add(benchmarkCommand);
+        rootCommand.Subcommands.Add(qualityAnalyzeCommand);
+        rootCommand.Subcommands.Add(visionTestCommand);
 
-        return await rootCommand.InvokeAsync(args);
+        var parseResult = rootCommand.Parse(args);
+        return await parseResult.InvokeAsync();
     }
 
     private static Command CreateProcessCommand()
     {
-        var filePathArgument = new Argument<string>(
-            name: "file-path",
-            description: "처리할 파일 경로");
-
-        var strategyOption = new Option<string>(
-            name: "--strategy",
-            description: "청킹 전략",
-            getDefaultValue: () => "Intelligent")
+        var filePathArgument = new Argument<string>("file-path")
         {
+            Description = "처리할 파일 경로"
+        };
+
+        var strategyOption = new Option<string>("--strategy")
+        {
+            Description = "청킹 전략",
+            DefaultValueFactory = _ => "Intelligent",
             AllowMultipleArgumentsPerToken = false
         };
 
-        var processCommand = new Command("process", "문서를 처리하여 벡터 스토어에 저장")
-        {
-            filePathArgument,
-            strategyOption
-        };
+        var processCommand = new Command("process", "문서를 처리하여 벡터 스토어에 저장");
+        processCommand.Arguments.Add(filePathArgument);
+        processCommand.Options.Add(strategyOption);
 
-        processCommand.SetHandler(async (filePath, strategy) =>
+        processCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
-            using var host = CreateHost();
-            await host.StartAsync();
-            var app = host.Services.GetRequiredService<FileFluxApp>();
-            await app.ProcessDocumentAsync(filePath, strategy);
-            await host.StopAsync();
-        }, filePathArgument, strategyOption);
+            var filePath = parseResult.GetValue(filePathArgument);
+            var strategy = parseResult.GetValue(strategyOption);
+
+            if (filePath != null)
+            {
+                using var host = CreateHost();
+                await host.StartAsync(cancellationToken);
+                var app = host.Services.GetRequiredService<FileFluxApp>();
+                await app.ProcessDocumentAsync(filePath, strategy!);
+                await host.StopAsync(cancellationToken);
+            }
+        });
 
         return processCommand;
     }
 
     private static Command CreateProcessWithProgressCommand()
     {
-        var filePathArgument = new Argument<string>(
-            name: "file-path",
-            description: "처리할 파일 경로");
-
-        var strategyOption = new Option<string>(
-            name: "--strategy",
-            description: "청킹 전략",
-            getDefaultValue: () => "Intelligent")
+        var filePathArgument = new Argument<string>("file-path")
         {
+            Description = "처리할 파일 경로"
+        };
+
+        var strategyOption = new Option<string>("--strategy")
+        {
+            Description = "청킹 전략",
+            DefaultValueFactory = _ => "Intelligent",
             AllowMultipleArgumentsPerToken = false
         };
 
-        var processProgressCommand = new Command("process-progress", "문서를 진행률 추적과 함께 처리하여 벡터 스토어에 저장")
-        {
-            filePathArgument,
-            strategyOption
-        };
+        var processProgressCommand = new Command("process-progress", "문서를 진행률 추적과 함께 처리하여 벡터 스토어에 저장");
+        processProgressCommand.Arguments.Add(filePathArgument);
+        processProgressCommand.Options.Add(strategyOption);
 
-        processProgressCommand.SetHandler(async (filePath, strategy) =>
+        processProgressCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
-            using var host = CreateHost();
-            await host.StartAsync();
-            var app = host.Services.GetRequiredService<FileFluxApp>();
-            await app.ProcessDocumentStreamAsync(filePath, strategy);
-            await host.StopAsync();
-        }, filePathArgument, strategyOption);
+            var filePath = parseResult.GetValue(filePathArgument);
+            var strategy = parseResult.GetValue(strategyOption);
+
+            if (filePath != null)
+            {
+                using var host = CreateHost();
+                await host.StartAsync(cancellationToken);
+                var app = host.Services.GetRequiredService<FileFluxApp>();
+                await app.ProcessDocumentStreamAsync(filePath, strategy!);
+                await host.StopAsync(cancellationToken);
+            }
+        });
 
         return processProgressCommand;
     }
 
     private static Command CreateQueryCommand()
     {
-        var queryArgument = new Argument<string>(
-            name: "query",
-            description: "검색할 쿼리");
-
-        var topKOption = new Option<int>(
-            name: "--top-k",
-            description: "반환할 최대 결과 수",
-            getDefaultValue: () => 5);
-
-        var queryCommand = new Command("query", "RAG 쿼리 실행")
+        var queryArgument = new Argument<string>("query")
         {
-            queryArgument,
-            topKOption
+            Description = "검색할 쿼리"
         };
 
-        queryCommand.SetHandler(async (query, topK) =>
+        var topKOption = new Option<int>("--top-k")
         {
-            using var host = CreateHost();
-            await host.StartAsync();
-            var app = host.Services.GetRequiredService<FileFluxApp>();
-            await app.ExecuteQueryAsync(query, topK);
-            await host.StopAsync();
-        }, queryArgument, topKOption);
+            Description = "반환할 최대 결과 수",
+            DefaultValueFactory = _ => 5
+        };
+
+        var queryCommand = new Command("query", "RAG 쿼리 실행");
+        queryCommand.Arguments.Add(queryArgument);
+        queryCommand.Options.Add(topKOption);
+
+        queryCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var query = parseResult.GetValue(queryArgument);
+            var topK = parseResult.GetValue(topKOption);
+
+            if (query != null)
+            {
+                using var host = CreateHost();
+                await host.StartAsync(cancellationToken);
+                var app = host.Services.GetRequiredService<FileFluxApp>();
+                await app.ExecuteQueryAsync(query, topK);
+                await host.StopAsync(cancellationToken);
+            }
+        });
 
         return queryCommand;
     }
@@ -137,13 +153,13 @@ class Program
     {
         var listCommand = new Command("list", "저장된 문서 목록 조회");
 
-        listCommand.SetHandler(async () =>
+        listCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
             using var host = CreateHost();
-            await host.StartAsync();
+            await host.StartAsync(cancellationToken);
             var app = host.Services.GetRequiredService<FileFluxApp>();
             await app.ListDocumentsAsync();
-            await host.StopAsync();
+            await host.StopAsync(cancellationToken);
         });
 
         return listCommand;
@@ -151,24 +167,25 @@ class Program
 
     private static Command CreateHistoryCommand()
     {
-        var limitOption = new Option<int>(
-            name: "--limit",
-            description: "표시할 쿼리 기록 수",
-            getDefaultValue: () => 10);
-
-        var historyCommand = new Command("history", "쿼리 기록 조회")
+        var limitOption = new Option<int>("--limit")
         {
-            limitOption
+            Description = "표시할 쿼리 기록 수",
+            DefaultValueFactory = _ => 10
         };
 
-        historyCommand.SetHandler(async (limit) =>
+        var historyCommand = new Command("history", "쿼리 기록 조회");
+        historyCommand.Options.Add(limitOption);
+
+        historyCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
+            var limit = parseResult.GetValue(limitOption);
+
             using var host = CreateHost();
-            await host.StartAsync();
+            await host.StartAsync(cancellationToken);
             var app = host.Services.GetRequiredService<FileFluxApp>();
             await app.ShowQueryHistoryAsync(limit);
-            await host.StopAsync();
-        }, limitOption);
+            await host.StopAsync(cancellationToken);
+        });
 
         return historyCommand;
     }
@@ -176,110 +193,127 @@ class Program
 
     private static Command CreateReadersTestCommand()
     {
-        var folderPathArgument = new Argument<string>(
-            name: "folder-path",
-            description: "테스트할 문서들이 있는 폴더 경로");
-
-        var readersCommand = new Command("test-readers", "전문 문서 리더 테스트 (Word, Excel, PDF, HTML)")
+        var folderPathArgument = new Argument<string>("folder-path")
         {
-            folderPathArgument
+            Description = "테스트할 문서들이 있는 폴더 경로"
         };
 
-        readersCommand.SetHandler(async (folderPath) =>
+        var readersCommand = new Command("test-readers", "전문 문서 리더 테스트 (Word, Excel, PDF, HTML)");
+        readersCommand.Arguments.Add(folderPathArgument);
+
+        readersCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
-            using var host = CreateHost();
-            await host.StartAsync();
-            var app = host.Services.GetRequiredService<FileFluxApp>();
-            await app.TestProfessionalReadersAsync(folderPath);
-            await host.StopAsync();
-        }, folderPathArgument);
+            var folderPath = parseResult.GetValue(folderPathArgument);
+
+            if (folderPath != null)
+            {
+                using var host = CreateHost();
+                await host.StartAsync(cancellationToken);
+                var app = host.Services.GetRequiredService<FileFluxApp>();
+                await app.TestProfessionalReadersAsync(folderPath);
+                await host.StopAsync(cancellationToken);
+            }
+        });
 
         return readersCommand;
     }
 
     private static Command CreateBenchmarkCommand()
     {
-        var testDirOption = new Option<string>(
-            name: "--test-dir",
-            description: "테스트 파일이 있는 디렉토리 경로",
-            getDefaultValue: () => @"D:\data\FileFlux\test");
-
-        var benchmarkCommand = new Command("benchmark", "종합 벤치마크 실행 - 모든 테스트 파일에 대한 성능 측정")
+        var testDirOption = new Option<string>("--test-dir")
         {
-            testDirOption
+            Description = "테스트 파일이 있는 디렉토리 경로",
+            DefaultValueFactory = _ => @"D:\data\FileFlux\test"
         };
 
-        benchmarkCommand.SetHandler(async (testDir) =>
+        var benchmarkCommand = new Command("benchmark", "종합 벤치마크 실행 - 모든 테스트 파일에 대한 성능 측정");
+        benchmarkCommand.Options.Add(testDirOption);
+
+        benchmarkCommand.SetAction((ParseResult parseResult, CancellationToken cancellationToken) =>
         {
+            var testDir = parseResult.GetValue(testDirOption);
             Console.WriteLine($"Benchmark functionality simplified. Test directory: {testDir}");
-        }, testDirOption);
+            return Task.FromResult(0);
+        });
 
         return benchmarkCommand;
     }
 
     private static Command CreateQualityAnalyzeCommand()
     {
-        var filePathArgument = new Argument<string>(
-            name: "file-path",
-            description: "품질 분석할 파일 경로");
-
-        var strategyOption = new Option<string>(
-            name: "--strategy",
-            description: "청킹 전략",
-            getDefaultValue: () => "Intelligent")
+        var filePathArgument = new Argument<string>("file-path")
         {
+            Description = "품질 분석할 파일 경로"
+        };
+
+        var strategyOption = new Option<string>("--strategy")
+        {
+            Description = "청킹 전략",
+            DefaultValueFactory = _ => "Intelligent",
             AllowMultipleArgumentsPerToken = false
         };
 
-        var benchmarkOption = new Option<bool>(
-            name: "--benchmark",
-            description: "여러 전략 간 품질 벤치마크 실행",
-            getDefaultValue: () => false);
-
-        var qaGenerationOption = new Option<bool>(
-            name: "--qa-generation",
-            description: "QA 벤치마크 생성 및 검증",
-            getDefaultValue: () => false);
-
-        var qualityAnalyzeCommand = new Command("quality-analyze", "문서 품질 분석 - RAG 최적화를 위한 청킹 품질 측정")
+        var benchmarkOption = new Option<bool>("--benchmark")
         {
-            filePathArgument,
-            strategyOption,
-            benchmarkOption,
-            qaGenerationOption
+            Description = "여러 전략 간 품질 벤치마크 실행",
+            DefaultValueFactory = _ => false
         };
 
-        qualityAnalyzeCommand.SetHandler(async (filePath, strategy, benchmark, qaGeneration) =>
+        var qaGenerationOption = new Option<bool>("--qa-generation")
         {
-            using var host = CreateHost();
-            await host.StartAsync();
-            var app = host.Services.GetRequiredService<FileFluxApp>();
-            await app.AnalyzeDocumentQualityAsync(filePath, strategy, benchmark, qaGeneration);
-            await host.StopAsync();
-        }, filePathArgument, strategyOption, benchmarkOption, qaGenerationOption);
+            Description = "QA 벤치마크 생성 및 검증",
+            DefaultValueFactory = _ => false
+        };
+
+        var qualityAnalyzeCommand = new Command("quality-analyze", "문서 품질 분석 - RAG 최적화를 위한 청킹 품질 측정");
+        qualityAnalyzeCommand.Arguments.Add(filePathArgument);
+        qualityAnalyzeCommand.Options.Add(strategyOption);
+        qualityAnalyzeCommand.Options.Add(benchmarkOption);
+        qualityAnalyzeCommand.Options.Add(qaGenerationOption);
+
+        qualityAnalyzeCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var filePath = parseResult.GetValue(filePathArgument);
+            var strategy = parseResult.GetValue(strategyOption);
+            var benchmark = parseResult.GetValue(benchmarkOption);
+            var qaGeneration = parseResult.GetValue(qaGenerationOption);
+
+            if (filePath != null)
+            {
+                using var host = CreateHost();
+                await host.StartAsync(cancellationToken);
+                var app = host.Services.GetRequiredService<FileFluxApp>();
+                await app.AnalyzeDocumentQualityAsync(filePath, strategy!, benchmark, qaGeneration);
+                await host.StopAsync(cancellationToken);
+            }
+        });
 
         return qualityAnalyzeCommand;
     }
 
     private static Command CreateVisionTestCommand()
     {
-        var filePathArgument = new Argument<string>(
-            name: "file-path",
-            description: "이미지가 포함된 PDF 파일 경로");
-
-        var visionTestCommand = new Command("test-vision", "OpenAI Vision을 사용한 PDF 이미지 텍스트 추출 테스트")
+        var filePathArgument = new Argument<string>("file-path")
         {
-            filePathArgument
+            Description = "이미지가 포함된 PDF 파일 경로"
         };
 
-        visionTestCommand.SetHandler(async (filePath) =>
+        var visionTestCommand = new Command("test-vision", "OpenAI Vision을 사용한 PDF 이미지 텍스트 추출 테스트");
+        visionTestCommand.Arguments.Add(filePathArgument);
+
+        visionTestCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
-            using var host = CreateHost();
-            await host.StartAsync();
-            var app = host.Services.GetRequiredService<FileFluxApp>();
-            await app.TestVisionProcessingAsync(filePath);
-            await host.StopAsync();
-        }, filePathArgument);
+            var filePath = parseResult.GetValue(filePathArgument);
+
+            if (filePath != null)
+            {
+                using var host = CreateHost();
+                await host.StartAsync(cancellationToken);
+                var app = host.Services.GetRequiredService<FileFluxApp>();
+                await app.TestVisionProcessingAsync(filePath);
+                await host.StopAsync(cancellationToken);
+            }
+        });
 
         return visionTestCommand;
     }

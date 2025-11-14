@@ -1,6 +1,7 @@
 using FileFlux.CLI.Commands;
 using Spectre.Console;
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Text;
 
 namespace FileFlux.CLI;
@@ -34,7 +35,8 @@ class Program
         // Execute command
         try
         {
-            return await rootCommand.InvokeAsync(args);
+            var parseResult = rootCommand.Parse(args);
+            return await parseResult.InvokeAsync();
         }
         catch (Exception ex)
         {
@@ -53,7 +55,7 @@ class Program
         AnsiConsole.Write(banner);
 
         AnsiConsole.MarkupLine("[grey]Document Processing CLI for RAG Systems[/]");
-        AnsiConsole.MarkupLine("[grey]Version 0.3.2[/]");
+        AnsiConsole.MarkupLine("[grey]Version 0.3.17[/]");
         AnsiConsole.WriteLine();
 
         var table = new Table();

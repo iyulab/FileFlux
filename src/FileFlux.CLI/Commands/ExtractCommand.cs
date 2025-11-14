@@ -5,7 +5,7 @@ using FileFlux.Domain;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
 
 namespace FileFlux.CLI.Commands;
 
@@ -16,28 +16,50 @@ public class ExtractCommand : Command
 {
     public ExtractCommand() : base("extract", "Extract raw text and content from document")
     {
-        var inputArg = new Argument<string>("input", "Input file path");
-        var outputOpt = new Option<string>(new[] { "-o", "--output" }, "Output file path (default: input.extracted.json)");
-        var formatOpt = new Option<string>(new[] { "-f", "--format" }, () => "json", "Output format (json, jsonl, markdown)");
-        var quietOpt = new Option<bool>(new[] { "-q", "--quiet" }, "Minimal output");
-        var enableVisionOpt = new Option<bool>(new[] { "--enable-vision" }, "Enable image extraction using AI vision (requires OpenAI API key)");
-
-        AddArgument(inputArg);
-        AddOption(outputOpt);
-        AddOption(formatOpt);
-        AddOption(quietOpt);
-        AddOption(enableVisionOpt);
-
-        this.SetHandler(async (InvocationContext context) =>
+        var inputArg = new Argument<string>("input")
         {
-            var input = context.ParseResult.GetValueForArgument(inputArg);
-            var output = context.ParseResult.GetValueForOption(outputOpt);
-            var format = context.ParseResult.GetValueForOption(formatOpt);
-            var quiet = context.ParseResult.GetValueForOption(quietOpt);
-            var enableVision = context.ParseResult.GetValueForOption(enableVisionOpt);
-            var cancellationToken = context.GetCancellationToken();
+            Description = "Input file path"
+        };
 
-            await ExecuteAsync(input, output, format, quiet, enableVision, cancellationToken);
+        var outputOpt = new Option<string>("--output", "-o")
+        {
+            Description = "Output file path (default: input.extracted.json)"
+        };
+
+        var formatOpt = new Option<string>("--format", "-f")
+        {
+            Description = "Output format (json, jsonl, markdown)",
+            DefaultValueFactory = _ => "json"
+        };
+
+        var quietOpt = new Option<bool>("--quiet", "-q")
+        {
+            Description = "Minimal output"
+        };
+
+        var enableVisionOpt = new Option<bool>("--enable-vision")
+        {
+            Description = "Enable image extraction using AI vision (requires OpenAI API key)"
+        };
+
+        Arguments.Add(inputArg);
+        Options.Add(outputOpt);
+        Options.Add(formatOpt);
+        Options.Add(quietOpt);
+        Options.Add(enableVisionOpt);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var input = parseResult.GetValue(inputArg);
+            var output = parseResult.GetValue(outputOpt);
+            var format = parseResult.GetValue(formatOpt);
+            var quiet = parseResult.GetValue(quietOpt);
+            var enableVision = parseResult.GetValue(enableVisionOpt);
+
+            if (input != null)
+            {
+                await ExecuteAsync(input, output, format, quiet, enableVision, cancellationToken);
+            }
         });
     }
 

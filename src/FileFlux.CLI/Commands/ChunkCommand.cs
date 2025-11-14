@@ -6,7 +6,7 @@ using FileFlux.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using System.CommandLine;
-using System.CommandLine.Invocation;
+using System.CommandLine.Parsing;
 
 namespace FileFlux.CLI.Commands;
 
@@ -17,37 +17,74 @@ public class ChunkCommand : Command
 {
     public ChunkCommand() : base("chunk", "Chunk document with intelligent strategies")
     {
-        var inputArg = new Argument<string>("input", "Input file path");
-        var outputOpt = new Option<string>(new[] { "-o", "--output" }, "Output file path (default: input.chunks.json)");
-        var formatOpt = new Option<string>(new[] { "-f", "--format" }, () => "json", "Output format (json, jsonl, markdown)");
-        var strategyOpt = new Option<string>(new[] { "-s", "--strategy" }, () => "Auto", "Chunking strategy (Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize)");
-        var maxSizeOpt = new Option<int>(new[] { "-m", "--max-size" }, () => 512, "Maximum chunk size in tokens");
-        var overlapOpt = new Option<int>(new[] { "--overlap" }, () => 64, "Overlap size between chunks");
-        var enrichOpt = new Option<bool>(new[] { "--enrich" }, "Enable AI metadata enrichment (requires AI provider)");
-        var quietOpt = new Option<bool>(new[] { "-q", "--quiet" }, "Minimal output");
-
-        AddArgument(inputArg);
-        AddOption(outputOpt);
-        AddOption(formatOpt);
-        AddOption(strategyOpt);
-        AddOption(maxSizeOpt);
-        AddOption(overlapOpt);
-        AddOption(enrichOpt);
-        AddOption(quietOpt);
-
-        this.SetHandler(async (InvocationContext context) =>
+        var inputArg = new Argument<string>("input")
         {
-            var input = context.ParseResult.GetValueForArgument(inputArg);
-            var output = context.ParseResult.GetValueForOption(outputOpt);
-            var format = context.ParseResult.GetValueForOption(formatOpt);
-            var strategy = context.ParseResult.GetValueForOption(strategyOpt);
-            var maxSize = context.ParseResult.GetValueForOption(maxSizeOpt);
-            var overlap = context.ParseResult.GetValueForOption(overlapOpt);
-            var enrich = context.ParseResult.GetValueForOption(enrichOpt);
-            var quiet = context.ParseResult.GetValueForOption(quietOpt);
-            var cancellationToken = context.GetCancellationToken();
+            Description = "Input file path"
+        };
 
-            await ExecuteAsync(input, output, format, strategy, maxSize, overlap, enrich, quiet, cancellationToken);
+        var outputOpt = new Option<string>("--output", "-o")
+        {
+            Description = "Output file path (default: input.chunks.json)"
+        };
+
+        var formatOpt = new Option<string>("--format", "-f")
+        {
+            Description = "Output format (json, jsonl, markdown)",
+            DefaultValueFactory = _ => "json"
+        };
+
+        var strategyOpt = new Option<string>("--strategy", "-s")
+        {
+            Description = "Chunking strategy (Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize)",
+            DefaultValueFactory = _ => "Auto"
+        };
+
+        var maxSizeOpt = new Option<int>("--max-size", "-m")
+        {
+            Description = "Maximum chunk size in tokens",
+            DefaultValueFactory = _ => 512
+        };
+
+        var overlapOpt = new Option<int>("--overlap")
+        {
+            Description = "Overlap size between chunks",
+            DefaultValueFactory = _ => 64
+        };
+
+        var enrichOpt = new Option<bool>("--enrich")
+        {
+            Description = "Enable AI metadata enrichment (requires AI provider)"
+        };
+
+        var quietOpt = new Option<bool>("--quiet", "-q")
+        {
+            Description = "Minimal output"
+        };
+
+        Arguments.Add(inputArg);
+        Options.Add(outputOpt);
+        Options.Add(formatOpt);
+        Options.Add(strategyOpt);
+        Options.Add(maxSizeOpt);
+        Options.Add(overlapOpt);
+        Options.Add(enrichOpt);
+        Options.Add(quietOpt);
+
+        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var input = parseResult.GetValue(inputArg);
+            var output = parseResult.GetValue(outputOpt);
+            var format = parseResult.GetValue(formatOpt);
+            var strategy = parseResult.GetValue(strategyOpt);
+            var maxSize = parseResult.GetValue(maxSizeOpt);
+            var overlap = parseResult.GetValue(overlapOpt);
+            var enrich = parseResult.GetValue(enrichOpt);
+            var quiet = parseResult.GetValue(quietOpt);
+
+            if (input != null)
+            {
+                await ExecuteAsync(input, output, format, strategy, maxSize, overlap, enrich, quiet, cancellationToken);
+            }
         });
     }
 
