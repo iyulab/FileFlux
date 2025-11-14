@@ -71,7 +71,7 @@ function Write-Error { param([string]$Message) Write-ColorOutput "✗ $Message" 
 # Script paths
 $scriptRoot = Split-Path -Parent $PSScriptRoot
 $projectPath = Join-Path $scriptRoot "src\FileFlux.CLI\FileFlux.CLI.csproj"
-$buildOutput = Join-Path $scriptRoot "src\FileFlux.CLI\bin\$Configuration\net9.0"
+$buildOutput = Join-Path $scriptRoot "src\FileFlux.CLI\bin\$Configuration\net10.0"
 
 Write-ColorOutput "`n=== FileFlux CLI Local Deployment ===" 'Magenta'
 Write-Info "Install Path: $InstallPath"

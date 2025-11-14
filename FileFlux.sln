@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux", "FileFlux\FileFlux.csproj", "{7DEB3C5D-2163-40B5-9259-C7B2C0BA643B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux", "src\FileFlux\FileFlux.csproj", "{7DEB3C5D-2163-40B5-9259-C7B2C0BA643B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.Tests", "..\tests\FileFlux.Tests\FileFlux.Tests.csproj", "{E9FF2502-8AF8-45DC-8246-86753542B788}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.Tests", "tests\FileFlux.Tests\FileFlux.Tests.csproj", "{E9FF2502-8AF8-45DC-8246-86753542B788}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.SampleApp", "..\samples\FileFlux.SampleApp\FileFlux.SampleApp.csproj", "{A818B454-5265-411E-8999-035C36256C3E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.SampleApp", "samples\FileFlux.SampleApp\FileFlux.SampleApp.csproj", "{A818B454-5265-411E-8999-035C36256C3E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.CLI", "FileFlux.CLI\FileFlux.CLI.csproj", "{DA9AD4D4-7294-8633-C775-6AAD0F661F1E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.CLI", "src\FileFlux.CLI\FileFlux.CLI.csproj", "{DA9AD4D4-7294-8633-C775-6AAD0F661F1E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

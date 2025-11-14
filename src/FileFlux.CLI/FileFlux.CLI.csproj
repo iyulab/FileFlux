@@ -3,6 +3,7 @@
   <!-- All common properties inherited from Directory.Build.props -->
 
   <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
@@ -12,18 +13,18 @@
 
   <ItemGroup>
     <!-- CLI Framework -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-    <!-- Note: Keeping beta4 - rc.2 has breaking changes (Argument/Option constructors, SetHandler removed) -->
+    <!-- Note: Keeping beta4 - 2.0.0 has breaking changes (Argument/Option constructors, SetHandler removed) -->
 
     <!-- Console UI -->
-    <PackageReference Include="Spectre.Console" Version="0.53.0" />
+    <PackageReference Include="Spectre.Console" Version="0.54.0" />
 
     <!-- JSON serialization -->
-    <PackageReference Include="System.Text.Json" Version="9.0.10" />
+    <PackageReference Include="System.Text.Json" Version="10.0.0" />
 
     <!-- AI Provider SDKs (CLI is a consumer app) -->
-    <PackageReference Include="OpenAI" Version="2.6.0" />
+    <PackageReference Include="OpenAI" Version="2.7.0" />
     <!-- Anthropic: Using HttpClient for direct REST API calls instead of SDK -->
   </ItemGroup>
 

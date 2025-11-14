@@ -37,7 +37,8 @@ public static class ServiceCollectionExtensions
         // ZIP Archive Reader는 Factory를 필요로 하므로 나중에 등록
 
         // 핵심 팩토리들 등록 - DI로 주입된 Reader들 사용
-        services.AddSingleton<IDocumentReaderFactory>(provider =>
+        // Scoped로 변경: MultiModalPdfDocumentReader가 scoped IImageToTextService를 사용하므로
+        services.AddScoped<IDocumentReaderFactory>(provider =>
         {
             // DI로 주입된 Reader들로 Factory 생성
             var factory = new DocumentReaderFactory(provider.GetServices<IDocumentReader>());
