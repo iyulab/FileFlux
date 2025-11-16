@@ -52,7 +52,7 @@ public class DocumentReadersIntegrationTests
     [InlineData("file_example_XLS_100.xls", null)] // XLS not supported, only XLSX
     [InlineData("samplepptx.pptx", "PowerPointReader")]
     [InlineData("oai_gpt-oss_model_card.pdf", "PdfReader")]
-    [InlineData("test.md", "TextReader")]
+    [InlineData("test.md", "MarkdownReader")]
     public void DocumentReaderFactory_ShouldSelectCorrectReader(string fileName, string? expectedReaderType)
     {
         // Act
@@ -254,7 +254,7 @@ public class DocumentReadersIntegrationTests
             _logger.LogInformation("  ✅ Code blocks detected: {Count}", result.Hints["code_block_count"]);
         }
         
-        Assert.Equal("TextReader", result.ReaderType);
+        Assert.Equal("MarkdownReader", result.ReaderType);
         Assert.Equal(".md", result.File.Extension);
         Assert.True(result.Text.Length > 0, "Markdown file should have extractable content");
     }
