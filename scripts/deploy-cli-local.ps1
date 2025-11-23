@@ -33,7 +33,7 @@
 
 .NOTES
     Author: FileFlux Team
-    Requires: .NET 9 SDK
+    Requires: .NET 10 SDK
 #>
 
 [CmdletBinding()]
@@ -84,8 +84,8 @@ try {
     $dotnetVersion = dotnet --version
     Write-Success ".NET SDK found: $dotnetVersion"
 } catch {
-    Write-Error ".NET SDK not found. Please install .NET 9 SDK."
-    Write-Info "Download from: https://dotnet.microsoft.com/download/dotnet/9.0"
+    Write-Error ".NET SDK not found. Please install .NET 10 SDK."
+    Write-Info "Download from: https://dotnet.microsoft.com/download/dotnet/10.0"
     exit 1
 }
 

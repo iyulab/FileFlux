@@ -177,7 +177,7 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 - 또는 사용자 디렉토리에 설치
 
 ### .NET SDK 없음
-- [.NET 9 SDK 다운로드](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [.NET 10 SDK 다운로드](https://dotnet.microsoft.com/download/dotnet/10.0)
 - 설치 후 터미널 재시작
 
 ## 추가 정보
