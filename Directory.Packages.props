@@ -31,6 +31,9 @@
     <PackageVersion Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
     <PackageVersion Include="Markdig" Version="0.43.0" />
+    <!-- Two-hop DOCX conversion: Mammoth (DOCX→HTML) + ReverseMarkdown (HTML→MD) -->
+    <PackageVersion Include="Mammoth" Version="1.8.0" />
+    <PackageVersion Include="ReverseMarkdown" Version="4.6.0" />
   </ItemGroup>
   <ItemGroup Label="AI Providers">
     <PackageVersion Include="OpenAI" Version="2.7.0" />

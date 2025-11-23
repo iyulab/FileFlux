@@ -2,6 +2,7 @@ using FileFlux.Core;
 using FileFlux.Domain;
 using OpenAI;
 using OpenAI.Chat;
+using System.ClientModel;
 using System.Text.Json;
 
 namespace FileFlux.CLI.Services.Providers;
@@ -13,12 +14,22 @@ public class OpenAITextCompletionService : ITextCompletionService
 {
     private readonly ChatClient _chatClient;
 
-    public OpenAITextCompletionService(string apiKey, string model)
+    public OpenAITextCompletionService(string apiKey, string model, string? endpoint = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
 
-        var client = new OpenAIClient(apiKey);
+        OpenAIClient client;
+        if (!string.IsNullOrWhiteSpace(endpoint))
+        {
+            // Custom endpoint for OpenAI-compatible APIs (e.g., GPU-Stack)
+            var options = new OpenAIClientOptions { Endpoint = new Uri(endpoint) };
+            client = new OpenAIClient(new ApiKeyCredential(apiKey), options);
+        }
+        else
+        {
+            client = new OpenAIClient(apiKey);
+        }
         _chatClient = client.GetChatClient(model);
     }
 

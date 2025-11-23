@@ -23,13 +23,13 @@ public class ExtractCommand : Command
 
         var outputOpt = new Option<string>("--output", "-o")
         {
-            Description = "Output file path (default: input.extracted.json)"
+            Description = "Output file path (default: input.extract.md)"
         };
 
         var formatOpt = new Option<string>("--format", "-f")
         {
-            Description = "Output format (json, jsonl, markdown)",
-            DefaultValueFactory = _ => "json"
+            Description = "Output format (md, json, jsonl)",
+            DefaultValueFactory = _ => "md"
         };
 
         var quietOpt = new Option<bool>("--quiet", "-q")
@@ -73,13 +73,12 @@ public class ExtractCommand : Command
     {
         if (!File.Exists(input))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {input}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
             return;
         }
 
         // Determine output path and format
-        output ??= Path.ChangeExtension(input, ".extracted.json");
-        format ??= "json";
+        format ??= "md";
 
         IOutputWriter writer = format.ToLowerInvariant() switch
         {
@@ -89,17 +88,14 @@ public class ExtractCommand : Command
             _ => new JsonOutputWriter()
         };
 
-        // Ensure output has correct extension
-        if (!output.EndsWith(writer.Extension, StringComparison.OrdinalIgnoreCase))
-        {
-            output = Path.ChangeExtension(output, writer.Extension);
-        }
+        // User-friendly output naming: input.extract.{ext}
+        output ??= $"{input}.extract{writer.Extension}";
 
         if (!quiet)
         {
             AnsiConsole.MarkupLine($"[blue]FileFlux CLI - Extract[/]");
-            AnsiConsole.MarkupLine($"  Input:  {input}");
-            AnsiConsole.MarkupLine($"  Output: {output}");
+            AnsiConsole.MarkupLine($"  Input:  {Markup.Escape(input)}");
+            AnsiConsole.MarkupLine($"  Output: {Markup.Escape(output)}");
             AnsiConsole.MarkupLine($"  Format: {format}");
             if (enableVision)
             {
@@ -151,13 +147,29 @@ public class ExtractCommand : Command
                 });
 
             // Write output
-            await writer.WriteAsync(chunks, output, cancellationToken);
+            var chunkList = chunks.ToList();
+            await writer.WriteAsync(chunkList, output, cancellationToken);
+
+            // Write info file
+            var config = new CliEnvironmentConfig();
+            var providerStatus = enableVision && config.HasAnyProvider() ? config.DetectProvider() : null;
+            var info = new ProcessingInfo
+            {
+                Command = "extract",
+                Format = format,
+                Strategy = "FixedSize",
+                MaxChunkSize = 100000,
+                OverlapSize = 0,
+                AIProvider = providerStatus,
+                EnrichmentEnabled = false
+            };
+            await ProcessingInfoWriter.WriteInfoAsync(output, input, chunkList, info, cancellationToken);
 
             if (!quiet)
             {
-                var chunkList = chunks.ToList();
                 AnsiConsole.MarkupLine($"[green]✓[/] Extracted {chunkList.Count} chunks");
-                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {output}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {Markup.Escape(output)}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Info file: {Markup.Escape(ProcessingInfoWriter.GetInfoPath(output))}");
 
                 // Show summary
                 var totalChars = chunkList.Sum(c => c.Content.Length);

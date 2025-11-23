@@ -35,7 +35,7 @@ public class InfoCommand : Command
     {
         if (!File.Exists(input))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {input}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
             return;
         }
 

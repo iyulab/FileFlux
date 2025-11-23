@@ -2,6 +2,7 @@ using FileFlux;
 using FileFlux.Domain;
 using OpenAI;
 using OpenAI.Chat;
+using System.ClientModel;
 
 namespace FileFlux.CLI.Services.Providers;
 
@@ -19,12 +20,22 @@ public class OpenAIImageToTextService : IImageToTextService
         ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"
     };
 
-    public OpenAIImageToTextService(string apiKey, string model)
+    public OpenAIImageToTextService(string apiKey, string model, string? endpoint = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
 
-        var client = new OpenAIClient(apiKey);
+        OpenAIClient client;
+        if (!string.IsNullOrWhiteSpace(endpoint))
+        {
+            // Custom endpoint for OpenAI-compatible APIs (e.g., GPU-Stack)
+            var options = new OpenAIClientOptions { Endpoint = new Uri(endpoint) };
+            client = new OpenAIClient(new ApiKeyCredential(apiKey), options);
+        }
+        else
+        {
+            client = new OpenAIClient(apiKey);
+        }
         _chatClient = client.GetChatClient(model);
         _model = model;
     }

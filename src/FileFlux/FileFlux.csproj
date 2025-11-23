@@ -26,6 +26,10 @@
     <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="CsvHelper" />
     <PackageReference Include="Markdig" />
+
+    <!-- Two-hop DOCX conversion -->
+    <PackageReference Include="Mammoth" />
+    <PackageReference Include="ReverseMarkdown" />
   </ItemGroup>
 
 </Project>

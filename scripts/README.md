@@ -146,11 +146,16 @@ $env:OPENAI_MODEL = "gpt-5-nano"
 [System.Environment]::SetEnvironmentVariable('OPENAI_MODEL', 'gpt-5-nano', 'User')
 ```
 
-### FileFlux 설정
+### FileFlux CLI 설정 (권장)
 ```powershell
-# 커스텀 설정
-$env:FILEFLUX_OPENAI_API_KEY = "sk-..."
-$env:FILEFLUX_OPENAI_MODEL = "gpt-5-nano"
+# 영구 설정 저장 (config 파일)
+fileflux set OPENAI_API_KEY sk-...
+fileflux set OPENAI_MODEL gpt-5-nano
+fileflux set MODEL_PROVIDER openai
+
+# 설정 확인
+fileflux get
+fileflux status
 ```
 
 ## 문제 해결

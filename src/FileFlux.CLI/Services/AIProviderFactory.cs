@@ -36,12 +36,22 @@ public class AIProviderFactory
                 ConfigureAnthropic(services);
                 break;
 
+            case "gpustack":
+                ConfigureGpuStack(services);
+                break;
+
             case "none":
                 // No AI provider configured - FileFlux will work without AI features
                 break;
 
+            case "ambiguous":
+                var providers = _config.GetConfiguredProviders();
+                throw new InvalidOperationException(
+                    $"Multiple API keys configured ({string.Join(", ", providers)}). " +
+                    "Set MODEL_PROVIDER environment variable to select one.");
+
             default:
-                throw new InvalidOperationException($"Provider '{provider}' is not supported. Currently 'openai' and 'anthropic' are supported.");
+                throw new InvalidOperationException($"Provider '{provider}' is not supported. Supported: openai, anthropic, gpustack.");
         }
     }
 
@@ -57,7 +67,9 @@ public class AIProviderFactory
         {
             "openai" => $"OpenAI ({_config.OpenAIModel}){visionStatus}",
             "anthropic" => $"Anthropic ({_config.AnthropicModel}){visionStatus}",
+            "gpustack" => $"GPU-Stack ({_config.GpuStackModel ?? "default"}){visionStatus}",
             "none" => "No AI provider (basic processing only)",
+            "ambiguous" => $"Ambiguous (set MODEL_PROVIDER: {string.Join(", ", _config.GetConfiguredProviders())})",
             _ => $"Unsupported: {provider}"
         };
     }
@@ -67,7 +79,8 @@ public class AIProviderFactory
     /// </summary>
     public bool HasAIProvider()
     {
-        return _config.DetectProvider() != "none";
+        var provider = _config.DetectProvider();
+        return provider != "none" && provider != "ambiguous";
     }
 
     private void ConfigureOpenAI(IServiceCollection services)
@@ -101,7 +114,7 @@ public class AIProviderFactory
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new InvalidOperationException(
-                "Anthropic API key not found. Set ANTHROPIC_API_KEY or FILEFLUX_ANTHROPIC_API_KEY environment variable.");
+                "Anthropic API key not found. Set ANTHROPIC_API_KEY environment variable.");
         }
 
         // Register text completion service
@@ -116,4 +129,33 @@ public class AIProviderFactory
         }
     }
 
+    private void ConfigureGpuStack(IServiceCollection services)
+    {
+        var apiKey = _config.GpuStackApiKey;
+        var endpoint = _config.GpuStackEndpoint ?? "http://localhost:8080";
+        var model = _config.GpuStackModel;
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException(
+                "GPU-Stack API key not found. Set GPUSTACK_API_KEY environment variable.");
+        }
+
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            throw new InvalidOperationException(
+                "GPU-Stack model not specified. Set GPUSTACK_MODEL environment variable.");
+        }
+
+        // GPU-Stack uses OpenAI-compatible API
+        services.AddScoped<ITextCompletionService>(sp =>
+            new OpenAITextCompletionService(apiKey, model, endpoint));
+
+        // Register image-to-text service if vision is enabled
+        if (_enableVision)
+        {
+            services.AddScoped<IImageToTextService>(sp =>
+                new OpenAIImageToTextService(apiKey, model, endpoint));
+        }
+    }
 }

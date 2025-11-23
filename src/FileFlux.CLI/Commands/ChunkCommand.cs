@@ -24,13 +24,13 @@ public class ChunkCommand : Command
 
         var outputOpt = new Option<string>("--output", "-o")
         {
-            Description = "Output file path (default: input.chunks.json)"
+            Description = "Output file path (default: input.chunk.md)"
         };
 
         var formatOpt = new Option<string>("--format", "-f")
         {
-            Description = "Output format (json, jsonl, markdown)",
-            DefaultValueFactory = _ => "json"
+            Description = "Output format (md, json, jsonl)",
+            DefaultValueFactory = _ => "md"
         };
 
         var strategyOpt = new Option<string>("--strategy", "-s")
@@ -101,13 +101,12 @@ public class ChunkCommand : Command
     {
         if (!File.Exists(input))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {input}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
             return;
         }
 
         // Determine output path and format
-        output ??= Path.ChangeExtension(input, ".chunks.json");
-        format ??= "json";
+        format ??= "md";
         strategy ??= "Auto";
 
         IOutputWriter writer = format.ToLowerInvariant() switch
@@ -118,10 +117,8 @@ public class ChunkCommand : Command
             _ => new JsonOutputWriter()
         };
 
-        if (!output.EndsWith(writer.Extension, StringComparison.OrdinalIgnoreCase))
-        {
-            output = Path.ChangeExtension(output, writer.Extension);
-        }
+        // User-friendly output naming: input.chunk.{ext}
+        output ??= $"{input}.chunk{writer.Extension}";
 
         // Check AI provider if enrichment requested
         var config = new CliEnvironmentConfig();
@@ -137,8 +134,8 @@ public class ChunkCommand : Command
         if (!quiet)
         {
             AnsiConsole.MarkupLine($"[blue]FileFlux CLI - Chunk[/]");
-            AnsiConsole.MarkupLine($"  Input:    {input}");
-            AnsiConsole.MarkupLine($"  Output:   {output}");
+            AnsiConsole.MarkupLine($"  Input:    {Markup.Escape(input)}");
+            AnsiConsole.MarkupLine($"  Output:   {Markup.Escape(output)}");
             AnsiConsole.MarkupLine($"  Format:   {format}");
             AnsiConsole.MarkupLine($"  Strategy: {strategy}");
             AnsiConsole.MarkupLine($"  Max size: {maxSize} tokens");
@@ -185,13 +182,27 @@ public class ChunkCommand : Command
                 });
 
             // Write output
-            await writer.WriteAsync(chunks, output, cancellationToken);
+            var chunkList = chunks.ToList();
+            await writer.WriteAsync(chunkList, output, cancellationToken);
+
+            // Write info file
+            var info = new ProcessingInfo
+            {
+                Command = "chunk",
+                Format = format,
+                Strategy = strategy,
+                MaxChunkSize = maxSize,
+                OverlapSize = overlap,
+                AIProvider = enrich ? factory.GetProviderStatus() : null,
+                EnrichmentEnabled = enrich
+            };
+            await ProcessingInfoWriter.WriteInfoAsync(output, input, chunkList, info, cancellationToken);
 
             if (!quiet)
             {
-                var chunkList = chunks.ToList();
                 AnsiConsole.MarkupLine($"[green]✓[/] Created {chunkList.Count} chunks");
-                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {output}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {Markup.Escape(output)}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Info file: {Markup.Escape(ProcessingInfoWriter.GetInfoPath(output))}");
 
                 // Show summary
                 var totalChars = chunkList.Sum(c => c.Content.Length);

@@ -24,13 +24,13 @@ public class ProcessCommand : Command
 
         var outputOpt = new Option<string>("--output", "-o")
         {
-            Description = "Output file path (default: input.processed.json)"
+            Description = "Output file path (default: input.process.md)"
         };
 
         var formatOpt = new Option<string>("--format", "-f")
         {
-            Description = "Output format (json, jsonl, markdown)",
-            DefaultValueFactory = _ => "json"
+            Description = "Output format (md, json, jsonl)",
+            DefaultValueFactory = _ => "md"
         };
 
         var strategyOpt = new Option<string>("--strategy", "-s")
@@ -101,12 +101,11 @@ public class ProcessCommand : Command
     {
         if (!File.Exists(input))
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {input}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
             return;
         }
 
-        output ??= Path.ChangeExtension(input, ".processed.json");
-        format ??= "json";
+        format ??= "md";
         strategy ??= "Auto";
 
         IOutputWriter writer = format.ToLowerInvariant() switch
@@ -117,10 +116,8 @@ public class ProcessCommand : Command
             _ => new JsonOutputWriter()
         };
 
-        if (!output.EndsWith(writer.Extension, StringComparison.OrdinalIgnoreCase))
-        {
-            output = Path.ChangeExtension(output, writer.Extension);
-        }
+        // User-friendly output naming: input.process.{ext}
+        output ??= $"{input}.process{writer.Extension}";
 
         var config = new CliEnvironmentConfig();
         var factory = new AIProviderFactory(config);
@@ -137,8 +134,8 @@ public class ProcessCommand : Command
         if (!quiet)
         {
             var panel = new Panel(new Markup(
-                $"[bold]Input:[/] {input}\n" +
-                $"[bold]Output:[/] {output}\n" +
+                $"[bold]Input:[/] {Markup.Escape(input)}\n" +
+                $"[bold]Output:[/] {Markup.Escape(output)}\n" +
                 $"[bold]Strategy:[/] {strategy} (max: {maxSize}, overlap: {overlap})\n" +
                 $"[bold]AI Provider:[/] {(enrich ? factory.GetProviderStatus() : "Disabled")}\n" +
                 $"[bold]Format:[/] {format}"))
@@ -199,13 +196,27 @@ public class ProcessCommand : Command
                 });
 
             // Write output
-            await writer.WriteAsync(chunks, output, cancellationToken);
+            var chunkList = chunks.ToList();
+            await writer.WriteAsync(chunkList, output, cancellationToken);
+
+            // Write info file
+            var info = new ProcessingInfo
+            {
+                Command = "process",
+                Format = format,
+                Strategy = strategy,
+                MaxChunkSize = maxSize,
+                OverlapSize = overlap,
+                AIProvider = enrich ? factory.GetProviderStatus() : null,
+                EnrichmentEnabled = enrich
+            };
+            await ProcessingInfoWriter.WriteInfoAsync(output, input, chunkList, info, cancellationToken);
 
             if (!quiet)
             {
-                var chunkList = chunks.ToList();
                 AnsiConsole.MarkupLine($"\n[green]✓ Success![/] Processed document into {chunkList.Count} chunks");
-                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {output}\n");
+                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {Markup.Escape(output)}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Info file: {Markup.Escape(ProcessingInfoWriter.GetInfoPath(output))}\n");
 
                 // Detailed summary
                 var totalChars = chunkList.Sum(c => c.Content.Length);

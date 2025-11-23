@@ -20,7 +20,10 @@ class Program
             new ExtractCommand(),
             new ChunkCommand(),
             new ProcessCommand(),
-            new InfoCommand()
+            new InfoCommand(),
+            new StatusCommand(),
+            new SetCommand(),
+            new GetCommand()
         };
 
         // Show banner if no args
@@ -67,21 +70,19 @@ class Program
         table.AddRow("chunk", "Intelligent chunking with optional AI enrichment");
         table.AddRow("process", "Complete pipeline (extract + chunk + enrich)");
         table.AddRow("info", "Display document information");
+        table.AddRow("status", "Display AI provider and configuration status");
+        table.AddRow("set", "Set a configuration value");
+        table.AddRow("get", "Get configuration value(s)");
 
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[yellow]Examples:[/]");
-        AnsiConsole.MarkupLine("  [grey]fileflux process document.pdf -o output.json[/]");
-        AnsiConsole.MarkupLine("  [grey]fileflux chunk document.pdf --enrich --strategy Auto[/]");
+        AnsiConsole.MarkupLine("  [grey]fileflux process document.pdf[/]");
         AnsiConsole.MarkupLine("  [grey]fileflux extract document.docx -f markdown[/]");
-        AnsiConsole.MarkupLine("  [grey]fileflux info document.pdf[/]");
+        AnsiConsole.MarkupLine("  [grey]fileflux set OPENAI_API_KEY sk-...[/]");
+        AnsiConsole.MarkupLine("  [grey]fileflux get[/]");
         AnsiConsole.WriteLine();
-
-        AnsiConsole.MarkupLine("[yellow]Environment Variables:[/]");
-        AnsiConsole.MarkupLine("  [grey]OPENAI_API_KEY      OpenAI API key[/]");
-        AnsiConsole.MarkupLine("  [grey]OPENAI_MODEL        Model name (default: gpt-5-nano)[/]");
-        AnsiConsole.MarkupLine("  [grey]ANTHROPIC_API_KEY   Anthropic API key[/]");
-        AnsiConsole.MarkupLine("  [grey]ANTHROPIC_MODEL     Model name (default: claude-3-haiku-20240307)[/]");
+        AnsiConsole.MarkupLine("[grey]Run 'fileflux status' for detailed configuration[/]");
     }
 }

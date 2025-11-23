@@ -3,36 +3,49 @@ namespace FileFlux.CLI.Services;
 /// <summary>
 /// Environment variable configuration for CLI
 /// Supports multiple naming conventions with fallbacks
+/// Priority: Environment Variable > Config File > Default
 /// </summary>
 public class CliEnvironmentConfig
 {
+    private readonly ConfigManager _configManager;
+
+    public CliEnvironmentConfig()
+    {
+        _configManager = new ConfigManager();
+    }
+
     // Provider selection
-    public string? Provider => GetEnv("FILEFLUX_PROVIDER") ?? GetEnv("PROVIDER");
+    public string? Provider => GetValue("MODEL_PROVIDER");
 
     // OpenAI configuration
-    public string? OpenAIApiKey => GetEnv("FILEFLUX_OPENAI_API_KEY")
-        ?? GetEnv("OPENAI_API_KEY")
-        ?? GetEnv("API_KEY");
+    public string? OpenAIApiKey => GetValue("OPENAI_API_KEY");
 
-    public string? OpenAIModel => GetEnv("FILEFLUX_OPENAI_MODEL")
-        ?? GetEnv("OPENAI_MODEL")
-        ?? GetEnv("MODEL")
-        ?? "gpt-5-nano";
+    public string? OpenAIModel => GetValue("OPENAI_MODEL") ?? "gpt-5-nano";
 
     // Anthropic configuration
-    public string? AnthropicApiKey => GetEnv("FILEFLUX_ANTHROPIC_API_KEY")
-        ?? GetEnv("ANTHROPIC_API_KEY")
-        ?? GetEnv("API_KEY");
+    public string? AnthropicApiKey => GetValue("ANTHROPIC_API_KEY");
 
-    public string? AnthropicModel => GetEnv("FILEFLUX_ANTHROPIC_MODEL")
-        ?? GetEnv("ANTHROPIC_MODEL")
-        ?? GetEnv("MODEL")
-        ?? "claude-3-haiku-20240307";
+    public string? AnthropicModel => GetValue("ANTHROPIC_MODEL") ?? "claude-3-haiku-20240307";
 
-    private static string? GetEnv(string key)
+    // GPU-Stack configuration
+    public string? GpuStackApiKey => GetValue("GPUSTACK_API_KEY");
+
+    public string? GpuStackEndpoint => GetValue("GPUSTACK_ENDPOINT") ?? "http://localhost:8080";
+
+    public string? GpuStackModel => GetValue("GPUSTACK_MODEL");
+
+    /// <summary>
+    /// Get value with priority: Environment Variable > Config File
+    /// </summary>
+    private string? GetValue(string key)
     {
-        var value = Environment.GetEnvironmentVariable(key);
-        return string.IsNullOrWhiteSpace(value) ? null : value;
+        // First check environment variable
+        var envValue = Environment.GetEnvironmentVariable(key);
+        if (!string.IsNullOrWhiteSpace(envValue))
+            return envValue;
+
+        // Then check config file
+        return _configManager.Get(key);
     }
 
     /// <summary>
@@ -40,27 +53,51 @@ public class CliEnvironmentConfig
     /// </summary>
     public string DetectProvider()
     {
+        // If explicitly set, use it
         if (!string.IsNullOrWhiteSpace(Provider))
         {
             var provider = Provider.ToLowerInvariant();
-            if (provider == "openai" || provider == "anthropic")
+            if (provider == "openai" || provider == "anthropic" || provider == "gpustack")
             {
                 return provider;
             }
         }
 
-        // Auto-detect from API keys (OpenAI has priority)
-        if (!string.IsNullOrWhiteSpace(OpenAIApiKey))
+        // Count configured API keys
+        var configuredProviders = GetConfiguredProviders();
+
+        // If multiple providers configured, require explicit selection
+        if (configuredProviders.Count > 1)
         {
-            return "openai";
+            return "ambiguous";
         }
 
-        if (!string.IsNullOrWhiteSpace(AnthropicApiKey))
+        // Auto-detect from single API key
+        if (configuredProviders.Count == 1)
         {
-            return "anthropic";
+            return configuredProviders[0];
         }
 
         return "none";
+    }
+
+    /// <summary>
+    /// Get list of configured providers (those with API keys)
+    /// </summary>
+    public List<string> GetConfiguredProviders()
+    {
+        var providers = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(OpenAIApiKey))
+            providers.Add("openai");
+
+        if (!string.IsNullOrWhiteSpace(AnthropicApiKey))
+            providers.Add("anthropic");
+
+        if (!string.IsNullOrWhiteSpace(GpuStackApiKey))
+            providers.Add("gpustack");
+
+        return providers;
     }
 
     /// <summary>
