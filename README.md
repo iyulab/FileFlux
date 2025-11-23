@@ -14,7 +14,10 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 ### Key Features
 
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, Markdown, HTML, TXT, JSON, CSV
-- **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize
+- **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel
+- **Structural Metadata**: HeadingPath, page numbers, ContextDependency scores for enhanced RAG
+- **Language Detection**: Automatic language detection using NTextCat
+- **IEnrichedChunk Interface**: Standardized interface for RAG system integration
 - **Metadata Enrichment**: AI-powered metadata extraction with caching and fallback
 - **Extensible Architecture**: Interface-based design for easy customization
 - **Async Processing**: Streaming and parallel processing for large documents

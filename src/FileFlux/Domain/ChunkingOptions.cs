@@ -21,6 +21,21 @@ public class ChunkingOptions
     public int OverlapSize { get; set; } = 128;
 
     /// <summary>
+    /// 문단 경계 보존 여부 (시맨틱 청킹용)
+    /// </summary>
+    public bool PreserveParagraphs { get; set; } = true;
+
+    /// <summary>
+    /// 문장 경계 보존 여부 (시맨틱 청킹용)
+    /// </summary>
+    public bool PreserveSentences { get; set; } = true;
+
+    /// <summary>
+    /// 계층적 청킹 시 최대 헤딩 레벨 (1-6)
+    /// </summary>
+    public int MaxHeadingLevel { get; set; } = 3;
+
+    /// <summary>
     /// 사용자 정의 속성들 (Phase 10: 고급 설정)
     /// </summary>
     public Dictionary<string, object> CustomProperties { get; } = new();
@@ -62,7 +77,17 @@ public static class ChunkingStrategies
     public const string FixedSize = nameof(FixedSize);
 
     /// <summary>
+    /// 계층적 청킹 - 문서 구조(섹션/챕터) 기반
+    /// </summary>
+    public const string Hierarchical = nameof(Hierarchical);
+
+    /// <summary>
+    /// 페이지 단위 청킹 - PDF 등 페이지 기반 문서용
+    /// </summary>
+    public const string PageLevel = nameof(PageLevel);
+
+    /// <summary>
     /// 지원되는 모든 전략 목록 (우선순위 순)
     /// </summary>
-    public static readonly string[] All = { Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize };
+    public static readonly string[] All = { Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel };
 }

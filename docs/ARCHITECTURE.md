@@ -89,8 +89,11 @@ FileFlux/
     ├── Strategies/          # Chunking Strategies
     ├── Services/            # Processing Services
     │   ├── AIMetadataEnricher
-    │   └── RuleBasedMetadataExtractor
+    │   ├── RuleBasedMetadataExtractor
+    │   ├── LanguageDetector
+    │   └── ContextDependencyAnalyzer
     └── Utilities/           # Helper Classes
+        └── ChunkingHelper
 ```
 
 ### Layer Structure

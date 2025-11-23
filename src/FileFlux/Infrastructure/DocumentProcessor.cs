@@ -58,8 +58,8 @@ public partial class DocumentProcessor : IDocumentProcessor
         // Step 2: Parse document
         var parsedContent = await ParseAsync(rawContent, (DocumentParsingOptions?)null, cancellationToken);
 
-        // Step 3: Generate chunks
-        var chunks = await ChunkAsync(parsedContent, options, cancellationToken);
+        // Step 3: Generate chunks (with raw content for page ranges)
+        var chunks = await ChunkAsync(parsedContent, rawContent, options, cancellationToken);
 
         return chunks;
     }
@@ -81,8 +81,8 @@ public partial class DocumentProcessor : IDocumentProcessor
         // Step 2: Parse document
         var parsedContent = await ParseAsync(rawContent, (DocumentParsingOptions?)null, cancellationToken);
 
-        // Step 3: Generate chunks
-        var chunks = await ChunkAsync(parsedContent, options, cancellationToken);
+        // Step 3: Generate chunks (with raw content for page ranges)
+        var chunks = await ChunkAsync(parsedContent, rawContent, options, cancellationToken);
 
         return chunks;
     }
@@ -98,8 +98,8 @@ public partial class DocumentProcessor : IDocumentProcessor
         // Step 1: Parse document
         var parsedContent = await ParseAsync(rawContent, parsingOptions, cancellationToken);
 
-        // Step 2: Generate chunks
-        var chunks = await ChunkAsync(parsedContent, options, cancellationToken);
+        // Step 2: Generate chunks (with raw content for page ranges)
+        var chunks = await ChunkAsync(parsedContent, rawContent, options, cancellationToken);
 
         return chunks;
     }
@@ -147,6 +147,15 @@ public partial class DocumentProcessor : IDocumentProcessor
         ChunkingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        return await ChunkAsync(parsedContent, null, options, cancellationToken);
+    }
+
+    public async Task<DocumentChunk[]> ChunkAsync(
+        ParsedContent parsedContent,
+        RawContent? rawContent,
+        ChunkingOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
         ArgumentNullException.ThrowIfNull(parsedContent);
 
         options ??= new ChunkingOptions();
@@ -163,8 +172,8 @@ public partial class DocumentProcessor : IDocumentProcessor
 
             _logger.LogDebug("Using chunking strategy: {StrategyName}", strategy.StrategyName);
 
-            // ParsedContent를 기존 DocumentContent로 변환
-            var documentContent = ConvertToDocumentContent(parsedContent);
+            // ParsedContent를 기존 DocumentContent로 변환 (with page ranges from raw content)
+            var documentContent = ConvertToDocumentContent(parsedContent, rawContent);
 
             // 청킹 실행
             var chunks = await strategy.ChunkAsync(documentContent, options, cancellationToken);
@@ -311,9 +320,9 @@ public partial class DocumentProcessor : IDocumentProcessor
     /// <summary>
     /// ParsedContent를 기존 DocumentContent로 변환
     /// </summary>
-    private static DocumentContent ConvertToDocumentContent(ParsedContent parsedContent)
+    private static DocumentContent ConvertToDocumentContent(ParsedContent parsedContent, RawContent? rawContent = null)
     {
-        return new DocumentContent
+        var documentContent = new DocumentContent
         {
             Text = parsedContent.Text,
             Metadata = parsedContent.Metadata,
@@ -328,7 +337,35 @@ public partial class DocumentProcessor : IDocumentProcessor
                 ["StructureConfidence"] = parsedContent.Quality.StructureScore,
                 ["ParsingDuration"] = parsedContent.Duration.TotalMilliseconds,
                 ["UsedLlm"] = parsedContent.Info.UsedLlm
-            }
+            },
+            // Convert Section to ContentSection for HeadingPath support
+            Sections = parsedContent.Structure.Sections
+                .Select(s => ConvertToContentSection(s))
+                .ToList()
+        };
+
+        // Extract page ranges from raw content hints (PDF documents)
+        if (rawContent?.Hints.TryGetValue("PageRanges", out var pageRangesObj) == true &&
+            pageRangesObj is Dictionary<int, (int Start, int End)> pageRanges)
+        {
+            documentContent.PageRanges = pageRanges;
+        }
+
+        return documentContent;
+    }
+
+    /// <summary>
+    /// Convert parsed Section to ContentSection for chunking
+    /// </summary>
+    private static ContentSection ConvertToContentSection(Section section)
+    {
+        return new ContentSection
+        {
+            Title = section.Title,
+            Level = section.Level,
+            StartPosition = section.Start,
+            EndPosition = section.End,
+            Children = section.Children.Select(ConvertToContentSection).ToList()
         };
     }
 

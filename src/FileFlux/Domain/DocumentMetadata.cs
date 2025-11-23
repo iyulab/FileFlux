@@ -46,14 +46,24 @@ public class DocumentMetadata
     public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
-    /// 문서 언어
+    /// 문서 언어 (ISO 639-1 코드: "ko", "en", "ja")
     /// </summary>
     public string? Language { get; set; }
+
+    /// <summary>
+    /// 언어 감지 신뢰도 (0.0 - 1.0)
+    /// </summary>
+    public double LanguageConfidence { get; set; } = 0.0;
 
     /// <summary>
     /// 총 페이지 수
     /// </summary>
     public int PageCount { get; set; }
+
+    /// <summary>
+    /// 총 단어 수
+    /// </summary>
+    public int WordCount { get; set; }
 
     /// <summary>
     /// 사용자 정의 속성들

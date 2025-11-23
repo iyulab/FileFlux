@@ -1,5 +1,6 @@
 using FileFlux;
 using FileFlux.Domain;
+using FileFlux.Infrastructure.Services;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
@@ -71,7 +72,7 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
                 {
                     // 현재 청크 완료
                     var chunkContent = string.Join(" ", currentChunk);
-                    var chunk = CreateChunk(chunkContent, content.Metadata, chunkIndex++, globalPosition, options);
+                    var chunk = CreateChunk(chunkContent, content, chunkIndex++, globalPosition, options);
                     chunks.Add(chunk);
 
                     globalPosition += chunkContent.Length;
@@ -90,7 +91,7 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
                 if (currentChunk.Count >= minSentences || !preferCompleteSentences)
                 {
                     var chunkContent = string.Join(" ", currentChunk);
-                    var chunk = CreateChunk(chunkContent, content.Metadata, chunkIndex++, globalPosition, options);
+                    var chunk = CreateChunk(chunkContent, content, chunkIndex++, globalPosition, options);
                     chunks.Add(chunk);
 
                     globalPosition += chunkContent.Length;
@@ -104,9 +105,12 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
         if (currentChunk.Count != 0)
         {
             var chunkContent = string.Join(" ", currentChunk);
-            var chunk = CreateChunk(chunkContent, content.Metadata, chunkIndex, globalPosition, options);
+            var chunk = CreateChunk(chunkContent, content, chunkIndex, globalPosition, options);
             chunks.Add(chunk);
         }
+
+        // Update chunk count in source info
+        ChunkingHelper.UpdateChunkCount(chunks);
 
         return await Task.FromResult(chunks);
     }
@@ -212,28 +216,36 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
     }
 
     private static DocumentChunk CreateChunk(
-        string content,
-        DocumentMetadata metadata,
+        string chunkContent,
+        DocumentContent documentContent,
         int chunkIndex,
         int startPosition,
         ChunkingOptions options)
     {
-        return new DocumentChunk
+        var trimmedContent = chunkContent.Trim();
+        var endPosition = startPosition + chunkContent.Length;
+
+        var chunk = new DocumentChunk
         {
             Id = Guid.NewGuid(),
-            Content = content.Trim(),
-            Metadata = metadata,
+            Content = trimmedContent,
+            Metadata = documentContent.Metadata,
             Location = new SourceLocation
             {
                 StartChar = startPosition,
-                EndChar = startPosition + content.Length
+                EndChar = endPosition
             },
             Index = chunkIndex,
             Strategy = ChunkingStrategies.Semantic,
-            Tokens = EstimateTokenCount(content),
+            Tokens = EstimateTokenCount(chunkContent),
             CreatedAt = DateTime.UtcNow,
-            Importance = CalculateImportance(content)
+            Importance = CalculateImportance(trimmedContent)
         };
+
+        // Enrich with structural metadata
+        ChunkingHelper.EnrichChunk(chunk, documentContent, startPosition, endPosition);
+
+        return chunk;
     }
 
     private static int EstimateTokenCount(string text)

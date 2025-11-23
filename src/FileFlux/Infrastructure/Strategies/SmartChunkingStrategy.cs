@@ -67,7 +67,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
 
             var chunk = CreateSmartChunk(
                 chunkContent,
-                content.Metadata,
+                content,
                 chunkIndex++,
                 globalPosition,
                 options);
@@ -75,6 +75,9 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
             chunks.Add(chunk);
             globalPosition += chunkContent.Length;
         }
+
+        // Update chunk count in all chunks
+        ChunkingHelper.UpdateChunkCount(chunks);
 
         return await Task.FromResult(chunks);
     }
@@ -481,16 +484,17 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
     /// </summary>
     private DocumentChunk CreateSmartChunk(
         string content,
-        DocumentMetadata metadata,
+        DocumentContent documentContent,
         int chunkIndex,
         int startPosition,
         ChunkingOptions options)
     {
+        var trimmedContent = content.Trim();
         var chunk = new DocumentChunk
         {
             Id = Guid.NewGuid(),
-            Content = content.Trim(),
-            Metadata = metadata,
+            Content = trimmedContent,
+            Metadata = documentContent.Metadata,
             Location = new SourceLocation
             {
                 StartChar = startPosition,
@@ -502,6 +506,9 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
             CreatedAt = DateTime.UtcNow,
             Props = new Dictionary<string, object>()
         };
+
+        // Enrich with structural metadata
+        ChunkingHelper.EnrichChunk(chunk, documentContent, startPosition, startPosition + content.Length);
 
         // 기본 품질 메트릭 계산
         var completeness = CalculateFinalCompleteness(content);
@@ -517,7 +524,7 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
         chunk.Quality = (completeness + coherence + sentenceIntegrity) / 3.0;
 
         // Context7 스타일 메타데이터 강화
-        EnhanceWithContext7Metadata(chunk, metadata);
+        EnhanceWithContext7Metadata(chunk, documentContent.Metadata);
 
         return chunk;
     }

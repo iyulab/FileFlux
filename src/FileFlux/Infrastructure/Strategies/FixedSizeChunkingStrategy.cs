@@ -52,11 +52,13 @@ public partial class FixedSizeChunkingStrategy : IChunkingStrategy
             if (actualChunkLength == 0)
                 break;
 
+            var trimmedContent = chunkText.Trim();
+
             // 청크 생성
             var chunk = new DocumentChunk
             {
                 Id = Guid.NewGuid(),
-                Content = chunkText.Trim(),
+                Content = trimmedContent,
                 Metadata = content.Metadata,
                 Location = new SourceLocation
                 {
@@ -69,7 +71,10 @@ public partial class FixedSizeChunkingStrategy : IChunkingStrategy
                 CreatedAt = DateTime.UtcNow
             };
 
-            // 페이지 정보 추가 (단일 페이지 문서의 경우)
+            // Enrich with structural metadata
+            ChunkingHelper.EnrichChunk(chunk, content, currentPosition, currentPosition + actualChunkLength);
+
+            // 레거시 페이지 정보 (단일 페이지 문서의 경우)
             if (content.Metadata.PageCount == 1)
             {
                 chunk.Props["PageNumber"] = 1;

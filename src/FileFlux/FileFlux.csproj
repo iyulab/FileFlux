@@ -21,6 +21,7 @@
 
     <!-- Document Processing Libraries -->
     <PackageReference Include="DocumentFormat.OpenXml" />
+    <PackageReference Include="NTextCat" />
     <PackageReference Include="PdfPig" />
     <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="CsvHelper" />

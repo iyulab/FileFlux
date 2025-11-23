@@ -1,9 +1,12 @@
+using FileFlux.Core;
+
 namespace FileFlux.Domain;
 
 /// <summary>
 /// Stage 3 output: RAG-optimized document chunk
+/// Implements IEnrichedChunk for FluxIndex integration
 /// </summary>
-public class DocumentChunk
+public class DocumentChunk : IEnrichedChunk
 {
     /// <summary>
     /// Unique chunk ID
@@ -74,6 +77,88 @@ public class DocumentChunk
     /// Custom properties for extensibility
     /// </summary>
     public Dictionary<string, object> Props { get; set; } = new();
+
+    /// <summary>
+    /// Context dependency score (0.0 - 1.0)
+    /// Higher values indicate more reliance on surrounding context
+    /// </summary>
+    public double ContextDependency { get; set; } = 0.0;
+
+    /// <summary>
+    /// Source metadata for the document this chunk belongs to
+    /// </summary>
+    public SourceMetadataInfo SourceInfo { get; set; } = new();
+
+    #region IEnrichedChunk Implementation
+
+    string IEnrichedChunk.ChunkId => Id.ToString();
+    int IEnrichedChunk.ChunkIndex => Index;
+    IReadOnlyList<string> IEnrichedChunk.HeadingPath => Location.HeadingPath;
+    string? IEnrichedChunk.SectionTitle => Location.HeadingPath.Count > 0
+        ? Location.HeadingPath[^1]
+        : Location.Section;
+    int? IEnrichedChunk.StartPage => Location.StartPage;
+    int? IEnrichedChunk.EndPage => Location.EndPage;
+    int IEnrichedChunk.TokenCount => Tokens;
+    ISourceMetadata IEnrichedChunk.Source => SourceInfo;
+
+    #endregion
+}
+
+/// <summary>
+/// Source document metadata implementation
+/// </summary>
+public class SourceMetadataInfo : ISourceMetadata
+{
+    /// <summary>
+    /// Unique source document identifier
+    /// </summary>
+    public string SourceId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Document type (PDF, DOCX, MD, etc.)
+    /// </summary>
+    public string SourceType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Document title
+    /// </summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Original file path
+    /// </summary>
+    public string? FilePath { get; set; }
+
+    /// <summary>
+    /// Document creation timestamp
+    /// </summary>
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Detected language (ISO 639-1)
+    /// </summary>
+    public string Language { get; set; } = "en";
+
+    /// <summary>
+    /// Language detection confidence
+    /// </summary>
+    public double LanguageConfidence { get; set; } = 0.0;
+
+    /// <summary>
+    /// Total word count
+    /// </summary>
+    public int WordCount { get; set; }
+
+    /// <summary>
+    /// Total chunk count
+    /// </summary>
+    public int ChunkCount { get; set; }
+
+    /// <summary>
+    /// Total page count
+    /// </summary>
+    public int? PageCount { get; set; }
 }
 
 /// <summary>
@@ -102,7 +187,13 @@ public class SourceLocation
     public int? EndPage { get; set; }
 
     /// <summary>
-    /// Section path (e.g., "Introduction/Background")
+    /// Section path (legacy - use HeadingPath instead)
     /// </summary>
     public string? Section { get; set; }
+
+    /// <summary>
+    /// Hierarchical heading path from document root
+    /// Example: ["1장 서론", "1.2 배경", "1.2.1 연구 목적"]
+    /// </summary>
+    public List<string> HeadingPath { get; set; } = new();
 }

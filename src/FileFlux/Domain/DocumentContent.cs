@@ -21,6 +21,17 @@ public class DocumentContent
     public Dictionary<string, object> StructureInfo { get; set; } = new();
 
     /// <summary>
+    /// 문서 섹션 계층 구조 (HeadingPath 추출용)
+    /// </summary>
+    public List<ContentSection> Sections { get; set; } = new();
+
+    /// <summary>
+    /// 페이지별 텍스트 범위 정보 (PDF 등)
+    /// Key: 페이지 번호 (1-based), Value: (시작 문자 위치, 끝 문자 위치)
+    /// </summary>
+    public Dictionary<int, (int Start, int End)> PageRanges { get; set; } = new();
+
+    /// <summary>
     /// 추출된 이미지 정보 (있는 경우)
     /// </summary>
     public List<ImageInfo> Images { get; set; } = new();
@@ -91,4 +102,40 @@ public class TableInfo
     /// 테이블 데이터 (CSV 형식 또는 구조화된 데이터)
     /// </summary>
     public string Data { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 컬럼 헤더 (컨텍스트 보존용)
+    /// </summary>
+    public List<string> ColumnHeaders { get; set; } = new();
+}
+
+/// <summary>
+/// 문서 내 섹션 정보 (HeadingPath 추출용)
+/// </summary>
+public class ContentSection
+{
+    /// <summary>
+    /// 섹션 제목
+    /// </summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 섹션 레벨 (1 = H1, 2 = H2, etc.)
+    /// </summary>
+    public int Level { get; set; }
+
+    /// <summary>
+    /// 텍스트 내 시작 위치
+    /// </summary>
+    public int StartPosition { get; set; }
+
+    /// <summary>
+    /// 텍스트 내 끝 위치
+    /// </summary>
+    public int EndPosition { get; set; }
+
+    /// <summary>
+    /// 하위 섹션들
+    /// </summary>
+    public List<ContentSection> Children { get; set; } = new();
 }

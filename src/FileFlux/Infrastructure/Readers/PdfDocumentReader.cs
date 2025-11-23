@@ -82,6 +82,7 @@ public partial class PdfDocumentReader : IDocumentReader
 
             var totalPages = document.NumberOfPages;
             var processedPages = 0;
+            var pageRanges = new Dictionary<int, (int Start, int End)>();
 
             // 페이지별 텍스트 추출
             for (int pageNum = 1; pageNum <= totalPages; pageNum++)
@@ -95,6 +96,9 @@ public partial class PdfDocumentReader : IDocumentReader
 
                     if (!string.IsNullOrWhiteSpace(pageText))
                     {
+                        // 페이지 시작 위치 기록
+                        var pageStartPosition = textBuilder.Length;
+
                         // 페이지 구분자 추가 (청킹에 더 적합한 형식)
                         if (textBuilder.Length > 0)
                         {
@@ -105,6 +109,9 @@ public partial class PdfDocumentReader : IDocumentReader
                         // 페이지 텍스트 전처리 및 정리
                         var cleanedText = NormalizeText(pageText);
                         textBuilder.AppendLine(cleanedText);
+
+                        // 페이지 범위 기록
+                        pageRanges[pageNum] = (pageStartPosition, textBuilder.Length - 1);
                     }
 
                     processedPages++;
@@ -121,6 +128,7 @@ public partial class PdfDocumentReader : IDocumentReader
             structuralHints["TotalCharacters"] = extractedText.Length;
             structuralHints["WordCount"] = CountWords(extractedText);
             structuralHints["LineCount"] = extractedText.Split('\n').Length;
+            structuralHints["PageRanges"] = pageRanges;
 
             if (processedPages < totalPages)
             {
