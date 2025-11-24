@@ -35,30 +35,52 @@ public class ChunkCommand : Command
 
         var strategyOpt = new Option<string>("--strategy", "-s")
         {
-            Description = "Chunking strategy (Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize)",
+            Description = "Chunking strategy: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize (default: Auto)",
             DefaultValueFactory = _ => "Auto"
         };
 
         var maxSizeOpt = new Option<int>("--max-size", "-m")
         {
-            Description = "Maximum chunk size in tokens",
+            Description = "Maximum chunk size in tokens (default: 512)",
             DefaultValueFactory = _ => 512
         };
 
-        var overlapOpt = new Option<int>("--overlap")
+        var overlapOpt = new Option<int>("--overlap", "-l")
         {
-            Description = "Overlap size between chunks",
+            Description = "Overlap size between chunks in tokens (default: 64)",
             DefaultValueFactory = _ => 64
         };
 
-        var enrichOpt = new Option<bool>("--enrich")
+        var aiOpt = new Option<bool>("--ai", "-a")
         {
-            Description = "Enable AI metadata enrichment (requires AI provider)"
+            Description = "Enable AI metadata enrichment (requires OPENAI_API_KEY or ANTHROPIC_API_KEY)"
         };
 
         var quietOpt = new Option<bool>("--quiet", "-q")
         {
             Description = "Minimal output"
+        };
+
+        var noExtractImagesOpt = new Option<bool>("--no-extract-images")
+        {
+            Description = "Keep base64 images in content instead of extracting to files"
+        };
+
+        var minImageSizeOpt = new Option<int>("--min-image-size")
+        {
+            Description = "Minimum image file size in bytes (default: 5000)",
+            DefaultValueFactory = _ => 5000
+        };
+
+        var minImageDimensionOpt = new Option<int>("--min-image-dimension")
+        {
+            Description = "Minimum image dimension in pixels (default: 100)",
+            DefaultValueFactory = _ => 100
+        };
+
+        var verboseOpt = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Show detailed processing information"
         };
 
         Arguments.Add(inputArg);
@@ -67,8 +89,12 @@ public class ChunkCommand : Command
         Options.Add(strategyOpt);
         Options.Add(maxSizeOpt);
         Options.Add(overlapOpt);
-        Options.Add(enrichOpt);
+        Options.Add(aiOpt);
         Options.Add(quietOpt);
+        Options.Add(noExtractImagesOpt);
+        Options.Add(minImageSizeOpt);
+        Options.Add(minImageDimensionOpt);
+        Options.Add(verboseOpt);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
@@ -78,12 +104,19 @@ public class ChunkCommand : Command
             var strategy = parseResult.GetValue(strategyOpt);
             var maxSize = parseResult.GetValue(maxSizeOpt);
             var overlap = parseResult.GetValue(overlapOpt);
-            var enrich = parseResult.GetValue(enrichOpt);
+            var enableAI = parseResult.GetValue(aiOpt);
             var quiet = parseResult.GetValue(quietOpt);
+            var noExtractImages = parseResult.GetValue(noExtractImagesOpt);
+            var minImageSize = parseResult.GetValue(minImageSizeOpt);
+            var minImageDimension = parseResult.GetValue(minImageDimensionOpt);
+            var verbose = parseResult.GetValue(verboseOpt);
 
             if (input != null)
             {
-                await ExecuteAsync(input, output, format, strategy, maxSize, overlap, enrich, quiet, cancellationToken);
+                // Extract images by default (invert the flag)
+                var extractImages = !noExtractImages;
+                await ExecuteAsync(input, output, format, strategy, maxSize, overlap, enableAI, quiet,
+                    extractImages, minImageSize, minImageDimension, verbose, cancellationToken);
             }
         });
     }
@@ -95,8 +128,12 @@ public class ChunkCommand : Command
         string? strategy,
         int maxSize,
         int overlap,
-        bool enrich,
+        bool enableAI,
         bool quiet,
+        bool extractImages,
+        int minImageSize,
+        int minImageDimension,
+        bool verbose,
         CancellationToken cancellationToken)
     {
         if (!File.Exists(input))
@@ -109,26 +146,30 @@ public class ChunkCommand : Command
         format ??= "md";
         strategy ??= "Auto";
 
-        IOutputWriter writer = format.ToLowerInvariant() switch
-        {
-            "json" => new JsonOutputWriter(),
-            "jsonl" => new JsonLinesOutputWriter(),
-            "markdown" or "md" => new MarkdownOutputWriter(),
-            _ => new JsonOutputWriter()
-        };
+        // Use chunked output writer for directory-based output
+        var writer = new ChunkedOutputWriter(format);
 
-        // User-friendly output naming: input.chunk.{ext}
-        output ??= $"{input}.chunk{writer.Extension}";
+        // Output directory: input.chunks/
+        output ??= $"{input}.chunks";
 
         // Check AI provider if enrichment requested
         var config = new CliEnvironmentConfig();
-        var factory = new AIProviderFactory(config);
+        var factory = new AIProviderFactory(config, enableVision: extractImages && enableAI);
 
-        if (enrich && !factory.HasAIProvider())
+        if (enableAI && !factory.HasAIProvider())
         {
-            AnsiConsole.MarkupLine("[yellow]Warning:[/] AI enrichment requested but no provider configured");
+            AnsiConsole.MarkupLine("[yellow]Warning:[/] AI enabled but no provider configured");
             AnsiConsole.MarkupLine("[yellow]→[/] Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable");
-            enrich = false;
+            enableAI = false;
+        }
+
+        // Images directory
+        string? imagesDir = null;
+        if (extractImages)
+        {
+            var baseName = Path.GetFileNameWithoutExtension(input);
+            var dir = Path.GetDirectoryName(input) ?? ".";
+            imagesDir = Path.Combine(dir, $"{baseName}.images");
         }
 
         if (!quiet)
@@ -140,21 +181,34 @@ public class ChunkCommand : Command
             AnsiConsole.MarkupLine($"  Strategy: {strategy}");
             AnsiConsole.MarkupLine($"  Max size: {maxSize} tokens");
             AnsiConsole.MarkupLine($"  Overlap:  {overlap} tokens");
-            AnsiConsole.MarkupLine($"  AI:       {(enrich ? $"Enabled ({factory.GetProviderStatus()})" : "Disabled")}");
+            AnsiConsole.MarkupLine($"  AI:       {(enableAI ? $"Enabled ({factory.GetProviderStatus()})" : "Disabled")}");
+            if (extractImages)
+                AnsiConsole.MarkupLine($"  Images:   [green]Extracting[/] to {Markup.Escape(imagesDir ?? "N/A")}");
             AnsiConsole.WriteLine();
         }
 
         try
         {
+            // Phase 1: Extract and process images (shared with extract command)
+            var extractResult = await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Dots)
+                .StartAsync("Extracting document...", async ctx =>
+                {
+                    return await ExtractCommand.ExtractDocumentAsync(
+                        input, imagesDir, enableAI, extractImages,
+                        minImageSize, minImageDimension, verbose, ctx, cancellationToken);
+                });
+
+            // Phase 2: Chunk the processed content
             var chunks = await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
-                .StartAsync("Processing document...", async ctx =>
+                .StartAsync("Chunking document...", async ctx =>
                 {
                     // Setup services
                     var services = new ServiceCollection();
 
                     // Add AI provider if enrichment enabled
-                    if (enrich)
+                    if (enableAI)
                     {
                         factory.ConfigureServices(services);
                     }
@@ -172,20 +226,24 @@ public class ChunkCommand : Command
                     };
 
                     // Enable metadata enrichment if AI available
-                    if (enrich)
+                    if (enableAI)
                     {
                         options.CustomProperties["enableMetadataEnrichment"] = true;
                         options.CustomProperties["metadataSchema"] = "General";
                     }
 
-                    return await processor.ProcessAsync(input, options, cancellationToken);
+                    // Update ParsedContent with processed text (images replaced with file paths)
+                    extractResult.ParsedContent.Text = extractResult.ProcessedText;
+
+                    // Chunk the processed content (with images already handled)
+                    return await processor.ChunkAsync(extractResult.ParsedContent, options, cancellationToken);
                 });
 
             // Write output
             var chunkList = chunks.ToList();
             await writer.WriteAsync(chunkList, output, cancellationToken);
 
-            // Write info file
+            // Write info file for chunked output
             var info = new ProcessingInfo
             {
                 Command = "chunk",
@@ -193,16 +251,16 @@ public class ChunkCommand : Command
                 Strategy = strategy,
                 MaxChunkSize = maxSize,
                 OverlapSize = overlap,
-                AIProvider = enrich ? factory.GetProviderStatus() : null,
-                EnrichmentEnabled = enrich
+                AIProvider = enableAI ? factory.GetProviderStatus() : null,
+                EnrichmentEnabled = enableAI
             };
-            await ProcessingInfoWriter.WriteInfoAsync(output, input, chunkList, info, cancellationToken);
+            await ProcessingInfoWriter.WriteChunkedInfoAsync(output, input, chunkList, info, cancellationToken);
 
             if (!quiet)
             {
                 AnsiConsole.MarkupLine($"[green]✓[/] Created {chunkList.Count} chunks");
-                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {Markup.Escape(output)}");
-                AnsiConsole.MarkupLine($"[green]✓[/] Info file: {Markup.Escape(ProcessingInfoWriter.GetInfoPath(output))}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {Markup.Escape(output)}/");
+                AnsiConsole.MarkupLine($"[green]✓[/] Info file: {Markup.Escape(Path.Combine(output, "info.json"))}");
 
                 // Show summary
                 var totalChars = chunkList.Sum(c => c.Content.Length);
@@ -217,10 +275,19 @@ public class ChunkCommand : Command
                 table.AddRow("Min chunk size", chunkList.Min(c => c.Content.Length).ToString("N0"));
                 table.AddRow("Max chunk size", chunkList.Max(c => c.Content.Length).ToString("N0"));
 
-                if (enrich)
+                if (extractResult.Images.Count > 0)
+                    table.AddRow("Images extracted", extractResult.Images.Count.ToString());
+
+                if (extractResult.SkippedImageCount > 0)
+                    table.AddRow("Images skipped", extractResult.SkippedImageCount.ToString());
+
+                if (enableAI)
                 {
                     var enrichedCount = chunkList.Count(c => c.Metadata.CustomProperties.ContainsKey("enriched_topics"));
                     table.AddRow("Enriched chunks", enrichedCount.ToString());
+
+                    if (extractResult.Images.Any(i => !string.IsNullOrEmpty(i.AIDescription)))
+                        table.AddRow("AI analyzed images", extractResult.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription)).ToString());
                 }
 
                 AnsiConsole.Write(table);

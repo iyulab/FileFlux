@@ -35,25 +35,25 @@ public class ProcessCommand : Command
 
         var strategyOpt = new Option<string>("--strategy", "-s")
         {
-            Description = "Chunking strategy",
+            Description = "Chunking strategy: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize (default: Auto)",
             DefaultValueFactory = _ => "Auto"
         };
 
         var maxSizeOpt = new Option<int>("--max-size", "-m")
         {
-            Description = "Maximum chunk size",
+            Description = "Maximum chunk size in tokens (default: 512)",
             DefaultValueFactory = _ => 512
         };
 
-        var overlapOpt = new Option<int>("--overlap")
+        var overlapOpt = new Option<int>("--overlap", "-l")
         {
-            Description = "Overlap size",
+            Description = "Overlap size between chunks in tokens (default: 64)",
             DefaultValueFactory = _ => 64
         };
 
-        var noEnrichOpt = new Option<bool>("--no-enrich")
+        var aiOpt = new Option<bool>("--ai", "-a")
         {
-            Description = "Disable AI enrichment"
+            Description = "Enable AI metadata enrichment (requires OPENAI_API_KEY or ANTHROPIC_API_KEY)"
         };
 
         var quietOpt = new Option<bool>("--quiet", "-q")
@@ -67,7 +67,7 @@ public class ProcessCommand : Command
         Options.Add(strategyOpt);
         Options.Add(maxSizeOpt);
         Options.Add(overlapOpt);
-        Options.Add(noEnrichOpt);
+        Options.Add(aiOpt);
         Options.Add(quietOpt);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
@@ -78,12 +78,12 @@ public class ProcessCommand : Command
             var strategy = parseResult.GetValue(strategyOpt);
             var maxSize = parseResult.GetValue(maxSizeOpt);
             var overlap = parseResult.GetValue(overlapOpt);
-            var noEnrich = parseResult.GetValue(noEnrichOpt);
+            var enrich = parseResult.GetValue(aiOpt);
             var quiet = parseResult.GetValue(quietOpt);
 
             if (input != null)
             {
-                await ExecuteAsync(input, output, format, strategy, maxSize, overlap, !noEnrich, quiet, cancellationToken);
+                await ExecuteAsync(input, output, format, strategy, maxSize, overlap, enrich, quiet, cancellationToken);
             }
         });
     }
@@ -108,16 +108,11 @@ public class ProcessCommand : Command
         format ??= "md";
         strategy ??= "Auto";
 
-        IOutputWriter writer = format.ToLowerInvariant() switch
-        {
-            "json" => new JsonOutputWriter(),
-            "jsonl" => new JsonLinesOutputWriter(),
-            "markdown" or "md" => new MarkdownOutputWriter(),
-            _ => new JsonOutputWriter()
-        };
+        // Use chunked output writer for directory-based output
+        var writer = new ChunkedOutputWriter(format);
 
-        // User-friendly output naming: input.process.{ext}
-        output ??= $"{input}.process{writer.Extension}";
+        // Output directory: input.processed/
+        output ??= $"{input}.processed";
 
         var config = new CliEnvironmentConfig();
         var factory = new AIProviderFactory(config);
@@ -126,7 +121,8 @@ public class ProcessCommand : Command
         {
             if (!quiet)
             {
-                AnsiConsole.MarkupLine("[yellow]Warning:[/] No AI provider configured - enrichment disabled");
+                AnsiConsole.MarkupLine("[yellow]Warning:[/] AI enabled but no provider configured");
+                AnsiConsole.MarkupLine("[yellow]→[/] Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable");
             }
             enrich = false;
         }
@@ -199,7 +195,7 @@ public class ProcessCommand : Command
             var chunkList = chunks.ToList();
             await writer.WriteAsync(chunkList, output, cancellationToken);
 
-            // Write info file
+            // Write info file for chunked output
             var info = new ProcessingInfo
             {
                 Command = "process",
@@ -210,13 +206,13 @@ public class ProcessCommand : Command
                 AIProvider = enrich ? factory.GetProviderStatus() : null,
                 EnrichmentEnabled = enrich
             };
-            await ProcessingInfoWriter.WriteInfoAsync(output, input, chunkList, info, cancellationToken);
+            await ProcessingInfoWriter.WriteChunkedInfoAsync(output, input, chunkList, info, cancellationToken);
 
             if (!quiet)
             {
                 AnsiConsole.MarkupLine($"\n[green]✓ Success![/] Processed document into {chunkList.Count} chunks");
-                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {Markup.Escape(output)}");
-                AnsiConsole.MarkupLine($"[green]✓[/] Info file: {Markup.Escape(ProcessingInfoWriter.GetInfoPath(output))}\n");
+                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {Markup.Escape(output)}/");
+                AnsiConsole.MarkupLine($"[green]✓[/] Info file: {Markup.Escape(Path.Combine(output, "info.json"))}\n");
 
                 // Detailed summary
                 var totalChars = chunkList.Sum(c => c.Content.Length);

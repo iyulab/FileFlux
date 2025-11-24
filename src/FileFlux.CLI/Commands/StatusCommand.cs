@@ -120,6 +120,25 @@ public class StatusCommand : Command
         // Supported formats
         AnsiConsole.MarkupLine("[bold]Supported Formats:[/]");
         AnsiConsole.MarkupLine("  [grey]PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML[/]");
+        AnsiConsole.WriteLine();
+
+        // Configuration help
+        if (activeProvider == "none")
+        {
+            AnsiConsole.MarkupLine("[bold]Quick Setup:[/]");
+            AnsiConsole.MarkupLine("  Set environment variable to enable AI features:");
+            AnsiConsole.MarkupLine("  [yellow]  $env:OPENAI_API_KEY=\"sk-...\"[/]       (PowerShell)");
+            AnsiConsole.MarkupLine("  [yellow]  export OPENAI_API_KEY=\"sk-...\"[/]     (Bash)");
+            AnsiConsole.MarkupLine("  Or use: [cyan]fileflux config set OPENAI_API_KEY sk-...[/]");
+        }
+        else if (activeProvider == "ambiguous")
+        {
+            AnsiConsole.MarkupLine("[bold]Resolution:[/]");
+            AnsiConsole.MarkupLine("  Set MODEL_PROVIDER to select one:");
+            AnsiConsole.MarkupLine("  [yellow]  $env:MODEL_PROVIDER=\"openai\"[/]       (PowerShell)");
+            AnsiConsole.MarkupLine("  [yellow]  $env:MODEL_PROVIDER=\"anthropic\"[/]    (PowerShell)");
+            AnsiConsole.MarkupLine("  Or use: [cyan]fileflux config set MODEL_PROVIDER openai[/]");
+        }
 
         return Task.CompletedTask;
     }
