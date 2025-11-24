@@ -256,6 +256,26 @@ public partial class BasicDocumentParser : IDocumentParser
 
     private static DocumentMetadata CreateBasicMetadata(RawContent rawContent, string documentType)
     {
+        // Get word count from hints or calculate
+        var wordCount = 0;
+        if (rawContent.Hints.TryGetValue("WordCount", out var wc) && wc is int count)
+        {
+            wordCount = count;
+        }
+        else
+        {
+            // Fallback: calculate from text
+            wordCount = string.IsNullOrWhiteSpace(rawContent.Text) ? 0
+                : rawContent.Text.Split([' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries).Length;
+        }
+
+        // Get page count from hints
+        var pageCount = 1;
+        if (rawContent.Hints.TryGetValue("page_count", out var pc) && pc is int pages)
+        {
+            pageCount = pages;
+        }
+
         return new DocumentMetadata
         {
             FileName = rawContent.File.Name,
@@ -265,7 +285,8 @@ public partial class BasicDocumentParser : IDocumentParser
             ModifiedAt = rawContent.File.ModifiedAt,
             ProcessedAt = DateTime.UtcNow,
             Language = DetectLanguage(rawContent.Text),
-            PageCount = 1
+            WordCount = wordCount,
+            PageCount = pageCount
         };
     }
 
@@ -341,11 +362,18 @@ public partial class BasicDocumentParser : IDocumentParser
         if (string.IsNullOrWhiteSpace(text)) return "unknown";
 
         var koreanChars = text.Count(c => c >= '가' && c <= '힣');
+        var japaneseChars = text.Count(c => (c >= '\u3040' && c <= '\u309F') || (c >= '\u30A0' && c <= '\u30FF'));
+        var chineseChars = text.Count(c => c >= '\u4E00' && c <= '\u9FFF');
         var totalChars = text.Count(char.IsLetter);
 
         if (totalChars == 0) return "unknown";
 
-        return (double)koreanChars / totalChars > 0.3 ? "ko" : "en";
+        // 한글이 5% 이상이면 한국어로 판단 (마크다운/영어 단어/숫자 혼용 고려)
+        if ((double)koreanChars / totalChars > 0.05) return "ko";
+        if ((double)japaneseChars / totalChars > 0.05) return "ja";
+        if ((double)chineseChars / totalChars > 0.05) return "zh";
+
+        return "en";
     }
 
     private static List<string> ExtractKeywords(string text, int maxKeywords)

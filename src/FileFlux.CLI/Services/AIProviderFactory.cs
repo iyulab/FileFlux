@@ -12,11 +12,13 @@ public class AIProviderFactory
 {
     private readonly CliEnvironmentConfig _config;
     private readonly bool _enableVision;
+    private readonly bool _verbose;
 
-    public AIProviderFactory(CliEnvironmentConfig config, bool enableVision = false)
+    public AIProviderFactory(CliEnvironmentConfig config, bool enableVision = false, bool verbose = false)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _enableVision = enableVision;
+        _verbose = verbose;
     }
 
     /// <summary>
@@ -102,7 +104,7 @@ public class AIProviderFactory
         if (_enableVision)
         {
             services.AddScoped<IImageToTextService>(sp =>
-                new OpenAIImageToTextService(apiKey, model));
+                new OpenAIImageToTextService(apiKey, model, null, _verbose));
         }
     }
 
@@ -155,7 +157,7 @@ public class AIProviderFactory
         if (_enableVision)
         {
             services.AddScoped<IImageToTextService>(sp =>
-                new OpenAIImageToTextService(apiKey, model, endpoint));
+                new OpenAIImageToTextService(apiKey, model, endpoint, _verbose));
         }
     }
 }

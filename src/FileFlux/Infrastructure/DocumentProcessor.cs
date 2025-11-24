@@ -178,7 +178,27 @@ public partial class DocumentProcessor : IDocumentProcessor
             // 청킹 실행
             var chunks = await strategy.ChunkAsync(documentContent, options, cancellationToken);
 
-            return chunks.ToArray();
+            // Propagate enriched metadata to each chunk
+            var chunksArray = chunks.ToArray();
+            var enrichedProperties = options.CustomProperties
+                .Where(kvp => kvp.Key.StartsWith("enriched_"))
+                .ToList();
+
+            if (enrichedProperties.Count > 0)
+            {
+                foreach (var chunk in chunksArray)
+                {
+                    foreach (var (key, value) in enrichedProperties)
+                    {
+                        chunk.Metadata.CustomProperties[key] = value;
+                    }
+                }
+
+                _logger.LogDebug("Propagated {Count} enriched properties to {ChunkCount} chunks",
+                    enrichedProperties.Count, chunksArray.Length);
+            }
+
+            return chunksArray;
         }
         catch (Exception ex) when (!(ex is FileFluxException))
         {

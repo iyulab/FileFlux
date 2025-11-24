@@ -528,17 +528,17 @@ FileFlux provides a command-line interface for quick document processing without
 
 ```powershell
 # Install CLI
-.\scripts\deploy-cli-local.ps1
+dotnet tool install -g FileFlux.CLI
 
 # Basic usage
 fileflux extract "document.pdf"                    # Extract text
 fileflux chunk "document.pdf" -s Smart             # Create semantic chunks
-fileflux process "document.pdf" --enable-vision    # Full pipeline with AI
+fileflux process "document.pdf" --ai               # Full pipeline with AI
 
 # With AI providers (OpenAI or Anthropic)
 $env:OPENAI_API_KEY = "sk-..."                     # OpenAI
 $env:ANTHROPIC_API_KEY = "sk-ant-..."              # Anthropic
-fileflux process "slides.pptx" --enable-vision
+fileflux process "slides.pptx" --ai --verbose
 ```
 
 ### Comprehensive Documentation

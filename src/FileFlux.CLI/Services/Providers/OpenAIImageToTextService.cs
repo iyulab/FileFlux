@@ -14,16 +14,19 @@ public class OpenAIImageToTextService : IImageToTextService
 {
     private readonly ChatClient _chatClient;
     private readonly string _model;
+    private readonly bool _verbose;
 
     private static readonly string[] SupportedFormats = new[]
     {
         ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"
     };
 
-    public OpenAIImageToTextService(string apiKey, string model, string? endpoint = null)
+    public OpenAIImageToTextService(string apiKey, string model, string? endpoint = null, bool verbose = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
+
+        _verbose = verbose;
 
         OpenAIClient client;
         if (!string.IsNullOrWhiteSpace(endpoint))
@@ -54,11 +57,11 @@ public class OpenAIImageToTextService : IImageToTextService
 
         try
         {
-            Console.WriteLine($"[OpenAI-Vision] Processing image: {imageData.Length} bytes");
+            if (_verbose) Console.WriteLine($"[OpenAI-Vision] Processing image: {imageData.Length} bytes");
 
             // Build prompt based on options (using Core prompt builder)
             var prompt = ImageExtractionPromptBuilder.BuildPrompt(options);
-            Console.WriteLine($"[OpenAI-Vision] Prompt: {prompt}");
+            if (_verbose) Console.WriteLine($"[OpenAI-Vision] Prompt: {prompt}");
 
             // Create messages with image using BinaryData (avoids URI length limit)
             var imageContent = BinaryData.FromBytes(imageData);
@@ -70,7 +73,7 @@ public class OpenAIImageToTextService : IImageToTextService
                 )
             };
 
-            Console.WriteLine($"[OpenAI-Vision] Calling OpenAI API with model: {_model}");
+            if (_verbose) Console.WriteLine($"[OpenAI-Vision] Calling OpenAI API with model: {_model}");
 
             // Call OpenAI Vision API
             // Note: Some models (like gpt-5-nano) don't support temperature parameter
@@ -79,10 +82,10 @@ public class OpenAIImageToTextService : IImageToTextService
                 MaxOutputTokenCount = 4000
             }, cancellationToken);
 
-            Console.WriteLine($"[OpenAI-Vision] Response received, processing...");
+            if (_verbose) Console.WriteLine($"[OpenAI-Vision] Response received, processing...");
 
             var rawResponse = response.Value?.Content?.FirstOrDefault()?.Text ?? string.Empty;
-            Console.WriteLine($"[OpenAI-Vision] Raw response length: {rawResponse.Length} characters");
+            if (_verbose) Console.WriteLine($"[OpenAI-Vision] Raw response length: {rawResponse.Length} characters");
 
             // Check for extraction failure
             const string failurePrefix = "EXTRACTION_FAILED:";
@@ -101,7 +104,7 @@ public class OpenAIImageToTextService : IImageToTextService
                     failureReason = failureReason.Substring(failurePrefix.Length).Trim();
                 }
 
-                Console.WriteLine($"[OpenAI-Vision] Extraction failed: {failureReason}");
+                if (_verbose) Console.WriteLine($"[OpenAI-Vision] Extraction failed: {failureReason}");
 
                 extractedText = string.Empty;
                 errorMessage = failureReason;
@@ -109,9 +112,12 @@ public class OpenAIImageToTextService : IImageToTextService
             }
             else if (string.IsNullOrWhiteSpace(rawResponse))
             {
-                Console.WriteLine($"[OpenAI-Vision] WARNING: Empty response from OpenAI");
-                Console.WriteLine($"[OpenAI-Vision] Response value: {response.Value}");
-                Console.WriteLine($"[OpenAI-Vision] Content parts count: {response.Value?.Content?.Count ?? 0}");
+                if (_verbose)
+                {
+                    Console.WriteLine($"[OpenAI-Vision] WARNING: Empty response from OpenAI");
+                    Console.WriteLine($"[OpenAI-Vision] Response value: {response.Value}");
+                    Console.WriteLine($"[OpenAI-Vision] Content parts count: {response.Value?.Content?.Count ?? 0}");
+                }
 
                 extractedText = string.Empty;
                 errorMessage = "Vision API returned empty response";
@@ -119,7 +125,7 @@ public class OpenAIImageToTextService : IImageToTextService
             }
             else
             {
-                Console.WriteLine($"[OpenAI-Vision] Extraction successful: {rawResponse.Length} characters");
+                if (_verbose) Console.WriteLine($"[OpenAI-Vision] Extraction successful: {rawResponse.Length} characters");
 
                 extractedText = rawResponse;
                 errorMessage = null;
@@ -145,8 +151,11 @@ public class OpenAIImageToTextService : IImageToTextService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[OpenAI-Vision] ERROR: {ex.GetType().Name}: {ex.Message}");
-            Console.WriteLine($"[OpenAI-Vision] Stack trace: {ex.StackTrace}");
+            if (_verbose)
+            {
+                Console.WriteLine($"[OpenAI-Vision] ERROR: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"[OpenAI-Vision] Stack trace: {ex.StackTrace}");
+            }
 
             var processingTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
             return new ImageToTextResult

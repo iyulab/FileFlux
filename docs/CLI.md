@@ -23,25 +23,27 @@ Command-line interface for FileFlux document processing without writing code.
 
 ## Installation
 
-Deploy CLI to your local system using the deployment script:
+Install FileFlux CLI as a global .NET tool:
 
 ```powershell
-# From repository root
-.\scripts\deploy-cli-local.ps1
+# Install from NuGet (when published)
+dotnet tool install -g FileFlux.CLI
 
-# Restart terminal, then verify
+# Or install from local source
+dotnet tool install -g FileFlux.CLI --add-source "path/to/FileFlux/src/FileFlux.CLI/nupkg"
+
+# Verify installation
 fileflux --version
 ```
 
-**Script Options**:
-- `-InstallPath`: Custom installation path (default: `$env:LOCALAPPDATA\FileFlux`)
-- `-Configuration`: Debug or Release (default: Release)
-- `-SkipBuild`: Use existing binaries without rebuilding
-- `-AddToPath`: Add to user PATH (default: true)
-
-**Example with custom options**:
+**Update**:
 ```powershell
-.\scripts\deploy-cli-local.ps1 -InstallPath "C:\Tools\FileFlux" -Configuration Debug
+dotnet tool update -g FileFlux.CLI
+```
+
+**Uninstall**:
+```powershell
+dotnet tool uninstall -g FileFlux.CLI
 ```
 
 ## Basic Commands
@@ -112,10 +114,13 @@ Complete document processing pipeline with metadata enrichment:
 fileflux process "document.pdf"
 
 # With custom strategy and output
-fileflux process "document.pdf" -s Smart -o "output.json"
+fileflux process "document.pdf" -s Smart -o "output/"
 
-# With vision API enabled
-fileflux process "presentation.pptx" --enable-vision -o "output.json"
+# With AI metadata enrichment enabled
+fileflux process "presentation.pptx" --ai -o "output/"
+
+# With verbose output for detailed processing information
+fileflux process "document.pdf" --ai --verbose
 ```
 
 ### Info Command
@@ -168,14 +173,14 @@ export OPENAI_MODEL="gpt-5-nano"
 #### Usage
 
 ```bash
-# Extract with image analysis
-fileflux extract "presentation.pptx" --enable-vision
+# Extract with AI image analysis
+fileflux extract "presentation.pptx" --ai
 
-# Full processing with vision
-fileflux process "document.pdf" --enable-vision -o "output.json"
+# Full processing with AI metadata enrichment
+fileflux process "document.pdf" --ai -o "output/"
 
-# With specific output format
-fileflux extract "slides.pptx" --enable-vision -f markdown
+# Chunk with AI enrichment
+fileflux chunk "slides.pptx" --ai -f json
 ```
 
 **Vision Capabilities**:
@@ -221,8 +226,8 @@ export ANTHROPIC_MODEL="claude-3-5-sonnet-20241022"
 
 ```bash
 # Same commands work with Anthropic if API key is configured
-fileflux extract "presentation.pptx" --enable-vision
-fileflux process "document.pdf" --enable-vision -o "output.json"
+fileflux extract "presentation.pptx" --ai
+fileflux process "document.pdf" --ai -o "output/"
 ```
 
 **Vision Capabilities**:
@@ -257,10 +262,10 @@ $env:FILEFLUX_PROVIDER = "anthropic"
 **Check Active Provider**:
 ```bash
 # The CLI shows active provider at startup
-fileflux extract "document.pdf" --enable-vision
+fileflux extract "document.pdf" --ai
 
 # Output shows:
-# Provider: Anthropic (claude-3-5-sonnet-20241022) + Vision
+# AI Provider: Anthropic (claude-3-5-sonnet-20241022)
 ```
 
 ## Advanced Usage
@@ -411,13 +416,13 @@ Content from second section...
 
 **Cost Optimization Examples**:
 ```bash
-# Process only image-heavy documents with vision
-fileflux extract "text-only.pdf" -o "text.json"              # No AI cost
-fileflux extract "with-charts.pptx" --enable-vision -o "charts.json"  # AI cost
+# Process only image-heavy documents with AI
+fileflux extract "text-only.pdf" -o "text/"              # No AI cost
+fileflux extract "with-charts.pptx" --ai -o "charts/"    # AI cost
 
 # Use Haiku for simple images
 $env:ANTHROPIC_MODEL = "claude-3-5-haiku-20241022"
-fileflux extract "simple-diagrams.pdf" --enable-vision
+fileflux extract "simple-diagrams.pdf" --ai
 ```
 
 ## Troubleshooting
@@ -459,12 +464,12 @@ source ~/.bashrc
 
 ### API Key Not Found
 
-**Problem**: Vision enabled but API key not detected
+**Problem**: AI enabled but API key not detected
 
 **Error Message**:
 ```
-Warning: Vision enabled but no API key found.
-Falling back to basic extraction...
+Warning: AI enabled but no provider configured
+→ Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable
 ```
 
 **Solutions**:
@@ -495,7 +500,7 @@ fileflux info "test.pdf"  # Should show provider info
 
 ```powershell
 # Check which provider is active
-fileflux extract "document.pdf" --enable-vision
+fileflux extract "document.pdf" --ai
 # Output shows active provider
 
 # Force specific provider
@@ -570,14 +575,14 @@ Get-ExecutionPolicy
 # 1. Check file size
 fileflux info "large-document.pdf"
 
-# 2. Process without vision first
-fileflux extract "large-document.pdf" -o "output.json"
+# 2. Process without AI first
+fileflux extract "large-document.pdf" -o "output/"
 
 # 3. Use lighter chunking strategy
 fileflux chunk "large-document.pdf" -s Intelligent  # Instead of Smart
 
 # 4. Enable quiet mode for large batches
-fileflux process "*.pdf" --quiet
+fileflux process "document.pdf" --quiet
 ```
 
 ### Uninstall
@@ -585,22 +590,11 @@ fileflux process "*.pdf" --quiet
 Remove FileFlux CLI from your system:
 
 ```powershell
-# Windows
-.\scripts\undeploy-cli-local.ps1
+# Uninstall the global tool
+dotnet tool uninstall -g FileFlux.CLI
 
-# Manually remove if script fails
-Remove-Item -Path "$env:LOCALAPPDATA\FileFlux" -Recurse -Force
-
-# Remove from PATH (if added manually)
-# Edit environment variables in System Properties
-```
-
-```bash
-# Linux/macOS
-rm -rf ~/.local/share/FileFlux
-
-# Remove from PATH
-# Edit ~/.bashrc or ~/.zshrc and remove FileFlux PATH entry
+# Verify removal
+fileflux --version  # Should fail
 ```
 
 ## Related Documentation
@@ -625,11 +619,11 @@ fileflux chunk "doc.pdf" -s Smart
 # Full pipeline
 fileflux process "doc.pdf"
 
-# With vision API
-fileflux process "slides.pptx" --enable-vision
+# With AI metadata enrichment
+fileflux process "slides.pptx" --ai --verbose
 
-# Custom output
-fileflux extract "doc.pdf" -f json -o "output.json"
+# Custom output format
+fileflux chunk "doc.pdf" -f json -o "output/"
 ```
 
 ### Environment Setup

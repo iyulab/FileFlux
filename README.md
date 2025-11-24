@@ -103,8 +103,10 @@ var chunks = await processor.ProcessAsync("document.pdf", options);
 // Access enriched metadata
 foreach (var chunk in chunks)
 {
-    var topics = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_topics");
     var keywords = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_keywords");
+    var description = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_description");
+    var documentType = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_documentType");
+    var language = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_language");
 }
 ```
 
@@ -192,17 +194,28 @@ For AI service implementation examples, see the `samples/` directory.
 FileFlux includes a command-line interface for quick document processing:
 
 ```powershell
-# Deploy CLI locally
-.\scripts\deploy-cli-local.ps1
+# Install CLI tool
+dotnet tool install -g FileFlux.CLI
 
-# Extract documents with Vision API
-fileflux extract "document.pptx" --enable-vision
+# Complete processing pipeline (extract + chunk + enrich)
+fileflux process "document.pdf" --ai --verbose
 
-# Process with specific strategy
-fileflux chunk "document.pdf" -s Smart
+# Chunk with specific strategy
+fileflux chunk "document.pdf" -s Smart -m 512 -l 64
+
+# Extract only (with image extraction)
+fileflux extract "document.pptx" --ai
+
+# Available options
+# --ai (-a)         Enable AI metadata enrichment
+# --strategy (-s)   Chunking strategy: Auto, Smart, Intelligent, Semantic
+# --max-size (-m)   Maximum chunk size in tokens (default: 512)
+# --overlap (-l)    Overlap size between chunks (default: 64)
+# --format (-f)     Output format: md, json, jsonl
+# --verbose (-v)    Show detailed processing information
 ```
 
-See [CLI Usage](docs/TUTORIAL.md#cli-usage) in the tutorial for complete guide.
+See [CLI Documentation](docs/CLI.md) for complete guide.
 
 ## Advanced Features
 

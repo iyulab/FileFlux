@@ -1,8 +1,7 @@
-using FileFlux;
-using FileFlux.CLI.Output;
 using FileFlux.CLI.Services;
+using FileFlux.Core;
 using FileFlux.Domain;
-using FileFlux.Infrastructure.Services;
+using FileFlux.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using System.CommandLine;
@@ -24,7 +23,7 @@ public class ProcessCommand : Command
 
         var outputOpt = new Option<string>("--output", "-o")
         {
-            Description = "Output file path (default: input.process.md)"
+            Description = "Output directory path (default: input.processed/)"
         };
 
         var formatOpt = new Option<string>("--format", "-f")
@@ -61,6 +60,28 @@ public class ProcessCommand : Command
             Description = "Minimal output"
         };
 
+        var noExtractImagesOpt = new Option<bool>("--no-extract-images")
+        {
+            Description = "Keep base64 images in content instead of extracting to files"
+        };
+
+        var minImageSizeOpt = new Option<int>("--min-image-size")
+        {
+            Description = "Minimum image file size in bytes (default: 5000)",
+            DefaultValueFactory = _ => 5000
+        };
+
+        var minImageDimensionOpt = new Option<int>("--min-image-dimension")
+        {
+            Description = "Minimum image dimension in pixels (default: 100)",
+            DefaultValueFactory = _ => 100
+        };
+
+        var verboseOpt = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Show detailed processing information"
+        };
+
         Arguments.Add(inputArg);
         Options.Add(outputOpt);
         Options.Add(formatOpt);
@@ -69,6 +90,10 @@ public class ProcessCommand : Command
         Options.Add(overlapOpt);
         Options.Add(aiOpt);
         Options.Add(quietOpt);
+        Options.Add(noExtractImagesOpt);
+        Options.Add(minImageSizeOpt);
+        Options.Add(minImageDimensionOpt);
+        Options.Add(verboseOpt);
 
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
@@ -78,12 +103,17 @@ public class ProcessCommand : Command
             var strategy = parseResult.GetValue(strategyOpt);
             var maxSize = parseResult.GetValue(maxSizeOpt);
             var overlap = parseResult.GetValue(overlapOpt);
-            var enrich = parseResult.GetValue(aiOpt);
+            var enableAI = parseResult.GetValue(aiOpt);
             var quiet = parseResult.GetValue(quietOpt);
+            var noExtractImages = parseResult.GetValue(noExtractImagesOpt);
+            var minImageSize = parseResult.GetValue(minImageSizeOpt);
+            var minImageDimension = parseResult.GetValue(minImageDimensionOpt);
+            var verbose = parseResult.GetValue(verboseOpt);
 
             if (input != null)
             {
-                await ExecuteAsync(input, output, format, strategy, maxSize, overlap, enrich, quiet, cancellationToken);
+                await ExecuteAsync(input, output, format, strategy, maxSize, overlap, enableAI, quiet,
+                    !noExtractImages, minImageSize, minImageDimension, verbose, cancellationToken);
             }
         });
     }
@@ -95,8 +125,12 @@ public class ProcessCommand : Command
         string? strategy,
         int maxSize,
         int overlap,
-        bool enrich,
+        bool enableAI,
         bool quiet,
+        bool extractImages,
+        int minImageSize,
+        int minImageDimension,
+        bool verbose,
         CancellationToken cancellationToken)
     {
         if (!File.Exists(input))
@@ -105,35 +139,67 @@ public class ProcessCommand : Command
             return;
         }
 
-        format ??= "md";
-        strategy ??= "Auto";
-
-        // Use chunked output writer for directory-based output
-        var writer = new ChunkedOutputWriter(format);
-
-        // Output directory: input.processed/
-        output ??= $"{input}.processed";
-
+        // Setup services
+        var services = new ServiceCollection();
         var config = new CliEnvironmentConfig();
-        var factory = new AIProviderFactory(config);
+        var factory = new AIProviderFactory(config, enableVision: extractImages && enableAI, verbose: verbose);
+        string? aiProvider = null;
 
-        if (enrich && !factory.HasAIProvider())
+        if (enableAI && factory.HasAIProvider())
+        {
+            factory.ConfigureServices(services);
+            aiProvider = config.DetectProvider();
+        }
+        else if (enableAI)
         {
             if (!quiet)
             {
                 AnsiConsole.MarkupLine("[yellow]Warning:[/] AI enabled but no provider configured");
                 AnsiConsole.MarkupLine("[yellow]→[/] Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable");
             }
-            enrich = false;
+            enableAI = false;
         }
+
+        services.AddFileFlux();
+        using var provider = services.BuildServiceProvider();
+        var processor = (DocumentProcessor)provider.GetRequiredService<IDocumentProcessor>();
+        var imageToTextService = enableAI ? provider.GetService<IImageToTextService>() : null;
+
+        // Configure options
+        format ??= "md";
+        strategy ??= "Auto";
+
+        var chunkingOptions = new ChunkingOptions
+        {
+            Strategy = strategy,
+            MaxChunkSize = maxSize,
+            OverlapSize = overlap
+        };
+
+        if (enableAI)
+        {
+            chunkingOptions.CustomProperties["enableMetadataEnrichment"] = true;
+            chunkingOptions.CustomProperties["metadataSchema"] = Core.MetadataSchema.General;
+        }
+
+        var outputOptions = new OutputOptions
+        {
+            OutputDirectory = output,
+            Format = format,
+            ExtractImages = extractImages,
+            MinImageSize = minImageSize,
+            MinImageDimension = minImageDimension,
+            EnableAI = enableAI
+        };
 
         if (!quiet)
         {
+            var outputDir = output ?? OutputOptions.GetDefaultOutputDirectory(input, "processed");
             var panel = new Panel(new Markup(
                 $"[bold]Input:[/] {Markup.Escape(input)}\n" +
-                $"[bold]Output:[/] {Markup.Escape(output)}\n" +
+                $"[bold]Output:[/] {Markup.Escape(outputDir)}/\n" +
                 $"[bold]Strategy:[/] {strategy} (max: {maxSize}, overlap: {overlap})\n" +
-                $"[bold]AI Provider:[/] {(enrich ? factory.GetProviderStatus() : "Disabled")}\n" +
+                $"[bold]AI Provider:[/] {(enableAI ? aiProvider : "Disabled")}\n" +
                 $"[bold]Format:[/] {format}"))
             {
                 Header = new PanelHeader("[blue]FileFlux CLI - Process[/]"),
@@ -146,92 +212,41 @@ public class ProcessCommand : Command
 
         try
         {
-            var chunks = await AnsiConsole.Progress()
-                .AutoRefresh(true)
-                .Columns(
-                    new TaskDescriptionColumn(),
-                    new ProgressBarColumn(),
-                    new PercentageColumn(),
-                    new SpinnerColumn())
-                .StartAsync(async ctx =>
+            var result = await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Dots)
+                .StartAsync("Processing document...", async ctx =>
                 {
-                    var task = ctx.AddTask("[green]Processing document[/]");
-                    task.IsIndeterminate = true;
-
-                    // Setup services
-                    var services = new ServiceCollection();
-
-                    if (enrich)
-                    {
-                        factory.ConfigureServices(services);
-                    }
-
-                    services.AddFileFlux();
-                    using var provider = services.BuildServiceProvider();
-                    var processor = provider.GetRequiredService<IDocumentProcessor>();
-
-                    // Configure options
-                    var options = new ChunkingOptions
-                    {
-                        Strategy = strategy,
-                        MaxChunkSize = maxSize,
-                        OverlapSize = overlap
-                    };
-
-                    if (enrich)
-                    {
-                        options.CustomProperties["enableMetadataEnrichment"] = true;
-                        options.CustomProperties["metadataSchema"] = "General";
-                    }
-
-                    task.Description = "[green]Extracting and chunking...[/]";
-                    var result = await processor.ProcessAsync(input, options, cancellationToken);
-
-                    task.StopTask();
-                    return result;
+                    return await processor.ProcessToDirectoryAsync(
+                        input, chunkingOptions, outputOptions, imageToTextService, cancellationToken);
                 });
-
-            // Write output
-            var chunkList = chunks.ToList();
-            await writer.WriteAsync(chunkList, output, cancellationToken);
-
-            // Write info file for chunked output
-            var info = new ProcessingInfo
-            {
-                Command = "process",
-                Format = format,
-                Strategy = strategy,
-                MaxChunkSize = maxSize,
-                OverlapSize = overlap,
-                AIProvider = enrich ? factory.GetProviderStatus() : null,
-                EnrichmentEnabled = enrich
-            };
-            await ProcessingInfoWriter.WriteChunkedInfoAsync(output, input, chunkList, info, cancellationToken);
 
             if (!quiet)
             {
-                AnsiConsole.MarkupLine($"\n[green]✓ Success![/] Processed document into {chunkList.Count} chunks");
-                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {Markup.Escape(output)}/");
-                AnsiConsole.MarkupLine($"[green]✓[/] Info file: {Markup.Escape(Path.Combine(output, "info.json"))}\n");
+                var chunks = result.Chunks;
+                AnsiConsole.MarkupLine($"\n[green]✓ Success![/] Processed document into {chunks.Length} chunks");
+                AnsiConsole.MarkupLine($"[green]✓[/] Output: {Markup.Escape(result.OutputDirectory!)}/\n");
 
-                // Detailed summary
-                var totalChars = chunkList.Sum(c => c.Content.Length);
-                var avgSize = totalChars / chunkList.Count;
-                var enrichedCount = chunkList.Count(c => c.Metadata.CustomProperties.ContainsKey("enriched_topics"));
+                // Summary
+                var totalChars = chunks.Sum(c => c.Content.Length);
+                var avgSize = chunks.Length > 0 ? totalChars / chunks.Length : 0;
+                var enrichedCount = chunks.Count(c => c.Metadata.CustomProperties.Keys.Any(k => k.StartsWith("enriched_")));
 
                 var grid = new Grid();
                 grid.AddColumn();
                 grid.AddColumn();
 
-                grid.AddRow("[bold]Chunks created:[/]", chunkList.Count.ToString());
+                grid.AddRow("[bold]Chunks created:[/]", chunks.Length.ToString());
                 grid.AddRow("[bold]Total characters:[/]", totalChars.ToString("N0"));
                 grid.AddRow("[bold]Average size:[/]", avgSize.ToString("N0"));
-                grid.AddRow("[bold]Size range:[/]", $"{chunkList.Min(c => c.Content.Length):N0} - {chunkList.Max(c => c.Content.Length):N0}");
+                grid.AddRow("[bold]Size range:[/]", chunks.Length > 0
+                    ? $"{chunks.Min(c => c.Content.Length):N0} - {chunks.Max(c => c.Content.Length):N0}"
+                    : "0 - 0");
 
-                if (enrich && enrichedCount > 0)
-                {
-                    grid.AddRow("[bold]Enriched chunks:[/]", $"{enrichedCount} ({enrichedCount * 100 / chunkList.Count}%)");
-                }
+                if (result.Extraction.Images.Count > 0)
+                    grid.AddRow("[bold]Images extracted:[/]", result.Extraction.Images.Count.ToString());
+
+                if (enableAI && enrichedCount > 0)
+                    grid.AddRow("[bold]Enriched chunks:[/]", $"{enrichedCount} ({enrichedCount * 100 / chunks.Length}%)");
 
                 var summaryPanel = new Panel(grid)
                 {
@@ -245,7 +260,7 @@ public class ProcessCommand : Command
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"\n[red]✗ Error:[/] {ex.Message}");
-            if (!quiet)
+            if (verbose)
             {
                 AnsiConsole.WriteException(ex);
             }

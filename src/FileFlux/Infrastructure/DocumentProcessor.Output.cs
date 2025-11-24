@@ -1,0 +1,205 @@
+using FileFlux.Core;
+using FileFlux.Domain;
+using FileFlux.Infrastructure.Output;
+using FileFlux.Infrastructure.Services;
+
+namespace FileFlux.Infrastructure;
+
+/// <summary>
+/// DocumentProcessor - Output API implementations
+/// </summary>
+public partial class DocumentProcessor
+{
+    /// <summary>
+    /// Extract document and write to output directory
+    /// </summary>
+    /// <param name="filePath">Input file path</param>
+    /// <param name="outputOptions">Output options</param>
+    /// <param name="imageToTextService">Optional AI image analysis service</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Extraction result with output directory</returns>
+    public async Task<ExtractionResult> ExtractToDirectoryAsync(
+        string filePath,
+        OutputOptions? outputOptions = null,
+        IImageToTextService? imageToTextService = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"File not found: {filePath}");
+
+        outputOptions ??= new OutputOptions();
+
+        // Determine output directory
+        var outputDirectory = outputOptions.OutputDirectory
+            ?? OutputOptions.GetDefaultOutputDirectory(filePath, "extract");
+
+        Directory.CreateDirectory(outputDirectory);
+
+        // Extract raw content
+        var rawContent = await ExtractAsync(filePath, cancellationToken);
+
+        // Parse document structure
+        var parsedContent = await ParseAsync(rawContent, (ParsingOptions?)null, cancellationToken);
+
+        // Process images
+        var processedText = parsedContent.Text;
+        var images = new List<ProcessedImage>();
+        var skippedCount = 0;
+
+        if (outputOptions.ExtractImages)
+        {
+            var imagesDir = Path.Combine(outputDirectory, "images");
+            var imageProcessor = new ImageProcessor(outputOptions);
+            var imageResult = await imageProcessor.ProcessImagesAsync(
+                parsedContent.Text, imagesDir, imageToTextService, cancellationToken);
+
+            processedText = imageResult.ProcessedContent;
+            images = imageResult.Images;
+            skippedCount = imageResult.SkippedCount;
+        }
+        else
+        {
+            processedText = ImageProcessor.RemoveBase64Images(parsedContent.Text);
+        }
+
+        var result = new ExtractionResult
+        {
+            ParsedContent = parsedContent,
+            ProcessedText = processedText,
+            Images = images,
+            SkippedImageCount = skippedCount,
+            AIProvider = outputOptions.EnableAI ? "configured" : null,
+            ImagesDirectory = outputOptions.ExtractImages ? Path.Combine(outputDirectory, "images") : null,
+            OutputDirectory = outputDirectory
+        };
+
+        // Write output
+        var writer = new FileSystemOutputWriter();
+        await writer.WriteExtractionAsync(result, outputDirectory, outputOptions, cancellationToken);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Chunk document and write to output directory
+    /// </summary>
+    /// <param name="filePath">Input file path</param>
+    /// <param name="chunkingOptions">Chunking options</param>
+    /// <param name="outputOptions">Output options</param>
+    /// <param name="imageToTextService">Optional AI image analysis service</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Chunking result with output directory</returns>
+    public async Task<ChunkingResult> ChunkToDirectoryAsync(
+        string filePath,
+        ChunkingOptions? chunkingOptions = null,
+        OutputOptions? outputOptions = null,
+        IImageToTextService? imageToTextService = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"File not found: {filePath}");
+
+        chunkingOptions ??= new ChunkingOptions();
+        outputOptions ??= new OutputOptions();
+
+        // Determine output directory
+        var outputDirectory = outputOptions.OutputDirectory
+            ?? OutputOptions.GetDefaultOutputDirectory(filePath, "chunks");
+
+        Directory.CreateDirectory(outputDirectory);
+
+        // Extract raw content
+        var rawContent = await ExtractAsync(filePath, cancellationToken);
+
+        // Enrich metadata if enabled
+        await EnrichMetadataIfEnabledAsync(filePath, rawContent, chunkingOptions, cancellationToken);
+
+        // Parse document structure
+        var parsedContent = await ParseAsync(rawContent, (ParsingOptions?)null, cancellationToken);
+
+        // Process images
+        var processedText = parsedContent.Text;
+        var images = new List<ProcessedImage>();
+        var skippedCount = 0;
+
+        if (outputOptions.ExtractImages)
+        {
+            var imagesDir = Path.Combine(outputDirectory, "images");
+            var imageProcessor = new ImageProcessor(outputOptions);
+            var imageResult = await imageProcessor.ProcessImagesAsync(
+                parsedContent.Text, imagesDir, imageToTextService, cancellationToken);
+
+            processedText = imageResult.ProcessedContent;
+            images = imageResult.Images;
+            skippedCount = imageResult.SkippedCount;
+        }
+        else
+        {
+            processedText = ImageProcessor.RemoveBase64Images(parsedContent.Text);
+        }
+
+        // Update parsed content with processed text
+        parsedContent.Text = processedText;
+
+        // Chunk the processed content
+        var chunks = await ChunkAsync(parsedContent, chunkingOptions, cancellationToken);
+
+        var extraction = new ExtractionResult
+        {
+            ParsedContent = parsedContent,
+            ProcessedText = processedText,
+            Images = images,
+            SkippedImageCount = skippedCount,
+            AIProvider = outputOptions.EnableAI ? "configured" : null,
+            ImagesDirectory = outputOptions.ExtractImages ? Path.Combine(outputDirectory, "images") : null,
+            OutputDirectory = outputDirectory
+        };
+
+        var result = new ChunkingResult
+        {
+            Chunks = chunks,
+            Extraction = extraction,
+            OutputDirectory = outputDirectory,
+            Options = chunkingOptions
+        };
+
+        // Write output
+        var writer = new FileSystemOutputWriter();
+        await writer.WriteChunkingAsync(result, outputDirectory, outputOptions, cancellationToken);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Process document (extract + chunk + enrich) and write to output directory
+    /// </summary>
+    /// <param name="filePath">Input file path</param>
+    /// <param name="chunkingOptions">Chunking options</param>
+    /// <param name="outputOptions">Output options</param>
+    /// <param name="imageToTextService">Optional AI image analysis service</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Chunking result with output directory</returns>
+    public async Task<ChunkingResult> ProcessToDirectoryAsync(
+        string filePath,
+        ChunkingOptions? chunkingOptions = null,
+        OutputOptions? outputOptions = null,
+        IImageToTextService? imageToTextService = null,
+        CancellationToken cancellationToken = default)
+    {
+        outputOptions ??= new OutputOptions();
+
+        // Change default output directory for process command
+        if (outputOptions.OutputDirectory == null)
+        {
+            outputOptions.OutputDirectory = OutputOptions.GetDefaultOutputDirectory(filePath, "processed");
+        }
+
+        return await ChunkToDirectoryAsync(filePath, chunkingOptions, outputOptions, imageToTextService, cancellationToken);
+    }
+}

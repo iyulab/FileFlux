@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using FileFlux.Core;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Readers;
@@ -60,8 +61,27 @@ public static class ServiceCollectionExtensions
                 provider.GetRequiredService<IChunkingStrategyFactory>(),
                 provider.GetService<ITextCompletionService>()));
 
-        // 메인 문서 처리기 등록
-        services.AddScoped<IDocumentProcessor, DocumentProcessor>();
+        // Metadata enrichment services (Phase 16) - DocumentProcessor보다 먼저 등록
+        services.AddMemoryCache(options =>
+        {
+            options.SizeLimit = 100; // Cache up to 100 documents
+        });
+        services.AddSingleton<RuleBasedMetadataExtractor>();
+        services.AddScoped<IMetadataEnricher>(provider =>
+            new AIMetadataEnricher(
+                provider.GetRequiredService<RuleBasedMetadataExtractor>(),
+                provider.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+                provider.GetService<ITextCompletionService>(),
+                provider.GetService<ILogger<AIMetadataEnricher>>()));
+
+        // 메인 문서 처리기 등록 - IMetadataEnricher를 명시적으로 주입
+        services.AddScoped<IDocumentProcessor>(provider =>
+            new DocumentProcessor(
+                provider.GetRequiredService<IDocumentReaderFactory>(),
+                provider.GetRequiredService<IDocumentParserFactory>(),
+                provider.GetRequiredService<IChunkingStrategyFactory>(),
+                provider.GetService<IMetadataEnricher>(),
+                provider.GetService<ILogger<DocumentProcessor>>()));
 
         // 기본 Parser들 등록 - AI 서비스 선택적
         services.AddTransient<IDocumentParser>(provider =>
@@ -83,16 +103,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient(provider =>
             new FileFlux.Infrastructure.Quality.ChunkQualityEngine(
                 provider.GetService<ITextCompletionService>()));
-
-        // Metadata enrichment services (Phase 16)
-        services.AddSingleton<RuleBasedMetadataExtractor>();
-        services.AddSingleton<IMetadataEnricher, AIMetadataEnricher>();
-
-        // Memory cache for metadata enrichment
-        services.AddMemoryCache(options =>
-        {
-            options.SizeLimit = 100; // Cache up to 100 documents
-        });
 
         // Phase 15 성능 최적화 컴포넌트들은 별도로 등록 가능
 

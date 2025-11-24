@@ -124,6 +124,7 @@ public partial class WordDocumentReader : IDocumentReader
             // Update structural hints
             structuralHints["file_type"] = "word_document";
             structuralHints["character_count"] = markdown.Length;
+            structuralHints["WordCount"] = CountWords(markdown);
             structuralHints["conversion_method"] = "two-hop";
 
             if (imageCount > 0)
@@ -215,6 +216,7 @@ public partial class WordDocumentReader : IDocumentReader
             // Update structural hints
             structuralHints["file_type"] = "word_document";
             structuralHints["character_count"] = markdown.Length;
+            structuralHints["WordCount"] = CountWords(markdown);
             structuralHints["conversion_method"] = "two-hop";
 
             if (imageCount > 0)
@@ -275,6 +277,13 @@ public partial class WordDocumentReader : IDocumentReader
     private static int CountImages(string html)
     {
         return ImageTagRegex().Matches(html).Count;
+    }
+
+    private static int CountWords(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return 0;
+        return text.Split([' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries).Length;
     }
 
     private static void ExtractDocumentMetadata(WordprocessingDocument document, Dictionary<string, object> structuralHints)

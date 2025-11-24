@@ -1,8 +1,7 @@
-using FileFlux;
-using FileFlux.CLI.Output;
 using FileFlux.CLI.Services;
+using FileFlux.Core;
 using FileFlux.Domain;
-using FileFlux.Infrastructure.Services;
+using FileFlux.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using System.CommandLine;
@@ -24,7 +23,7 @@ public class ChunkCommand : Command
 
         var outputOpt = new Option<string>("--output", "-o")
         {
-            Description = "Output file path (default: input.chunk.md)"
+            Description = "Output directory path (default: input.chunks/)"
         };
 
         var formatOpt = new Option<string>("--format", "-f")
@@ -113,10 +112,8 @@ public class ChunkCommand : Command
 
             if (input != null)
             {
-                // Extract images by default (invert the flag)
-                var extractImages = !noExtractImages;
                 await ExecuteAsync(input, output, format, strategy, maxSize, overlap, enableAI, quiet,
-                    extractImages, minImageSize, minImageDimension, verbose, cancellationToken);
+                    !noExtractImages, minImageSize, minImageDimension, verbose, cancellationToken);
             }
         });
     }
@@ -142,152 +139,110 @@ public class ChunkCommand : Command
             return;
         }
 
-        // Determine output path and format
-        format ??= "md";
-        strategy ??= "Auto";
-
-        // Use chunked output writer for directory-based output
-        var writer = new ChunkedOutputWriter(format);
-
-        // Output directory: input.chunks/
-        output ??= $"{input}.chunks";
-
-        // Check AI provider if enrichment requested
+        // Setup services
+        var services = new ServiceCollection();
         var config = new CliEnvironmentConfig();
-        var factory = new AIProviderFactory(config, enableVision: extractImages && enableAI);
+        var factory = new AIProviderFactory(config, enableVision: extractImages && enableAI, verbose: verbose);
+        string? aiProvider = null;
 
-        if (enableAI && !factory.HasAIProvider())
+        if (enableAI && factory.HasAIProvider())
+        {
+            factory.ConfigureServices(services);
+            aiProvider = config.DetectProvider();
+        }
+        else if (enableAI)
         {
             AnsiConsole.MarkupLine("[yellow]Warning:[/] AI enabled but no provider configured");
-            AnsiConsole.MarkupLine("[yellow]→[/] Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable");
             enableAI = false;
         }
 
-        // Images directory
-        string? imagesDir = null;
-        if (extractImages)
+        services.AddFileFlux();
+        using var provider = services.BuildServiceProvider();
+        var processor = (DocumentProcessor)provider.GetRequiredService<IDocumentProcessor>();
+        var imageToTextService = enableAI ? provider.GetService<IImageToTextService>() : null;
+
+        // Configure options
+        format ??= "md";
+        strategy ??= "Auto";
+
+        var chunkingOptions = new ChunkingOptions
         {
-            var baseName = Path.GetFileNameWithoutExtension(input);
-            var dir = Path.GetDirectoryName(input) ?? ".";
-            imagesDir = Path.Combine(dir, $"{baseName}.images");
+            Strategy = strategy,
+            MaxChunkSize = maxSize,
+            OverlapSize = overlap
+        };
+
+        if (enableAI)
+        {
+            chunkingOptions.CustomProperties["enableMetadataEnrichment"] = true;
+            chunkingOptions.CustomProperties["metadataSchema"] = Core.MetadataSchema.General;
         }
+
+        var outputOptions = new OutputOptions
+        {
+            OutputDirectory = output,
+            Format = format,
+            ExtractImages = extractImages,
+            MinImageSize = minImageSize,
+            MinImageDimension = minImageDimension,
+            EnableAI = enableAI
+        };
 
         if (!quiet)
         {
+            var outputDir = output ?? OutputOptions.GetDefaultOutputDirectory(input, "chunks");
             AnsiConsole.MarkupLine($"[blue]FileFlux CLI - Chunk[/]");
             AnsiConsole.MarkupLine($"  Input:    {Markup.Escape(input)}");
-            AnsiConsole.MarkupLine($"  Output:   {Markup.Escape(output)}");
+            AnsiConsole.MarkupLine($"  Output:   {Markup.Escape(outputDir)}/");
             AnsiConsole.MarkupLine($"  Format:   {format}");
             AnsiConsole.MarkupLine($"  Strategy: {strategy}");
             AnsiConsole.MarkupLine($"  Max size: {maxSize} tokens");
             AnsiConsole.MarkupLine($"  Overlap:  {overlap} tokens");
-            AnsiConsole.MarkupLine($"  AI:       {(enableAI ? $"Enabled ({factory.GetProviderStatus()})" : "Disabled")}");
+            AnsiConsole.MarkupLine($"  AI:       {(enableAI ? $"Enabled ({aiProvider})" : "Disabled")}");
             if (extractImages)
-                AnsiConsole.MarkupLine($"  Images:   [green]Extracting[/] to {Markup.Escape(imagesDir ?? "N/A")}");
+                AnsiConsole.MarkupLine($"  Images:   [green]Extracting[/]");
             AnsiConsole.WriteLine();
         }
 
         try
         {
-            // Phase 1: Extract and process images (shared with extract command)
-            var extractResult = await AnsiConsole.Status()
+            var result = await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
-                .StartAsync("Extracting document...", async ctx =>
+                .StartAsync("Processing document...", async ctx =>
                 {
-                    return await ExtractCommand.ExtractDocumentAsync(
-                        input, imagesDir, enableAI, extractImages,
-                        minImageSize, minImageDimension, verbose, ctx, cancellationToken);
+                    return await processor.ChunkToDirectoryAsync(
+                        input, chunkingOptions, outputOptions, imageToTextService, cancellationToken);
                 });
-
-            // Phase 2: Chunk the processed content
-            var chunks = await AnsiConsole.Status()
-                .Spinner(Spinner.Known.Dots)
-                .StartAsync("Chunking document...", async ctx =>
-                {
-                    // Setup services
-                    var services = new ServiceCollection();
-
-                    // Add AI provider if enrichment enabled
-                    if (enableAI)
-                    {
-                        factory.ConfigureServices(services);
-                    }
-
-                    services.AddFileFlux();
-                    using var provider = services.BuildServiceProvider();
-                    var processor = provider.GetRequiredService<IDocumentProcessor>();
-
-                    // Configure chunking options
-                    var options = new ChunkingOptions
-                    {
-                        Strategy = strategy,
-                        MaxChunkSize = maxSize,
-                        OverlapSize = overlap
-                    };
-
-                    // Enable metadata enrichment if AI available
-                    if (enableAI)
-                    {
-                        options.CustomProperties["enableMetadataEnrichment"] = true;
-                        options.CustomProperties["metadataSchema"] = "General";
-                    }
-
-                    // Update ParsedContent with processed text (images replaced with file paths)
-                    extractResult.ParsedContent.Text = extractResult.ProcessedText;
-
-                    // Chunk the processed content (with images already handled)
-                    return await processor.ChunkAsync(extractResult.ParsedContent, options, cancellationToken);
-                });
-
-            // Write output
-            var chunkList = chunks.ToList();
-            await writer.WriteAsync(chunkList, output, cancellationToken);
-
-            // Write info file for chunked output
-            var info = new ProcessingInfo
-            {
-                Command = "chunk",
-                Format = format,
-                Strategy = strategy,
-                MaxChunkSize = maxSize,
-                OverlapSize = overlap,
-                AIProvider = enableAI ? factory.GetProviderStatus() : null,
-                EnrichmentEnabled = enableAI
-            };
-            await ProcessingInfoWriter.WriteChunkedInfoAsync(output, input, chunkList, info, cancellationToken);
 
             if (!quiet)
             {
-                AnsiConsole.MarkupLine($"[green]✓[/] Created {chunkList.Count} chunks");
-                AnsiConsole.MarkupLine($"[green]✓[/] Saved to: {Markup.Escape(output)}/");
-                AnsiConsole.MarkupLine($"[green]✓[/] Info file: {Markup.Escape(Path.Combine(output, "info.json"))}");
+                var chunks = result.Chunks;
+                AnsiConsole.MarkupLine($"[green]✓[/] Created {chunks.Length} chunks");
+                AnsiConsole.MarkupLine($"[green]✓[/] Output: {Markup.Escape(result.OutputDirectory!)}/");
 
-                // Show summary
-                var totalChars = chunkList.Sum(c => c.Content.Length);
-                var avgChunkSize = totalChars / chunkList.Count;
+                // Summary table
+                var totalChars = chunks.Sum(c => c.Content.Length);
+                var avgChunkSize = chunks.Length > 0 ? totalChars / chunks.Length : 0;
 
                 var table = new Table();
                 table.AddColumn("Metric");
                 table.AddColumn("Value");
-                table.AddRow("Total chunks", chunkList.Count.ToString());
+                table.AddRow("Total chunks", chunks.Length.ToString());
                 table.AddRow("Total characters", totalChars.ToString("N0"));
                 table.AddRow("Average chunk size", avgChunkSize.ToString("N0"));
-                table.AddRow("Min chunk size", chunkList.Min(c => c.Content.Length).ToString("N0"));
-                table.AddRow("Max chunk size", chunkList.Max(c => c.Content.Length).ToString("N0"));
+                table.AddRow("Min chunk size", chunks.Length > 0 ? chunks.Min(c => c.Content.Length).ToString("N0") : "0");
+                table.AddRow("Max chunk size", chunks.Length > 0 ? chunks.Max(c => c.Content.Length).ToString("N0") : "0");
 
-                if (extractResult.Images.Count > 0)
-                    table.AddRow("Images extracted", extractResult.Images.Count.ToString());
+                if (result.Extraction.Images.Count > 0)
+                    table.AddRow("Images extracted", result.Extraction.Images.Count.ToString());
 
-                if (extractResult.SkippedImageCount > 0)
-                    table.AddRow("Images skipped", extractResult.SkippedImageCount.ToString());
+                if (result.Extraction.SkippedImageCount > 0)
+                    table.AddRow("Images skipped", result.Extraction.SkippedImageCount.ToString());
 
                 if (enableAI)
                 {
-                    var enrichedCount = chunkList.Count(c => c.Metadata.CustomProperties.ContainsKey("enriched_topics"));
+                    var enrichedCount = chunks.Count(c => c.Metadata.CustomProperties.Keys.Any(k => k.StartsWith("enriched_")));
                     table.AddRow("Enriched chunks", enrichedCount.ToString());
-
-                    if (extractResult.Images.Any(i => !string.IsNullOrEmpty(i.AIDescription)))
-                        table.AddRow("AI analyzed images", extractResult.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription)).ToString());
                 }
 
                 AnsiConsole.Write(table);
@@ -296,7 +251,7 @@ public class ChunkCommand : Command
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
-            if (!quiet)
+            if (verbose)
             {
                 AnsiConsole.WriteException(ex);
             }
