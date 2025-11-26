@@ -22,8 +22,119 @@ public class OutputWriterTests : IDisposable
         }
     }
 
-    // NOTE: ExtractOutputWriter tests removed - API changed to use ParsedContent
-    // These tests need to be rewritten with ParsedContent instead of DocumentChunk list
+    #region ExtractOutputWriter Tests
+
+    [Fact]
+    public async Task ExtractOutputWriter_WritesYamlFrontmatter()
+    {
+        // Arrange
+        var writer = new ExtractOutputWriter("md");
+        var outputPath = Path.Combine(_testDir, "output.md");
+        var chunks = CreateTestChunks(1);
+        chunks[0].Metadata.Title = "Test Document";
+        chunks[0].Metadata.FileName = "test.docx";
+        chunks[0].Metadata.Language = "ko";
+
+        // Act
+        await writer.WriteAsync(chunks, outputPath);
+
+        // Assert
+        var content = await File.ReadAllTextAsync(outputPath);
+        Assert.Contains("---", content);
+        Assert.Contains("title: \"Test Document\"", content);
+        Assert.Contains("source: \"test.docx\"", content);
+        Assert.Contains("language: ko", content);
+    }
+
+    [Fact]
+    public async Task ExtractOutputWriter_CombinesAllChunkContent()
+    {
+        // Arrange
+        var writer = new ExtractOutputWriter("md");
+        var outputPath = Path.Combine(_testDir, "output.md");
+        var chunks = CreateTestChunks(3);
+        chunks[0].Content = "First chunk content";
+        chunks[1].Content = "Second chunk content";
+        chunks[2].Content = "Third chunk content";
+
+        // Act
+        await writer.WriteAsync(chunks, outputPath);
+
+        // Assert
+        var content = await File.ReadAllTextAsync(outputPath);
+        Assert.Contains("First chunk content", content);
+        Assert.Contains("Second chunk content", content);
+        Assert.Contains("Third chunk content", content);
+    }
+
+    [Fact]
+    public async Task ExtractOutputWriter_RemovesBase64Images()
+    {
+        // Arrange
+        var writer = new ExtractOutputWriter("md");
+        var outputPath = Path.Combine(_testDir, "output.md");
+        var chunks = CreateTestChunks(1);
+        chunks[0].Content = "Text before ![alt](data:image/png;base64,iVBORw0KGgo=) text after";
+
+        // Act
+        await writer.WriteAsync(chunks, outputPath);
+
+        // Assert
+        var content = await File.ReadAllTextAsync(outputPath);
+        Assert.DoesNotContain("data:image", content);
+        Assert.DoesNotContain("base64", content);
+        Assert.Contains("[Image", content);
+        Assert.Contains("Text before", content);
+        Assert.Contains("text after", content);
+    }
+
+    [Fact]
+    public async Task ExtractOutputWriter_ExtractsImagesToFiles()
+    {
+        // Arrange
+        var imagesDir = Path.Combine(_testDir, "images");
+        var writer = new ExtractOutputWriter("md", extractImages: true, imagesDirectory: imagesDir);
+        var outputPath = Path.Combine(_testDir, "output.md");
+        var chunks = CreateTestChunks(1);
+
+        // Simple 1x1 transparent PNG
+        var base64Png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        chunks[0].Content = $"![test image](data:image/png;base64,{base64Png})";
+
+        // Act
+        await writer.WriteAsync(chunks, outputPath);
+
+        // Assert
+        Assert.True(Directory.Exists(imagesDir));
+        var imageFiles = Directory.GetFiles(imagesDir, "*.png");
+        Assert.Single(imageFiles);
+
+        var content = await File.ReadAllTextAsync(outputPath);
+        Assert.Contains("./images/image_1.png", content);
+    }
+
+    [Fact]
+    public async Task ExtractOutputWriter_JsonFormat_IncludesAllMetadata()
+    {
+        // Arrange
+        var writer = new ExtractOutputWriter("json");
+        var outputPath = Path.Combine(_testDir, "output.json");
+        var chunks = CreateTestChunks(1);
+        chunks[0].Metadata.Title = "Test Doc";
+        chunks[0].Metadata.WordCount = 100;
+
+        // Act
+        await writer.WriteAsync(chunks, outputPath);
+
+        // Assert
+        var json = await File.ReadAllTextAsync(outputPath);
+        Assert.Contains("\"title\"", json);
+        Assert.Contains("Test Doc", json);
+        Assert.Contains("\"words\"", json);
+        Assert.Contains("100", json);
+    }
+
+    #endregion
 
     #region ChunkedOutputWriter Tests
 
@@ -153,7 +264,7 @@ public class OutputWriterTests : IDisposable
         var outputDir = Path.Combine(_testDir, "chunks");
         Directory.CreateDirectory(outputDir);
         var chunks = CreateTestChunks(3);
-        var info = new FileFlux.CLI.Output.ProcessingInfo
+        var info = new ProcessingInfo
         {
             Command = "chunk",
             Format = "md",

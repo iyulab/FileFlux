@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.SampleApp", "sampl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.CLI", "src\FileFlux.CLI\FileFlux.CLI.csproj", "{DA9AD4D4-7294-8633-C775-6AAD0F661F1E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalEmbedder", "..\local-embedder\src\LocalEmbedder\LocalEmbedder.csproj", "{B488640F-BD82-4753-B46F-DF869E8056F2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{DA9AD4D4-7294-8633-C775-6AAD0F661F1E}.Release|x64.Build.0 = Release|Any CPU
 		{DA9AD4D4-7294-8633-C775-6AAD0F661F1E}.Release|x86.ActiveCfg = Release|Any CPU
 		{DA9AD4D4-7294-8633-C775-6AAD0F661F1E}.Release|x86.Build.0 = Release|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Debug|x64.Build.0 = Debug|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Debug|x86.Build.0 = Debug|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Release|x64.ActiveCfg = Release|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Release|x64.Build.0 = Release|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Release|x86.ActiveCfg = Release|Any CPU
+		{B488640F-BD82-4753-B46F-DF869E8056F2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

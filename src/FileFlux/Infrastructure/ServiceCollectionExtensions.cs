@@ -88,11 +88,13 @@ public static class ServiceCollectionExtensions
             new BasicDocumentParser(provider.GetService<ITextCompletionService>()));
 
         // Embedding 서비스 관련 등록 (Phase 8)
-        // Note: 실제 IEmbeddingService는 소비 애플리케이션에서 등록해야 함
-        // Mock 서비스는 DEBUG 빌드에서만 fallback으로 사용
-#if DEBUG
-        services.TryAddSingleton<IEmbeddingService, MockEmbeddingService>();
-#endif
+        // LocalEmbedder를 기본 임베딩 서비스로 사용 (production-ready)
+        // 소비 애플리케이션에서 커스텀 IEmbeddingService를 등록하여 오버라이드 가능
+        services.TryAddSingleton<IEmbeddingService>(provider =>
+        {
+            var logger = provider.GetService<ILogger<LocalEmbedderService>>();
+            return new LocalEmbedderService(options: null, logger);
+        });
 
         // Semantic analysis services - AI 서비스들은 선택적 의존성으로 처리
         services.AddSingleton<ISemanticBoundaryDetector, SemanticBoundaryDetector>();
@@ -195,6 +197,32 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
+    /// LocalEmbedder 옵션을 구성하여 FileFlux 서비스 등록
+    /// </summary>
+    /// <param name="services">서비스 컬렉션</param>
+    /// <param name="configureOptions">LocalEmbedder 옵션 구성 액션</param>
+    /// <returns>서비스 컬렉션</returns>
+    public static IServiceCollection AddFileFluxWithLocalEmbedder(
+        this IServiceCollection services,
+        Action<LocalEmbedderOptions> configureOptions)
+    {
+        ArgumentNullException.ThrowIfNull(configureOptions);
+
+        var options = new LocalEmbedderOptions();
+        configureOptions(options);
+
+        // LocalEmbedder 서비스를 커스텀 옵션과 함께 등록
+        services.AddSingleton<IEmbeddingService>(provider =>
+        {
+            var logger = provider.GetService<ILogger<LocalEmbedderService>>();
+            return new LocalEmbedderService(options, logger);
+        });
+
+        // FileFlux 서비스들 등록
+        return AddFileFlux(services);
+    }
+
+    /// <summary>
     /// Mock 서비스들과 함께 FileFlux 서비스 등록 (테스트용)
     /// Only available in DEBUG builds - excluded from production Release builds.
     /// </summary>
@@ -207,6 +235,8 @@ public static class ServiceCollectionExtensions
         if (useMockServices)
         {
             services.AddSingleton<IImageToTextService, MockImageToTextService>();
+            // Mock embedding service for testing (overrides LocalEmbedder)
+            services.AddSingleton<IEmbeddingService, MockEmbeddingService>();
         }
 
         // FileFlux 서비스들 등록

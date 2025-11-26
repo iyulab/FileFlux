@@ -15,6 +15,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, Markdown, HTML, TXT, JSON, CSV
 - **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel
+- **Local Embeddings**: Built-in LocalEmbedder support with zero configuration
 - **Structural Metadata**: HeadingPath, page numbers, ContextDependency scores for enhanced RAG
 - **Language Detection**: Automatic language detection using NTextCat
 - **IEnrichedChunk Interface**: Standardized interface for RAG system integration
@@ -109,6 +110,71 @@ foreach (var chunk in chunks)
     var language = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_language");
 }
 ```
+
+### Local Embeddings
+
+FileFlux includes **built-in local embedding support** via LocalEmbedder, providing high-quality embeddings without external API calls.
+
+#### Zero Configuration
+
+```csharp
+// LocalEmbedder is automatically registered - no configuration needed!
+services.AddFileFlux();
+
+// Models are auto-downloaded from HuggingFace on first use
+var processor = provider.GetRequiredService<IDocumentProcessor>();
+var chunks = await processor.ProcessAsync("document.pdf");
+```
+
+#### Semantic Similarity
+
+```csharp
+var embeddingService = provider.GetRequiredService<IEmbeddingService>();
+
+// Generate embeddings for semantic search
+var queryEmb = await embeddingService.GenerateEmbeddingAsync(
+    "machine learning algorithms",
+    EmbeddingPurpose.SemanticSearch);
+
+var docEmb = await embeddingService.GenerateEmbeddingAsync(
+    "AI models learn patterns from data",
+    EmbeddingPurpose.SemanticSearch);
+
+// Calculate cosine similarity
+var similarity = embeddingService.CalculateSimilarity(queryEmb, docEmb);
+// Returns ~0.7 for related content
+```
+
+#### Custom Configuration
+
+```csharp
+// Use high-quality models or GPU acceleration
+services.AddFileFluxWithLocalEmbedder(options =>
+{
+    options.AnalysisModel = "all-mpnet-base-v2";      // 768 dimensions
+    options.SearchModel = "all-mpnet-base-v2";         // High quality
+    options.PrimaryDimension = 768;
+    options.Provider = ExecutionProvider.Cuda;         // GPU acceleration
+});
+```
+
+#### Available Models
+
+| Model | Dimensions | Speed | Quality | Use Case |
+|-------|------------|-------|---------|----------|
+| `all-MiniLM-L6-v2` | 384 | Fast | Good | Analysis, chunking (default) |
+| `all-mpnet-base-v2` | 768 | Medium | High | Semantic search, storage |
+| `bge-small-en-v1.5` | 384 | Fast | Good | English documents |
+| `bge-base-en-v1.5` | 768 | Medium | High | High-quality English |
+| `multilingual-e5-small` | 384 | Fast | Good | Multilingual support |
+| `multilingual-e5-base` | 768 | Medium | High | High-quality multilingual |
+
+**Features:**
+- **Auto-download**: Models downloaded from HuggingFace automatically
+- **Caching**: Models cached locally (~/.cache/huggingface)
+- **GPU Support**: CUDA, DirectML (Windows), CoreML (macOS)
+- **Batch Processing**: Efficient multi-text embedding
+- **Thread-Safe**: Concurrent access supported
 
 ### ZIP Archive Processing
 

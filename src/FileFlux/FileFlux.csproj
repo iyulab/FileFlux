@@ -32,4 +32,8 @@
     <PackageReference Include="ReverseMarkdown" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\local-embedder\src\LocalEmbedder\LocalEmbedder.csproj" />
+  </ItemGroup>
+
 </Project>
