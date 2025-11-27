@@ -9,7 +9,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FileFlux\FileFlux.csproj" />
-    <ProjectReference Include="..\..\..\FluxImprover\src\FluxImprover\FluxImprover.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Label="FluxImprover">
+    <PackageReference Include="FluxImprover" />
+    <PackageReference Include="FluxImprover.Abstractions" />
   </ItemGroup>
 
   <ItemGroup>
