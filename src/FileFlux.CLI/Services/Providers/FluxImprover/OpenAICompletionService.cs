@@ -60,10 +60,16 @@ public class OpenAICompletionService : FI.ITextCompletionService
 
         var chatOptions = new ChatCompletionOptions();
 
-        // Note: Not setting temperature as some models (e.g., gpt-5-nano) don't support custom values
-        // Let the model use its default temperature
+        // Only set temperature if explicitly provided (nullable support for model compatibility)
+        if (options?.Temperature.HasValue == true)
+        {
+            chatOptions.Temperature = options.Temperature.Value;
+        }
 
-        if (options?.MaxTokens.HasValue == true)
+        // WORKAROUND: gpt-5-nano has a bug where setting max_completion_tokens
+        // with response_format: json_object causes empty responses.
+        // Only set MaxOutputTokenCount when NOT using JsonMode.
+        if (options?.MaxTokens.HasValue == true && options.JsonMode != true)
         {
             chatOptions.MaxOutputTokenCount = options.MaxTokens.Value;
         }
@@ -106,8 +112,11 @@ public class OpenAICompletionService : FI.ITextCompletionService
 
         var chatOptions = new ChatCompletionOptions();
 
-        // Note: Not setting temperature as some models (e.g., gpt-5-nano) don't support custom values
-        // Let the model use its default temperature
+        // Only set temperature if explicitly provided (nullable support for model compatibility)
+        if (options?.Temperature.HasValue == true)
+        {
+            chatOptions.Temperature = options.Temperature.Value;
+        }
 
         if (options?.MaxTokens.HasValue == true)
         {

@@ -277,8 +277,58 @@ public class AutoChunkingStrategy : IChunkingStrategy
     /// </summary>
     private T GetStrategyOption<T>(ChunkingOptions options, string key, T defaultValue)
     {
-        // ChunkingOptions에서 커스텀 옵션 처리
-        // 실제 구현에서는 options.StrategyOptions 딕셔너리를 사용
+        if (options.StrategyOptions.TryGetValue(key, out var value))
+        {
+            try
+            {
+                // 직접 캐스팅 가능한 경우
+                if (value is T typedValue)
+                {
+                    return typedValue;
+                }
+
+                // 타입 변환이 필요한 경우
+                var targetType = typeof(T);
+                var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+                // null 값 처리
+                if (value == null)
+                {
+                    return defaultValue;
+                }
+
+                // 문자열에서 변환
+                if (value is string strValue)
+                {
+                    if (underlyingType == typeof(bool))
+                    {
+                        return (T)(object)bool.Parse(strValue);
+                    }
+                    if (underlyingType == typeof(int))
+                    {
+                        return (T)(object)int.Parse(strValue);
+                    }
+                    if (underlyingType == typeof(double))
+                    {
+                        return (T)(object)double.Parse(strValue);
+                    }
+                    if (underlyingType == typeof(float))
+                    {
+                        return (T)(object)float.Parse(strValue);
+                    }
+                    return (T)(object)strValue;
+                }
+
+                // 숫자 타입 간 변환
+                return (T)Convert.ChangeType(value, underlyingType);
+            }
+            catch
+            {
+                // 변환 실패 시 기본값 반환
+                return defaultValue;
+            }
+        }
+
         return defaultValue;
     }
 

@@ -39,6 +39,17 @@ public class ChunkingOptions
     /// 사용자 정의 속성들 (Phase 10: 고급 설정)
     /// </summary>
     public Dictionary<string, object> CustomProperties { get; } = new();
+
+    /// <summary>
+    /// 전략별 옵션 설정 (Auto 전략에서 사용)
+    /// - ForceStrategy: 특정 전략 강제 (테스트용)
+    /// - ConfidenceThreshold: 최소 신뢰도 임계값 (기본 0.6)
+    /// - EnableCache: 전략 선택 캐싱 활성화
+    /// - MaxAnalysisTime: 최대 분석 시간 (초, 기본 300)
+    /// - PreferSpeed: 속도 우선 모드
+    /// - PreferQuality: 품질 우선 모드
+    /// </summary>
+    public Dictionary<string, object> StrategyOptions { get; } = new();
 }
 
 /// <summary>

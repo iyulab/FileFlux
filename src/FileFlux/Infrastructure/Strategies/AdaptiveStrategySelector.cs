@@ -391,6 +391,7 @@ Return your response in the following JSON format:
 
     /// <summary>
     /// 선택 검증 및 최종화
+    /// Phase B: 콘텐츠 기반 점수와 확장자 기반 추천의 가중 평균 적용
     /// </summary>
     private LLMStrategyRecommendation ValidateAndFinalizeSelection(
         LLMStrategyRecommendation recommendation,
@@ -405,9 +406,23 @@ Return your response in the following JSON format:
             recommendation.Confidence *= 0.8; // 신뢰도 감소
         }
 
-        // Phase 10: 파일 형식별 최적화 (Phase 9 평가 결과 기반)
-        var phase10OptimalStrategy = GetPhase10OptimalStrategy(characteristics.FileExtension);
-        if (!string.IsNullOrEmpty(phase10OptimalStrategy) && phase10OptimalStrategy != recommendation.StrategyName)
+        // Phase B: 콘텐츠 기반 전략 점수 계산
+        var contentBasedStrategy = CalculateContentBasedStrategy(characteristics);
+        var extensionBasedStrategy = GetPhase10OptimalStrategy(characteristics.FileExtension);
+
+        // 콘텐츠 특성 강도 계산 (0.0 ~ 1.0)
+        var contentStrength = CalculateContentCharacteristicsStrength(characteristics);
+
+        // 가중 평균으로 최종 전략 결정
+        // 콘텐츠 특성이 강할수록 콘텐츠 기반 전략 우선
+        var finalStrategy = DetermineStrategyByWeightedAverage(
+            contentBasedStrategy,
+            extensionBasedStrategy,
+            recommendation.StrategyName,
+            contentStrength,
+            characteristics);
+
+        if (finalStrategy != recommendation.StrategyName)
         {
             // 원래 추천 전략을 대안으로 보존
             recommendation.Alternatives.Insert(0, new AlternativeStrategy
@@ -417,12 +432,14 @@ Return your response in the following JSON format:
                 Reasoning = recommendation.Reasoning
             });
 
-            recommendation.StrategyName = phase10OptimalStrategy;
-            recommendation.Reasoning = $"Phase 10 optimization: {characteristics.FileExtension} files perform best with {phase10OptimalStrategy} strategy (evaluation-based)";
-            recommendation.Confidence = 0.92; // 높은 신뢰도 (실증 데이터 기반)
+            recommendation.StrategyName = finalStrategy;
+            recommendation.Reasoning = contentStrength >= 0.6
+                ? $"Content-driven selection (strength: {contentStrength:P0}): {GetContentBasedReasoning(characteristics, finalStrategy)}"
+                : $"Balanced selection: content ({contentStrength:P0}) + extension ({characteristics.FileExtension}) → {finalStrategy}";
+            recommendation.Confidence = Math.Max(0.7, Math.Min(0.95, 0.7 + contentStrength * 0.25));
         }
 
-        // 특정 조건에서 추가 오버라이드
+        // 특정 조건에서 추가 오버라이드 (강한 신호)
         if (characteristics.FileExtension == ".pdf" && characteristics.HasTables)
         {
             // PDF with tables - force Intelligent (기존 로직 유지)
@@ -442,6 +459,214 @@ Return your response in the following JSON format:
         }
 
         return recommendation;
+    }
+
+    /// <summary>
+    /// 콘텐츠 특성 기반 최적 전략 계산
+    /// </summary>
+    private string CalculateContentBasedStrategy(DocumentCharacteristics characteristics)
+    {
+        var scores = new Dictionary<string, double>
+        {
+            ["Smart"] = 50,      // 기본 점수
+            ["Intelligent"] = 40,
+            ["Semantic"] = 40,
+            ["Paragraph"] = 30,
+            ["FixedSize"] = 20
+        };
+
+        // 코드 블록이 있으면 Intelligent 선호
+        if (characteristics.HasCodeBlocks)
+        {
+            scores["Intelligent"] += 30;
+            scores["Smart"] += 10;
+        }
+
+        // 마크다운 헤더가 있으면 Intelligent 선호
+        if (characteristics.HasMarkdownHeaders)
+        {
+            scores["Intelligent"] += 25;
+            scores["Semantic"] += 10;
+        }
+
+        // 테이블이 있으면 Intelligent 강력 선호
+        if (characteristics.HasTables)
+        {
+            scores["Intelligent"] += 35;
+        }
+
+        // 번호 섹션이 있으면 Smart 선호
+        if (characteristics.HasNumberedSections)
+        {
+            scores["Smart"] += 30;
+            scores["Intelligent"] += 15;
+        }
+
+        // 구조화된 요구사항이 있으면 Smart 선호
+        if (characteristics.HasStructuredRequirements)
+        {
+            scores["Smart"] += 35;
+        }
+
+        // 리스트가 있으면 Intelligent/Smart 선호
+        if (characteristics.HasLists)
+        {
+            scores["Intelligent"] += 15;
+            scores["Smart"] += 10;
+        }
+
+        // 수학 공식이 있으면 Intelligent 선호
+        if (characteristics.HasMathFormulas)
+        {
+            scores["Intelligent"] += 20;
+        }
+
+        // 도메인 기반 조정
+        switch (characteristics.Domain)
+        {
+            case "Legal":
+            case "Medical":
+                scores["Smart"] += 25;
+                break;
+            case "Technical":
+                scores["Intelligent"] += 20;
+                break;
+            case "Academic":
+                scores["Semantic"] += 15;
+                scores["Smart"] += 10;
+                break;
+        }
+
+        // 콘텐츠 타입 기반 조정
+        if (characteristics.ContentType == "Narrative")
+        {
+            scores["Semantic"] += 25;
+            scores["Paragraph"] += 15;
+        }
+        else if (characteristics.ContentType == "Technical")
+        {
+            scores["Intelligent"] += 20;
+        }
+
+        // 문장 길이 기반 조정
+        if (characteristics.AverageSentenceLength > 25)
+        {
+            scores["Semantic"] += 15;
+            scores["Smart"] += 10;
+        }
+        else if (characteristics.AverageSentenceLength < 10)
+        {
+            scores["Paragraph"] += 10;
+        }
+
+        // 구조 복잡도 기반 조정
+        if (characteristics.StructureComplexity >= 7)
+        {
+            scores["Intelligent"] += 20;
+            scores["Smart"] += 15;
+        }
+        else if (characteristics.StructureComplexity <= 2)
+        {
+            scores["Paragraph"] += 15;
+            scores["FixedSize"] += 10;
+        }
+
+        return scores.OrderByDescending(x => x.Value).First().Key;
+    }
+
+    /// <summary>
+    /// 콘텐츠 특성 강도 계산 (0.0 ~ 1.0)
+    /// 값이 높을수록 콘텐츠 기반 전략 선택 신뢰도가 높음
+    /// </summary>
+    private double CalculateContentCharacteristicsStrength(DocumentCharacteristics characteristics)
+    {
+        var strength = 0.0;
+        var factorCount = 0;
+
+        // 구조적 특징 (강한 신호)
+        if (characteristics.HasCodeBlocks) { strength += 0.15; factorCount++; }
+        if (characteristics.HasMarkdownHeaders) { strength += 0.12; factorCount++; }
+        if (characteristics.HasTables) { strength += 0.15; factorCount++; }
+        if (characteristics.HasNumberedSections) { strength += 0.12; factorCount++; }
+        if (characteristics.HasStructuredRequirements) { strength += 0.12; factorCount++; }
+        if (characteristics.HasMathFormulas) { strength += 0.10; factorCount++; }
+        if (characteristics.HasLists) { strength += 0.08; factorCount++; }
+
+        // 도메인 신뢰도
+        if (characteristics.Domain != "General")
+        {
+            strength += 0.10;
+            factorCount++;
+        }
+
+        // 구조 복잡도 기여 (정규화)
+        var complexityContribution = characteristics.StructureComplexity / 10.0 * 0.15;
+        strength += complexityContribution;
+        factorCount++;
+
+        // 최소 0.3 (기본 신뢰도), 최대 1.0
+        return Math.Max(0.3, Math.Min(1.0, strength));
+    }
+
+    /// <summary>
+    /// 가중 평균으로 최종 전략 결정
+    /// </summary>
+    private string DetermineStrategyByWeightedAverage(
+        string contentBasedStrategy,
+        string extensionBasedStrategy,
+        string llmRecommendedStrategy,
+        double contentStrength,
+        DocumentCharacteristics characteristics)
+    {
+        // 콘텐츠 특성이 매우 강하면 (0.7 이상) 콘텐츠 기반 전략 우선
+        if (contentStrength >= 0.7)
+        {
+            return contentBasedStrategy;
+        }
+
+        // 확장자 기반 전략이 없으면 콘텐츠/LLM 기반 선택
+        if (string.IsNullOrEmpty(extensionBasedStrategy))
+        {
+            return contentStrength >= 0.5 ? contentBasedStrategy : llmRecommendedStrategy;
+        }
+
+        // 콘텐츠 특성이 약하면 (0.4 미만) 확장자 기반 전략 우선
+        if (contentStrength < 0.4)
+        {
+            return extensionBasedStrategy;
+        }
+
+        // 중간 강도: 콘텐츠와 확장자 기반 전략이 같으면 그대로
+        if (contentBasedStrategy == extensionBasedStrategy)
+        {
+            return contentBasedStrategy;
+        }
+
+        // 중간 강도: 콘텐츠와 확장자가 다르면 콘텐츠 우선 (0.4~0.7 구간)
+        // 콘텐츠 특성이 실제 문서 내용을 반영하므로 더 정확할 가능성 높음
+        return contentBasedStrategy;
+    }
+
+    /// <summary>
+    /// 콘텐츠 기반 선택 이유 생성
+    /// </summary>
+    private string GetContentBasedReasoning(DocumentCharacteristics characteristics, string strategy)
+    {
+        var reasons = new List<string>();
+
+        if (characteristics.HasCodeBlocks) reasons.Add("code blocks");
+        if (characteristics.HasMarkdownHeaders) reasons.Add("markdown headers");
+        if (characteristics.HasTables) reasons.Add("tables");
+        if (characteristics.HasNumberedSections) reasons.Add("numbered sections");
+        if (characteristics.HasStructuredRequirements) reasons.Add("structured requirements");
+        if (characteristics.HasMathFormulas) reasons.Add("math formulas");
+        if (characteristics.Domain != "General") reasons.Add($"{characteristics.Domain} domain");
+
+        var reasonList = reasons.Count > 0
+            ? string.Join(", ", reasons.Take(3))
+            : "content analysis";
+
+        return $"{strategy} selected based on {reasonList}";
     }
 
     /// <summary>
@@ -852,26 +1077,147 @@ Return your response in the following JSON format:
         return "English";
     }
 
+    /// <summary>
+    /// Phase C: 점수 기반 도메인 추론 (확장된 키워드 사전)
+    /// </summary>
     private string InferDomain(string content)
     {
         var lowerContent = content.ToLowerInvariant();
 
-        if (lowerContent.Contains("patient") || lowerContent.Contains("diagnosis") ||
-            lowerContent.Contains("treatment")) return "Medical";
+        // 도메인별 키워드 사전 (가중치 포함)
+        var domainKeywords = new Dictionary<string, (string[] keywords, int weight)[]>
+        {
+            ["Medical"] = new[]
+            {
+                (new[] { "patient", "diagnosis", "treatment", "symptom", "prescription" }, 3),
+                (new[] { "clinical", "medical", "healthcare", "physician", "hospital" }, 2),
+                (new[] { "therapy", "dosage", "prognosis", "pathology", "anatomy" }, 2),
+                (new[] { "진단", "환자", "치료", "처방", "증상", "병원", "의료" }, 3), // Korean
+            },
+            ["Legal"] = new[]
+            {
+                (new[] { "pursuant", "whereas", "jurisdiction", "plaintiff", "defendant" }, 3),
+                (new[] { "court", "judge", "attorney", "litigation", "arbitration" }, 2),
+                (new[] { "contract", "liability", "statute", "regulation", "compliance" }, 2),
+                (new[] { "헌법", "법률", "소송", "계약", "피고", "원고", "판결" }, 3), // Korean
+            },
+            ["Technical"] = new[]
+            {
+                (new[] { "function", "class", "api", "method", "interface" }, 3),
+                (new[] { "algorithm", "database", "framework", "implementation", "architecture" }, 2),
+                (new[] { "server", "client", "endpoint", "protocol", "repository" }, 2),
+                (new[] { "함수", "클래스", "인터페이스", "구현", "서버", "데이터베이스" }, 3), // Korean
+            },
+            ["Business"] = new[]
+            {
+                (new[] { "revenue", "profit", "market", "roi", "stakeholder" }, 3),
+                (new[] { "strategy", "investment", "acquisition", "quarterly", "fiscal" }, 2),
+                (new[] { "growth", "competitor", "customer", "product", "service" }, 1),
+                (new[] { "매출", "수익", "시장", "투자", "전략", "고객", "사업" }, 3), // Korean
+            },
+            ["Academic"] = new[]
+            {
+                (new[] { "research", "hypothesis", "methodology", "thesis", "dissertation" }, 3),
+                (new[] { "literature", "citation", "peer-review", "abstract", "findings" }, 2),
+                (new[] { "analysis", "study", "experiment", "data", "conclusion" }, 1),
+                (new[] { "연구", "가설", "논문", "실험", "분석", "결론", "학술" }, 3), // Korean
+            },
+            ["Financial"] = new[]
+            {
+                (new[] { "balance sheet", "income statement", "cash flow", "assets", "liabilities" }, 3),
+                (new[] { "equity", "dividend", "amortization", "depreciation", "audit" }, 2),
+                (new[] { "tax", "interest", "principal", "credit", "debit" }, 1),
+                (new[] { "재무", "자산", "부채", "손익", "현금흐름", "감가상각" }, 3), // Korean
+            },
+            ["Scientific"] = new[]
+            {
+                (new[] { "experiment", "observation", "theory", "phenomenon", "variable" }, 3),
+                (new[] { "laboratory", "specimen", "measurement", "formula", "equation" }, 2),
+                (new[] { "physics", "chemistry", "biology", "quantum", "molecular" }, 2),
+                (new[] { "실험", "관찰", "이론", "현상", "측정", "공식" }, 3), // Korean
+            },
+            ["Engineering"] = new[]
+            {
+                (new[] { "specification", "requirement", "design", "prototype", "testing" }, 3),
+                (new[] { "component", "module", "system", "integration", "validation" }, 2),
+                (new[] { "mechanical", "electrical", "structural", "thermal", "hydraulic" }, 2),
+                (new[] { "설계", "사양", "요구사항", "프로토타입", "검증" }, 3), // Korean
+            }
+        };
 
-        if (lowerContent.Contains("pursuant") || lowerContent.Contains("whereas") ||
-            lowerContent.Contains("jurisdiction")) return "Legal";
+        // 각 도메인별 점수 계산
+        var domainScores = new Dictionary<string, double>();
 
-        if (lowerContent.Contains("function") || lowerContent.Contains("class") ||
-            lowerContent.Contains("api")) return "Technical";
+        foreach (var (domain, keywordGroups) in domainKeywords)
+        {
+            double score = 0;
+            int matchCount = 0;
 
-        if (lowerContent.Contains("revenue") || lowerContent.Contains("profit") ||
-            lowerContent.Contains("market")) return "Business";
+            foreach (var (keywords, weight) in keywordGroups)
+            {
+                foreach (var keyword in keywords)
+                {
+                    if (lowerContent.Contains(keyword))
+                    {
+                        score += weight;
+                        matchCount++;
+                    }
+                }
+            }
 
-        if (lowerContent.Contains("research") || lowerContent.Contains("hypothesis") ||
-            lowerContent.Contains("methodology")) return "Academic";
+            // 매칭 개수 보너스 (다양한 키워드 매칭 시 추가 점수)
+            if (matchCount >= 3) score *= 1.2;
+            if (matchCount >= 5) score *= 1.3;
+
+            domainScores[domain] = score;
+        }
+
+        // 최고 점수 도메인 선택
+        var bestDomain = domainScores
+            .Where(x => x.Value > 0)
+            .OrderByDescending(x => x.Value)
+            .FirstOrDefault();
+
+        // 최소 임계값 (2점 이상이어야 도메인으로 인정)
+        if (bestDomain.Value >= 2)
+        {
+            return bestDomain.Key;
+        }
 
         return "General";
+    }
+
+    /// <summary>
+    /// 도메인 추론 신뢰도 계산 (0.0 ~ 1.0)
+    /// </summary>
+    private double CalculateDomainConfidence(string content, string inferredDomain)
+    {
+        if (inferredDomain == "General") return 0.3;
+
+        var lowerContent = content.ToLowerInvariant();
+        var matchCount = 0;
+
+        // 간단한 신뢰도 계산: 관련 키워드 개수 기반
+        var domainKeywords = inferredDomain switch
+        {
+            "Medical" => new[] { "patient", "diagnosis", "treatment", "clinical", "medical" },
+            "Legal" => new[] { "pursuant", "court", "contract", "jurisdiction", "attorney" },
+            "Technical" => new[] { "function", "api", "class", "implementation", "server" },
+            "Business" => new[] { "revenue", "market", "strategy", "customer", "growth" },
+            "Academic" => new[] { "research", "hypothesis", "study", "analysis", "thesis" },
+            "Financial" => new[] { "balance", "asset", "equity", "tax", "audit" },
+            "Scientific" => new[] { "experiment", "theory", "observation", "formula" },
+            "Engineering" => new[] { "specification", "design", "system", "component" },
+            _ => Array.Empty<string>()
+        };
+
+        foreach (var keyword in domainKeywords)
+        {
+            if (lowerContent.Contains(keyword)) matchCount++;
+        }
+
+        // 0-5개 매칭 → 0.5-1.0 신뢰도
+        return Math.Min(1.0, 0.5 + matchCount * 0.1);
     }
 
     private double CalculateAverageSentenceLength(string content)
