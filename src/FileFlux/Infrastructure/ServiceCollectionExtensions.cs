@@ -35,19 +35,12 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentReader, MultiModalWordDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalExcelDocumentReader>();
 
-        // ZIP Archive Reader는 Factory를 필요로 하므로 나중에 등록
-
         // 핵심 팩토리들 등록 - DI로 주입된 Reader들 사용
         // Scoped로 변경: MultiModalPdfDocumentReader가 scoped IImageToTextService를 사용하므로
         services.AddScoped<IDocumentReaderFactory>(provider =>
         {
             // DI로 주입된 Reader들로 Factory 생성
-            var factory = new DocumentReaderFactory(provider.GetServices<IDocumentReader>());
-
-            // ZipArchiveReader는 Factory를 필요로 하므로 수동으로 등록
-            factory.RegisterReader(new ZipArchiveReader(factory));
-
-            return factory;
+            return new DocumentReaderFactory(provider.GetServices<IDocumentReader>());
         });
         services.AddSingleton<IDocumentParserFactory>(provider =>
             new DocumentParserFactory(provider.GetService<ITextCompletionService>()));

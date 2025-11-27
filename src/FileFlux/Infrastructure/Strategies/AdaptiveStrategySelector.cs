@@ -254,7 +254,7 @@ Return your response in the following JSON format:
             var recommendation = ParseLLMResponse(response);
             return recommendation;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Fallback to rule-based selection if LLM fails
             return GetFallbackRecommendation(characteristics);
@@ -583,19 +583,40 @@ Return your response in the following JSON format:
         var strength = 0.0;
         var factorCount = 0;
 
-        // 구조적 특징 (강한 신호)
-        if (characteristics.HasCodeBlocks) { strength += 0.15; factorCount++; }
-        if (characteristics.HasMarkdownHeaders) { strength += 0.12; factorCount++; }
-        if (characteristics.HasTables) { strength += 0.15; factorCount++; }
-        if (characteristics.HasNumberedSections) { strength += 0.12; factorCount++; }
-        if (characteristics.HasStructuredRequirements) { strength += 0.12; factorCount++; }
-        if (characteristics.HasMathFormulas) { strength += 0.10; factorCount++; }
-        if (characteristics.HasLists) { strength += 0.08; factorCount++; }
+        // 도메인별 가중치 배율 설정
+        var domainMultiplier = characteristics.Domain switch
+        {
+            "Technical" => 1.2,      // 기술 문서는 구조적 특징 가중치 상향
+            "Legal" => 1.3,          // 법률 문서는 구조적 특징 매우 중요
+            "Academic" => 1.15,      // 학술 문서도 구조적 특징 중요
+            "Medical" => 1.1,        // 의료 문서 구조 중요
+            "Financial" => 1.1,      // 재무 문서 구조 중요
+            _ => 1.0                 // 일반 문서는 기본 가중치
+        };
 
-        // 도메인 신뢰도
+        // 구조적 특징 (도메인별 가중치 적용)
+        if (characteristics.HasCodeBlocks) { strength += 0.15 * domainMultiplier; factorCount++; }
+        if (characteristics.HasMarkdownHeaders) { strength += 0.12 * domainMultiplier; factorCount++; }
+        if (characteristics.HasTables) { strength += 0.15 * domainMultiplier; factorCount++; }
+        if (characteristics.HasNumberedSections) { strength += 0.12 * domainMultiplier; factorCount++; }
+        if (characteristics.HasStructuredRequirements) { strength += 0.12 * domainMultiplier; factorCount++; }
+        if (characteristics.HasMathFormulas) { strength += 0.10 * domainMultiplier; factorCount++; }
+        if (characteristics.HasLists) { strength += 0.08 * domainMultiplier; factorCount++; }
+
+        // 도메인 신뢰도 (도메인이 General이 아닌 경우 추가 점수)
         if (characteristics.Domain != "General")
         {
-            strength += 0.10;
+            // 도메인별 신뢰도 점수 차등 부여
+            var domainBonus = characteristics.Domain switch
+            {
+                "Technical" => 0.12,
+                "Legal" => 0.15,
+                "Academic" => 0.12,
+                "Medical" => 0.10,
+                "Financial" => 0.10,
+                _ => 0.08
+            };
+            strength += domainBonus;
             factorCount++;
         }
 
@@ -942,41 +963,57 @@ Return your response in the following JSON format:
         var lines = content.Split('\n');
         int numberedLines = 0;
         int hierarchicalLines = 0;
+        int consecutiveHierarchicalLines = 0;
+        int maxConsecutiveHierarchical = 0;
 
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
+            bool isHierarchical = false;
 
             // 기본 번호 패턴: 1., 2., 3. 또는 1), 2), 3)
-            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d+[\.\)]\s+\w+"))
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d+[\.)\]]\s+\w+"))
             {
                 numberedLines++;
             }
 
             // 계층적 번호 패턴: 1.1, 1.2, 2.1, 2.2 등
-            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d+\.\d+[\.\)]*\s+\w+"))
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d+\.\d+[\.)\]]*\s+\w+"))
             {
                 hierarchicalLines++;
                 numberedLines++; // 계층적 번호도 번호 라인으로 카운트
+                isHierarchical = true;
             }
 
             // 로마 숫자 패턴: I., II., III., IV. 등
-            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[IVX]+[\.\)]\s+\w+"))
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[IVX]+[\.)\]]\s+\w+"))
             {
                 numberedLines++;
             }
 
             // 알파벳 패턴: a), b), c) 또는 A), B), C)
-            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[a-zA-Z][\.\)]\s+\w+"))
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[a-zA-Z][\.)\]]\s+\w+"))
             {
                 numberedLines++;
             }
 
             // 한국어 번호 패턴: 가., 나., 다. 또는 (1), (2), (3)
-            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[가-힣][\.\)]\s+\w+") ||
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[가-힣][\.)\]]\s+\w+") ||
                 System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\(\d+\)\s+\w+"))
             {
                 numberedLines++;
+            }
+
+            // 연속 계층 구조 추적
+            if (isHierarchical)
+            {
+                consecutiveHierarchicalLines++;
+                maxConsecutiveHierarchical = Math.Max(maxConsecutiveHierarchical, consecutiveHierarchicalLines);
+            }
+            else if (!string.IsNullOrWhiteSpace(trimmed))
+            {
+                // 빈 줄이 아닌데 계층 구조가 아니면 연속 카운트 리셋
+                consecutiveHierarchicalLines = 0;
             }
         }
 
@@ -984,9 +1021,10 @@ Return your response in the following JSON format:
         var structureWeight = hierarchicalLines > 0 ? 1.5 : 1.0;
         var effectiveNumberedLines = numberedLines * structureWeight;
 
-        // 전체 라인의 8% 이상이 번호 체계를 가지거나, 계층 구조가 3개 이상이면 구조화된 문서로 판단
-        var threshold = Math.Max(2, lines.Length * 0.08);
-        return effectiveNumberedLines >= threshold || hierarchicalLines >= 3;
+        // 강화된 임계값: 전체 라인의 15% 이상이 번호 체계를 가지거나,
+        // 연속된 계층 구조가 5개 이상이면 구조화된 문서로 판단
+        var threshold = Math.Max(3, lines.Length * 0.15);
+        return effectiveNumberedLines >= threshold || maxConsecutiveHierarchical >= 5;
     }
 
     /// <summary>
@@ -995,11 +1033,17 @@ Return your response in the following JSON format:
     /// </summary>
     private bool DetectStructuredRequirements(string content)
     {
-        // 핵심 요구사항 키워드
-        var requirementKeywords = new[] {
-            "요구사항", "변경사항", "항목", "변경", "프로그램", "시스템", "기능", "명세",
-            "requirement", "change", "item", "specification", "feature", "function",
-            "criteria", "policy", "rule", "standard", "guideline", "procedure"
+        // 핵심 요구사항 키워드 (강한 신호)
+        var strongRequirementKeywords = new[] {
+            "요구사항", "명세", "specification", "requirement", "criteria",
+            "SHALL", "MUST", "SHOULD", "표준", "standard"
+        };
+
+        // 일반 요구사항 키워드 (약한 신호)
+        var weakRequirementKeywords = new[] {
+            "변경사항", "항목", "변경", "프로그램", "시스템", "기능",
+            "change", "item", "feature", "function",
+            "policy", "rule", "guideline", "procedure"
         };
 
         // 문서 구조 키워드
@@ -1014,7 +1058,10 @@ Return your response in the following JSON format:
             "상태", "과정", "단계", "절차", "흐름", "처리"
         };
 
-        var requirementKeywordCount = requirementKeywords.Count(keyword =>
+        var strongKeywordCount = strongRequirementKeywords.Count(keyword =>
+            content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+        var weakKeywordCount = weakRequirementKeywords.Count(keyword =>
             content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 
         var structureKeywordCount = structureKeywords.Count(keyword =>
@@ -1033,23 +1080,27 @@ Return your response in the following JSON format:
 
         var tableMarkers = content.Contains(" | ") && content.Contains("---");
 
-        var bulletMarkers = content.Split('\n').Count(line =>
-            line.Trim().StartsWith("- ", StringComparison.Ordinal) || line.Trim().StartsWith("* ", StringComparison.Ordinal) ||
-            line.Trim().StartsWith("• ", StringComparison.Ordinal)) > 3;
+        var lines = content.Split('\n');
+        var bulletMarkerCount = lines.Count(line =>
+            line.Trim().StartsWith("- ", StringComparison.Ordinal) || 
+            line.Trim().StartsWith("* ", StringComparison.Ordinal) ||
+            line.Trim().StartsWith("• ", StringComparison.Ordinal));
 
-        // 종합 점수 계산
+        var bulletMarkers = bulletMarkerCount > 5; // 최소 5개 이상의 bullet 필요
+
+        // 종합 점수 계산 (강화된 가중치)
         var score = 0;
-        score += requirementKeywordCount * 2;  // 요구사항 키워드 가중치 높음
-        score += structureKeywordCount;
+        score += strongKeywordCount * 4;   // 강한 요구사항 키워드는 높은 가중치
+        score += weakKeywordCount * 1;     // 약한 키워드는 낮은 가중치
+        score += structureKeywordCount * 2;
         score += processKeywordCount;
 
-        if (checkboxMarkers) score += 3;
+        if (checkboxMarkers) score += 5;   // 체크박스는 강한 신호
         if (numberingMarkers) score += 2;
-        if (tableMarkers) score += 2;
-        if (bulletMarkers) score += 1;
+        if (tableMarkers) score += 3;      // 테이블 구조도 강한 신호
+        if (bulletMarkers) score += 2;
 
         // 텍스트 밀도 기반 추가 검증
-        var lines = content.Split('\n');
         var nonEmptyLines = lines.Count(line => !string.IsNullOrWhiteSpace(line));
         var averageLineLength = nonEmptyLines > 0 ?
             content.Length / (double)nonEmptyLines : 0;
@@ -1057,7 +1108,10 @@ Return your response in the following JSON format:
         // 구조화된 문서는 보통 짧은 라인들로 구성됨
         if (averageLineLength < 50 && nonEmptyLines > 10) score += 2;
 
-        return score >= 5; // 임계값을 5로 설정하여 더 정확한 감지
+        // 강화된 임계값: 12 이상 (기존 5에서 상향)
+        // 또는 강한 키워드가 2개 이상이면서 구조 마커가 있으면 통과
+        var hasStrongSignals = strongKeywordCount >= 2 && (checkboxMarkers || tableMarkers);
+        return score >= 12 || hasStrongSignals;
     }
 
     private string InferContentType(string content, string extension)

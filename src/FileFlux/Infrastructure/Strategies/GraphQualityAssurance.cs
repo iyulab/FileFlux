@@ -1001,16 +1001,16 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class GraphQualityResult
     {
-        public string ChunkId { get; set; }
-        public OntologyMappingResult SourceOntology { get; set; }
-        public ConsistencyReport ConsistencyReport { get; set; }
-        public CompletenessReport CompletenessReport { get; set; }
-        public CyclicReferenceReport CyclicReferenceReport { get; set; }
-        public OrphanNodeReport OrphanNodeReport { get; set; }
-        public StructuralIntegrityReport StructuralIntegrityReport { get; set; }
-        public OverallQualityScores QualityScores { get; set; }
+        public string ChunkId { get; set; } = string.Empty;
+        public OntologyMappingResult SourceOntology { get; set; } = null!;
+        public ConsistencyReport ConsistencyReport { get; set; } = null!;
+        public CompletenessReport CompletenessReport { get; set; } = null!;
+        public CyclicReferenceReport CyclicReferenceReport { get; set; } = null!;
+        public OrphanNodeReport OrphanNodeReport { get; set; } = null!;
+        public StructuralIntegrityReport StructuralIntegrityReport { get; set; } = null!;
+        public OverallQualityScores QualityScores { get; set; } = null!;
         public List<ImprovementRecommendation> ImprovementRecommendations { get; set; } = new List<ImprovementRecommendation>();
-        public AutoFixResults AutoFixResults { get; set; }
+        public AutoFixResults AutoFixResults { get; set; } = null!;
     }
 
     public class ConsistencyReport
@@ -1022,13 +1022,13 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class ConsistencyViolation
     {
-        public string ViolationType { get; set; }
-        public string EntityValue { get; set; }
-        public string Description { get; set; }
-        public string Severity { get; set; }
+        public string ViolationType { get; set; } = string.Empty;
+        public string EntityValue { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Severity { get; set; } = string.Empty;
         public List<string> ConflictingTypes { get; set; } = new List<string>();
-        public RdfTriple RelatedTriple { get; set; }
-        public string SuggestedResolution { get; set; }
+        public RdfTriple RelatedTriple { get; set; } = null!;
+        public string SuggestedResolution { get; set; } = string.Empty;
     }
 
     public class CompletenessReport
@@ -1043,10 +1043,10 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class MissingElement
     {
-        public string ElementType { get; set; }
-        public string ElementValue { get; set; }
-        public string Description { get; set; }
-        public string ImpactLevel { get; set; }
+        public string ElementType { get; set; } = string.Empty;
+        public string ElementValue { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string ImpactLevel { get; set; } = string.Empty;
     }
 
     public class CyclicReferenceReport
@@ -1062,9 +1062,9 @@ namespace FileFlux.Infrastructure.Strategies
     {
         public List<string> CyclePath { get; set; } = new List<string>();
         public int CycleLength { get; set; }
-        public string CycleType { get; set; }
-        public string Severity { get; set; }
-        public string Description { get; set; }
+        public string CycleType { get; set; } = string.Empty;
+        public string Severity { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
 
     public class OrphanNodeReport
@@ -1077,12 +1077,12 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class OrphanNode
     {
-        public string EntityValue { get; set; }
-        public string EntityType { get; set; }
-        public string OrphanType { get; set; }
+        public string EntityValue { get; set; } = string.Empty;
+        public string EntityType { get; set; } = string.Empty;
+        public string OrphanType { get; set; } = string.Empty;
         public int ConnectionCount { get; set; }
-        public string Description { get; set; }
-        public string ImpactLevel { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public string ImpactLevel { get; set; } = string.Empty;
     }
 
     public class StructuralIntegrityReport
@@ -1094,11 +1094,11 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class StructuralIssue
     {
-        public string IssueType { get; set; }
-        public string Description { get; set; }
-        public string EntityValue { get; set; }
-        public string Severity { get; set; }
-        public string SuggestedFix { get; set; }
+        public string IssueType { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string EntityValue { get; set; } = string.Empty;
+        public string Severity { get; set; } = string.Empty;
+        public string SuggestedFix { get; set; } = string.Empty;
     }
 
     public class OverallQualityScores
@@ -1107,16 +1107,16 @@ namespace FileFlux.Infrastructure.Strategies
         public double CompletenessScore { get; set; }
         public double StructuralIntegrityScore { get; set; }
         public double OverallQualityScore { get; set; }
-        public string QualityGrade { get; set; }
+        public string QualityGrade { get; set; } = string.Empty;
     }
 
     public class ImprovementRecommendation
     {
-        public string Priority { get; set; }
-        public string Category { get; set; }
-        public string Description { get; set; }
+        public string Priority { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
         public List<string> Actions { get; set; } = new List<string>();
-        public string ExpectedImpact { get; set; }
+        public string ExpectedImpact { get; set; } = string.Empty;
     }
 
     public class AutoFixResults
@@ -1128,17 +1128,17 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class AppliedFix
     {
-        public string FixType { get; set; }
-        public string Description { get; set; }
+        public string FixType { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
         public bool Success { get; set; }
-        public string EntityAffected { get; set; }
+        public string EntityAffected { get; set; } = string.Empty;
     }
 
     public class QualityRule
     {
-        public string RuleName { get; set; }
-        public string Description { get; set; }
-        public string Severity { get; set; }
+        public string RuleName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Severity { get; set; } = string.Empty;
         public bool AutoFixable { get; set; }
     }
 }

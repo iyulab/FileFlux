@@ -109,7 +109,6 @@ public class MockEmbeddingService : IEmbeddingService
         }
 
         // Generate feature vector based on word frequencies and hash
-        int index = 0;
         foreach (var kvp in wordFreq)
         {
             var word = kvp.Key;

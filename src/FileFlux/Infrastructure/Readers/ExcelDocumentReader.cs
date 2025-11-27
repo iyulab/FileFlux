@@ -109,7 +109,7 @@ public class ExcelDocumentReader : IDocumentReader
                     var worksheetPart = (WorksheetPart)workbookPart.GetPartById(sheet.Id.Value);
                     var worksheet = worksheetPart?.Worksheet;
 
-                    if (worksheet == null) continue;
+                    if (worksheet == null || worksheetPart == null) continue;
 
                     var sheetContent = ExtractWorksheetContent(worksheetPart, sharedStringTable, sheet.Name?.Value ?? $"Sheet{worksheetCount + 1}", warnings, cancellationToken);
 
@@ -212,7 +212,7 @@ public class ExcelDocumentReader : IDocumentReader
                     var worksheetPart = (WorksheetPart)workbookPart.GetPartById(sheet.Id.Value);
                     var worksheet = worksheetPart?.Worksheet;
 
-                    if (worksheet == null) continue;
+                    if (worksheet == null || worksheetPart == null) continue;
 
                     var sheetContent = ExtractWorksheetContent(worksheetPart, sharedStringTable, sheet.Name?.Value ?? $"Sheet{worksheetCount + 1}", warnings, cancellationToken);
 

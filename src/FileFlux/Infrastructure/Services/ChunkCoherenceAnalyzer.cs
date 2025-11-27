@@ -138,7 +138,6 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
             cancellationToken);
 
         // Convert boundary points to chunk boundaries
-        int currentPosition = 0;
         int lastBoundaryIndex = -1;
 
         foreach (var point in boundaryPoints.OrderBy(p => p.SegmentIndex))

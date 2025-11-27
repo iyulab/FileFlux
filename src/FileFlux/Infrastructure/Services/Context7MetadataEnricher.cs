@@ -244,12 +244,14 @@ public class Context7MetadataEnricher
             headerParts.Add($"Section: {chunk.Metadata.FileName}");
 
         // 콘텐츠 타입 정보
-        if (chunk.Props.GetValueOrDefault("ContentType", "text") != "text")
-            headerParts.Add($"Type: {chunk.Props.GetValueOrDefault("ContentType", "text")}");
+        var contentType = chunk.Props.GetValueOrDefault("ContentType", "text")?.ToString() ?? "text";
+        if (contentType != "text")
+            headerParts.Add($"Type: {contentType}");
 
         // 구조적 역할
-        if (chunk.Props.GetValueOrDefault("StructuralRole", "content") != "content")
-            headerParts.Add($"Role: {chunk.Props.GetValueOrDefault("StructuralRole", "content")}");
+        var structuralRole = chunk.Props.GetValueOrDefault("StructuralRole", "content")?.ToString() ?? "content";
+        if (structuralRole != "content")
+            headerParts.Add($"Role: {structuralRole}");
 
         // 도메인 정보
         if (context.DocumentType != "General")

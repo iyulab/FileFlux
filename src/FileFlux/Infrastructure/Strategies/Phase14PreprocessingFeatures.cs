@@ -332,11 +332,11 @@ public class AugmentationOptions
 
 public class PreprocessingResult
 {
-    public ParsedContent OriginalDocument { get; set; }
-    public DocumentSummary Summary { get; set; }
-    public CompressedContent CompressedContent { get; set; }
-    public AugmentedContent AugmentedContent { get; set; }
-    public MultimodalAnalysis MultimodalAnalysis { get; set; }
+    public ParsedContent OriginalDocument { get; set; } = null!;
+    public DocumentSummary Summary { get; set; } = null!;
+    public CompressedContent CompressedContent { get; set; } = null!;
+    public AugmentedContent AugmentedContent { get; set; } = null!;
+    public MultimodalAnalysis MultimodalAnalysis { get; set; } = null!;
     public double ProcessingScore { get; set; }
     public DateTime ProcessingStartTime { get; set; }
     public DateTime ProcessingEndTime { get; set; }

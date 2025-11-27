@@ -63,7 +63,7 @@ public class InfoCommand : Command
         AnsiConsole.WriteLine();
 
         // Check if format is supported
-        var supportedFormats = new[] { ".pdf", ".docx", ".xlsx", ".pptx", ".md", ".txt", ".json", ".csv", ".html", ".htm", ".zip" };
+        var supportedFormats = new[] { ".pdf", ".docx", ".xlsx", ".pptx", ".md", ".txt", ".json", ".csv", ".html", ".htm" };
         var isSupported = supportedFormats.Contains(fileInfo.Extension.ToLowerInvariant());
 
         AnsiConsole.MarkupLine($"[bold]Supported format:[/] {(isSupported ? "[green]Yes[/]" : "[red]No[/]")}");

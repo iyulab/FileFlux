@@ -161,8 +161,5 @@ public class DocumentReaderFactory : IDocumentReaderFactory
 
         // PDF Reader (PdfPig 기반)
         RegisterReader(new Readers.PdfDocumentReader());
-
-        // ZIP Archive Reader (다른 Reader들을 재귀적으로 사용)
-        RegisterReader(new Readers.ZipArchiveReader(this));
     }
 }

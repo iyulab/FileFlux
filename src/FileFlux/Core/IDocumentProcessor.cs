@@ -1,5 +1,4 @@
 using FileFlux.Domain;
-using System.Runtime.CompilerServices;
 
 namespace FileFlux;
 
@@ -34,7 +33,7 @@ public interface IDocumentProcessor
     IAsyncEnumerable<DocumentChunk> ProcessStreamAsync(
         string filePath,
         ChunkingOptions? options = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default);
 
     // ========================================
     // Stage 1: Extract (File → RawContent)
@@ -58,7 +57,7 @@ public interface IDocumentProcessor
     /// <returns>Stream of raw content (typically single item)</returns>
     IAsyncEnumerable<RawContent> ExtractStreamAsync(
         string filePath,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default);
 
     // ========================================
     // Stage 2: Parse (RawContent → ParsedContent)
@@ -86,7 +85,7 @@ public interface IDocumentProcessor
     IAsyncEnumerable<ParsedContent> ParseStreamAsync(
         RawContent raw,
         ParsingOptions? options = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default);
 
     // ========================================
     // Stage 3: Chunk (ParsedContent → Chunks)
@@ -114,6 +113,6 @@ public interface IDocumentProcessor
     IAsyncEnumerable<DocumentChunk> ChunkStreamAsync(
         ParsedContent parsed,
         ChunkingOptions? options = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default);
 
 }

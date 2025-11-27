@@ -698,9 +698,9 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class GeneratedQuestion
     {
-        public string QuestionText { get; set; }
+        public string QuestionText { get; set; } = string.Empty;
         public QuestionType Type { get; set; }
-        public string ExpectedAnswerLocation { get; set; }
+        public string ExpectedAnswerLocation { get; set; } = string.Empty;
         public List<string> Keywords { get; set; } = new List<string>();
         public double Quality { get; set; }
         public double Complexity { get; set; }
@@ -709,18 +709,18 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class QuestionGenerationResult
     {
-        public string ChunkId { get; set; }
-        public string ChunkContent { get; set; }
+        public string ChunkId { get; set; } = string.Empty;
+        public string ChunkContent { get; set; } = string.Empty;
         public List<GeneratedQuestion> Questions { get; set; } = new List<GeneratedQuestion>();
-        public QualityMetrics QualityMetrics { get; set; }
+        public QualityMetrics QualityMetrics { get; set; } = null!;
         public bool Success { get; set; }
-        public string ErrorMessage { get; set; }
+        public string? ErrorMessage { get; set; }
         public DateTime GeneratedAt { get; set; }
     }
 
     public class BatchQuestionGenerationResult
     {
-        public string DocumentId { get; set; }
+        public string DocumentId { get; set; } = string.Empty;
         public List<QuestionGenerationResult> ChunkResults { get; set; } = new List<QuestionGenerationResult>();
         public List<GeneratedQuestion> CrossChunkQuestions { get; set; } = new List<GeneratedQuestion>();
         public int TotalQuestions { get; set; }
@@ -739,21 +739,21 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class Fact
     {
-        public string Statement { get; set; }
+        public string Statement { get; set; } = string.Empty;
         public double Confidence { get; set; }
     }
 
     public class Relation
     {
-        public string Subject { get; set; }
-        public string Predicate { get; set; }
-        public string Object { get; set; }
+        public string Subject { get; set; } = string.Empty;
+        public string Predicate { get; set; } = string.Empty;
+        public string Object { get; set; } = string.Empty;
     }
 
     public class CrossChunkContext
     {
-        public DocumentChunk Chunk1 { get; set; }
-        public DocumentChunk Chunk2 { get; set; }
+        public DocumentChunk Chunk1 { get; set; } = null!;
+        public DocumentChunk Chunk2 { get; set; } = null!;
         public List<string> CommonEntities { get; set; } = new List<string>();
         public List<string> CommonConcepts { get; set; } = new List<string>();
     }

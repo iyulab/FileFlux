@@ -108,7 +108,7 @@ public class PowerPointDocumentReader : IDocumentReader
                     var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId.Value);
                     var slide = slidePart?.Slide;
 
-                    if (slide == null) continue;
+                    if (slide == null || slidePart == null) continue;
 
                     var slideContent = ExtractSlideContent(slide, slidePart, slideCount + 1, warnings, cancellationToken);
 
@@ -205,7 +205,7 @@ public class PowerPointDocumentReader : IDocumentReader
                     var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId.Value);
                     var slide = slidePart?.Slide;
 
-                    if (slide == null) continue;
+                    if (slide == null || slidePart == null) continue;
 
                     var slideContent = ExtractSlideContent(slide, slidePart, slideCount + 1, warnings, cancellationToken);
 

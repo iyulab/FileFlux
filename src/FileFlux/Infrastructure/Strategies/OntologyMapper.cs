@@ -651,21 +651,21 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class OntologyMappingResult
     {
-        public string ChunkId { get; set; }
-        public GraphStructureResult SourceGraph { get; set; }
-        public OntologyTemplate DomainOntology { get; set; }
-        public SchemaDefinition InferredSchema { get; set; }
+        public string ChunkId { get; set; } = string.Empty;
+        public GraphStructureResult SourceGraph { get; set; } = null!;
+        public OntologyTemplate DomainOntology { get; set; } = null!;
+        public SchemaDefinition InferredSchema { get; set; } = null!;
         public List<MappedTriple> MappedTriples { get; set; } = new List<MappedTriple>();
         public List<TypedEntity> TypedEntities { get; set; } = new List<TypedEntity>();
         public List<PropertyMapping> PropertyMappings { get; set; } = new List<PropertyMapping>();
-        public OntologyQualityMetrics QualityMetrics { get; set; }
+        public OntologyQualityMetrics QualityMetrics { get; set; } = null!;
     }
 
     public class OntologyTemplate
     {
-        public string Domain { get; set; }
-        public string[] ExpectedEntityTypes { get; set; }
-        public string[] CommonRelationships { get; set; }
+        public string Domain { get; set; } = string.Empty;
+        public string[] ExpectedEntityTypes { get; set; } = Array.Empty<string>();
+        public string[] CommonRelationships { get; set; } = Array.Empty<string>();
 
         public string GetBaseTypeFor(string entityType)
         {
@@ -683,7 +683,7 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class SchemaDefinition
     {
-        public string Domain { get; set; }
+        public string Domain { get; set; } = string.Empty;
         public List<EntityTypeDefinition> EntityTypes { get; set; } = new List<EntityTypeDefinition>();
         public List<RelationshipTypeDefinition> RelationshipTypes { get; set; } = new List<RelationshipTypeDefinition>();
         public List<PropertyDefinition> PropertyDefinitions { get; set; } = new List<PropertyDefinition>();
@@ -691,15 +691,15 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class EntityTypeDefinition
     {
-        public string TypeName { get; set; }
-        public string BaseType { get; set; }
+        public string TypeName { get; set; } = string.Empty;
+        public string BaseType { get; set; } = string.Empty;
         public int Frequency { get; set; }
         public List<PropertyDefinition> Properties { get; set; } = new List<PropertyDefinition>();
     }
 
     public class RelationshipTypeDefinition
     {
-        public string RelationshipName { get; set; }
+        public string RelationshipName { get; set; } = string.Empty;
         public int Frequency { get; set; }
         public List<string> DomainTypes { get; set; } = new List<string>();
         public List<string> RangeTypes { get; set; } = new List<string>();
@@ -709,73 +709,73 @@ namespace FileFlux.Infrastructure.Strategies
 
     public class PropertyDefinition
     {
-        public string PropertyName { get; set; }
-        public string DataType { get; set; }
+        public string PropertyName { get; set; } = string.Empty;
+        public string DataType { get; set; } = string.Empty;
         public bool IsRequired { get; set; }
-        public string Cardinality { get; set; }
+        public string Cardinality { get; set; } = string.Empty;
     }
 
     public class TypeDefinition
     {
-        public string TypeName { get; set; }
-        public string BaseType { get; set; }
+        public string TypeName { get; set; } = string.Empty;
+        public string BaseType { get; set; } = string.Empty;
     }
 
     public class MappedTriple
     {
-        public RdfTriple OriginalTriple { get; set; }
-        public OntologyEntity MappedSubject { get; set; }
-        public string MappedPredicate { get; set; }
-        public OntologyEntity MappedObject { get; set; }
+        public RdfTriple OriginalTriple { get; set; } = null!;
+        public OntologyEntity MappedSubject { get; set; } = null!;
+        public string MappedPredicate { get; set; } = string.Empty;
+        public OntologyEntity MappedObject { get; set; } = null!;
         public double ConfidenceScore { get; set; }
     }
 
     public class OntologyEntity
     {
-        public RdfEntity OriginalEntity { get; set; }
-        public string OntologyType { get; set; }
-        public string NormalizedValue { get; set; }
+        public RdfEntity OriginalEntity { get; set; } = null!;
+        public string OntologyType { get; set; } = string.Empty;
+        public string NormalizedValue { get; set; } = string.Empty;
         public List<string> TypeHierarchy { get; set; } = new List<string>();
     }
 
     public class TypedEntity
     {
-        public RdfEntity Entity { get; set; }
-        public EntityTypeDefinition TypeDefinition { get; set; }
+        public RdfEntity Entity { get; set; } = null!;
+        public EntityTypeDefinition TypeDefinition { get; set; } = null!;
         public List<TypeConstraint> TypeConstraints { get; set; } = new List<TypeConstraint>();
         public List<ValidationResult> ValidationResults { get; set; } = new List<ValidationResult>();
     }
 
     public class TypeConstraint
     {
-        public string PropertyName { get; set; }
-        public string DataType { get; set; }
+        public string PropertyName { get; set; } = string.Empty;
+        public string DataType { get; set; } = string.Empty;
         public bool IsRequired { get; set; }
-        public string ConstraintType { get; set; }
+        public string ConstraintType { get; set; } = string.Empty;
     }
 
     public class ValidationResult
     {
         public bool IsValid { get; set; }
-        public string Message { get; set; }
-        public string Severity { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string Severity { get; set; } = string.Empty;
     }
 
     public class PropertyMapping
     {
-        public string OriginalPredicate { get; set; }
-        public string MappedProperty { get; set; }
-        public PropertyMappingRule MappingRule { get; set; }
-        public RdfTriple SourceTriple { get; set; }
-        public string TransformationApplied { get; set; }
+        public string OriginalPredicate { get; set; } = string.Empty;
+        public string MappedProperty { get; set; } = string.Empty;
+        public PropertyMappingRule MappingRule { get; set; } = null!;
+        public RdfTriple SourceTriple { get; set; } = null!;
+        public string TransformationApplied { get; set; } = string.Empty;
     }
 
     public class PropertyMappingRule
     {
-        public string SourceEntityType { get; set; }
-        public string SourcePredicate { get; set; }
-        public string TargetProperty { get; set; }
-        public Func<string, string> TransformationFunction { get; set; }
+        public string SourceEntityType { get; set; } = string.Empty;
+        public string SourcePredicate { get; set; } = string.Empty;
+        public string TargetProperty { get; set; } = string.Empty;
+        public Func<string, string> TransformationFunction { get; set; } = s => s;
 
         public bool AppliesTo(string entityType, string predicate)
         {
