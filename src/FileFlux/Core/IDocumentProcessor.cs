@@ -116,33 +116,4 @@ public interface IDocumentProcessor
         ChunkingOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default);
 
-    // ========================================
-    // Quality Analysis (Optional)
-    // ========================================
-
-    /// <summary>
-    /// Analyze document processing quality for RAG optimization
-    /// </summary>
-    /// <param name="filePath">Document file path</param>
-    /// <param name="options">Chunking options</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Quality analysis report</returns>
-    Task<DocumentQualityReport> AnalyzeQualityAsync(
-        string filePath,
-        ChunkingOptions? options = null,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Generate QA benchmark dataset from document
-    /// </summary>
-    /// <param name="filePath">Document file path</param>
-    /// <param name="questionCount">Number of questions to generate</param>
-    /// <param name="existingQA">Existing QA dataset to merge with</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>QA benchmark with generated questions</returns>
-    Task<QABenchmark> GenerateQAAsync(
-        string filePath,
-        int questionCount = 20,
-        QABenchmark? existingQA = null,
-        CancellationToken cancellationToken = default);
 }

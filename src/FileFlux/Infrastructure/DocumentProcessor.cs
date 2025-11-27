@@ -2,7 +2,6 @@ using FileFlux;
 using FileFlux.Exceptions;
 using FileFlux.Domain;
 using FileFlux.Core;
-using FileFlux.Infrastructure.Quality;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 
@@ -17,7 +16,6 @@ public partial class DocumentProcessor : IDocumentProcessor
     private readonly IDocumentParserFactory _parserFactory;
     private readonly IChunkingStrategyFactory _chunkingFactory;
     private readonly ILogger<DocumentProcessor> _logger;
-    private readonly Lazy<DocumentQualityAnalyzer> _qualityAnalyzer;
     private readonly IMetadataEnricher? _metadataEnricher;
 
     public DocumentProcessor(
@@ -32,10 +30,6 @@ public partial class DocumentProcessor : IDocumentProcessor
         _chunkingFactory = chunkingFactory ?? throw new ArgumentNullException(nameof(chunkingFactory));
         _metadataEnricher = metadataEnricher; // Optional
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<DocumentProcessor>.Instance;
-
-        // Lazy initialization to avoid circular dependencies
-        _qualityAnalyzer = new Lazy<DocumentQualityAnalyzer>(() =>
-            new DocumentQualityAnalyzer(new ChunkQualityEngine(), this));
     }
 
     public async Task<DocumentChunk[]> ProcessAsync(
@@ -280,60 +274,6 @@ public partial class DocumentProcessor : IDocumentProcessor
         catch (Exception ex) when (!(ex is FileFluxException))
         {
             throw new DocumentProcessingException(fileName, $"Text extraction failed: {ex.Message}", ex);
-        }
-    }
-
-    // RAG Quality Analysis Methods - Phase 6.5 Enhancement
-
-    /// <summary>
-    /// 문서 처리 품질을 분석하여 RAG 시스템 최적화를 위한 리포트 생성
-    /// 내부 벤치마킹과 동일한 로직을 사용하여 일관성 보장
-    /// </summary>
-    public async Task<DocumentQualityReport> AnalyzeQualityAsync(
-        string filePath,
-        ChunkingOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug("Starting quality analysis for: {FilePath}", filePath);
-
-        try
-        {
-            return await _qualityAnalyzer.Value.AnalyzeQualityAsync(filePath, options, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (!(ex is FileFluxException))
-        {
-            throw new DocumentProcessingException(filePath, $"Quality analysis failed: {ex.Message}", ex);
-        }
-    }
-
-    /// <summary>
-    /// 문서 기반 QA 벤치마크 데이터셋 생성
-    /// RAG 시스템 성능 측정 및 청크 답변 가능성 평가에 필수
-    /// </summary>
-    public async Task<QABenchmark> GenerateQAAsync(
-        string filePath,
-        int questionCount = 20,
-        QABenchmark? existingQA = null,
-        CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug("Starting QA generation for: {FilePath}, QuestionCount: {QuestionCount}", filePath, questionCount);
-
-        try
-        {
-            var newQABenchmark = await _qualityAnalyzer.Value.GenerateQABenchmarkAsync(filePath, questionCount, cancellationToken).ConfigureAwait(false);
-
-            // Merge with existing QA if provided
-            if (existingQA != null)
-            {
-                _logger.LogDebug("Merging with existing QA benchmark containing {ExistingCount} questions", existingQA.Questions.Count);
-                return QABenchmark.Merge(existingQA, newQABenchmark);
-            }
-
-            return newQABenchmark;
-        }
-        catch (Exception ex) when (!(ex is FileFluxException))
-        {
-            throw new DocumentProcessingException(filePath, $"QA generation failed: {ex.Message}", ex);
         }
     }
 

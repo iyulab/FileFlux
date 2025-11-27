@@ -20,6 +20,9 @@ class Program
             new ExtractCommand(),
             new ChunkCommand(),
             new ProcessCommand(),
+            new EnrichCommand(),
+            new QACommand(),
+            new EvaluateCommand(),
             new InfoCommand(),
             new StatusCommand(),
             new SetCommand(),
@@ -58,7 +61,7 @@ class Program
         AnsiConsole.Write(banner);
 
         AnsiConsole.MarkupLine("[grey]Document Processing CLI for RAG Systems[/]");
-        AnsiConsole.MarkupLine("[grey]Version 0.3.17[/]");
+        AnsiConsole.MarkupLine("[grey]Version 0.4.4[/]");
         AnsiConsole.WriteLine();
 
         var table = new Table();
@@ -69,6 +72,9 @@ class Program
         table.AddRow("extract", "Extract raw text from documents");
         table.AddRow("chunk", "Intelligent chunking with optional AI enrichment");
         table.AddRow("process", "Complete pipeline (extract + chunk + enrich)");
+        table.AddRow("enrich", "Add AI summaries and keywords to chunks");
+        table.AddRow("qa", "Generate QA pairs from document chunks");
+        table.AddRow("evaluate", "Evaluate QA pairs for quality metrics");
         table.AddRow("info", "Display document information");
         table.AddRow("status", "Display AI provider and configuration status");
         table.AddRow("set", "Set a configuration value");

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "chunk_001",
+    "content": "FileFlux is a document processing SDK designed for RAG (Retrieval-Augmented Generation) systems. It provides progressive document processing with real-time progress tracking. The system supports multiple document formats including PDF, DOCX, TXT, and Markdown files. Key features include advanced chunking strategies for optimal RAG performance and clean architecture with dependency injection.",
+    "sourceDocument": "fileflux-overview.txt",
+    "metadata": {
+      "section": "Introduction",
+      "page": "1"
+    }
+  },
+  {
+    "id": "chunk_002",
+    "content": "The technical implementation follows a clean architecture pattern with separate concerns for document reading and text extraction, content parsing and structure analysis, intelligent chunking for downstream processing, and progress reporting with error handling. The system uses memory-efficient streaming for large files and provides configurable chunk sizes with overlap support.",
+    "sourceDocument": "fileflux-overview.txt",
+    "metadata": {
+      "section": "Technical Architecture",
+      "page": "2"
+    }
+  },
+  {
+    "id": "chunk_003",
+    "content": "Machine learning models like GPT and Claude can be integrated with FileFlux for enhanced document understanding. The AI integration enables automatic metadata enrichment, context-aware chunking decisions, and semantic analysis of document content. This combination of traditional document processing with AI capabilities creates a powerful pipeline for knowledge extraction.",
+    "sourceDocument": "fileflux-overview.txt",
+    "metadata": {
+      "section": "AI Integration",
+      "page": "3"
+    }
+  }
+]

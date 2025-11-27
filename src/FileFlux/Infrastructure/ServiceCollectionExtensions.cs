@@ -101,10 +101,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IChunkCoherenceAnalyzer>(provider =>
             new ChunkCoherenceAnalyzer(provider.GetService<ISemanticBoundaryDetector>()));
 
-        // Quality analysis services - AI 서비스 선택적
-        services.AddTransient(provider =>
-            new FileFlux.Infrastructure.Quality.ChunkQualityEngine(
-                provider.GetService<ITextCompletionService>()));
+        // Quality analysis services
+        services.AddTransient<FileFlux.Infrastructure.Quality.ChunkQualityEngine>();
 
         // Phase 15 성능 최적화 컴포넌트들은 별도로 등록 가능
 

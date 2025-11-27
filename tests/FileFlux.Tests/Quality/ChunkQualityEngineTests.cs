@@ -113,136 +113,133 @@ public class ChunkQualityEngineTests
     }
 
     [Fact]
-    public async Task GenerateQuestionsAsync_WithValidContent_ReturnsQuestions()
+    public void CalculateOverallQualityScore_WithValidMetrics_ReturnsValidScore()
     {
         // Arrange
-        var parsedContent = CreateSampleParsedContent();
-        const int questionCount = 5;
-
-        // Act
-        var result = await _engine.GenerateQuestionsAsync(parsedContent, questionCount);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(questionCount, result.Count);
-        
-        foreach (var question in result)
+        var chunkingMetrics = new ChunkingQualityMetrics
         {
-            Assert.False(string.IsNullOrWhiteSpace(question.Question));
-            Assert.False(string.IsNullOrWhiteSpace(question.ExpectedAnswer));
-            Assert.True(Enum.IsDefined(typeof(QuestionType), question.Type));
-            Assert.InRange(question.DifficultyScore, 0.0, 1.0);
-            Assert.InRange(question.ConfidenceScore, 0.0, 1.0);
-        }
-    }
-
-    [Fact]
-    public async Task GenerateQuestionsAsync_WithDifferentCounts_ReturnsCorrectNumber()
-    {
-        // Arrange
-        var parsedContent = CreateSampleParsedContent();
-
-        // Act & Assert
-        var result3 = await _engine.GenerateQuestionsAsync(parsedContent, 3);
-        Assert.Equal(3, result3.Count);
-
-        var result10 = await _engine.GenerateQuestionsAsync(parsedContent, 10);
-        Assert.Equal(10, result10.Count);
-    }
-
-    [Fact]
-    public async Task ValidateAnswerabilityAsync_WithGoodChunks_ReturnsHighAnswerability()
-    {
-        // Arrange
-        var questions = new List<GeneratedQuestion>
-        {
-            new GeneratedQuestion
-            {
-                Question = "What is the main topic discussed?",
-                ExpectedAnswer = "Quality analysis and testing",
-                Type = QuestionType.Factual
-            },
-            new GeneratedQuestion
-            {
-                Question = "How does the quality analysis work?",
-                ExpectedAnswer = "Through systematic evaluation of chunks",
-                Type = QuestionType.Procedural
-            }
+            AverageCompleteness = 0.8,
+            ContentConsistency = 0.7,
+            BoundaryQuality = 0.9,
+            SizeDistribution = 0.85,
+            OverlapEffectiveness = 0.75
         };
-
-        var chunks = new List<DocumentChunk>
+        var densityMetrics = new InformationDensityMetrics
         {
-            new DocumentChunk
-            {
-                Content = "This document discusses quality analysis and testing methodologies for document processing systems.",
-                Metadata = new DocumentMetadata { FileName = "test.txt" }
-            },
-            new DocumentChunk
-            {
-                Content = "The quality analysis works through systematic evaluation of chunks, measuring various metrics.",
-                Metadata = new DocumentMetadata { FileName = "test.txt" }
-            }
+            AverageInformationDensity = 0.8,
+            KeywordRichness = 0.7,
+            FactualContentRatio = 0.75,
+            RedundancyLevel = 0.1
+        };
+        var structureMetrics = new StructuralCoherenceMetrics
+        {
+            StructurePreservation = 0.85,
+            ContextContinuity = 0.8,
+            ReferenceIntegrity = 0.9,
+            MetadataRichness = 0.75
         };
 
         // Act
-        var result = await _engine.ValidateAnswerabilityAsync(questions, chunks);
+        var score = _engine.CalculateOverallQualityScore(chunkingMetrics, densityMetrics, structureMetrics);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal(2, result.TotalQuestions);
-        Assert.True(result.AnswerableQuestions >= 0);
-        Assert.True(result.AnswerableQuestions <= result.TotalQuestions);
-        Assert.InRange(result.AverageConfidence, 0.0, 1.0);
-        Assert.InRange(result.AnswerabilityRatio, 0.0, 1.0);
+        Assert.InRange(score, 0.0, 1.0);
     }
 
     [Fact]
-    public async Task ValidateAnswerabilityAsync_WithEmptyChunks_ReturnsLowAnswerability()
+    public void GenerateRecommendations_WithLowMetrics_ReturnsRecommendations()
     {
         // Arrange
-        var questions = new List<GeneratedQuestion>
+        var chunkingMetrics = new ChunkingQualityMetrics
         {
-            new GeneratedQuestion
-            {
-                Question = "What is discussed in the document?",
-                ExpectedAnswer = "Complex topics",
-                Type = QuestionType.Factual
-            }
+            AverageCompleteness = 0.4, // Low
+            ContentConsistency = 0.3, // Low
+            BoundaryQuality = 0.5,
+            SizeDistribution = 0.2, // Low
+            OverlapEffectiveness = 0.6
         };
-
-        var chunks = new List<DocumentChunk>(); // Empty chunks
+        var densityMetrics = new InformationDensityMetrics
+        {
+            AverageInformationDensity = 0.5,
+            KeywordRichness = 0.4,
+            FactualContentRatio = 0.5,
+            RedundancyLevel = 0.8 // High redundancy is bad
+        };
+        var structureMetrics = new StructuralCoherenceMetrics
+        {
+            StructurePreservation = 0.4, // Low
+            ContextContinuity = 0.5,
+            ReferenceIntegrity = 0.6,
+            MetadataRichness = 0.3
+        };
+        var options = new ChunkingOptions();
 
         // Act
-        var result = await _engine.ValidateAnswerabilityAsync(questions, chunks);
+        var recommendations = _engine.GenerateRecommendations(chunkingMetrics, densityMetrics, structureMetrics, options);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal(1, result.TotalQuestions);
-        Assert.Equal(0, result.AnswerableQuestions); // No chunks means no answers
-        Assert.Equal(0.0, result.AnswerabilityRatio);
+        Assert.NotNull(recommendations);
+        Assert.NotEmpty(recommendations);
     }
 
-    [Theory]
-    [InlineData(QuestionType.Factual)]
-    [InlineData(QuestionType.Conceptual)]
-    [InlineData(QuestionType.Analytical)]
-    [InlineData(QuestionType.Procedural)]
-    [InlineData(QuestionType.Comparative)]
-    public async Task GenerateQuestionsAsync_GeneratesAllQuestionTypes(QuestionType expectedType)
+    [Fact]
+    public void GenerateRecommendations_WithHighMetrics_ReturnsFewerRecommendations()
     {
         // Arrange
-        var parsedContent = CreateSampleParsedContent();
+        var highChunkingMetrics = new ChunkingQualityMetrics
+        {
+            AverageCompleteness = 0.9,
+            ContentConsistency = 0.95,
+            BoundaryQuality = 0.88,
+            SizeDistribution = 0.92,
+            OverlapEffectiveness = 0.85
+        };
+        var highDensityMetrics = new InformationDensityMetrics
+        {
+            AverageInformationDensity = 0.9,
+            KeywordRichness = 0.85,
+            FactualContentRatio = 0.88,
+            RedundancyLevel = 0.1 // Low redundancy is good
+        };
+        var highStructureMetrics = new StructuralCoherenceMetrics
+        {
+            StructurePreservation = 0.9,
+            ContextContinuity = 0.88,
+            ReferenceIntegrity = 0.92,
+            MetadataRichness = 0.85
+        };
 
-        // Act - Generate enough questions to likely get all types
-        var result = await _engine.GenerateQuestionsAsync(parsedContent, 10);
+        var lowChunkingMetrics = new ChunkingQualityMetrics
+        {
+            AverageCompleteness = 0.3,
+            ContentConsistency = 0.25,
+            BoundaryQuality = 0.4,
+            SizeDistribution = 0.35,
+            OverlapEffectiveness = 0.3
+        };
+        var lowDensityMetrics = new InformationDensityMetrics
+        {
+            AverageInformationDensity = 0.4,
+            KeywordRichness = 0.3,
+            FactualContentRatio = 0.35,
+            RedundancyLevel = 0.85 // High redundancy is bad
+        };
+        var lowStructureMetrics = new StructuralCoherenceMetrics
+        {
+            StructurePreservation = 0.4,
+            ContextContinuity = 0.35,
+            ReferenceIntegrity = 0.3,
+            MetadataRichness = 0.25
+        };
+        var options = new ChunkingOptions();
+
+        // Act
+        var highRecommendations = _engine.GenerateRecommendations(highChunkingMetrics, highDensityMetrics, highStructureMetrics, options);
+        var lowRecommendations = _engine.GenerateRecommendations(lowChunkingMetrics, lowDensityMetrics, lowStructureMetrics, options);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.True(result.Count > 0);
-        
-        // Verify we have questions of different types (at least some variety)
-        var uniqueTypes = result.Select(q => q.Type).Distinct().Count();
-        Assert.True(uniqueTypes >= 2, "Expected multiple question types to be generated");
+        Assert.True(highRecommendations.Count <= lowRecommendations.Count,
+            "High quality metrics should result in fewer or equal recommendations");
     }
 
     private static List<DocumentChunk> CreateSampleChunks()
@@ -283,46 +280,6 @@ public class ChunkQualityEngineTests
                     FileName = "sample.txt",
                     FileType = "text/plain",
                     ProcessedAt = DateTime.UtcNow
-                }
-            }
-        };
-    }
-
-    private static ParsedContent CreateSampleParsedContent()
-    {
-        return new ParsedContent
-        {
-            Text = "# Sample Document\n\nThis is a sample document for testing quality analysis functionality.\n\n## Technical Details\n\nThe document contains technical information and examples.",
-            Metadata = new DocumentMetadata
-            {
-                FileName = "sample.txt",
-                FileType = "text/plain",
-                ProcessedAt = DateTime.UtcNow
-            },
-            Structure = new DocumentStructure
-            {
-                Type = "Technical",
-                Topic = "Quality Analysis",
-                Summary = "A document about quality analysis testing",
-                Keywords = new List<string> { "quality", "analysis", "testing", "technical" },
-                Sections = new List<Section>
-                {
-                    new Section
-                    {
-                        Title = "Introduction",
-                        Content = "Introduction to quality analysis",
-                        Level = 1,
-                        Start = 0,
-                        End = 50
-                    },
-                    new Section
-                    {
-                        Title = "Technical Details",
-                        Content = "Technical implementation details",
-                        Level = 2,
-                        Start = 51,
-                        End = 100
-                    }
                 }
             }
         };

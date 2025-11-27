@@ -1,7 +1,9 @@
 using FileFlux.CLI.Services.Providers;
 using FileFlux.Core;
 using FileFlux;
+using FluxImprover;
 using Microsoft.Extensions.DependencyInjection;
+using FluxImproverService = FluxImprover.Abstractions.Services.ITextCompletionService;
 
 namespace FileFlux.CLI.Services;
 
@@ -83,6 +85,52 @@ public class AIProviderFactory
     {
         var provider = _config.DetectProvider();
         return provider != "none" && provider != "ambiguous";
+    }
+
+    /// <summary>
+    /// Create FluxImprover services for chunk enrichment and QA generation
+    /// </summary>
+    public FluxImproverServices? CreateFluxImproverServices()
+    {
+        var provider = _config.DetectProvider();
+        FluxImproverService? completionService = provider switch
+        {
+            "openai" => CreateOpenAIFluxImproverService(),
+            "anthropic" => CreateAnthropicFluxImproverService(),
+            "gpustack" => CreateGpuStackFluxImproverService(),
+            _ => null
+        };
+
+        if (completionService is null)
+        {
+            return null;
+        }
+
+        return new FluxImproverBuilder()
+            .WithCompletionService(completionService)
+            .Build();
+    }
+
+    private FluxImproverService CreateOpenAIFluxImproverService()
+    {
+        var apiKey = _config.OpenAIApiKey ?? throw new InvalidOperationException("OpenAI API key not configured");
+        var model = _config.OpenAIModel ?? "gpt-5-nano";
+        return new Providers.FluxImprover.OpenAICompletionService(apiKey, model);
+    }
+
+    private FluxImproverService CreateAnthropicFluxImproverService()
+    {
+        var apiKey = _config.AnthropicApiKey ?? throw new InvalidOperationException("Anthropic API key not configured");
+        var model = _config.AnthropicModel ?? "claude-3-5-sonnet-20241022";
+        return new Providers.FluxImprover.AnthropicCompletionService(apiKey, model);
+    }
+
+    private FluxImproverService CreateGpuStackFluxImproverService()
+    {
+        var apiKey = _config.GpuStackApiKey ?? throw new InvalidOperationException("GPU-Stack API key not configured");
+        var model = _config.GpuStackModel ?? throw new InvalidOperationException("GPU-Stack model not configured");
+        var endpoint = _config.GpuStackEndpoint ?? "http://localhost:8080";
+        return new Providers.FluxImprover.OpenAICompletionService(apiKey, model, endpoint);
     }
 
     private void ConfigureOpenAI(IServiceCollection services)

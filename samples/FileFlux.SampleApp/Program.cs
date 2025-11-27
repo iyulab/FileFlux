@@ -25,7 +25,6 @@ class Program
         var historyCommand = CreateHistoryCommand();
         var readersCommand = CreateReadersTestCommand();
         var benchmarkCommand = CreateBenchmarkCommand();
-        var qualityAnalyzeCommand = CreateQualityAnalyzeCommand();
         var visionTestCommand = CreateVisionTestCommand();
 
         rootCommand.Subcommands.Add(processCommand);
@@ -35,7 +34,6 @@ class Program
         rootCommand.Subcommands.Add(historyCommand);
         rootCommand.Subcommands.Add(readersCommand);
         rootCommand.Subcommands.Add(benchmarkCommand);
-        rootCommand.Subcommands.Add(qualityAnalyzeCommand);
         rootCommand.Subcommands.Add(visionTestCommand);
 
         var parseResult = rootCommand.Parse(args);
@@ -237,58 +235,6 @@ class Program
         });
 
         return benchmarkCommand;
-    }
-
-    private static Command CreateQualityAnalyzeCommand()
-    {
-        var filePathArgument = new Argument<string>("file-path")
-        {
-            Description = "품질 분석할 파일 경로"
-        };
-
-        var strategyOption = new Option<string>("--strategy")
-        {
-            Description = "청킹 전략",
-            DefaultValueFactory = _ => "Intelligent",
-            AllowMultipleArgumentsPerToken = false
-        };
-
-        var benchmarkOption = new Option<bool>("--benchmark")
-        {
-            Description = "여러 전략 간 품질 벤치마크 실행",
-            DefaultValueFactory = _ => false
-        };
-
-        var qaGenerationOption = new Option<bool>("--qa-generation")
-        {
-            Description = "QA 벤치마크 생성 및 검증",
-            DefaultValueFactory = _ => false
-        };
-
-        var qualityAnalyzeCommand = new Command("quality-analyze", "문서 품질 분석 - RAG 최적화를 위한 청킹 품질 측정");
-        qualityAnalyzeCommand.Arguments.Add(filePathArgument);
-        qualityAnalyzeCommand.Options.Add(strategyOption);
-        qualityAnalyzeCommand.Options.Add(benchmarkOption);
-        qualityAnalyzeCommand.Options.Add(qaGenerationOption);
-
-        qualityAnalyzeCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
-        {
-            var filePath = parseResult.GetValue(filePathArgument);
-            var strategy = parseResult.GetValue(strategyOption);
-            var benchmark = parseResult.GetValue(benchmarkOption);
-            var qaGeneration = parseResult.GetValue(qaGenerationOption);
-
-            if (filePath != null)
-            {
-                using var host = CreateHost();
-                await host.StartAsync(cancellationToken);
-                var app = host.Services.GetRequiredService<FileFluxApp>();
-                await app.AnalyzeDocumentQualityAsync(filePath, strategy!, benchmark, qaGeneration);
-                await host.StopAsync(cancellationToken);
-            }
-        });
-
-        return qualityAnalyzeCommand;
     }
 
     private static Command CreateVisionTestCommand()
