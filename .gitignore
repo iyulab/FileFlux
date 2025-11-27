@@ -375,6 +375,7 @@ output/
 
 # Exception: FileFlux.CLI Output folder contains source code
 !src/FileFlux.CLI/Output/
+!src/FileFlux/Infrastructure/Output/
 
 # Local
 local-docs/
