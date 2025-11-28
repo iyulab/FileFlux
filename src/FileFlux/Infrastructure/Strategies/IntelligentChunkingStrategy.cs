@@ -63,6 +63,13 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
         var chunks = new List<DocumentChunk>();
         var text = content.Text;
+        string? documentHeader = null;
+
+        // 문서 헤더 분리 (옵션 활성화 시)
+        if (options.SeparateDocumentHeader)
+        {
+            (documentHeader, text) = SeparateDocumentHeader(text, options);
+        }
 
         // 전체 문서의 LLM 최적화 컨텍스트를 먼저 분석
         var globalTechKeywords = DetectTechnicalKeywords(text);
@@ -113,7 +120,8 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 options,
                 importanceWeighting,
                 globalTechKeywords,
-                globalDocumentDomain);
+                globalDocumentDomain,
+                documentHeader);
 
             chunks.Add(chunk);
             globalPosition += chunkContent.Length;
@@ -509,7 +517,58 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             }
         }
 
-        return optimized;
+        // 작은 청크 병합 단계: minSize 이하인 청크를 이전 청크와 병합
+        // 단, 병합 결과가 문장 완결성을 해치지 않는 경우에만 수행
+        var minSize = maxSize / 3;
+        var merged = new List<string>();
+        
+        for (int i = 0; i < optimized.Count; i++)
+        {
+            var current = optimized[i];
+            
+            // 마지막 청크가 아니고, 현재 청크가 매우 작은 경우 다음 청크와 병합 시도
+            // 조건: 다음 청크가 마침표/느낌표/물음표로 끝나야 함 (문장 완결성 유지)
+            if (i < optimized.Count - 1 && current.Length < minSize)
+            {
+                var next = optimized[i + 1];
+                var nextTrimmed = next.TrimEnd();
+                
+                // 다음 청크가 완전한 문장으로 끝나는 경우에만 병합
+                if (nextTrimmed.EndsWith('.') || nextTrimmed.EndsWith('!') || nextTrimmed.EndsWith('?'))
+                {
+                    var combined = current + "\n\n" + next;
+                    
+                    if (combined.Length <= maxSize * 2)
+                    {
+                        merged.Add(combined);
+                        i++; // 다음 청크 스킵
+                        continue;
+                    }
+                }
+            }
+            
+            // 마지막 청크가 매우 작으면 이전 청크와 병합 시도
+            // 조건: 현재 청크가 마침표로 끝나야 함
+            if (i == optimized.Count - 1 && current.Length < minSize && merged.Count > 0)
+            {
+                var currentTrimmed = current.TrimEnd();
+                if (currentTrimmed.EndsWith('.') || currentTrimmed.EndsWith('!') || currentTrimmed.EndsWith('?'))
+                {
+                    var previous = merged[^1];
+                    var combined = previous + "\n\n" + current;
+                    
+                    if (combined.Length <= maxSize * 2)
+                    {
+                        merged[^1] = combined;
+                        continue;
+                    }
+                }
+            }
+            
+            merged.Add(current);
+        }
+
+        return merged;
     }
 
     private static bool ShouldStartNewChunk(List<SemanticUnit> currentChunk, SemanticUnit newUnit, double coherenceThreshold)
@@ -540,10 +599,25 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         ChunkingOptions options,
         double importanceWeighting,
         List<string> globalTechKeywords,
-        string globalDocumentDomain)
+        string globalDocumentDomain,
+        string? documentHeader = null)
     {
         var importance = CalculateImportance(content) * importanceWeighting;
         var contextQuality = CalculateChunkQuality(content);
+
+        var props = new Dictionary<string, object>
+        {
+            ["ContextQuality"] = contextQuality,
+            ["SemanticCoherence"] = CalculateSemanticCoherence(content),
+            ["StructuralElements"] = CountStructuralElements(content),
+            ["ImportanceScore"] = importance
+        };
+
+        // 문서 헤더를 메타데이터로 저장 (첫 번째 청크에만 또는 모든 청크에)
+        if (!string.IsNullOrEmpty(documentHeader))
+        {
+            props["DocumentHeader"] = documentHeader;
+        }
 
         var chunk = new DocumentChunk
         {
@@ -560,13 +634,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             Tokens = EstimateTokenCount(content),
             CreatedAt = DateTime.UtcNow,
             Importance = importance,
-            Props = new Dictionary<string, object>
-            {
-                ["ContextQuality"] = contextQuality,
-                ["SemanticCoherence"] = CalculateSemanticCoherence(content),
-                ["StructuralElements"] = CountStructuralElements(content),
-                ["ImportanceScore"] = importance
-            }
+            Props = props
         };
 
         // 품질 점수 실제 계산
@@ -605,17 +673,33 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         if (structuralRole != "content")
             contextParts.Add($"Structure: {structuralRole}");
 
-        // 전역 기술 키워드 사용 (전체 문서 기반)
-        if (globalTechKeywords.Count != 0)
+        // 청크별 고유 기술 키워드 추출 (청크 내용 기반)
+        var chunkKeywords = DetectTechnicalKeywords(content);
+        if (chunkKeywords.Count != 0)
         {
+            contextParts.Add($"Tech: {string.Join(", ", chunkKeywords.Take(3))}");
+            chunk.Props["TechnicalKeywords"] = chunkKeywords;
+        }
+        else if (globalTechKeywords.Count != 0)
+        {
+            // 청크별 키워드가 없으면 전역 키워드 사용
             contextParts.Add($"Tech: {string.Join(", ", globalTechKeywords.Take(3))}");
             chunk.Props["TechnicalKeywords"] = globalTechKeywords;
         }
 
-        // 전역 문서 도메인 사용 (전체 문서 기반)
-        chunk.Props["Domain"] = globalDocumentDomain;
-        if (globalDocumentDomain != "General")
-            contextParts.Add($"Domain: {globalDocumentDomain}");
+        // 전역 문서 도메인 사용 (FileType과 일관성 확보)
+        // FileType이 General이 아니면 FileType을 Domain으로 사용
+        var domain = !string.IsNullOrEmpty(chunk.Metadata.FileType) && chunk.Metadata.FileType != "General"
+            ? chunk.Metadata.FileType
+            : globalDocumentDomain;
+        chunk.Props["Domain"] = domain;
+        if (domain != "General")
+            contextParts.Add($"Domain: {domain}");
+
+        // 청크 위치 정보 추가 (청크별 차별화)
+        var positionHint = GetChunkPositionHint(chunk.Index);
+        if (!string.IsNullOrEmpty(positionHint))
+            contextParts.Add($"Pos: {positionHint}");
 
         // ContextualHeader 생성
         if (contextParts.Count != 0)
@@ -625,6 +709,19 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
         // 구조적 역할 설정
         chunk.Props["StructuralRole"] = structuralRole;
+    }
+
+    /// <summary>
+    /// 청크 위치에 대한 힌트 생성
+    /// </summary>
+    private static string GetChunkPositionHint(int index)
+    {
+        return index switch
+        {
+            0 => "intro",
+            1 => "early",
+            _ => "" // 중간 이후 청크는 위치 힌트 생략 (토큰 절약)
+        };
     }
 
     /// <summary>
@@ -689,6 +786,105 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         var regex = new Regex($@"\b{Regex.Escape(word)}\b",
             RegexOptions.IgnoreCase);
         return regex.IsMatch(text);
+    }
+
+    /// <summary>
+    /// 문서 헤더(표지, 저작권 등)를 본문과 분리
+    /// </summary>
+    /// <param name="text">원본 문서 텍스트</param>
+    /// <param name="options">청킹 옵션</param>
+    /// <returns>분리된 헤더와 본문 텍스트 튜플</returns>
+    private static (string? header, string body) SeparateDocumentHeader(string text, ChunkingOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return (null, text);
+
+        // 문단 분리
+        var paragraphs = ParagraphRegex.Split(text)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => p.Trim())
+            .ToList();
+
+        if (paragraphs.Count == 0)
+            return (null, text);
+
+        var headerParagraphs = new List<string>();
+        var bodyStartIndex = 0;
+
+        // 헤더 문단 감지: 짧은 문단들이 연속으로 나오는 경우 헤더로 처리
+        for (int i = 0; i < Math.Min(options.MaxHeaderParagraphs, paragraphs.Count); i++)
+        {
+            var paragraph = paragraphs[i];
+
+            // 헤더 문단 조건:
+            // 1. 최대 길이 이하
+            // 2. 헤더 패턴과 일치 (제목, 저작권, 날짜 등)
+            if (paragraph.Length <= options.MaxHeaderParagraphLength && IsHeaderParagraph(paragraph))
+            {
+                headerParagraphs.Add(paragraph);
+                bodyStartIndex = i + 1;
+            }
+            else
+            {
+                // 긴 문단이나 본문 시작 시 헤더 수집 종료
+                break;
+            }
+        }
+
+        // 헤더가 없으면 원본 반환
+        if (headerParagraphs.Count == 0)
+            return (null, text);
+
+        // 헤더와 본문 분리
+        var header = string.Join("\n", headerParagraphs);
+        var bodyParagraphs = paragraphs.Skip(bodyStartIndex).ToList();
+        var body = string.Join("\n\n", bodyParagraphs);
+
+        return (header, body);
+    }
+
+    /// <summary>
+    /// 문단이 헤더(제목, 저작권, 날짜 등)인지 판별
+    /// </summary>
+    private static bool IsHeaderParagraph(string paragraph)
+    {
+        // 빈 문단 제외
+        if (string.IsNullOrWhiteSpace(paragraph))
+            return false;
+
+        var trimmed = paragraph.Trim();
+        var lower = trimmed.ToLowerInvariant();
+
+        // 저작권 관련 키워드
+        if (lower.Contains("copyright") || lower.Contains("©") || lower.Contains("ⓒ") ||
+            lower.Contains("all rights reserved") || lower.Contains("무단 복제") ||
+            lower.Contains("복사") || lower.Contains("배포") || lower.Contains("금합니다"))
+            return true;
+
+        // 날짜 패턴 (연월일, 년도 등)
+        if (Regex.IsMatch(trimmed, @"\d{4}[-./년]\d{1,2}[-./월]\d{1,2}") ||
+            Regex.IsMatch(trimmed, @"\d{4}년") ||
+            Regex.IsMatch(trimmed, @"\d{2}/\d{2}/\d{4}"))
+            return true;
+
+        // 마크다운 헤딩 (# 또는 Paragraph 표시)
+        if (trimmed.StartsWith('#') || lower.StartsWith("paragraph"))
+            return true;
+
+        // 회사명 패턴 (주식회사, ㈜, Inc., Ltd., Corp.)
+        if (Regex.IsMatch(trimmed, @"(주식회사|㈜|\(주\)|Inc\.|Ltd\.|Corp\.|LLC|Co\.,)"))
+            return true;
+
+        // 문서 타입 표시 (보고서, 분석, 제안서 등)
+        if (lower.Contains("보고서") || lower.Contains("분석") || lower.Contains("제안서") ||
+            lower.Contains("report") || lower.Contains("analysis") || lower.Contains("proposal"))
+            return true;
+
+        // 짧은 제목형 문단 (30자 이하, 마침표/물음표 없음)
+        if (trimmed.Length <= 30 && !trimmed.EndsWith('.') && !trimmed.EndsWith('?') && !trimmed.EndsWith('!'))
+            return true;
+
+        return false;
     }
 
     /// <summary>
@@ -896,18 +1092,82 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
     private static double CalculateSemanticCoherence(string content)
     {
-        // 간단한 응집성 측정 - 반복되는 키워드의 비율
+        if (string.IsNullOrWhiteSpace(content))
+            return 0.0;
+
+        // 문장 단위로 분리
+        var sentences = ExtractSentences(content);
+        if (sentences.Count <= 1)
+            return 0.5; // 단일 문장은 기본 응집성 부여
+
+        // 단어 추출 (불용어 제외)
         var words = content.ToLowerInvariant()
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.Length > 3)
+            .Split(separator, StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 3 && !IsStopWord(w))
             .ToList();
 
-        if (words.Count == 0) return 0.0;
+        if (words.Count == 0)
+            return 0.0;
 
+        // 1. 어휘 반복도 (Lexical Overlap) - 의미적 연결성 지표
         var wordFreq = words.GroupBy(w => w).ToDictionary(g => g.Key, g => g.Count());
-        var repeatedWords = wordFreq.Where(kvp => kvp.Value > 1).Count();
+        var repeatedWords = wordFreq.Count(kvp => kvp.Value > 1);
+        var lexicalOverlap = words.Distinct().Count() > 0
+            ? (double)repeatedWords / words.Distinct().Count()
+            : 0.0;
 
-        return (double)repeatedWords / words.Distinct().Count();
+        // 2. 문장 간 연결성 - 인접 문장 간 공통 단어 비율
+        double sentenceConnectivity = 0.0;
+        if (sentences.Count >= 2)
+        {
+            var connectivityScores = new List<double>();
+            for (int i = 0; i < sentences.Count - 1; i++)
+            {
+                var words1 = sentences[i].ToLowerInvariant()
+                    .Split(separator, StringSplitOptions.RemoveEmptyEntries)
+                    .Where(w => w.Length > 3)
+                    .ToHashSet();
+                var words2 = sentences[i + 1].ToLowerInvariant()
+                    .Split(separator, StringSplitOptions.RemoveEmptyEntries)
+                    .Where(w => w.Length > 3)
+                    .ToHashSet();
+
+                if (words1.Count > 0 && words2.Count > 0)
+                {
+                    var overlap = words1.Intersect(words2).Count();
+                    var unionCount = words1.Union(words2).Count();
+                    connectivityScores.Add((double)overlap / unionCount);
+                }
+            }
+            sentenceConnectivity = connectivityScores.Count > 0 ? connectivityScores.Average() : 0.0;
+        }
+
+        // 3. 구조적 일관성 - 문단/리스트/헤더 구조 유무
+        var hasStructure = HeaderRegex.IsMatch(content) || ListItemRegex.IsMatch(content);
+        var structureBonus = hasStructure ? 0.1 : 0.0;
+
+        // 가중 평균으로 최종 응집성 계산
+        var coherence = 0.4 * lexicalOverlap + 0.5 * sentenceConnectivity + structureBonus;
+
+        return Math.Min(coherence, 1.0);
+    }
+
+    /// <summary>
+    /// 불용어 판별
+    /// </summary>
+    private static bool IsStopWord(string word)
+    {
+        var stopWords = new HashSet<string>
+        {
+            // 영어 불용어
+            "the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one", "our", "out",
+            "that", "this", "with", "from", "have", "been", "will", "they", "were", "their", "what", "when", "where",
+            "which", "there", "would", "could", "should", "about", "after", "these", "those", "being", "other",
+            // 한국어 불용어
+            "그리고", "하지만", "그러나", "또한", "그래서", "따라서", "그러므로", "입니다", "있습니다", "됩니다",
+            "합니다", "것입니다", "대한", "위한", "통해", "이런", "저런", "어떤"
+        };
+        return stopWords.Contains(word.ToLowerInvariant());
     }
 
     private static int CountStructuralElements(string content)
@@ -1093,8 +1353,9 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     {
         var result = new List<string>();
 
-        // 테이블이 적절한 크기면 그대로 유지 (최대 3배까지 허용)
-        if (tableChunk.Length <= maxSize * 3)
+        // 테이블이 maxSize 이하면 그대로 유지
+        // 참고: 호출자(OptimizeChunks)가 이미 테이블에 대해 maxSize를 2배로 설정함
+        if (tableChunk.Length <= maxSize)
         {
             result.Add(tableChunk);
             return result;
@@ -1103,11 +1364,37 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         // 테이블 마커를 기준으로 분할
         if (tableChunk.Contains("<!-- TABLE_START -->") && tableChunk.Contains("<!-- TABLE_END -->"))
         {
-            return SplitTableByMarkers(tableChunk, maxSize);
+            var parts = SplitTableByMarkers(tableChunk, maxSize);
+            foreach (var part in parts)
+            {
+                if (part.Length > maxSize)
+                {
+                    // maxSize 초과 시 단어 단위로 분할
+                    result.AddRange(SplitByWords(part, maxSize));
+                }
+                else
+                {
+                    result.Add(part);
+                }
+            }
+            return result;
         }
 
-        // 마커가 없는 경우 테이블 행 단위로 분할
-        return SplitTableByRows(tableChunk, maxSize);
+        // 테이블 행 단위로 분할
+        var rowParts = SplitTableByRows(tableChunk, maxSize);
+        foreach (var part in rowParts)
+        {
+            if (part.Length > maxSize)
+            {
+                // maxSize 초과 시 단어 단위로 분할
+                result.AddRange(SplitByWords(part, maxSize));
+            }
+            else
+            {
+                result.Add(part);
+            }
+        }
+        return result;
     }
 
     /// <summary>
@@ -1216,16 +1503,42 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         }
 
         // 헤더 + 구분자 크기
-        var headerSize = (headerLine + "\n" + separatorLine).Length;
+        var headerPart = string.IsNullOrEmpty(separatorLine) 
+            ? headerLine 
+            : headerLine + "\n" + separatorLine;
+        var headerSize = headerPart.Length;
         var currentLines = new List<string>();
         var currentSize = headerSize;
 
         foreach (var dataLine in dataLines)
         {
-            if (currentSize + dataLine.Length + 1 > maxSize && currentLines.Any()) // +1 for newline
+            var lineLength = dataLine.Length + 1; // +1 for newline
+
+            // 단일 행이 maxSize - headerSize보다 큰 경우 단어 단위 분할 필요
+            if (lineLength > maxSize - headerSize)
+            {
+                // 현재 누적된 행이 있으면 먼저 청크로 저장
+                if (currentLines.Any())
+                {
+                    var tableContent = headerPart + "\n" + string.Join("\n", currentLines);
+                    result.Add(tableContent);
+                    currentLines.Clear();
+                    currentSize = headerSize;
+                }
+
+                // 긴 행을 단어 단위로 분할하여 별도 청크로 처리
+                var splitRows = SplitByWords(dataLine, maxSize - headerSize);
+                foreach (var splitRow in splitRows)
+                {
+                    result.Add(headerPart + "\n" + splitRow);
+                }
+                continue;
+            }
+
+            if (currentSize + lineLength > maxSize && currentLines.Any())
             {
                 // 현재 테이블 파트 완성
-                var tableContent = headerLine + "\n" + separatorLine + "\n" + string.Join("\n", currentLines);
+                var tableContent = headerPart + "\n" + string.Join("\n", currentLines);
                 result.Add(tableContent);
 
                 // 다음 파트 시작
@@ -1234,14 +1547,20 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             }
 
             currentLines.Add(dataLine);
-            currentSize += dataLine.Length + 1;
+            currentSize += lineLength;
         }
 
         // 마지막 파트
         if (currentLines.Any())
         {
-            var tableContent = headerLine + "\n" + separatorLine + "\n" + string.Join("\n", currentLines);
+            var tableContent = headerPart + "\n" + string.Join("\n", currentLines);
             result.Add(tableContent);
+        }
+
+        // 결과가 없으면 원본 반환 (빈 테이블 등)
+        if (!result.Any())
+        {
+            result.Add(tableChunk);
         }
 
         return result;
@@ -1880,6 +2199,13 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             chunk.Props["OptimizationQuality"] = optimizedChunk.OptimizationMetrics.QualityScore;
             chunk.Props["EmbeddingHints"] = optimizedChunk.EmbeddingHints;
 
+            // 언어 감지 일관성 확보: EmbeddingHints의 감지된 언어를 Metadata에 동기화
+            if (optimizedChunk.EmbeddingHints != null &&
+                !string.IsNullOrEmpty(optimizedChunk.EmbeddingHints.PrimaryLanguage))
+            {
+                chunk.Metadata.Language = optimizedChunk.EmbeddingHints.PrimaryLanguage;
+            }
+
             // 2. Search metadata enrichment
             var enrichmentOptions = new EnrichmentOptions
             {
@@ -1918,7 +2244,13 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
             // Store hybrid preprocessing results
             chunk.Props["HybridPreprocessed"] = true;
-            chunk.Props["BM25Terms"] = hybridResult.BM25Preprocessing.TermFrequencies.Keys.Take(10).ToList();
+            // 청크별 고유 BM25Terms: 빈도순 정렬 후 상위 10개 추출
+            var bm25Terms = hybridResult.BM25Preprocessing.TermFrequencies
+                .OrderByDescending(kv => kv.Value)
+                .Select(kv => kv.Key)
+                .Take(10)
+                .ToList();
+            chunk.Props["BM25Terms"] = bm25Terms;
             chunk.Props["HybridRatio"] = hybridResult.WeightCalculationInfo.RecommendedHybridRatio;
             chunk.Props["RerankingHints"] = hybridResult.RerankingHints;
 

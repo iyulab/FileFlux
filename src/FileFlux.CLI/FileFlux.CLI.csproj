@@ -12,8 +12,8 @@
   </ItemGroup>
 
   <ItemGroup Label="FluxImprover">
-    <PackageReference Include="FluxImprover" />
-    <PackageReference Include="FluxImprover.Abstractions" />
+    <ProjectReference Include="D:\data\FluxImprover\src\FluxImprover\FluxImprover.csproj" />
+    <ProjectReference Include="D:\data\FluxImprover\src\FluxImprover.Abstractions\FluxImprover.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -101,6 +101,9 @@ public partial class WordDocumentReader : IDocumentReader
                 // Convert HTML to Markdown
                 markdown = MarkdownConverter.Convert(result.Value);
 
+                // Clean up HTML artifacts in markdown output
+                markdown = CleanupMarkdown(markdown);
+
                 // Count images in HTML
                 imageCount = CountImages(result.Value);
             }
@@ -193,6 +196,9 @@ public partial class WordDocumentReader : IDocumentReader
             // Convert HTML to Markdown
             var markdown = MarkdownConverter.Convert(result.Value);
 
+            // Clean up HTML artifacts in markdown output
+            markdown = CleanupMarkdown(markdown);
+
             // Count images in HTML
             var imageCount = CountImages(result.Value);
 
@@ -278,6 +284,35 @@ public partial class WordDocumentReader : IDocumentReader
     {
         return ImageTagRegex().Matches(html).Count;
     }
+
+    /// <summary>
+    /// Clean up HTML artifacts in markdown output
+    /// </summary>
+    private static string CleanupMarkdown(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return markdown;
+
+        // Replace <br> and <br/> tags with proper markdown line breaks
+        markdown = BrTagRegex().Replace(markdown, "  \n");
+
+        // Remove other common HTML tags that might slip through
+        markdown = CommonHtmlTagsRegex().Replace(markdown, "");
+
+        // Normalize multiple consecutive newlines to max 2
+        markdown = MultipleNewlinesRegex().Replace(markdown, "\n\n");
+
+        return markdown.Trim();
+    }
+
+    [GeneratedRegex(@"<br\s*/?>", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex BrTagRegex();
+
+    [GeneratedRegex(@"</?(?:span|div|p)[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex CommonHtmlTagsRegex();
+
+    [GeneratedRegex(@"\n{3,}", RegexOptions.Compiled)]
+    private static partial Regex MultipleNewlinesRegex();
 
     private static int CountWords(string text)
     {

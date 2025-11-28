@@ -276,11 +276,27 @@ public partial class BasicDocumentParser : IDocumentParser
             pageCount = pages;
         }
 
+        // Get document title from hints (set by document readers like Word, PDF, Excel, PowerPoint)
+        string? title = null;
+        if (rawContent.Hints.TryGetValue("document_title", out var dt) && dt is string docTitle && !string.IsNullOrWhiteSpace(docTitle))
+        {
+            title = docTitle;
+        }
+
+        // Get author from hints (set by document readers)
+        string? author = null;
+        if (rawContent.Hints.TryGetValue("author", out var auth) && auth is string docAuthor && !string.IsNullOrWhiteSpace(docAuthor))
+        {
+            author = docAuthor;
+        }
+
         return new DocumentMetadata
         {
             FileName = rawContent.File.Name,
             FileType = documentType,
             FileSize = rawContent.File.Size,
+            Title = title,
+            Author = author,
             CreatedAt = rawContent.File.CreatedAt,
             ModifiedAt = rawContent.File.ModifiedAt,
             ProcessedAt = DateTime.UtcNow,

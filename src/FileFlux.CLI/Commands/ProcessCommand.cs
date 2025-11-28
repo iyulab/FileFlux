@@ -242,6 +242,20 @@ public class ProcessCommand : Command
                     ? $"{chunks.Min(c => c.Content.Length):N0} - {chunks.Max(c => c.Content.Length):N0}"
                     : "0 - 0");
 
+                // Auto 전략인 경우 실제 최적화된 값 표시
+                if (strategy.Equals("Auto", StringComparison.OrdinalIgnoreCase) && chunks.Length > 0)
+                {
+                    var firstChunk = chunks[0];
+                    if (firstChunk.Props.TryGetValue("OptimizedMaxChunkSize", out var optimizedMax) &&
+                        firstChunk.Props.TryGetValue("OptimizedOverlapSize", out var optimizedOverlap))
+                    {
+                        var selectedStrategy = firstChunk.Props.TryGetValue("AutoSelectedStrategy", out var autoStrategy) ? autoStrategy?.ToString() : null;
+                        grid.AddRow("[bold]Optimized strategy:[/]", selectedStrategy ?? "Unknown");
+                        grid.AddRow("[bold]Optimized max size:[/]", optimizedMax?.ToString() ?? maxSize.ToString());
+                        grid.AddRow("[bold]Optimized overlap:[/]", optimizedOverlap?.ToString() ?? overlap.ToString());
+                    }
+                }
+
                 if (result.Extraction.Images.Count > 0)
                     grid.AddRow("[bold]Images extracted:[/]", result.Extraction.Images.Count.ToString());
 

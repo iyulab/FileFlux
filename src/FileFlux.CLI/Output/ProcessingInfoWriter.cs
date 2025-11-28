@@ -90,7 +90,7 @@ public static class ProcessingInfoWriter
                 averageChunkSize = chunkList.Count > 0 ? chunkList.Sum(c => c.Content.Length) / chunkList.Count : 0,
                 minChunkSize = chunkList.Count > 0 ? chunkList.Min(c => c.Content.Length) : 0,
                 maxChunkSize = chunkList.Count > 0 ? chunkList.Max(c => c.Content.Length) : 0,
-                enrichedChunks = chunkList.Count(c => c.Metadata.CustomProperties.ContainsKey("enriched_topics"))
+                enrichedChunks = chunkList.Count(c => c.Metadata.CustomProperties.ContainsKey("enriched_keywords"))
             },
             quality = chunkList.Count > 0 ? new
             {
@@ -206,7 +206,7 @@ public static class ProcessingInfoWriter
                 averageChunkSize = chunkList.Count > 0 ? chunkList.Sum(c => c.Content.Length) / chunkList.Count : 0,
                 minChunkSize = chunkList.Count > 0 ? chunkList.Min(c => c.Content.Length) : 0,
                 maxChunkSize = chunkList.Count > 0 ? chunkList.Max(c => c.Content.Length) : 0,
-                enrichedChunks = chunkList.Count(c => c.Metadata.CustomProperties.ContainsKey("enriched_topics"))
+                enrichedChunks = chunkList.Count(c => c.Metadata.CustomProperties.ContainsKey("enriched_keywords"))
             },
             quality = chunkList.Count > 0 ? new
             {

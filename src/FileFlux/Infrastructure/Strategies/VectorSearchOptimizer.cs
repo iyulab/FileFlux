@@ -416,9 +416,10 @@ public class VectorSearchOptimizer
         var matches = Regex.Matches(text, @"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b");
         foreach (Match match in matches)
         {
-            if (match.Value.Length > 2 && !IsStopWord(match.Value.ToLowerInvariant()))
+            var word = match.Value;
+            if (word.Length > 2 && !IsStopWord(word.ToLowerInvariant()) && !IsGenericWord(word))
             {
-                entities.Add(match.Value);
+                entities.Add(word);
             }
         }
 
@@ -426,10 +427,37 @@ public class VectorSearchOptimizer
         var technicalTerms = Regex.Matches(text, @"\b[A-Z]{2,}\b");
         foreach (Match match in technicalTerms)
         {
-            entities.Add(match.Value);
+            var term = match.Value;
+            if (!IsGenericWord(term))
+            {
+                entities.Add(term);
+            }
         }
 
         return entities.Distinct().Take(10).ToList();
+    }
+
+    /// <summary>
+    /// Check if word is a generic/meaningless word that shouldn't be an entity
+    /// </summary>
+    private static bool IsGenericWord(string word)
+    {
+        var genericWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // 마크다운/문서 구조 관련
+            "Paragraph", "Section", "Chapter", "Page", "Table", "Figure", "Image", "Header", "Footer",
+            "Title", "Subtitle", "Content", "Body", "Text", "Document", "File", "Note", "Notes",
+            // 저작권/법적 관련
+            "Copyright", "Rights", "Reserved", "License", "Licensed", "Terms", "Conditions",
+            // 일반적인 구조 용어
+            "Service", "Data", "Type", "Value", "Name", "List", "Item", "Items", "Index",
+            "Start", "End", "Begin", "Result", "Results", "Count", "Total", "Number",
+            // 기타 일반 용어
+            "Example", "Examples", "Sample", "Samples", "Demo", "Test", "Tests",
+            "New", "Old", "First", "Last", "Next", "Previous", "Current",
+            "True", "False", "Null", "None", "All", "Any", "Some", "Other"
+        };
+        return genericWords.Contains(word);
     }
 
     /// <summary>

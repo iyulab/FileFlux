@@ -1,4 +1,4 @@
-using FileFlux.Domain;
+﻿using FileFlux.Domain;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
@@ -430,32 +430,62 @@ public class SearchQualityEvaluator
 
     private double AssessConceptualCompleteness(DocumentChunk chunk)
     {
-        // Check if main concepts are fully explained
+        // Check if main concepts are fully explained (multi-language support)
         var sentences = SentenceRegex.Split(chunk.Content).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+        var content = chunk.Content;
 
-        var definitionCount = sentences.Count(s => s.ToLowerInvariant().Contains("is") ||
-                                                   s.ToLowerInvariant().Contains("means"));
-        var explanationCount = sentences.Count(s => s.ToLowerInvariant().Contains("because") ||
-                                                     s.ToLowerInvariant().Contains("due to"));
-        var exampleCount = sentences.Count(s => s.ToLowerInvariant().Contains("example") ||
-                                                 s.ToLowerInvariant().Contains("such as"));
+        // Definition indicators (English + Korean)
+        var definitionKeywords = new[] { "is", "means", "refers to", "defined as",
+            "입니다", "이다", "것이다", "의미", "정의", "란" };
+        // Explanation indicators (English + Korean)
+        var explanationKeywords = new[] { "because", "due to", "as a result", "caused by",
+            "때문", "이유", "으로 인해", "원인", "따라서", "결과" };
+        // Example indicators (English + Korean)
+        var exampleKeywords = new[] { "example", "such as", "for instance", "e.g.",
+            "예를 들", "예시", "같은", "등" };
+
+        var definitionCount = definitionKeywords.Count(k => content.Contains(k, StringComparison.OrdinalIgnoreCase));
+        var explanationCount = explanationKeywords.Count(k => content.Contains(k, StringComparison.OrdinalIgnoreCase));
+        var exampleCount = exampleKeywords.Count(k => content.Contains(k, StringComparison.OrdinalIgnoreCase));
 
         var totalExplanatoryElements = definitionCount + explanationCount + exampleCount;
-        return Math.Min(1.0, totalExplanatoryElements / Math.Max(1.0, sentences.Count * 0.3));
+        var sentenceCount = Math.Max(1, sentences.Count);
+
+        // Normalize: at least 1 element per 5 sentences = 1.0
+        return Math.Min(1.0, totalExplanatoryElements / (sentenceCount * 0.2));
     }
 
     private double AssessInformationalCompleteness(DocumentChunk chunk)
     {
-        // Check if who, what, when, where, why, how are covered
-        var content = chunk.Content.ToLowerInvariant();
+        // Check if who, what, when, where, why, how are covered (multi-language support)
+        var content = chunk.Content;
+
+        // Multi-language information element detection
         var informationElements = new[]
         {
-            content.Contains("who") || content.Contains("person") || content.Contains("people"),
-            content.Contains("what") || content.Contains("thing") || content.Contains("object"),
-            content.Contains("when") || content.Contains("time") || content.Contains("date"),
-            content.Contains("where") || content.Contains("place") || content.Contains("location"),
-            content.Contains("why") || content.Contains("reason") || content.Contains("because"),
-            content.Contains("how") || content.Contains("method") || content.Contains("way")
+            // Who (English + Korean)
+            content.Contains("who", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("person", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("사람") || content.Contains("담당") || content.Contains("누가"),
+            // What (English + Korean)
+            content.Contains("what", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("무엇") || content.Contains("것") || content.Contains("내용"),
+            // When (English + Korean)
+            content.Contains("when", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("time", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("시간") || content.Contains("날짜") || content.Contains("언제"),
+            // Where (English + Korean)
+            content.Contains("where", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("location", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("장소") || content.Contains("위치") || content.Contains("어디"),
+            // Why (English + Korean)
+            content.Contains("why", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("reason", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("이유") || content.Contains("원인") || content.Contains("왜"),
+            // How (English + Korean)
+            content.Contains("how", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("method", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("방법") || content.Contains("절차") || content.Contains("어떻게")
         };
 
         return informationElements.Count(e => e) / 6.0;
@@ -464,35 +494,41 @@ public class SearchQualityEvaluator
     private double AssessLogicalCompleteness(DocumentChunk chunk)
     {
         var sentences = SentenceRegex.Split(chunk.Content).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+        var content = chunk.Content;
 
+        // Logical connectors (English + Korean)
         var logicalConnectors = new[]
         {
-            "therefore", "thus", "hence", "consequently",
-            "however", "but", "nevertheless", "although",
-            "because", "since", "as", "due to",
-            "first", "second", "finally", "next"
+            // Consequential
+            "therefore", "thus", "hence", "consequently", "따라서", "그러므로", "결과적으로", "그래서",
+            // Contrastive
+            "however", "but", "nevertheless", "although", "하지만", "그러나", "반면", "그렇지만",
+            // Causal
+            "because", "since", "as", "due to", "왜냐하면", "때문에", "이유로", "으로 인해",
+            // Sequential
+            "first", "second", "finally", "next", "첫째", "둘째", "마지막으로", "다음으로", "이후"
         };
 
-        var connectorCount = sentences.Count(s =>
-            logicalConnectors.Any(connector => s.ToLowerInvariant().Contains(connector)));
+        var connectorCount = logicalConnectors.Count(connector =>
+            content.Contains(connector, StringComparison.OrdinalIgnoreCase));
 
-        return Math.Min(1.0, (double)connectorCount / Math.Max(1, sentences.Count / 3));
+        var sentenceCount = Math.Max(1, sentences.Count);
+        return Math.Min(1.0, (double)connectorCount / (sentenceCount * 0.15));
     }
 
     private double AssessContextualCompleteness(DocumentChunk chunk)
     {
-        // Check if chunk provides sufficient context
-        var hasIntroduction = chunk.Content.Substring(0, Math.Min(200, chunk.Content.Length))
-            .ToLowerInvariant().Contains("introduction") ||
-            chunk.Index == 0;
+        var content = chunk.Content;
 
-        var hasConclusion = chunk.Content.Substring(Math.Max(0, chunk.Content.Length - 200))
-            .ToLowerInvariant().Contains("conclusion") ||
-            chunk.Content.ToLowerInvariant().Contains("summary");
+        // Check if chunk provides sufficient context (multi-language)
+        var introKeywords = new[] { "introduction", "overview", "소개", "개요", "배경", "목적" };
+        var conclusionKeywords = new[] { "conclusion", "summary", "결론", "요약", "정리", "마무리" };
+        var referenceKeywords = new[] { "see", "refer", "section", "참조", "참고", "항목", "부분" };
 
-        var hasReferences = chunk.Content.Contains("see") ||
-                           chunk.Content.Contains("refer") ||
-                           chunk.Content.Contains("section");
+        var hasIntroduction = chunk.Index == 0 ||
+            introKeywords.Any(k => content.Contains(k, StringComparison.OrdinalIgnoreCase));
+        var hasConclusion = conclusionKeywords.Any(k => content.Contains(k, StringComparison.OrdinalIgnoreCase));
+        var hasReferences = referenceKeywords.Any(k => content.Contains(k, StringComparison.OrdinalIgnoreCase));
 
         var contextScore = 0.0;
         if (hasIntroduction) contextScore += 0.4;
@@ -504,22 +540,32 @@ public class SearchQualityEvaluator
 
     private double AssessChunkIndependence(DocumentChunk chunk)
     {
-        var content = chunk.Content.ToLowerInvariant();
+        var content = chunk.Content;
 
-        // Penalty for strong dependencies
-        var dependencyIndicators = new[]
+        // Dependency indicators that suggest chunk is not self-contained (English + Korean)
+        var strongDependencyIndicators = new[]
         {
             "as mentioned above", "as discussed earlier", "in the previous section",
             "as we will see", "later in this document", "as shown below",
-            "this", "that", "these", "those", "it", "they"
+            "위에서 언급한", "앞서 설명한", "이전 섹션에서", "아래에서 보듯이"
         };
 
-        var dependencyCount = dependencyIndicators.Count(indicator => content.Contains(indicator));
-        var sentences = SentenceRegex.Split(chunk.Content).Length;
+        // Weak dependency indicators (pronouns) - more lenient
+        var weakDependencyIndicators = new[]
+        {
+            "this ", "that ", "these ", "those ", "it ", "they ",
+            "이것", "그것", "저것"
+        };
 
-        var dependencyRatio = (double)dependencyCount / Math.Max(1, sentences);
+        var strongCount = strongDependencyIndicators.Count(indicator =>
+            content.Contains(indicator, StringComparison.OrdinalIgnoreCase));
+        var weakCount = weakDependencyIndicators.Count(indicator =>
+            content.Contains(indicator, StringComparison.OrdinalIgnoreCase));
 
-        return Math.Max(0.0, 1.0 - dependencyRatio);
+        // Strong dependencies penalized more heavily
+        var dependencyPenalty = (strongCount * 0.15) + (weakCount * 0.03);
+
+        return Math.Max(0.0, 1.0 - Math.Min(1.0, dependencyPenalty));
     }
 
     private double CalculateSelfContainmentScore(SemanticCompleteness completeness)

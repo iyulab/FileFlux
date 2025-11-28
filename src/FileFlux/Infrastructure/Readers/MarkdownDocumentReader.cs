@@ -347,8 +347,9 @@ public class MarkdownDocumentReader : IDocumentReader
                     text.Append(literal.Content);
                     break;
 
-                case LineBreakInline:
-                    text.Append("<br>");
+                case LineBreakInline lineBreak:
+                    // 마크다운 표준: hard break는 두 개의 공백 후 줄바꿈, soft break는 그냥 줄바꿈
+                    text.Append(lineBreak.IsHard ? "  \n" : "\n");
                     break;
 
                 case EmphasisInline emphasis:

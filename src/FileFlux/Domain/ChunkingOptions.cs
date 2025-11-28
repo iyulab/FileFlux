@@ -50,6 +50,24 @@ public class ChunkingOptions
     /// - PreferQuality: 품질 우선 모드
     /// </summary>
     public Dictionary<string, object> StrategyOptions { get; } = new();
+
+    /// <summary>
+    /// 문서 헤더(표지, 저작권 등)를 본문과 분리하여 메타데이터로 처리
+    /// true인 경우 헤더 콘텐츠가 각 청크에 반복 삽입되지 않음
+    /// </summary>
+    public bool SeparateDocumentHeader { get; set; } = true;
+
+    /// <summary>
+    /// 문서 헤더로 인식할 최대 문단 수 (기본: 5)
+    /// 문서 앞부분의 짧은 문단들(제목, 저작권 등)을 헤더로 처리
+    /// </summary>
+    public int MaxHeaderParagraphs { get; set; } = 5;
+
+    /// <summary>
+    /// 헤더 문단의 최대 길이 (기본: 200자)
+    /// 이 길이를 초과하는 문단은 본문으로 처리
+    /// </summary>
+    public int MaxHeaderParagraphLength { get; set; } = 200;
 }
 
 /// <summary>
