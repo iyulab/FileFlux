@@ -21,6 +21,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
     private IChunkingStrategy? _selectedStrategy;
     private string _selectedStrategyName = "";
     private string _selectionReasoning = "";
+    private StrategySelectionResult? _lastSelectionResult;
 
     public string StrategyName => "Auto";
 
@@ -62,6 +63,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
             _selectedStrategy = _strategyFactory.CreateStrategy(forceStrategy);
             _selectedStrategyName = forceStrategy;
             _selectionReasoning = $"Forced strategy: {forceStrategy}";
+            _lastSelectionResult = null;
         }
         else
         {
@@ -84,7 +86,10 @@ public class AutoChunkingStrategy : IChunkingStrategy
             throw new InvalidOperationException($"Failed to select or create strategy: {_selectedStrategyName}");
         }
 
-        var chunks = await _selectedStrategy.ChunkAsync(content, options, cancellationToken);
+        // 5. 최적화된 옵션 생성 (문서 유형 기반 파라미터 적용)
+        var optimizedOptions = ApplyOptimalParameters(options);
+
+        var chunks = await _selectedStrategy.ChunkAsync(content, optimizedOptions, cancellationToken);
 
         // 각 청크에 Auto 전략 메타데이터 추가
         return chunks.Select(chunk =>
@@ -93,8 +98,52 @@ public class AutoChunkingStrategy : IChunkingStrategy
             chunk.Props["AutoSelectedStrategy"] = _selectedStrategyName;
             chunk.Props["SelectionReasoning"] = _selectionReasoning;
             chunk.Props["SelectionConfidence"] = GetSelectionConfidence();
+
+            // 최적화 적용 여부 및 파라미터 정보 추가
+            if (_lastSelectionResult != null)
+            {
+                if (_lastSelectionResult.OptimalMaxChunkSize.HasValue)
+                    chunk.Props["OptimizedMaxChunkSize"] = _lastSelectionResult.OptimalMaxChunkSize.Value;
+                if (_lastSelectionResult.OptimalOverlapSize.HasValue)
+                    chunk.Props["OptimizedOverlapSize"] = _lastSelectionResult.OptimalOverlapSize.Value;
+                if (_lastSelectionResult.DetectedCategory.HasValue)
+                    chunk.Props["DetectedDocumentCategory"] = _lastSelectionResult.DetectedCategory.Value.ToString();
+            }
+
             return chunk;
         });
+    }
+
+    /// <summary>
+    /// 문서 유형에 최적화된 파라미터를 옵션에 적용
+    /// </summary>
+    private ChunkingOptions ApplyOptimalParameters(ChunkingOptions options)
+    {
+        // 사용자가 명시적으로 값을 지정했는지 확인
+        // StrategyOptions에서 "UseDefaultParameters" = true면 사용자 지정 무시
+        var useAutoParameters = GetStrategyOption(options, "UseAutoParameters", true);
+
+        if (!useAutoParameters || _lastSelectionResult == null)
+        {
+            return options;
+        }
+
+        // 사용자가 기본값(1024, 128)을 그대로 사용하고 있는지 확인
+        var isDefaultMaxChunkSize = options.MaxChunkSize == 1024;
+        var isDefaultOverlapSize = options.OverlapSize == 128;
+
+        // 기본값을 사용하고 있으면 최적화된 값으로 대체
+        if (isDefaultMaxChunkSize && _lastSelectionResult.OptimalMaxChunkSize.HasValue)
+        {
+            options.MaxChunkSize = _lastSelectionResult.OptimalMaxChunkSize.Value;
+        }
+
+        if (isDefaultOverlapSize && _lastSelectionResult.OptimalOverlapSize.HasValue)
+        {
+            options.OverlapSize = _lastSelectionResult.OptimalOverlapSize.Value;
+        }
+
+        return options;
     }
 
     /// <summary>
@@ -137,6 +186,9 @@ public class AutoChunkingStrategy : IChunkingStrategy
                 content,
                 cts.Token);
 
+            // 선택 결과 저장 (최적화된 파라미터 포함)
+            _lastSelectionResult = selectionResult;
+
             // 신뢰도 확인
             var confidenceThreshold = GetStrategyOption(options, "ConfidenceThreshold", 0.6);
 
@@ -144,6 +196,12 @@ public class AutoChunkingStrategy : IChunkingStrategy
             {
                 _selectedStrategyName = selectionResult.StrategyName;
                 _selectionReasoning = selectionResult.Reasoning;
+
+                // 최적화된 파라미터 정보를 reasoning에 추가
+                if (selectionResult.OptimalMaxChunkSize.HasValue && selectionResult.OptimalOverlapSize.HasValue)
+                {
+                    _selectionReasoning += $" [Optimized: max={selectionResult.OptimalMaxChunkSize}, overlap={selectionResult.OptimalOverlapSize}]";
+                }
 
                 // 속도/품질 우선 모드 확인
                 if (GetStrategyOption(options, "PreferSpeed", false))
@@ -173,6 +231,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
             _selectedStrategyName = "Smart";
             _selectionReasoning = "Selection timeout, using Smart strategy as default";
             _selectedStrategy = _strategyFactory.CreateStrategy(_selectedStrategyName);
+            _lastSelectionResult = null;
         }
         catch (Exception ex)
         {
@@ -180,6 +239,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
             _selectedStrategyName = "Smart";
             _selectionReasoning = $"Selection error: {ex.Message}. Using Smart strategy as fallback";
             _selectedStrategy = _strategyFactory.CreateStrategy(_selectedStrategyName);
+            _lastSelectionResult = null;
         }
     }
 

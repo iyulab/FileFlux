@@ -21,15 +21,18 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
     private readonly IChunkingStrategyFactory _strategyFactory;
     private readonly Dictionary<string, IChunkingStrategyMetadata> _strategyMetadata;
     private readonly IDocumentReader? _documentReader;
+    private readonly IDocumentTypeOptimizer? _documentTypeOptimizer;
 
     public AdaptiveStrategySelector(
         IChunkingStrategyFactory strategyFactory,
         ITextCompletionService? llmService = null,
-        IDocumentReader? documentReader = null)
+        IDocumentReader? documentReader = null,
+        IDocumentTypeOptimizer? documentTypeOptimizer = null)
     {
         _strategyFactory = strategyFactory ?? throw new ArgumentNullException(nameof(strategyFactory));
         _llmService = llmService; // Optional now
         _documentReader = documentReader;
+        _documentTypeOptimizer = documentTypeOptimizer;
         _strategyMetadata = InitializeStrategyMetadata();
     }
 
@@ -88,12 +91,85 @@ public class AdaptiveStrategySelector : IAdaptiveStrategySelector
             recommendedStrategy,
             documentCharacteristics);
 
+        // 6. 문서 유형 기반 최적 파라미터 결정
+        var (optimalMaxChunkSize, optimalOverlapSize, detectedCategory) =
+            await DetermineOptimalParametersAsync(
+                sampleContent,
+                documentCharacteristics,
+                cancellationToken);
+
         return new StrategySelectionResult
         {
             StrategyName = selectedStrategy.StrategyName,
             Confidence = selectedStrategy.Confidence,
             Reasoning = selectedStrategy.Reasoning,
-            UsedLLM = usedLLM
+            UsedLLM = usedLLM,
+            OptimalMaxChunkSize = optimalMaxChunkSize,
+            OptimalOverlapSize = optimalOverlapSize,
+            DetectedCategory = detectedCategory
+        };
+    }
+
+    /// <summary>
+    /// 문서 유형에 따른 최적 청킹 파라미터 결정
+    /// </summary>
+    private async Task<(int? maxChunkSize, int? overlapSize, DocumentCategory? category)> DetermineOptimalParametersAsync(
+        string sampleContent,
+        DocumentCharacteristics characteristics,
+        CancellationToken cancellationToken)
+    {
+        // DocumentTypeOptimizer가 있으면 사용
+        if (_documentTypeOptimizer != null)
+        {
+            try
+            {
+                var documentType = await _documentTypeOptimizer.DetectDocumentTypeAsync(
+                    sampleContent,
+                    null,
+                    cancellationToken);
+
+                var optimalOptions = _documentTypeOptimizer.GetOptimalOptions(documentType);
+
+                return (
+                    optimalOptions.MaxChunkSize,
+                    optimalOptions.OverlapSize,
+                    documentType.Category
+                );
+            }
+            catch
+            {
+                // DocumentTypeOptimizer 실패 시 규칙 기반 fallback
+            }
+        }
+
+        // 규칙 기반 fallback: 도메인별 기본값
+        return GetRuleBasedOptimalParameters(characteristics);
+    }
+
+    /// <summary>
+    /// 규칙 기반 최적 파라미터 결정 (DocumentTypeOptimizer 없을 때)
+    /// </summary>
+    private (int? maxChunkSize, int? overlapSize, DocumentCategory? category) GetRuleBasedOptimalParameters(
+        DocumentCharacteristics characteristics)
+    {
+        // 도메인별 최적 파라미터 (DocumentTypeOptimizer의 값과 일치)
+        return characteristics.Domain switch
+        {
+            "Technical" => (650, 160, DocumentCategory.Technical),      // (500+800)/2, ~25%
+            "Legal" => (400, 80, DocumentCategory.Legal),               // (300+500)/2, ~20%
+            "Academic" => (300, 90, DocumentCategory.Academic),         // (200+400)/2, ~30%
+            "Financial" => (500, 125, DocumentCategory.Financial),      // (400+600)/2, ~25%
+            "Medical" => (450, 110, DocumentCategory.Medical),          // (350+550)/2, ~25%
+            "Business" => (550, 100, DocumentCategory.Business),        // (400+700)/2, ~18%
+            "Scientific" => (400, 100, DocumentCategory.Academic),      // Scientific은 Academic 취급
+            "Engineering" => (650, 160, DocumentCategory.Technical),    // Engineering은 Technical 취급
+            _ => characteristics.ContentType switch
+            {
+                "Narrative" => (700, 70, DocumentCategory.Creative),    // (500+900)/2, ~10%
+                "Technical" => (650, 160, DocumentCategory.Technical),
+                "Markdown" => (600, 120, DocumentCategory.Technical),
+                _ => (500, 100, DocumentCategory.General)               // (400+600)/2, ~20%
+            }
         };
     }
 

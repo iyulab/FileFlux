@@ -48,11 +48,16 @@ public static class ServiceCollectionExtensions
         // 기본 청킹 전략들을 등록하는 팩토리
         RegisterChunkingStrategies(services);
 
-        // 적응형 전략 선택기 등록 (Auto 전략 지원) - AI 서비스 선택적
+        // 문서 유형 최적화기 등록
+        services.AddSingleton<IDocumentTypeOptimizer, DocumentTypeOptimizer>();
+
+        // 적응형 전략 선택기 등록 (Auto 전략 지원) - AI 서비스 및 DocumentTypeOptimizer 선택적
         services.AddScoped<IAdaptiveStrategySelector>(provider =>
             new AdaptiveStrategySelector(
                 provider.GetRequiredService<IChunkingStrategyFactory>(),
-                provider.GetService<ITextCompletionService>()));
+                provider.GetService<ITextCompletionService>(),
+                documentReader: null,
+                provider.GetService<IDocumentTypeOptimizer>()));
 
         // Metadata enrichment services (Phase 16) - DocumentProcessor보다 먼저 등록
         services.AddMemoryCache(options =>

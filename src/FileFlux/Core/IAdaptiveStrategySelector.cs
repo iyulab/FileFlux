@@ -46,4 +46,19 @@ public class StrategySelectionResult
     /// LLM 사용 여부
     /// </summary>
     public bool UsedLLM { get; set; }
+
+    /// <summary>
+    /// 문서 유형에 최적화된 MaxChunkSize (null이면 기본값 사용)
+    /// </summary>
+    public int? OptimalMaxChunkSize { get; set; }
+
+    /// <summary>
+    /// 문서 유형에 최적화된 OverlapSize (null이면 기본값 사용)
+    /// </summary>
+    public int? OptimalOverlapSize { get; set; }
+
+    /// <summary>
+    /// 감지된 문서 카테고리
+    /// </summary>
+    public DocumentCategory? DetectedCategory { get; set; }
 }
