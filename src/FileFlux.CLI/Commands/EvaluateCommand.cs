@@ -1,6 +1,6 @@
 using FileFlux.CLI.Services;
 using FluxImprover;
-using FluxImprover.Abstractions.Options;
+using FluxImprover.Options;
 using FluxImprover.Evaluation;
 using Spectre.Console;
 using System.CommandLine;

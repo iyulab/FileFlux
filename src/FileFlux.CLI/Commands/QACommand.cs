@@ -1,8 +1,8 @@
 using FileFlux.CLI.Services;
 using FileFlux.CLI.Output;
 using FluxImprover;
-using FluxImprover.Abstractions.Models;
-using FluxImprover.Abstractions.Options;
+using FluxImprover.Models;
+using FluxImprover.Options;
 using FluxImprover.QAGeneration;
 using Spectre.Console;
 using System.CommandLine;

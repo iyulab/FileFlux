@@ -2,7 +2,7 @@ using FileFlux.CLI.Services;
 using FileFlux.CLI.Output;
 using FileFlux.Domain;
 using FluxImprover;
-using FluxImprover.Abstractions.Models;
+using FluxImprover.Models;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Parsing;
@@ -163,7 +163,7 @@ public class EnrichCommand : Command
             }
 
             var enrichedChunks = new List<EnrichedChunkResult>();
-            var enrichmentOptions = new FluxImprover.Abstractions.Options.EnrichmentOptions
+            var enrichmentOptions = new FluxImprover.Options.EnrichmentOptions
             {
                 EnableSummarization = generateSummary,
                 EnableKeywordExtraction = extractKeywords,

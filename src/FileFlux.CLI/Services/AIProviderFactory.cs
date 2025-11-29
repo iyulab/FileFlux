@@ -3,7 +3,7 @@ using FileFlux.Core;
 using FileFlux;
 using FluxImprover;
 using Microsoft.Extensions.DependencyInjection;
-using FluxImproverService = FluxImprover.Abstractions.Services.ITextCompletionService;
+using FluxImproverService = FluxImprover.Services.ITextCompletionService;
 
 namespace FileFlux.CLI.Services;
 

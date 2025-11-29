@@ -13,7 +13,6 @@
 
   <ItemGroup Label="FluxImprover">
     <ProjectReference Include="D:\data\FluxImprover\src\FluxImprover\FluxImprover.csproj" />
-    <ProjectReference Include="D:\data\FluxImprover\src\FluxImprover.Abstractions\FluxImprover.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,7 +2,7 @@ using OpenAI;
 using OpenAI.Chat;
 using System.ClientModel;
 using System.Runtime.CompilerServices;
-using FI = FluxImprover.Abstractions.Services;
+using FI = FluxImprover.Services;
 
 namespace FileFlux.CLI.Services.Providers.FluxImprover;
 

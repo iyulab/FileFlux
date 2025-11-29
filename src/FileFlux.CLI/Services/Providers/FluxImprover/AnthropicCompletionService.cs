@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FI = FluxImprover.Abstractions.Services;
+using FI = FluxImprover.Services;
 
 namespace FileFlux.CLI.Services.Providers.FluxImprover;
 
