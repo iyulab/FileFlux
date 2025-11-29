@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using FileFlux.Core;
 using FileFlux.Infrastructure.Factories;
+using FileFlux.Infrastructure.Languages;
 using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
 using FileFlux.Infrastructure.Services;
@@ -34,6 +35,9 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentReader, MultiModalPowerPointDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalWordDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalExcelDocumentReader>();
+
+        // Language profile provider for multilingual text segmentation
+        services.AddSingleton<ILanguageProfileProvider, DefaultLanguageProfileProvider>();
 
         // 핵심 팩토리들 등록 - DI로 주입된 Reader들 사용
         // Scoped로 변경: MultiModalPdfDocumentReader가 scoped IImageToTextService를 사용하므로

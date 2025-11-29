@@ -87,6 +87,9 @@ FileFlux/
 └── Infrastructure/           # Implementations
     ├── Readers/             # Document Readers
     ├── Strategies/          # Chunking Strategies
+    ├── Languages/           # Language Profiles
+    │   ├── LanguageProfiles.cs  (11 language implementations)
+    │   └── DefaultLanguageProfileProvider.cs
     ├── Services/            # Processing Services
     │   ├── AIMetadataEnricher
     │   ├── RuleBasedMetadataExtractor
@@ -114,6 +117,7 @@ FileFlux/
 │  │  • IDocumentProcessor     │  │
 │  │  • IDocumentReader        │  │
 │  │  • IChunkingStrategy      │  │
+│  │  • ILanguageProfile       │  │
 │  └───────────────────────────┘  │
 │                                 │
 │  ┌───────────────────────────┐  │
@@ -192,6 +196,40 @@ FileFlux/
 - **SemanticChunkingStrategy**: Sentence-based semantic chunking
 - **ParagraphChunkingStrategy**: Paragraph-level segmentation
 - **FixedSizeChunkingStrategy**: Fixed-size token-based chunking
+
+### 5. ILanguageProfile (Multilingual Text Segmentation)
+
+**Purpose**: Language-specific rules for accurate sentence boundary detection and text segmentation.
+
+**Key Properties**:
+- `LanguageCode`: ISO 639-1 code (en, ko, zh, ja, etc.)
+- `ScriptCode`: ISO 15924 script code (Latn, Hang, Hans, Arab, Deva, Cyrl, Jpan)
+- `WritingDirection`: LTR, RTL, or TopToBottom
+- `NumberFormat`: Decimal/thousands separator conventions
+- `QuotationMarks`: Language-specific quote characters
+- `SentenceEndPattern`: Regex for sentence boundaries
+- `Abbreviations`: Non-breaking abbreviation list
+- `CategorizedAbbreviations`: Typed abbreviations (Prepositive/Postpositive/General)
+
+**Supported Languages** (11):
+| Language | Script | Direction | Number Format |
+|----------|--------|-----------|---------------|
+| English | Latn | LTR | Standard (1,234.56) |
+| Korean | Hang | LTR | Standard |
+| Chinese | Hans | LTR | NoGrouping |
+| Japanese | Jpan | LTR | Standard |
+| Spanish | Latn | LTR | European (1.234,56) |
+| French | Latn | LTR | SpaceSeparated (1 234,56) |
+| German | Latn | LTR | European |
+| Arabic | Arab | **RTL** | Standard |
+| Hindi | Deva | LTR | Standard |
+| Portuguese | Latn | LTR | European |
+| Russian | Cyrl | LTR | SpaceSeparated |
+
+**Provider Pattern**:
+- `ILanguageProfileProvider`: Manages language profile lookup and auto-detection
+- `DefaultLanguageProfileProvider`: Built-in provider with Unicode script analysis
+- Auto-detection analyzes text Unicode ranges to determine language
 
 ## Processing Pipeline
 

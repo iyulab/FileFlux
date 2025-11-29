@@ -21,6 +21,12 @@ public class ChunkingOptions
     public int OverlapSize { get; set; } = 128;
 
     /// <summary>
+    /// 청크 최소 크기 (기본: 200자 - 의미 있는 검색 단위 보장)
+    /// 이 크기 미만의 청크는 인접 청크와 자동 병합됨
+    /// </summary>
+    public int MinChunkSize { get; set; } = 200;
+
+    /// <summary>
     /// 문단 경계 보존 여부 (시맨틱 청킹용)
     /// </summary>
     public bool PreserveParagraphs { get; set; } = true;
@@ -68,6 +74,24 @@ public class ChunkingOptions
     /// 이 길이를 초과하는 문단은 본문으로 처리
     /// </summary>
     public int MaxHeaderParagraphLength { get; set; } = 200;
+
+    /// <summary>
+    /// 한국어 섹션 마커(□, ㅇ, ■, ○, ●, ◆ 등) 인식 여부
+    /// true인 경우 해당 마커를 섹션 경계로 처리
+    /// </summary>
+    public bool RecognizeKoreanSectionMarkers { get; set; } = true;
+
+    /// <summary>
+    /// 오버랩 구간의 중복 콘텐츠 제거 여부
+    /// true인 경우 50% 이상 중복되는 청크를 자동 제거
+    /// </summary>
+    public bool DeduplicateOverlaps { get; set; } = true;
+
+    /// <summary>
+    /// ISO 639-1 language code for text segmentation (e.g., "en", "ko", "zh")
+    /// When null or "auto", language is auto-detected from content
+    /// </summary>
+    public string? LanguageCode { get; set; } = "auto";
 }
 
 /// <summary>

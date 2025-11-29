@@ -1,5 +1,7 @@
 using FileFlux;
+using FileFlux.Core;
 using FileFlux.Domain;
+using FileFlux.Infrastructure.Languages;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Strategies;
@@ -19,6 +21,9 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
     private static readonly Regex TableRegex = new(@"^\s*\|[^|]+\|[^|]+\|", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TableSeparatorRegex = new(@"^\s*\|[\s\-\|]+\|", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex MarkdownSectionRegex = new(@"^#{1,6}\s+.*$", RegexOptions.Compiled | RegexOptions.Multiline);
+
+    // Language profile provider for multilingual text segmentation
+    private static readonly ILanguageProfileProvider _languageProfileProvider = new DefaultLanguageProfileProvider();
 
     // Phase 10: Context Preservation 강화를 위한 적응형 오버랩 매니저
     private static readonly AdaptiveOverlapManager _overlapManager = new();
@@ -83,11 +88,14 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         var adaptiveOverlap = GetStrategyOption(options, "AdaptiveOverlap", true);
         var qualityThreshold = GetStrategyOption(options, "QualityThreshold", 0.6);
 
-        // 1단계: 문서 구조 분석
+        // 1단계: 언어 프로파일 결정 (자동 감지 또는 명시적 지정)
+        var languageProfile = GetLanguageProfile(text, options);
+
+        // 2단계: 문서 구조 분석
         var documentStructure = AnalyzeDocumentStructure(text);
 
-        // 2단계: 의미적 단위 추출
-        var semanticUnits = ExtractSemanticUnits(text, documentStructure);
+        // 3단계: 의미적 단위 추출
+        var semanticUnits = ExtractSemanticUnits(text, documentStructure, languageProfile);
 
         // 테이블 감지 시 청킹 크기 동적 조정
         var effectiveWindowSize = ContainsAnyTable(semanticUnits) ? contextWindowSize * 2 : contextWindowSize;
@@ -102,7 +110,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
 
         // 4단계: 품질 평가 및 최적화 - 테이블 있을 때 동적 크기 적용
         var effectiveMaxSize = ContainsAnyTable(semanticUnits) ? options.MaxChunkSize * 2 : options.MaxChunkSize;
-        var optimizedChunks = OptimizeChunks(contextualChunks, qualityThreshold, effectiveMaxSize);
+        var optimizedChunks = OptimizeChunks(contextualChunks, qualityThreshold, effectiveMaxSize, options, languageProfile);
 
         // 5단계: 최종 청크 생성
         var chunkIndex = 0;
@@ -186,7 +194,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         return structure;
     }
 
-    private static List<SemanticUnit> ExtractSemanticUnits(string text, DocumentStructure structure)
+    private static List<SemanticUnit> ExtractSemanticUnits(string text, DocumentStructure structure, ILanguageProfile languageProfile)
     {
         var units = new List<SemanticUnit>();
         var lines = text.Split('\n');
@@ -214,8 +222,8 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 }
             }
 
-            // 섹션 헤더 감지
-            var isHeader = MarkdownSectionRegex.IsMatch(line);
+            // 섹션 헤더 감지 (마크다운 + 언어별 섹션 마커)
+            var isHeader = MarkdownSectionRegex.IsMatch(line) || languageProfile.IsSectionMarker(line);
 
             // 일반 라인 처리
             var unit = new SemanticUnit
@@ -224,7 +232,8 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
                 Position = position,
                 SemanticWeight = CalculateSemanticWeight(line),
                 ContextualRelevance = CalculateContextualRelevance(line, structure),
-                Importance = isHeader ? 1.0 : CalculateImportance(line)
+                Importance = isHeader ? 1.0 : CalculateImportance(line),
+                IsSectionHeader = isHeader
             };
 
             units.Add(unit);
@@ -491,7 +500,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         return chunks;
     }
 
-    private static List<string> OptimizeChunks(List<string> chunks, double qualityThreshold, int maxSize)
+    private static List<string> OptimizeChunks(List<string> chunks, double qualityThreshold, int maxSize, ChunkingOptions options, ILanguageProfile languageProfile)
     {
         var optimized = new List<string>();
 
@@ -517,58 +526,156 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             }
         }
 
-        // 작은 청크 병합 단계: minSize 이하인 청크를 이전 청크와 병합
-        // 단, 병합 결과가 문장 완결성을 해치지 않는 경우에만 수행
-        var minSize = maxSize / 3;
-        var merged = new List<string>();
-        
-        for (int i = 0; i < optimized.Count; i++)
+        // 작은 청크 병합 단계: MinChunkSize 이하인 청크를 인접 청크와 병합
+        var minSize = Math.Max(options.MinChunkSize, 100); // Ensure reasonable minimum
+        var merged = MergeSmallChunks(optimized, minSize, maxSize, languageProfile);
+
+        // 중복 제거 단계: DeduplicateOverlaps 옵션이 활성화된 경우
+        if (options.DeduplicateOverlaps)
         {
-            var current = optimized[i];
-            
-            // 마지막 청크가 아니고, 현재 청크가 매우 작은 경우 다음 청크와 병합 시도
-            // 조건: 다음 청크가 마침표/느낌표/물음표로 끝나야 함 (문장 완결성 유지)
-            if (i < optimized.Count - 1 && current.Length < minSize)
+            merged = DeduplicateChunks(merged);
+        }
+
+        return merged;
+    }
+
+    /// <summary>
+    /// Merge chunks smaller than minSize with adjacent chunks
+    /// Uses language-aware sentence boundary detection
+    /// </summary>
+    private static List<string> MergeSmallChunks(List<string> chunks, int minSize, int maxSize, ILanguageProfile languageProfile)
+    {
+        var merged = new List<string>();
+
+        for (int i = 0; i < chunks.Count; i++)
+        {
+            var current = chunks[i];
+
+            // Skip if already above minimum size
+            if (current.Length >= minSize)
             {
-                var next = optimized[i + 1];
-                var nextTrimmed = next.TrimEnd();
-                
-                // 다음 청크가 완전한 문장으로 끝나는 경우에만 병합
-                if (nextTrimmed.EndsWith('.') || nextTrimmed.EndsWith('!') || nextTrimmed.EndsWith('?'))
+                merged.Add(current);
+                continue;
+            }
+
+            // Try to merge with next chunk
+            if (i < chunks.Count - 1)
+            {
+                var next = chunks[i + 1];
+                var combined = current + "\n\n" + next;
+
+                // Check if combined chunk is within limits and ends properly
+                if (combined.Length <= maxSize * 1.5 && languageProfile.EndsWithCompleteSentence(combined))
                 {
-                    var combined = current + "\n\n" + next;
-                    
-                    if (combined.Length <= maxSize * 2)
-                    {
-                        merged.Add(combined);
-                        i++; // 다음 청크 스킵
-                        continue;
-                    }
+                    merged.Add(combined);
+                    i++; // Skip next chunk
+                    continue;
                 }
             }
-            
-            // 마지막 청크가 매우 작으면 이전 청크와 병합 시도
-            // 조건: 현재 청크가 마침표로 끝나야 함
-            if (i == optimized.Count - 1 && current.Length < minSize && merged.Count > 0)
+
+            // Try to merge with previous chunk if this is the last small chunk
+            if (current.Length < minSize && merged.Count > 0)
             {
-                var currentTrimmed = current.TrimEnd();
-                if (currentTrimmed.EndsWith('.') || currentTrimmed.EndsWith('!') || currentTrimmed.EndsWith('?'))
+                var previous = merged[^1];
+                var combined = previous + "\n\n" + current;
+
+                if (combined.Length <= maxSize * 1.5)
                 {
-                    var previous = merged[^1];
-                    var combined = previous + "\n\n" + current;
-                    
-                    if (combined.Length <= maxSize * 2)
-                    {
-                        merged[^1] = combined;
-                        continue;
-                    }
+                    merged[^1] = combined;
+                    continue;
                 }
             }
-            
+
+            // Add as-is if no merge possible
             merged.Add(current);
         }
 
         return merged;
+    }
+
+    /// <summary>
+    /// Get language profile based on options or auto-detect from text
+    /// </summary>
+    private static ILanguageProfile GetLanguageProfile(string text, ChunkingOptions options)
+    {
+        // Use explicitly specified language if provided
+        if (!string.IsNullOrEmpty(options.LanguageCode) &&
+            !options.LanguageCode.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            return _languageProfileProvider.GetProfile(options.LanguageCode);
+        }
+
+        // Auto-detect language from text content
+        return _languageProfileProvider.DetectAndGetProfile(text);
+    }
+
+    /// <summary>
+    /// Remove chunks with >50% duplicate content from previous chunk
+    /// </summary>
+    private static List<string> DeduplicateChunks(List<string> chunks)
+    {
+        if (chunks.Count <= 1) return chunks;
+
+        var deduplicated = new List<string> { chunks[0] };
+
+        for (int i = 1; i < chunks.Count; i++)
+        {
+            var current = chunks[i];
+            var previous = deduplicated[^1];
+
+            var similarity = CalculateContentSimilarity(current, previous);
+
+            // Skip if >50% similar (likely duplicate from overlap)
+            if (similarity > 0.5)
+            {
+                // Extract only the unique portion
+                var uniqueContent = ExtractUniqueContent(current, previous);
+                if (!string.IsNullOrWhiteSpace(uniqueContent) && uniqueContent.Length >= 100)
+                {
+                    deduplicated.Add(uniqueContent);
+                }
+                // Otherwise skip entirely
+            }
+            else
+            {
+                deduplicated.Add(current);
+            }
+        }
+
+        return deduplicated;
+    }
+
+    /// <summary>
+    /// Calculate content similarity between two chunks (0.0-1.0)
+    /// </summary>
+    private static double CalculateContentSimilarity(string text1, string text2)
+    {
+        if (string.IsNullOrEmpty(text1) || string.IsNullOrEmpty(text2))
+            return 0.0;
+
+        var words1 = GetUniqueWords(text1);
+        var words2 = GetUniqueWords(text2);
+
+        var intersection = words1.Intersect(words2).Count();
+        var union = words1.Union(words2).Count();
+
+        return union == 0 ? 0.0 : (double)intersection / union;
+    }
+
+    /// <summary>
+    /// Extract content from current chunk that is not in previous chunk
+    /// </summary>
+    private static string ExtractUniqueContent(string current, string previous)
+    {
+        var currentLines = current.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var previousLines = new HashSet<string>(previous.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim()));
+
+        var uniqueLines = currentLines
+            .Where(line => !previousLines.Contains(line.Trim()))
+            .ToList();
+
+        return string.Join("\n", uniqueLines);
     }
 
     private static bool ShouldStartNewChunk(List<SemanticUnit> currentChunk, SemanticUnit newUnit, double coherenceThreshold)
@@ -1765,6 +1872,7 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
         public double SemanticWeight { get; set; }
         public double ContextualRelevance { get; set; }
         public double Importance { get; set; }
+        public bool IsSectionHeader { get; set; }
     }
 
     /// <summary>
