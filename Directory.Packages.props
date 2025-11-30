@@ -39,7 +39,7 @@
     <PackageVersion Include="OpenAI" Version="2.7.0" />
   </ItemGroup>
   <ItemGroup Label="FluxImprover">
-    <PackageVersion Include="FluxImprover" Version="0.2.0" />
+    <PackageVersion Include="FluxImprover" Version="0.3.0" />
   </ItemGroup>
   <ItemGroup Label="Embeddings">
     <PackageVersion Include="LocalEmbedder" Version="0.3.1" />

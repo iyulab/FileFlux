@@ -12,7 +12,8 @@
   </ItemGroup>
 
   <ItemGroup Label="FluxImprover">
-    <ProjectReference Include="D:\data\FluxImprover\src\FluxImprover\FluxImprover.csproj" />
+    <!-- FluxImprover quality layer for LLM-based chunk enrichment -->
+    <PackageReference Include="FluxImprover" />
   </ItemGroup>
 
   <ItemGroup>
