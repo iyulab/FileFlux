@@ -44,6 +44,10 @@ public class AIProviderFactory
                 ConfigureGpuStack(services);
                 break;
 
+            case "google":
+                ConfigureGoogle(services);
+                break;
+
             case "none":
                 // No AI provider configured - FileFlux will work without AI features
                 break;
@@ -55,7 +59,7 @@ public class AIProviderFactory
                     "Set MODEL_PROVIDER environment variable to select one.");
 
             default:
-                throw new InvalidOperationException($"Provider '{provider}' is not supported. Supported: openai, anthropic, gpustack.");
+                throw new InvalidOperationException($"Provider '{provider}' is not supported. Supported: openai, anthropic, gpustack, google.");
         }
     }
 
@@ -72,6 +76,7 @@ public class AIProviderFactory
             "openai" => $"OpenAI ({_config.OpenAIModel}){visionStatus}",
             "anthropic" => $"Anthropic ({_config.AnthropicModel}){visionStatus}",
             "gpustack" => $"GPU-Stack ({_config.GpuStackModel ?? "default"}){visionStatus}",
+            "google" => $"Google Gemini ({_config.GoogleModel}){visionStatus}",
             "none" => "No AI provider (basic processing only)",
             "ambiguous" => $"Ambiguous (set MODEL_PROVIDER: {string.Join(", ", _config.GetConfiguredProviders())})",
             _ => $"Unsupported: {provider}"
@@ -98,6 +103,7 @@ public class AIProviderFactory
             "openai" => CreateOpenAIFluxImproverService(),
             "anthropic" => CreateAnthropicFluxImproverService(),
             "gpustack" => CreateGpuStackFluxImproverService(),
+            "google" => CreateGoogleFluxImproverService(),
             _ => null
         };
 
@@ -131,6 +137,13 @@ public class AIProviderFactory
         var model = _config.GpuStackModel ?? throw new InvalidOperationException("GPU-Stack model not configured");
         var endpoint = _config.GpuStackEndpoint ?? "http://localhost:8080";
         return new Providers.FluxImprover.OpenAICompletionService(apiKey, model, endpoint);
+    }
+
+    private FluxImproverService CreateGoogleFluxImproverService()
+    {
+        var apiKey = _config.GoogleApiKey ?? throw new InvalidOperationException("Google API key not configured");
+        var model = _config.GoogleModel ?? "gemini-2.5-flash";
+        return new Providers.FluxImprover.GoogleCompletionService(apiKey, model);
     }
 
     private void ConfigureOpenAI(IServiceCollection services)
@@ -206,6 +219,29 @@ public class AIProviderFactory
         {
             services.AddScoped<IImageToTextService>(sp =>
                 new OpenAIImageToTextService(apiKey, model, endpoint, _verbose));
+        }
+    }
+
+    private void ConfigureGoogle(IServiceCollection services)
+    {
+        var apiKey = _config.GoogleApiKey;
+        var model = _config.GoogleModel ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException(
+                "Google API key not found. Set GOOGLE_API_KEY or GEMINI_API_KEY environment variable.");
+        }
+
+        // Register text completion service
+        services.AddScoped<ITextCompletionService>(sp =>
+            new GoogleTextCompletionService(apiKey, model));
+
+        // Register image-to-text service if vision is enabled
+        if (_enableVision)
+        {
+            services.AddScoped<IImageToTextService>(sp =>
+                new GoogleImageToTextService(apiKey, model, _verbose));
         }
     }
 }

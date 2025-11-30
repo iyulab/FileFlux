@@ -34,6 +34,11 @@ public class CliEnvironmentConfig
 
     public string? GpuStackModel => GetValue("GPUSTACK_MODEL");
 
+    // Google Gemini configuration
+    public string? GoogleApiKey => GetValue("GOOGLE_API_KEY") ?? GetValue("GEMINI_API_KEY");
+
+    public string? GoogleModel => GetValue("GOOGLE_MODEL") ?? GetValue("GEMINI_MODEL") ?? "gemini-2.5-flash";
+
     /// <summary>
     /// Get value with priority: Environment Variable > Config File
     /// </summary>
@@ -57,9 +62,9 @@ public class CliEnvironmentConfig
         if (!string.IsNullOrWhiteSpace(Provider))
         {
             var provider = Provider.ToLowerInvariant();
-            if (provider == "openai" || provider == "anthropic" || provider == "gpustack")
+            if (provider == "openai" || provider == "anthropic" || provider == "gpustack" || provider == "google" || provider == "gemini")
             {
-                return provider;
+                return provider == "gemini" ? "google" : provider;
             }
         }
 
@@ -96,6 +101,9 @@ public class CliEnvironmentConfig
 
         if (!string.IsNullOrWhiteSpace(GpuStackApiKey))
             providers.Add("gpustack");
+
+        if (!string.IsNullOrWhiteSpace(GoogleApiKey))
+            providers.Add("google");
 
         return providers;
     }
