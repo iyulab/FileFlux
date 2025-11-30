@@ -120,3 +120,229 @@ public interface ISourceMetadata
     /// </summary>
     int? PageCount { get; }
 }
+
+/// <summary>
+/// Hierarchical chunk interface for parent-child relationships
+/// Enables multi-level granularity: small chunks for retrieval, larger parent chunks for context
+/// </summary>
+public interface IHierarchicalChunk : IEnrichedChunk
+{
+    /// <summary>
+    /// Parent chunk ID (null for root/document-level chunks)
+    /// </summary>
+    string? ParentChunkId { get; }
+
+    /// <summary>
+    /// Child chunk IDs (empty list for leaf chunks)
+    /// </summary>
+    IReadOnlyList<string> ChildChunkIds { get; }
+
+    /// <summary>
+    /// Hierarchy level in document structure
+    /// 0 = document level (largest context)
+    /// 1 = section level
+    /// 2 = subsection level
+    /// 3 = paragraph level (smallest, most granular)
+    /// </summary>
+    int HierarchyLevel { get; }
+
+    /// <summary>
+    /// Type of chunk in the hierarchy
+    /// </summary>
+    HierarchyChunkType ChunkType { get; }
+
+    /// <summary>
+    /// Merge group ID for auto-merging related chunks during retrieval
+    /// Chunks with the same merge group can be combined for richer context
+    /// </summary>
+    string? MergeGroupId { get; }
+}
+
+/// <summary>
+/// Defines the type of chunk within a hierarchical structure
+/// </summary>
+public enum HierarchyChunkType
+{
+    /// <summary>
+    /// Root/document-level chunk containing overview
+    /// </summary>
+    Root = 0,
+
+    /// <summary>
+    /// Parent chunk that has children (section or subsection header with summary)
+    /// </summary>
+    Parent = 1,
+
+    /// <summary>
+    /// Leaf chunk with no children (actual content for retrieval)
+    /// </summary>
+    Leaf = 2,
+
+    /// <summary>
+    /// Summary chunk aggregating child content
+    /// </summary>
+    Summary = 3
+}
+
+
+/// <summary>
+/// Standard keys for DocumentChunk.Props dictionary.
+/// Use these constants instead of magic strings for consistency.
+/// </summary>
+public static class ChunkPropsKeys
+{
+    // ============================================
+    // Chunk Relationships (Phase A)
+    // ============================================
+
+    /// <summary>
+    /// Previous chunk ID in sequence (string, Guid format)
+    /// </summary>
+    public const string PreviousChunkId = "relations_previous_id";
+
+    /// <summary>
+    /// Next chunk ID in sequence (string, Guid format)
+    /// </summary>
+    public const string NextChunkId = "relations_next_id";
+
+    /// <summary>
+    /// Parent chunk ID for hierarchical structure (string, Guid format)
+    /// </summary>
+    public const string ParentChunkId = "relations_parent_id";
+
+    /// <summary>
+    /// Child chunk IDs for hierarchical structure (List&lt;string&gt;)
+    /// </summary>
+    public const string ChildChunkIds = "relations_child_ids";
+
+    // ============================================
+    // Context Information (Phase A)
+    // ============================================
+
+    /// <summary>
+    /// Full breadcrumb path as string (e.g., "Document > Chapter 1 > Section 1.2")
+    /// </summary>
+    public const string ContextBreadcrumb = "context_breadcrumb";
+
+    /// <summary>
+    /// Document title for context
+    /// </summary>
+    public const string ContextDocumentTitle = "context_document_title";
+
+    /// <summary>
+    /// Document type/category (e.g., "financial_report", "technical_documentation")
+    /// </summary>
+    public const string ContextDocumentType = "context_document_type";
+
+    // ============================================
+    // Hierarchy Information (Phase B)
+    // ============================================
+
+    /// <summary>
+    /// Hierarchy level (0=document, 1=section, 2=subsection, 3=paragraph)
+    /// </summary>
+    public const string HierarchyLevel = "hierarchy_level";
+
+    /// <summary>
+    /// Chunk type in hierarchy ("parent", "child", "leaf")
+    /// </summary>
+    public const string HierarchyChunkType = "hierarchy_chunk_type";
+
+    /// <summary>
+    /// Merge group ID for auto-merge functionality (Guid format)
+    /// </summary>
+    public const string MergeGroupId = "merge_group_id";
+
+    // ============================================
+    // Quality Metrics (Phase C)
+    // ============================================
+
+    /// <summary>
+    /// Semantic completeness score (0.0 - 1.0)
+    /// </summary>
+    public const string QualitySemanticCompleteness = "quality_semantic_completeness";
+
+    /// <summary>
+    /// Context independence score (0.0 - 1.0) - can chunk be understood alone?
+    /// </summary>
+    public const string QualityContextIndependence = "quality_context_independence";
+
+    /// <summary>
+    /// Information density score (0.0 - 1.0)
+    /// </summary>
+    public const string QualityInformationDensity = "quality_information_density";
+
+    /// <summary>
+    /// Boundary sharpness score (0.0 - 1.0) - clean semantic boundaries?
+    /// </summary>
+    public const string QualityBoundarySharpness = "quality_boundary_sharpness";
+
+    // ============================================
+    // Existing Keys (for reference - gradual migration)
+    // ============================================
+
+    /// <summary>
+    /// Auto-selected chunking strategy name
+    /// </summary>
+    public const string AutoSelectedStrategy = "AutoSelectedStrategy";
+
+    /// <summary>
+    /// Selection reasoning for auto strategy
+    /// </summary>
+    public const string SelectionReasoning = "SelectionReasoning";
+
+    /// <summary>
+    /// Selection confidence score
+    /// </summary>
+    public const string SelectionConfidence = "SelectionConfidence";
+
+    /// <summary>
+    /// Detected document domain (e.g., "Technical", "Legal", "Medical")
+    /// </summary>
+    public const string Domain = "Domain";
+
+    /// <summary>
+    /// Contextual header for RAG retrieval
+    /// </summary>
+    public const string ContextualHeader = "ContextualHeader";
+
+    /// <summary>
+    /// Structural role of the chunk (e.g., "introduction", "conclusion", "body")
+    /// </summary>
+    public const string StructuralRole = "StructuralRole";
+
+    /// <summary>
+    /// Relevance score for search
+    /// </summary>
+    public const string RelevanceScore = "RelevanceScore";
+
+    /// <summary>
+    /// Technical keywords extracted from chunk
+    /// </summary>
+    public const string TechnicalKeywords = "TechnicalKeywords";
+
+    /// <summary>
+    /// Completeness score
+    /// </summary>
+    public const string Completeness = "Completeness";
+
+    /// <summary>
+    /// Semantic coherence score
+    /// </summary>
+    public const string SemanticCoherence = "SemanticCoherence";
+
+    /// <summary>
+    /// Sentence integrity score
+    /// </summary>
+    public const string SentenceIntegrity = "SentenceIntegrity";
+
+    /// <summary>
+    /// RAG suitability score
+    /// </summary>
+    public const string RagSuitability = "RagSuitability";
+
+    /// <summary>
+    /// Quality grade (A, B, C, D, F)
+    /// </summary>
+    public const string QualityGrade = "QualityGrade";
+}

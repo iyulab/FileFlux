@@ -69,6 +69,9 @@ public partial class MemoryOptimizedIntelligentChunkingStrategy : IChunkingStrat
                 chunk.Metadata.CustomProperties["MemoryUsageBytes"] = memoryUsed / chunks.Count; // 청크당 평균 메모리
             }
 
+            // Finalize chunks with count and relationships
+            ChunkingHelper.FinalizeChunks(chunks);
+
             return chunks;
         }
         catch (Exception ex)

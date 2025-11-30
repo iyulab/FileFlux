@@ -109,8 +109,8 @@ public partial class SemanticChunkingStrategy : IChunkingStrategy
             chunks.Add(chunk);
         }
 
-        // Update chunk count in source info
-        ChunkingHelper.UpdateChunkCount(chunks);
+        // Finalize chunks with count and relationships
+        ChunkingHelper.FinalizeChunks(chunks);
 
         return await Task.FromResult(chunks);
     }

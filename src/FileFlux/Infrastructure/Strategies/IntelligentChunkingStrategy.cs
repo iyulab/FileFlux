@@ -135,6 +135,9 @@ public partial class IntelligentChunkingStrategy : IChunkingStrategy
             globalPosition += chunkContent.Length;
         }
 
+        // Finalize chunks with count and relationships
+        ChunkingHelper.FinalizeChunks(chunks);
+
         return await Task.FromResult(chunks);
     }
 

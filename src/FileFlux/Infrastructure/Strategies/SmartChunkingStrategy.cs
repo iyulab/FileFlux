@@ -76,8 +76,8 @@ public partial class SmartChunkingStrategy : IChunkingStrategy
             globalPosition += chunkContent.Length;
         }
 
-        // Update chunk count in all chunks
-        ChunkingHelper.UpdateChunkCount(chunks);
+        // Finalize chunks with count and relationships
+        ChunkingHelper.FinalizeChunks(chunks);
 
         return await Task.FromResult(chunks);
     }

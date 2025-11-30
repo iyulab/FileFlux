@@ -89,6 +89,19 @@ public class ChunkingStrategyFactory : IChunkingStrategyFactory
                 Performance = new PerformanceCharacteristics { Speed = 3, Quality = 4, MemoryEfficiency = 3, RequiresLLM = false }
             });
 
+        RegisterStrategy("Hierarchical",
+            () => new HierarchicalChunkingStrategy(),
+            new ChunkingStrategyMetadata
+            {
+                StrategyName = "Hierarchical",
+                Description = "Multi-level parent-child chunking for RAG retrieval with context",
+                OptimalForDocumentTypes = new[] { "Technical Documentation", "Academic", "Structured Reports" },
+                Strengths = new[] { "Parent-child relationships", "Context preservation", "Multi-level granularity" },
+                Limitations = new[] { "Requires structured documents", "More chunks generated" },
+                PriorityScore = 82,
+                Performance = new PerformanceCharacteristics { Speed = 3, Quality = 5, MemoryEfficiency = 3, RequiresLLM = false }
+            });
+
         RegisterStrategy("Paragraph",
             () => new ParagraphChunkingStrategy(),
             new ChunkingStrategyMetadata

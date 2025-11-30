@@ -111,6 +111,9 @@ public partial class ParagraphChunkingStrategy : IChunkingStrategy
             chunks.Add(chunk);
         }
 
+        // Finalize chunks with count and relationships
+        ChunkingHelper.FinalizeChunks(chunks);
+
         return await Task.FromResult(chunks);
     }
 

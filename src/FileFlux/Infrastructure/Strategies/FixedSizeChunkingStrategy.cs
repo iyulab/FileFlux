@@ -91,6 +91,9 @@ public partial class FixedSizeChunkingStrategy : IChunkingStrategy
             currentPosition = nextStart;
         }
 
+        // Finalize chunks with count and relationships
+        ChunkingHelper.FinalizeChunks(chunks);
+
         return await Task.FromResult(chunks);
     }
 
