@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- All common properties inherited from Directory.Build.props -->
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>FileFlux.Core</PackageId>
+    <Title>FileFlux.Core - Document Extraction SDK</Title>
+    <Description>Core document extraction SDK for RAG systems. Extract text from PDF, DOCX, Excel, PowerPoint, Markdown, HTML, and text files. Includes interfaces for custom chunking strategies. Use FileFlux.Core when you want extraction only and will implement your own chunking logic.</Description>
+    <PackageTags>rag;document;extraction;pdf;docx;excel;powerpoint;markdown;html;text;reader;fileflux;core</PackageTags>
+    <PackageReleaseNotes>Core extraction package with document readers for all major formats. No FluxCurator/FluxImprover dependency - bring your own chunking implementation.</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Document Processing Libraries -->
+    <PackageReference Include="PdfPig" />
+    <PackageReference Include="DocumentFormat.OpenXml" />
+    <PackageReference Include="Mammoth" />
+    <PackageReference Include="ReverseMarkdown" />
+    <PackageReference Include="Markdig" />
+    <PackageReference Include="HtmlAgilityPack" />
+    <PackageReference Include="CsvHelper" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+</Project>

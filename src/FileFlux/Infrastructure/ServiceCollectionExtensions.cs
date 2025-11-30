@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using FileFlux.Core;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Languages;
-using FileFlux.Infrastructure.Readers;
+using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
 using FileFlux.Infrastructure.Services;
 using FileFlux.Infrastructure.Strategies;

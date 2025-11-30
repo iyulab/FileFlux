@@ -1,4 +1,4 @@
-﻿using FileFlux.Infrastructure.Readers;
+﻿using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure.Factories;
 using Microsoft.Extensions.Logging;
 using Xunit;

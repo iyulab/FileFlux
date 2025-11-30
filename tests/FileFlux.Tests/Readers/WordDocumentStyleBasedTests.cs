@@ -1,7 +1,7 @@
 ﻿using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using FileFlux.Infrastructure.Readers;
+using FileFlux.Core.Infrastructure.Readers;
 using System.Text;
 using Xunit;
 using Xunit.Abstractions;

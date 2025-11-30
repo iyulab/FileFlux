@@ -1,4 +1,4 @@
-using FileFlux.Domain;
+using FileFlux.Core;
 
 namespace FileFlux.CLI.Output;
 

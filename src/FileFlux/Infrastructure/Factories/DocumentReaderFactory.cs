@@ -1,5 +1,6 @@
 using FileFlux;
-using FileFlux.Domain;
+using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 using System.Collections.Concurrent;
 
 namespace FileFlux.Infrastructure.Factories;
@@ -40,6 +41,22 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         {
             return _readers.ToList();
         }
+    }
+
+    /// <summary>
+    /// IDocumentReaderFactory.GetAllReaders() implementation
+    /// </summary>
+    public IEnumerable<IDocumentReader> GetAllReaders()
+    {
+        return GetAvailableReaders();
+    }
+
+    /// <summary>
+    /// IDocumentReaderFactory.CanRead(string) implementation
+    /// </summary>
+    public bool CanRead(string fileName)
+    {
+        return GetReader(fileName) != null;
     }
 
     public IDocumentReader? GetReader(string fileName)
@@ -149,17 +166,17 @@ public class DocumentReaderFactory : IDocumentReaderFactory
 
     private void RegisterDefaultReaders()
     {
-        // 텍스트 기반 Reader들
-        RegisterReader(new Readers.TextDocumentReader());
-        RegisterReader(new Readers.MarkdownDocumentReader());
-        RegisterReader(new Readers.HtmlDocumentReader());
+        // Text-based Readers
+        RegisterReader(new TextDocumentReader());
+        RegisterReader(new MarkdownDocumentReader());
+        RegisterReader(new HtmlDocumentReader());
 
-        // Office 문서 Reader들 (DocumentFormat.OpenXml 기반)
-        RegisterReader(new Readers.WordDocumentReader());
-        RegisterReader(new Readers.ExcelDocumentReader());
-        RegisterReader(new Readers.PowerPointDocumentReader());
+        // Office document Readers (DocumentFormat.OpenXml based)
+        RegisterReader(new WordDocumentReader());
+        RegisterReader(new ExcelDocumentReader());
+        RegisterReader(new PowerPointDocumentReader());
 
-        // PDF Reader (PdfPig 기반)
-        RegisterReader(new Readers.PdfDocumentReader());
+        // PDF Reader (PdfPig based)
+        RegisterReader(new PdfDocumentReader());
     }
 }

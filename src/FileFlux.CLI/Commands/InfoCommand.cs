@@ -1,4 +1,5 @@
 using FileFlux;
+using FileFlux.Core;
 using FileFlux.CLI.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
@@ -81,7 +82,7 @@ public class InfoCommand : Command
                         using var provider = services.BuildServiceProvider();
                         var processor = provider.GetRequiredService<IDocumentProcessor>();
 
-                        var chunks = await processor.ProcessAsync(input, new FileFlux.Domain.ChunkingOptions
+                        var chunks = await processor.ProcessAsync(input, new ChunkingOptions
                         {
                             Strategy = "FixedSize",
                             MaxChunkSize = 100000

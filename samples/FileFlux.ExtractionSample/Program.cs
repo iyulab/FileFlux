@@ -3,8 +3,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FileFlux;
-using FileFlux.Domain;
-using FileFlux.Infrastructure.Readers;
+using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 

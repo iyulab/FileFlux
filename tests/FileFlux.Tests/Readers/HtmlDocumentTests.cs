@@ -1,4 +1,4 @@
-﻿using FileFlux.Infrastructure.Readers;
+﻿using FileFlux.Core.Infrastructure.Readers;
 using System.Text;
 using Xunit;
 using Xunit.Abstractions;

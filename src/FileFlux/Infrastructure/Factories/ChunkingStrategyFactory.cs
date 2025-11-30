@@ -216,6 +216,17 @@ public class ChunkingStrategyFactory : IChunkingStrategyFactory
     public IEnumerable<string> AvailableStrategyNames => _strategyFactories.Keys;
 
     /// <summary>
+    /// Get available strategy names (IChunkingStrategyFactory implementation)
+    /// </summary>
+    public IEnumerable<string> GetAvailableStrategyNames() => _strategyFactories.Keys;
+
+    /// <summary>
+    /// Check if a strategy is available
+    /// </summary>
+    public bool HasStrategy(string strategyName) =>
+        !string.IsNullOrEmpty(strategyName) && _strategyFactories.ContainsKey(strategyName);
+
+    /// <summary>
     /// 전략 메타데이터 가져오기
     /// </summary>
     public IChunkingStrategyMetadata? GetStrategyMetadata(string strategyName)

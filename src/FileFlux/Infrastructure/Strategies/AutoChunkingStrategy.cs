@@ -60,7 +60,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
         var forceStrategy = GetStrategyOption<string>(options, "ForceStrategy", null);
         if (!string.IsNullOrEmpty(forceStrategy))
         {
-            _selectedStrategy = _strategyFactory.CreateStrategy(forceStrategy);
+            _selectedStrategy = _strategyFactory.GetStrategy(forceStrategy);
             _selectedStrategyName = forceStrategy;
             _selectionReasoning = $"Forced strategy: {forceStrategy}";
             _lastSelectionResult = null;
@@ -75,7 +75,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
         if (_selectedStrategy == null)
         {
             // Fallback to Smart strategy
-            _selectedStrategy = _strategyFactory.CreateStrategy("Smart");
+            _selectedStrategy = _strategyFactory.GetStrategy("Smart");
             _selectedStrategyName = "Smart";
             _selectionReasoning = "Fallback to Smart strategy due to selection failure";
         }
@@ -155,7 +155,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
         // Use Smart strategy as default for estimation
         if (_selectedStrategy == null)
         {
-            var smartStrategy = _strategyFactory.CreateStrategy("Smart");
+            var smartStrategy = _strategyFactory.GetStrategy("Smart");
             return smartStrategy?.EstimateChunkCount(content, options) ?? 0;
         }
 
@@ -223,14 +223,14 @@ public class AutoChunkingStrategy : IChunkingStrategy
             }
 
             // 전략 인스턴스 생성
-            _selectedStrategy = _strategyFactory.CreateStrategy(_selectedStrategyName);
+            _selectedStrategy = _strategyFactory.GetStrategy(_selectedStrategyName);
         }
         catch (OperationCanceledException)
         {
             // 타임아웃 발생 - 빠른 기본 전략 선택
             _selectedStrategyName = "Smart";
             _selectionReasoning = "Selection timeout, using Smart strategy as default";
-            _selectedStrategy = _strategyFactory.CreateStrategy(_selectedStrategyName);
+            _selectedStrategy = _strategyFactory.GetStrategy(_selectedStrategyName);
             _lastSelectionResult = null;
         }
         catch (Exception ex)
@@ -238,7 +238,7 @@ public class AutoChunkingStrategy : IChunkingStrategy
             // 오류 발생 - 안전한 기본 전략
             _selectedStrategyName = "Smart";
             _selectionReasoning = $"Selection error: {ex.Message}. Using Smart strategy as fallback";
-            _selectedStrategy = _strategyFactory.CreateStrategy(_selectedStrategyName);
+            _selectedStrategy = _strategyFactory.GetStrategy(_selectedStrategyName);
             _lastSelectionResult = null;
         }
     }

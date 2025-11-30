@@ -2,6 +2,10 @@
 
   <!-- All common properties inherited from Directory.Build.props -->
 
+  <ItemGroup>
+    <Using Include="FileFlux.Core" />
+  </ItemGroup>
+
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <PackageId>FileFlux</PackageId>
@@ -34,6 +38,15 @@
 
   <ItemGroup Label="Embeddings">
     <PackageReference Include="LocalEmbedder" />
+  </ItemGroup>
+
+  <ItemGroup Label="Core">
+    <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Label="Text Processing">
+    <ProjectReference Include="..\..\..\FluxCurator\src\FluxCurator\FluxCurator.csproj" />
+    <ProjectReference Include="..\..\..\FluxImprover\src\FluxImprover\FluxImprover.csproj" />
   </ItemGroup>
 
 </Project>

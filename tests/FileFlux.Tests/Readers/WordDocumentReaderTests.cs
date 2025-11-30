@@ -1,6 +1,6 @@
-﻿using FileFlux.Infrastructure.Readers;
+﻿using FileFlux.Core.Infrastructure.Readers;
 using FileFlux;
-using FileFlux.Exceptions;
+using FileFlux.Core;
 using FileFlux.Domain;
 using Microsoft.Extensions.Logging;
 using Xunit;

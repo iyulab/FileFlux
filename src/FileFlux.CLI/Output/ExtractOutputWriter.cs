@@ -1,4 +1,4 @@
-using FileFlux.Domain;
+using FileFlux.Core;
 using System.Text;
 using System.Text.RegularExpressions;
 

@@ -1,7 +1,6 @@
 using FileFlux;
-using FileFlux.Domain;
+using FileFlux.Core;
 using System.Text.RegularExpressions;
-using DocumentStructure = FileFlux.Domain.DocumentStructure;
 
 namespace FileFlux.Infrastructure.Parsers;
 

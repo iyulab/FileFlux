@@ -1,6 +1,7 @@
 using FileFlux.Tests.TestHelpers;
-﻿using FileFlux;
-using FileFlux.Domain;
+using FileFlux;
+using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Tests.Mocks;
@@ -23,7 +24,7 @@ public class RealDocumentProcessingTests
         _output = output;
 
         var readerFactory = new DocumentReaderFactory();
-        readerFactory.RegisterReader(new Infrastructure.Readers.TextDocumentReader());
+        readerFactory.RegisterReader(new TextDocumentReader());
 
         var mockTextCompletionService = new MockTextCompletionService();
         var parserFactory = new DocumentParserFactory(mockTextCompletionService);

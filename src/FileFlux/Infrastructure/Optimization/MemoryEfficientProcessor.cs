@@ -13,13 +13,13 @@ namespace FileFlux.Infrastructure.Optimization;
 public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
 {
     private readonly IDocumentProcessor _baseProcessor;
-    private readonly IMemoryCache _cache;
+    private readonly IDocumentCache _cache;
     private readonly MemoryOptimizationOptions _options;
     private readonly SemaphoreSlim _semaphore;
 
     public MemoryEfficientProcessor(
         IDocumentProcessor baseProcessor,
-        IMemoryCache? cache = null,
+        IDocumentCache? cache = null,
         MemoryOptimizationOptions? options = null)
     {
         _baseProcessor = baseProcessor ?? throw new ArgumentNullException(nameof(baseProcessor));

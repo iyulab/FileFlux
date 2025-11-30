@@ -6,11 +6,16 @@
 
 ### 1. Clean Architecture
 
-FileFlux follows clean architecture principles within a **unified single project**:
+FileFlux follows clean architecture principles with a **two-package structure**:
 
-- **Core/ folder**: Interface definitions and abstractions
-- **Domain/ folder**: Core models and domain entities
-- **Infrastructure/ folder**: Concrete implementations (readers, strategies, services)
+- **FileFlux.Core**: Complete document extraction with zero AI dependencies
+  - All document readers (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML)
+  - Core interfaces and domain models
+  - AI service interfaces (user implements)
+- **FileFlux**: Full RAG pipeline implementation
+  - Chunking strategies
+  - FluxCurator and FluxImprover
+  - Processing orchestration
 
 ### 2. Interface-Driven Design
 
@@ -69,74 +74,88 @@ graph TB
 
 ### Project Structure
 
-FileFlux is a **unified single project** with internal organization:
+FileFlux uses a **two-package architecture** for flexibility:
 
 ```
-FileFlux/
-├── Core/                      # Interfaces & Abstractions
+FileFlux.Core/                    # Extraction-Only Package (Zero AI Dependencies)
+├── Exceptions/                   # Exception types
+│   ├── FileFluxException
+│   ├── DocumentProcessingException
+│   └── UnsupportedFileFormatException
+├── Infrastructure/
+│   └── Readers/                  # All Document Readers
+│       ├── PdfDocumentReader
+│       ├── WordDocumentReader
+│       ├── ExcelDocumentReader
+│       ├── PowerPointDocumentReader
+│       ├── MarkdownDocumentReader
+│       ├── HtmlDocumentReader
+│       ├── TextDocumentReader
+│       ├── JsonDocumentReader
+│       ├── CsvDocumentReader
+│       └── MultiModal* Readers
+├── Utils/                        # Utilities
+│   └── FileNameHelper
+├── IDocumentReader.cs            # Reader interface
+├── IDocumentParser.cs            # Parser interface
+├── IChunkingStrategy.cs          # Strategy interface
+├── ITextCompletionService.cs     # AI service interface
+├── IImageToTextService.cs        # Vision AI interface
+├── IImageRelevanceEvaluator.cs   # Image relevance interface
+├── DocumentChunk.cs              # Chunk model
+├── RawContent.cs                 # Extraction result model
+├── ParsedContent.cs              # Parsed content model
+└── ChunkingOptions.cs            # Options model
+
+FileFlux/                         # Full RAG Pipeline Package
+├── Core/                         # Additional interfaces
 │   ├── IDocumentProcessor
-│   ├── IDocumentReader
-│   ├── IChunkingStrategy
 │   ├── IMetadataEnricher
-│   └── Factories
-├── Domain/                    # Domain Models
-│   ├── DocumentChunk
-│   ├── RawContent
-│   ├── ParsedDocumentContent
-│   └── ChunkingOptions
-└── Infrastructure/           # Implementations
-    ├── Readers/             # Document Readers
-    ├── Strategies/          # Chunking Strategies
-    ├── Languages/           # Language Profiles
-    │   ├── LanguageProfiles.cs  (11 language implementations)
-    │   └── DefaultLanguageProfileProvider.cs
-    ├── Services/            # Processing Services
-    │   ├── AIMetadataEnricher
-    │   ├── RuleBasedMetadataExtractor
-    │   ├── LanguageDetector
-    │   └── ContextDependencyAnalyzer
-    └── Utilities/           # Helper Classes
-        └── ChunkingHelper
+│   └── Factories/
+├── Infrastructure/
+│   ├── Strategies/               # Chunking Strategies
+│   │   ├── AutoChunkingStrategy
+│   │   ├── SmartChunkingStrategy
+│   │   ├── IntelligentChunkingStrategy
+│   │   └── SemanticChunkingStrategy
+│   ├── Languages/                # Language Profiles
+│   │   └── LanguageProfiles.cs
+│   ├── Services/                 # Processing Services
+│   │   ├── AIMetadataEnricher
+│   │   ├── FluxCurator
+│   │   └── FluxImprover
+│   └── Factories/                # Factory implementations
+└── DocumentProcessor.cs          # Main orchestrator
 ```
 
 ### Layer Structure
 
 ```
-┌─────────────────────────────────┐
-│         Client Layer            │
-│ • Application Code              │
-│ • RAG Systems Integration       │
-│ • Service Configuration         │
-├─────────────────────────────────┤
-│                                 │
-│      FileFlux Package           │
-│  (Unified Single Project)       │
-│                                 │
-│  ┌───────────────────────────┐  │
-│  │    Core/ (Abstractions)   │  │
-│  │  • IDocumentProcessor     │  │
-│  │  • IDocumentReader        │  │
-│  │  • IChunkingStrategy      │  │
-│  │  • ILanguageProfile       │  │
-│  └───────────────────────────┘  │
-│                                 │
-│  ┌───────────────────────────┐  │
-│  │    Domain/ (Models)       │  │
-│  │  • DocumentChunk          │  │
-│  │  • RawContent             │  │
-│  │  • ParsedDocumentContent  │  │
-│  │  • ChunkingOptions        │  │
-│  └───────────────────────────┘  │
-│                                 │
-│  ┌───────────────────────────┐  │
-│  │ Infrastructure/ (Impls)   │  │
-│  │  • Document Readers       │  │
-│  │  • Chunking Strategies    │  │
-│  │  • Processing Services    │  │
-│  │  • Utilities              │  │
-│  └───────────────────────────┘  │
-│                                 │
-└─────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Client Layer                             │
+│  • Application Code                                         │
+│  • RAG Systems Integration                                  │
+│  • AI Service Implementation                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────┐  ┌─────────────────────────┐  │
+│  │   FileFlux.Core         │  │     FileFlux            │  │
+│  │  (Extraction Only)      │  │  (Full RAG Pipeline)    │  │
+│  │                         │  │                         │  │
+│  │  • Document Readers     │──│  • Chunking Strategies  │  │
+│  │  • Core Interfaces      │  │  • FluxCurator          │  │
+│  │  • Domain Models        │  │  • FluxImprover         │  │
+│  │  • AI Service Contracts │  │  • DocumentProcessor    │  │
+│  │  • Zero AI Dependencies │  │  • Orchestration        │  │
+│  │                         │  │                         │  │
+│  └─────────────────────────┘  └─────────────────────────┘  │
+│                                                             │
+│   Use Case:                    Use Case:                    │
+│   - Extract documents only     - Full processing pipeline   │
+│   - Implement own chunking     - Use built-in strategies    │
+│   - Minimal dependencies       - AI-enhanced features       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Core Components
@@ -515,7 +534,26 @@ DocumentChunk.ParsedId → ParsedDocumentContent.Id
 
 FileFlux focuses on transforming documents into structured chunks, leaving embedding generation and vector storage to user choice.
 
+**Two-Package Strategy**:
+- **FileFlux.Core**: For users who need only document extraction and want to implement their own chunking logic
+- **FileFlux**: For users who want the complete RAG processing pipeline with FluxCurator and FluxImprover
+
 **Interface Provider Pattern**: FileFlux defines interfaces (ITextCompletionService, IImageToTextService) while implementation is up to consuming applications.
+
+**Package Selection Guide**:
+```csharp
+// Extraction only - implement your own chunking
+using FileFlux.Core;
+var reader = new PdfDocumentReader();
+var rawContent = await reader.ReadAsync("document.pdf");
+// Implement your own chunking logic
+
+// Full RAG pipeline - use built-in features
+using FileFlux;
+services.AddFileFlux();
+var processor = serviceProvider.GetRequiredService<IDocumentProcessor>();
+var chunks = await processor.ProcessAsync("document.pdf", options);
+```
 
 ## Related Documentation
 

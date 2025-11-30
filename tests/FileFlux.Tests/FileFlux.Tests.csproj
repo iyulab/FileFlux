@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="FileFlux.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\FileFlux\FileFlux.csproj" />
     <ProjectReference Include="..\..\src\FileFlux.CLI\FileFlux.CLI.csproj" />
   </ItemGroup>

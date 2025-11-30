@@ -1,55 +1,6 @@
 namespace FileFlux.Domain;
 
-/// <summary>
-/// 문서 타입 열거형
-/// </summary>
-public enum DocumentType
-{
-    /// <summary>
-    /// 기본 텍스트 문서
-    /// </summary>
-    Text,
-
-    /// <summary>
-    /// PDF 문서
-    /// </summary>
-    Pdf,
-
-    /// <summary>
-    /// Word 문서
-    /// </summary>
-    Word,
-
-    /// <summary>
-    /// Excel 문서
-    /// </summary>
-    Excel,
-
-    /// <summary>
-    /// PowerPoint 문서
-    /// </summary>
-    PowerPoint,
-
-    /// <summary>
-    /// Markdown 문서
-    /// </summary>
-    Markdown,
-
-    /// <summary>
-    /// JSON 문서
-    /// </summary>
-    Json,
-
-    /// <summary>
-    /// CSV 문서
-    /// </summary>
-    Csv,
-
-    /// <summary>
-    /// 기타 문서
-    /// </summary>
-    Other
-}
+// DocumentType is now in FileFlux.Core
 
 /// <summary>
 /// 섹션 타입 열거형

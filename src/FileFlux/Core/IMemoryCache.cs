@@ -4,10 +4,11 @@ using System.Collections.Generic;
 namespace FileFlux.Core;
 
 /// <summary>
-/// Interface for memory caching with LRU eviction policy.
+/// Interface for document caching with LRU eviction policy.
 /// Provides efficient caching for processed document chunks and metadata.
+/// Note: Renamed from IMemoryCache to avoid conflict with Microsoft.Extensions.Caching.Memory.IMemoryCache
 /// </summary>
-public interface IMemoryCache
+public interface IDocumentCache
 {
     /// <summary>
     /// Gets the current number of items in the cache.

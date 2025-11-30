@@ -1,4 +1,4 @@
-using FileFlux.Infrastructure.Utils;
+using FileFlux.Core;
 using Xunit;
 
 namespace FileFlux.Tests.Utils;

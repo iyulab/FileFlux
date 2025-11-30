@@ -25,9 +25,25 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 
 ## Installation
 
+### Full RAG Pipeline
 ```bash
 dotnet add package FileFlux
 ```
+
+### Extraction Only (Minimal Dependencies)
+```bash
+dotnet add package FileFlux.Core
+```
+
+**Package Comparison**:
+| Feature | FileFlux.Core | FileFlux |
+|---------|---------------|----------|
+| Document Readers (PDF, DOCX, etc.) | ✅ | ✅ |
+| Core Interfaces & Models | ✅ | ✅ |
+| Chunking Strategies | ❌ | ✅ |
+| FluxCurator & FluxImprover | ❌ | ✅ |
+| DocumentProcessor | ❌ | ✅ |
+| Use Case | Custom chunking | Full pipeline |
 
 ## Quick Start
 

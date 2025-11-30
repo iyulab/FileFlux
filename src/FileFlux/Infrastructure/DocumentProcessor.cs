@@ -1,6 +1,4 @@
 using FileFlux;
-using FileFlux.Exceptions;
-using FileFlux.Domain;
 using FileFlux.Core;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;

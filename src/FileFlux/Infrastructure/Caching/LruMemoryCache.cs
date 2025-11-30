@@ -10,7 +10,7 @@ namespace FileFlux.Infrastructure.Caching;
 /// Thread-safe LRU (Least Recently Used) memory cache implementation.
 /// Optimized for high-throughput document chunk caching.
 /// </summary>
-public class LruMemoryCache : IMemoryCache
+public class LruMemoryCache : IDocumentCache
 {
     private readonly Dictionary<string, CacheNode> _cache;
     private readonly LinkedList<CacheNode> _lruList;
@@ -239,7 +239,7 @@ public static class LruMemoryCacheExtensions
     /// <summary>
     /// Warms the cache with frequently accessed items.
     /// </summary>
-    public static void WarmCache<T>(this IMemoryCache cache, IEnumerable<KeyValuePair<string, T>> items)
+    public static void WarmCache<T>(this IDocumentCache cache, IEnumerable<KeyValuePair<string, T>> items)
     {
         foreach (var item in items)
         {
@@ -250,7 +250,7 @@ public static class LruMemoryCacheExtensions
     /// <summary>
     /// Gets multiple items from the cache in a single operation.
     /// </summary>
-    public static Dictionary<string, T> GetMany<T>(this IMemoryCache cache, IEnumerable<string> keys)
+    public static Dictionary<string, T> GetMany<T>(this IDocumentCache cache, IEnumerable<string> keys)
     {
         var result = new Dictionary<string, T>();
 
