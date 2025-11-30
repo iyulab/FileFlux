@@ -35,6 +35,9 @@
     <!-- License and Legal -->
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <!-- Package Icon -->
+    <PackageIcon>logo.png</PackageIcon>
     
     <!-- Common Tags -->
     <PackageTagsBase>rag;document;processing;chunking;ai;llm;fileflux</PackageTagsBase>
@@ -88,6 +91,11 @@
   <!-- Common Dependencies -->
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+  </ItemGroup>
+
+  <!-- Package Icon for packable projects -->
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)src\logo.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
   <!-- Project-specific overrides using conditions -->
