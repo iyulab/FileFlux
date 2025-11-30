@@ -37,7 +37,7 @@ public class CliEnvironmentConfig
     // Google Gemini configuration
     public string? GoogleApiKey => GetValue("GOOGLE_API_KEY") ?? GetValue("GEMINI_API_KEY");
 
-    public string? GoogleModel => GetValue("GOOGLE_MODEL") ?? GetValue("GEMINI_MODEL") ?? "gemini-2.5-flash";
+    public string? GoogleModel => GetValue("GOOGLE_MODEL") ?? GetValue("GEMINI_MODEL") ?? "gemini-2.0-flash";
 
     /// <summary>
     /// Get value with priority: Environment Variable > Config File

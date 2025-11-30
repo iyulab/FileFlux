@@ -142,7 +142,7 @@ public class AIProviderFactory
     private FluxImproverService CreateGoogleFluxImproverService()
     {
         var apiKey = _config.GoogleApiKey ?? throw new InvalidOperationException("Google API key not configured");
-        var model = _config.GoogleModel ?? "gemini-2.5-flash";
+        var model = _config.GoogleModel ?? "gemini-2.0-flash";
         return new Providers.FluxImprover.GoogleCompletionService(apiKey, model);
     }
 
@@ -225,7 +225,7 @@ public class AIProviderFactory
     private void ConfigureGoogle(IServiceCollection services)
     {
         var apiKey = _config.GoogleApiKey;
-        var model = _config.GoogleModel ?? "gemini-2.5-flash";
+        var model = _config.GoogleModel ?? "gemini-2.0-flash";
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {

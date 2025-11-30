@@ -28,7 +28,7 @@ public class GoogleTextCompletionService : ITextCompletionService
     {
         Name = "Google Gemini",
         Type = TextCompletionProviderType.Google,
-        SupportedModels = new[] { "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro" },
+        SupportedModels = new[] { "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro" },
         MaxContextLength = 1000000,
         InputTokenCost = 0.00015m,
         OutputTokenCost = 0.0006m,

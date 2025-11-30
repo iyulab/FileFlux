@@ -69,6 +69,16 @@ public class StatusCommand : Command
             gpuStackKeyDisplay
         );
 
+        // Google Gemini
+        var googleStatus = !string.IsNullOrEmpty(config.GoogleApiKey);
+        var googleKeyDisplay = MaskApiKey(config.GoogleApiKey);
+        table.AddRow(
+            "Google Gemini",
+            googleStatus ? "[green]Configured[/]" : "[grey]Not configured[/]",
+            config.GoogleModel ?? "-",
+            googleKeyDisplay
+        );
+
         AnsiConsole.MarkupLine("[bold]AI Providers:[/]");
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
@@ -108,6 +118,8 @@ public class StatusCommand : Command
         AddConfigRow(configTable, configManager, "GPUSTACK_API_KEY");
         AddConfigRow(configTable, configManager, "GPUSTACK_ENDPOINT");
         AddConfigRow(configTable, configManager, "GPUSTACK_MODEL");
+        AddConfigRow(configTable, configManager, "GOOGLE_API_KEY");
+        AddConfigRow(configTable, configManager, "GOOGLE_MODEL");
 
         AnsiConsole.MarkupLine("[bold]Configuration:[/]");
         AnsiConsole.Write(configTable);
@@ -128,6 +140,7 @@ public class StatusCommand : Command
             AnsiConsole.MarkupLine("[bold]Quick Setup:[/]");
             AnsiConsole.MarkupLine("  Set environment variable to enable AI features:");
             AnsiConsole.MarkupLine("  [yellow]  $env:OPENAI_API_KEY=\"sk-...\"[/]       (PowerShell)");
+            AnsiConsole.MarkupLine("  [yellow]  $env:GOOGLE_API_KEY=\"AI...\"[/]        (PowerShell)");
             AnsiConsole.MarkupLine("  [yellow]  export OPENAI_API_KEY=\"sk-...\"[/]     (Bash)");
             AnsiConsole.MarkupLine("  Or use: [cyan]fileflux config set OPENAI_API_KEY sk-...[/]");
         }
@@ -137,6 +150,7 @@ public class StatusCommand : Command
             AnsiConsole.MarkupLine("  Set MODEL_PROVIDER to select one:");
             AnsiConsole.MarkupLine("  [yellow]  $env:MODEL_PROVIDER=\"openai\"[/]       (PowerShell)");
             AnsiConsole.MarkupLine("  [yellow]  $env:MODEL_PROVIDER=\"anthropic\"[/]    (PowerShell)");
+            AnsiConsole.MarkupLine("  [yellow]  $env:MODEL_PROVIDER=\"google\"[/]       (PowerShell)");
             AnsiConsole.MarkupLine("  Or use: [cyan]fileflux config set MODEL_PROVIDER openai[/]");
         }
 
