@@ -1,6 +1,8 @@
 using FileFlux.Core;
 using FileFlux.Infrastructure.Adapters;
+using FluxCurator.Core;
 using FluxCurator.Core.Core;
+using FluxCurator.Core.Infrastructure.Refining;
 using FluxImprover;
 using FluxImprover.ContextualRetrieval;
 using FluxImprover.Enrichment;
@@ -8,6 +10,7 @@ using FluxImprover.Models;
 using Microsoft.Extensions.Logging;
 using FluxCuratorStrategy = FluxCurator.Core.Domain.ChunkingStrategy;
 using FluxCuratorChunkOptions = FluxCurator.Core.Domain.ChunkOptions;
+using TextRefineOptions = FluxCurator.Core.Domain.TextRefineOptions;
 
 namespace FileFlux.Infrastructure;
 
@@ -21,6 +24,7 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
     private readonly IDocumentParserFactory _parserFactory;
     private readonly IChunkerFactory _chunkerFactory;
     private readonly FluxImproverServices? _improverServices;
+    private readonly ITextRefiner _textRefiner;
     private readonly ILogger<FluxDocumentProcessor> _logger;
 
     /// <summary>
@@ -42,6 +46,7 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
         _parserFactory = parserFactory ?? throw new ArgumentNullException(nameof(parserFactory));
         _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
         _improverServices = improverServices;
+        _textRefiner = new TextRefiner();
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<FluxDocumentProcessor>.Instance;
     }
 
@@ -188,6 +193,7 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
         {
             var refinedText = parsed.Text;
 
+            // Stage 1: Document-level refinement (FileFlux-specific)
             // Remove artificial paragraph headings (# Paragraph N)
             refinedText = RemoveArtificialParagraphHeadings(refinedText);
 
@@ -218,9 +224,10 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 refinedText = RestructureHeadings(refinedText);
             }
 
-            // Remove empty bullet points and duplicate lines
-            refinedText = RemoveEmptyBulletPoints(refinedText);
-            refinedText = RemoveDuplicateLines(refinedText);
+            // Stage 2: Text-level refinement (delegated to FluxCurator)
+            // Handles: empty bullets, duplicate lines, custom patterns, etc.
+            var textRefineOptions = MapTextRefinementPreset(options.TextRefinementPreset);
+            refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
 
             // Create refined parsed content
             var refined = new ParsedContent
@@ -347,44 +354,24 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
         return string.Join("\n", result);
     }
 
-    private static string RemoveEmptyBulletPoints(string text)
+    // NOTE: RemoveEmptyBulletPoints and RemoveDuplicateLines removed.
+    // These are now handled by FluxCurator's TextRefiner via RefiningOptions.TextRefinementPreset.
+
+    /// <summary>
+    /// Maps preset name string to FluxCurator TextRefineOptions.
+    /// </summary>
+    private static TextRefineOptions MapTextRefinementPreset(string presetName)
     {
-        // Remove lines that are just bullet markers with no content
-        // Matches: -, *, •, +, or numbered bullets like 1., 2) etc. with optional whitespace
-        var lines = text.Split('\n');
-        var result = lines.Where(l =>
+        return presetName?.ToUpperInvariant() switch
         {
-            var trimmed = l.Trim();
-            // Skip empty bullet points (just the marker with no text)
-            return !System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[-*•+]$") &&
-                   !System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d+[.\)]$");
-        });
-
-        return string.Join("\n", result);
-    }
-
-    private static string RemoveDuplicateLines(string text)
-    {
-        // Remove consecutive duplicate lines (common in HTML conversions)
-        var lines = text.Split('\n');
-        var result = new List<string>();
-        string? previousLine = null;
-
-        foreach (var line in lines)
-        {
-            var trimmed = line.Trim();
-
-            // Skip exact duplicate of previous non-empty line
-            if (!string.IsNullOrWhiteSpace(trimmed) && trimmed == previousLine)
-                continue;
-
-            result.Add(line);
-
-            if (!string.IsNullOrWhiteSpace(trimmed))
-                previousLine = trimmed;
-        }
-
-        return string.Join("\n", result);
+            "NONE" => TextRefineOptions.None,
+            "LIGHT" => TextRefineOptions.Light,
+            "STANDARD" => TextRefineOptions.Standard,
+            "FORWEBCONTENT" => TextRefineOptions.ForWebContent,
+            "FORKOREAN" => TextRefineOptions.ForKorean,
+            "FORPDFCONTENT" => TextRefineOptions.ForPdfContent,
+            _ => TextRefineOptions.Light // Default fallback
+        };
     }
 
     private static string RestructureHeadings(string text)
@@ -531,8 +518,8 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 {
                     var contextSummary = contextualChunks[i].ContextSummary;
                     if (contextSummary != null)
-                        chunks[i].Props["contextual_summary"] = contextSummary;
-                    chunks[i].Props["contextual_text"] = contextualChunks[i].GetContextualizedText();
+                        chunks[i].Props[ChunkPropsKeys.EnrichedSummary] = contextSummary;
+                    chunks[i].Props[ChunkPropsKeys.EnrichedContextualText] = contextualChunks[i].GetContextualizedText();
                 }
             }
 
@@ -547,10 +534,10 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 {
                     var summary = enrichedChunks[i].Summary;
                     if (summary != null)
-                        chunks[i].Props["enriched_summary"] = summary;
+                        chunks[i].Props[ChunkPropsKeys.EnrichedSummary] = summary;
                     var keywords = enrichedChunks[i].Keywords;
                     if (keywords != null)
-                        chunks[i].Props["enriched_keywords"] = keywords;
+                        chunks[i].Props[ChunkPropsKeys.EnrichedKeywords] = keywords;
                 }
             }
 
@@ -596,11 +583,11 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
             chunk.SourceInfo.FilePath = parsed.Metadata.FileName;
             chunk.SourceInfo.ChunkCount = chunks.Count;
 
-            // Add structure info
+            // Add structure info using standard keys
             if (!string.IsNullOrEmpty(parsed.Structure.Topic))
-                chunk.Props["document_topic"] = parsed.Structure.Topic;
+                chunk.Props[ChunkPropsKeys.DocumentTopic] = parsed.Structure.Topic;
             if (parsed.Structure.Keywords.Count > 0)
-                chunk.Props["document_keywords"] = parsed.Structure.Keywords;
+                chunk.Props[ChunkPropsKeys.DocumentKeywords] = parsed.Structure.Keywords;
         }
     }
 

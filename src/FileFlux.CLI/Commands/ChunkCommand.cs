@@ -332,9 +332,9 @@ public class ChunkCommand : Command
                                 fluxChunk, null, cancellationToken);
 
                             if (!string.IsNullOrEmpty(enriched.Summary))
-                                chunk.Props["enriched_summary"] = enriched.Summary;
+                                chunk.Props[ChunkPropsKeys.EnrichedSummary] = enriched.Summary;
                             if (enriched.Keywords?.Any() == true)
-                                chunk.Props["enriched_keywords"] = enriched.Keywords;
+                                chunk.Props[ChunkPropsKeys.EnrichedKeywords] = enriched.Keywords;
                         }
                     }
                 });

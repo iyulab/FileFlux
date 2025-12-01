@@ -77,20 +77,20 @@ public class ChunkedOutputWriter : IOutputWriter
         sb.AppendLine($"# Chunk {chunkNum} of {totalChunks}");
         sb.AppendLine();
 
-        // Enrichment metadata if present
-        if (chunk.Metadata.CustomProperties.TryGetValue("enriched_topics", out var topics) && topics is string topicsStr)
+        // Enrichment metadata if present (using typed accessors)
+        if (ChunkPropsKeys.TryGetValue<string>(chunk.Props, ChunkPropsKeys.EnrichedTopics, out var topicsStr) && !string.IsNullOrEmpty(topicsStr))
         {
             sb.AppendLine($"**Topics:** {topicsStr}");
         }
 
-        if (chunk.Metadata.CustomProperties.TryGetValue("enriched_keywords", out var keywords) && keywords is string keywordsStr)
+        if (chunk.EnrichedKeywords is { Count: > 0 } keywordsList)
         {
-            sb.AppendLine($"**Keywords:** {keywordsStr}");
+            sb.AppendLine($"**Keywords:** {string.Join(", ", keywordsList)}");
         }
 
-        if (chunk.Metadata.CustomProperties.TryGetValue("enriched_summary", out var summary) && summary is string summaryStr)
+        if (!string.IsNullOrEmpty(chunk.EnrichedSummary))
         {
-            sb.AppendLine($"**Summary:** {summaryStr}");
+            sb.AppendLine($"**Summary:** {chunk.EnrichedSummary}");
             sb.AppendLine();
         }
 

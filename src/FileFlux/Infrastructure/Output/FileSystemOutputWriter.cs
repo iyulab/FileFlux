@@ -309,7 +309,7 @@ public class FileSystemOutputWriter : IOutputWriter
             aiAnalysis = result.Extraction.AIProvider != null ? new
             {
                 provider = result.Extraction.AIProvider,
-                enrichedChunks = chunks.Count(c => c.Props.ContainsKey("enriched_keywords")),
+                enrichedChunks = chunks.Count(c => ChunkPropsKeys.HasEnrichment(c.Props)),
                 imagesAnalyzed = result.Extraction.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription))
             } : null,
             processedAt = metadata.ProcessedAt.ToString("o")

@@ -24,14 +24,14 @@ public class MarkdownOutputWriter : IOutputWriter
             sb.AppendLine();
             sb.AppendLine($"**Length:** {chunk.Content.Length} characters");
 
-            if (chunk.Metadata.CustomProperties.TryGetValue("enriched_topics", out var topics) && topics is string topicsStr)
+            if (ChunkPropsKeys.TryGetValue<string>(chunk.Props, ChunkPropsKeys.EnrichedTopics, out var topicsStr) && !string.IsNullOrEmpty(topicsStr))
             {
                 sb.AppendLine($"**Topics:** {topicsStr}");
             }
 
-            if (chunk.Metadata.CustomProperties.TryGetValue("enriched_keywords", out var keywords) && keywords is string keywordsStr)
+            if (chunk.EnrichedKeywords is { Count: > 0 } keywordsList)
             {
-                sb.AppendLine($"**Keywords:** {keywordsStr}");
+                sb.AppendLine($"**Keywords:** {string.Join(", ", keywordsList)}");
             }
 
             sb.AppendLine();

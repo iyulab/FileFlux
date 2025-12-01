@@ -72,8 +72,16 @@ public class DocumentChunk : IEnrichedChunk
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 
     /// <summary>
-    /// Custom properties for extensibility
+    /// Custom properties for extensibility.
+    /// Use ChunkPropsKeys constants for standard property names.
     /// </summary>
+    /// <remarks>
+    /// <para><b>When to use Props vs Metadata.CustomProperties:</b></para>
+    /// <list type="bullet">
+    ///   <item><term>Props</term><description>Chunk-specific data added during processing (enrichment, quality metrics)</description></item>
+    ///   <item><term>Metadata.CustomProperties</term><description>Document-level data inherited from source</description></item>
+    /// </list>
+    /// </remarks>
     public Dictionary<string, object> Props { get; set; } = new();
 
     /// <summary>
@@ -98,6 +106,54 @@ public class DocumentChunk : IEnrichedChunk
     int? IEnrichedChunk.EndPage => Location.EndPage;
     int IEnrichedChunk.TokenCount => Tokens;
     ISourceMetadata IEnrichedChunk.Source => SourceInfo;
+
+    #endregion
+
+    #region Typed Property Accessors
+
+    /// <summary>
+    /// AI-generated summary of chunk content (from enrichment).
+    /// </summary>
+    public string? EnrichedSummary
+    {
+        get => ChunkPropsKeys.TryGetValue<string>(Props, ChunkPropsKeys.EnrichedSummary, out var v) ? v : null;
+        set
+        {
+            if (value != null) Props[ChunkPropsKeys.EnrichedSummary] = value;
+            else Props.Remove(ChunkPropsKeys.EnrichedSummary);
+        }
+    }
+
+    /// <summary>
+    /// AI-extracted keywords (from enrichment).
+    /// </summary>
+    public IReadOnlyList<string>? EnrichedKeywords
+    {
+        get => ChunkPropsKeys.TryGetValue<IReadOnlyList<string>>(Props, ChunkPropsKeys.EnrichedKeywords, out var v) ? v : null;
+        set
+        {
+            if (value != null) Props[ChunkPropsKeys.EnrichedKeywords] = value;
+            else Props.Remove(ChunkPropsKeys.EnrichedKeywords);
+        }
+    }
+
+    /// <summary>
+    /// Contextualized text with surrounding context (from enrichment).
+    /// </summary>
+    public string? EnrichedContextualText
+    {
+        get => ChunkPropsKeys.TryGetValue<string>(Props, ChunkPropsKeys.EnrichedContextualText, out var v) ? v : null;
+        set
+        {
+            if (value != null) Props[ChunkPropsKeys.EnrichedContextualText] = value;
+            else Props.Remove(ChunkPropsKeys.EnrichedContextualText);
+        }
+    }
+
+    /// <summary>
+    /// Check if this chunk has any enrichment data.
+    /// </summary>
+    public bool HasEnrichment => ChunkPropsKeys.HasEnrichment(Props);
 
     #endregion
 }
