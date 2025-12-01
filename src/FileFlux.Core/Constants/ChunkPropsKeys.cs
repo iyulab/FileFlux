@@ -178,6 +178,12 @@ public static class ChunkPropsKeys
     /// <summary>AI-generated topics (string, comma-separated)</summary>
     public const string EnrichedTopics = "enriched.topics";
 
+    /// <summary>Quality score from heuristic assessment (0.0-1.0)</summary>
+    public const string QualityScore = "enriched.qualityScore";
+
+    /// <summary>Whether enrichment was skipped due to high quality score</summary>
+    public const string EnrichmentSkipped = "enriched.skipped";
+
     // ========================================
     // Helper Methods
     // ========================================

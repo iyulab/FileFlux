@@ -5,6 +5,36 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-12-01
+
+### Added
+- **FileFlux.Core Package**: Standalone document extraction with zero AI dependencies
+  - All 12 document readers (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML, MultiModal variants)
+  - Core interfaces (IDocumentReader, IDocumentParser, IChunkingStrategy)
+  - AI service interfaces (ITextCompletionService, IImageToTextService)
+- **ChunkPropsKeys Enhancement**: Standardized property keys with typed accessors
+  - `DocumentTopic`, `DocumentKeywords`, `QualityRelevanceScore`, `QualityCompleteness`
+  - `ContentType`, `StructuralRole` for content classification
+  - Helper methods: `TryGetValue<T>()`, `GetValueOrDefault<T>()`
+- **DocumentChunk Typed Accessors**: `EnrichedSummary`, `EnrichedKeywords`, `EnrichedContextualText`, `HasEnrichment`
+- **ChunkMetadataEnricher**: Generic metadata enricher (renamed from Context7MetadataEnricher)
+- **DocumentContext**: Separate domain class for document-level context
+- **Google Gemini AI Support**: Fourth AI provider alongside OpenAI, Anthropic, and local embedder
+- **FluxCurator v0.4.0 Integration**: TextRefiner with presets (Light, Standard, ForKorean, ForWebContent, ForPdfContent)
+
+### Changed
+- **Architecture**: Split into FileFlux.Core (extraction) and FileFlux (full RAG pipeline)
+- **RefiningOptions**: Added `TextRefinementPreset` for FluxCurator integration
+- **DocumentProcessor**: Delegated text refinement to FluxCurator TextRefiner
+
+### Removed
+- Legacy string literals for Props keys (replaced with ChunkPropsKeys constants)
+- Duplicate refinement logic (now handled by FluxCurator)
+
+### Fixed
+- Props vs CustomProperties confusion in enrichment counting
+- Inconsistent property key naming across codebase
+
 ## [0.4.8] - 2025-11-29
 
 ### Added
@@ -171,6 +201,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic chunking strategies (FixedSize, Paragraph)
 - Dependency injection support with AddFileFlux()
 
+[0.5.0]: https://github.com/iyulab/FileFlux/compare/v0.4.8...v0.5.0
 [0.4.8]: https://github.com/iyulab/FileFlux/compare/v0.4.0...v0.4.8
 [0.4.0]: https://github.com/iyulab/FileFlux/compare/v0.3.18...v0.4.0
 [0.3.18]: https://github.com/iyulab/FileFlux/compare/v0.3.17...v0.3.18

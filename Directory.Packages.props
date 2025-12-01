@@ -30,16 +30,17 @@
     <PackageVersion Include="PdfPig" Version="0.1.12" />
     <PackageVersion Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
-    <PackageVersion Include="Markdig" Version="0.43.0" />
+    <PackageVersion Include="Markdig" Version="0.44.0" />
     <!-- Two-hop DOCX conversion: Mammoth (DOCX→HTML) + ReverseMarkdown (HTML→MD) -->
-    <PackageVersion Include="Mammoth" Version="1.8.0" />
-    <PackageVersion Include="ReverseMarkdown" Version="4.6.0" />
+    <PackageVersion Include="Mammoth" Version="1.11.0" />
+    <PackageVersion Include="ReverseMarkdown" Version="4.7.1" />
   </ItemGroup>
   <ItemGroup Label="AI Providers">
     <PackageVersion Include="OpenAI" Version="2.7.0" />
   </ItemGroup>
-  <ItemGroup Label="FluxImprover">
-    <PackageVersion Include="FluxImprover" Version="0.3.0" />
+  <ItemGroup Label="Flux Packages">
+    <PackageVersion Include="FluxCurator" Version="0.5.0" />
+    <PackageVersion Include="FluxImprover" Version="0.4.0" />
   </ItemGroup>
   <ItemGroup Label="Embeddings">
     <PackageVersion Include="LocalEmbedder" Version="0.3.1" />

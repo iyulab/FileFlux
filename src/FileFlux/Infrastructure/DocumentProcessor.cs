@@ -218,6 +218,9 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 refinedText = RemovePageNumbers(refinedText);
             }
 
+            // Remove TOC noise (dot/dash leaders)
+            refinedText = RemoveTocNoise(refinedText);
+
             // Restructure headings
             if (options.RestructureHeadings)
             {
@@ -318,17 +321,36 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
         if (string.IsNullOrWhiteSpace(line))
             return false;
 
-        // Common patterns: "Page X of Y", "Confidential", dates alone
+        // Common header/footer patterns for various document types
         var patterns = new[]
         {
+            // Page numbering patterns
             @"^Page\s+\d+\s*(of\s+\d+)?$",
             @"^\d+\s*/\s*\d+$",
-            @"^(CONFIDENTIAL|DRAFT|INTERNAL)$",
+            @"^-\s*\d+\s*-$",  // - 1 -
+            @"^\[\s*\d+\s*\]$",  // [ 1 ]
+            @"^페이지\s*\d+",  // Korean: 페이지 1
+            @"^\d+\s*페이지$",  // Korean: 1 페이지
+
+            // Copyright and legal patterns
+            @"^(CONFIDENTIAL|DRAFT|INTERNAL|PROPRIETARY|SECRET)$",
             @"^©\s*\d{4}",
+            @"^Copyright\s+",
             @"^All [Rr]ights [Rr]eserved",
-            // Korean comment section markers (common in HTML exports from Korean bulletin boards)
+
+            // Document header patterns
+            @"^(Version|Rev\.|Revision)\s*[\d\.]+$",
+            @"^\d{4}[-/]\d{2}[-/]\d{2}$",  // Date alone: 2024-01-01
+            @"^(Document|Doc)\s*(ID|#|No\.?):\s*",
+
+            // Korean document patterns
             @"^#\s*댓글\s*$",
             @"^-\s*댓글\s*\d+\s*개\s*$",
+            @"^(주)|(주식회사)\s*\S+$",  // Company name as header
+
+            // Repeated separator patterns (often headers/footers)
+            @"^[-_=]{3,}\s*$",
+            @"^[─━═]{3,}\s*$",  // Unicode line characters
         };
 
         foreach (var pattern in patterns)
@@ -337,7 +359,59 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 return true;
         }
 
+        // Check for very short lines that are likely headers (e.g., company name, document title repeated)
+        if (line.Length < 30 && IsLikelyRepeatedHeader(line))
+            return true;
+
         return false;
+    }
+
+    /// <summary>
+    /// Check if a short line is likely a repeated header (document title, company name, etc.)
+    /// </summary>
+    private static bool IsLikelyRepeatedHeader(string line)
+    {
+        // Lines that are all uppercase and short are often headers
+        if (line.Length < 20 && line == line.ToUpperInvariant() && !line.Any(char.IsDigit) && line.Length > 2)
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Remove Table of Contents noise patterns (dots, dashes used for page alignment).
+    /// </summary>
+    private static string RemoveTocNoise(string text)
+    {
+        // Remove TOC-style dot leaders: "Chapter 1 .............. 5"
+        text = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"\.{3,}\s*\d+\s*$",
+            "",
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        // Remove dash leaders: "Section 1 ------ 10"
+        text = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"-{3,}\s*\d+\s*$",
+            "",
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        // Remove Korean TOC patterns: "제1장 ··············· 5"
+        text = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"[·•]{3,}\s*\d+\s*$",
+            "",
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        // Remove underscore leaders: "Introduction ___________ 3"
+        text = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"_{3,}\s*\d+\s*$",
+            "",
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        return text;
     }
 
     private static string RemovePageNumbers(string text)
@@ -442,7 +516,8 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 PreserveSentences = options.PreserveSentences,
                 PreserveSectionHeaders = true,
                 IncludeMetadata = true,
-                TrimWhitespace = true
+                TrimWhitespace = true,
+                EnableChunkBalancing = options.EnableChunkBalancing
             };
 
             // Execute chunking via FluxCurator
@@ -526,8 +601,27 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
             // Apply keyword extraction and summarization
             if (ShouldEnrichWithKeywords(options))
             {
+                // Build enrichment options with conditional enrichment support
+                var enrichmentOptions = new FluxImprover.Options.EnrichmentOptions();
+
+                // Enable conditional enrichment if configured
+                if (options.EnableConditionalEnrichment)
+                {
+                    enrichmentOptions = new FluxImprover.Options.EnrichmentOptions
+                    {
+                        ConditionalOptions = new FluxImprover.Options.ConditionalEnrichmentOptions
+                        {
+                            EnableConditionalEnrichment = true,
+                            SkipEnrichmentThreshold = options.ConditionalEnrichmentThreshold,
+                            MinSummarizationLength = options.MinSummarizationLength,
+                            IncludeQualityMetrics = true
+                        }
+                    };
+                    _logger.LogDebug("Using conditional enrichment with threshold {Threshold}", options.ConditionalEnrichmentThreshold);
+                }
+
                 var enrichedChunks = await _improverServices.ChunkEnrichment
-                    .EnrichBatchAsync(improverChunks, null, cancellationToken)
+                    .EnrichBatchAsync(improverChunks, enrichmentOptions, cancellationToken)
                     .ConfigureAwait(false);
 
                 for (int i = 0; i < chunks.Length && i < enrichedChunks.Count; i++)
@@ -538,6 +632,12 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                     var keywords = enrichedChunks[i].Keywords;
                     if (keywords != null)
                         chunks[i].Props[ChunkPropsKeys.EnrichedKeywords] = keywords;
+
+                    // Include quality metrics if available
+                    if (enrichedChunks[i].Metadata?.TryGetValue("quality_score", out var qualityScore) == true)
+                        chunks[i].Props[ChunkPropsKeys.QualityScore] = qualityScore;
+                    if (enrichedChunks[i].Metadata?.TryGetValue("was_skipped", out var wasSkipped) == true)
+                        chunks[i].Props[ChunkPropsKeys.EnrichmentSkipped] = wasSkipped;
                 }
             }
 

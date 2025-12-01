@@ -90,7 +90,10 @@ public static class ProcessingInfoWriter
                 averageChunkSize = chunkList.Count > 0 ? chunkList.Sum(c => c.Content.Length) / chunkList.Count : 0,
                 minChunkSize = chunkList.Count > 0 ? chunkList.Min(c => c.Content.Length) : 0,
                 maxChunkSize = chunkList.Count > 0 ? chunkList.Max(c => c.Content.Length) : 0,
-                enrichedChunks = chunkList.Count(c => ChunkPropsKeys.HasEnrichment(c.Props))
+                varianceRatio = CalculateVarianceRatio(chunkList),
+                isBalanced = IsBalanced(chunkList, info.MaxChunkSize ?? 1024),
+                enrichedChunks = chunkList.Count(c => ChunkPropsKeys.HasEnrichment(c.Props)),
+                skippedEnrichments = chunkList.Count(c => c.Props.TryGetValue(ChunkPropsKeys.EnrichmentSkipped, out var v) && v is true)
             },
             quality = chunkList.Count > 0 ? new
             {
@@ -104,6 +107,30 @@ public static class ProcessingInfoWriter
 
         var json = JsonSerializer.Serialize(infoData, JsonOptions);
         await File.WriteAllTextAsync(infoPath, json, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Calculate the variance ratio (max/min) for chunk sizes.
+    /// </summary>
+    private static double CalculateVarianceRatio(List<DocumentChunk> chunks)
+    {
+        if (chunks.Count == 0) return 0;
+        var min = chunks.Min(c => c.Content.Length);
+        var max = chunks.Max(c => c.Content.Length);
+        return min > 0 ? Math.Round((double)max / min, 2) : 0;
+    }
+
+    /// <summary>
+    /// Check if chunks are well-balanced (variance ratio <= 5 and no extreme sizes).
+    /// </summary>
+    private static bool IsBalanced(List<DocumentChunk> chunks, int maxChunkSize)
+    {
+        if (chunks.Count == 0) return true;
+        var minSize = maxChunkSize / 10; // 10% of max as minimum threshold
+        var min = chunks.Min(c => c.Content.Length);
+        var max = chunks.Max(c => c.Content.Length);
+        var ratio = min > 0 ? (double)max / min : 0;
+        return ratio <= 5.0 && min >= minSize && max <= maxChunkSize * 1.5;
     }
 
     /// <summary>
@@ -206,7 +233,10 @@ public static class ProcessingInfoWriter
                 averageChunkSize = chunkList.Count > 0 ? chunkList.Sum(c => c.Content.Length) / chunkList.Count : 0,
                 minChunkSize = chunkList.Count > 0 ? chunkList.Min(c => c.Content.Length) : 0,
                 maxChunkSize = chunkList.Count > 0 ? chunkList.Max(c => c.Content.Length) : 0,
-                enrichedChunks = chunkList.Count(c => ChunkPropsKeys.HasEnrichment(c.Props))
+                varianceRatio = CalculateVarianceRatio(chunkList),
+                isBalanced = IsBalanced(chunkList, info.MaxChunkSize ?? 1024),
+                enrichedChunks = chunkList.Count(c => ChunkPropsKeys.HasEnrichment(c.Props)),
+                skippedEnrichments = chunkList.Count(c => c.Props.TryGetValue(ChunkPropsKeys.EnrichmentSkipped, out var v) && v is true)
             },
             quality = chunkList.Count > 0 ? new
             {

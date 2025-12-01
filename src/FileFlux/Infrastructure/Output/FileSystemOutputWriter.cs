@@ -301,10 +301,14 @@ public class FileSystemOutputWriter : IOutputWriter
                 averageChunkSize = chunks.Length > 0 ? totalChars / chunks.Length : 0,
                 minChunkSize = chunks.Length > 0 ? chunks.Min(c => c.Content.Length) : 0,
                 maxChunkSize = chunks.Length > 0 ? chunks.Max(c => c.Content.Length) : 0,
+                varianceRatio = CalculateVarianceRatio(chunks),
+                isBalanced = IsBalanced(chunks, result.Options.MaxChunkSize),
                 pageCount = metadata.PageCount,
                 language = metadata.Language,
                 imagesExtracted = result.Extraction.Images.Count,
-                imagesSkipped = result.Extraction.SkippedImageCount
+                imagesSkipped = result.Extraction.SkippedImageCount,
+                enrichedChunks = chunks.Count(c => ChunkPropsKeys.HasEnrichment(c.Props)),
+                skippedEnrichments = chunks.Count(c => c.Props.TryGetValue(ChunkPropsKeys.EnrichmentSkipped, out var v) && v is true)
             },
             aiAnalysis = result.Extraction.AIProvider != null ? new
             {
@@ -317,6 +321,31 @@ public class FileSystemOutputWriter : IOutputWriter
 
         var json = JsonSerializer.Serialize(data, JsonOptions);
         await File.WriteAllTextAsync(infoPath, json, Encoding.UTF8, cancellationToken);
+    }
+
+
+    /// <summary>
+    /// Calculate the variance ratio (max/min) for chunk sizes.
+    /// </summary>
+    private static double CalculateVarianceRatio(DocumentChunk[] chunks)
+    {
+        if (chunks.Length == 0) return 0;
+        var min = chunks.Min(c => c.Content.Length);
+        var max = chunks.Max(c => c.Content.Length);
+        return min > 0 ? Math.Round((double)max / min, 2) : 0;
+    }
+
+    /// <summary>
+    /// Check if chunks are well-balanced (variance ratio &lt;= 5 and no extreme sizes).
+    /// </summary>
+    private static bool IsBalanced(DocumentChunk[] chunks, int maxChunkSize)
+    {
+        if (chunks.Length == 0) return true;
+        var minSize = maxChunkSize / 10; // 10% of max as minimum threshold
+        var min = chunks.Min(c => c.Content.Length);
+        var max = chunks.Max(c => c.Content.Length);
+        var ratio = min > 0 ? (double)max / min : 0;
+        return ratio <= 5.0 && min >= minSize && max <= maxChunkSize * 1.5;
     }
 
     private static string EscapeYaml(string value)

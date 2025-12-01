@@ -12,11 +12,14 @@ namespace FileFlux.CLI.Services.Providers.FluxImprover;
 public class OpenAICompletionService : FI.ITextCompletionService
 {
     private readonly ChatClient _chatClient;
+    private readonly string _model;
 
     public OpenAICompletionService(string apiKey, string model, string? endpoint = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
+
+        _model = model;
 
         OpenAIClient client;
         if (!string.IsNullOrWhiteSpace(endpoint))
@@ -67,9 +70,12 @@ public class OpenAICompletionService : FI.ITextCompletionService
         }
 
         // WORKAROUND: gpt-5-nano has a bug where setting max_completion_tokens
-        // with response_format: json_object causes empty responses.
-        // Only set MaxOutputTokenCount when NOT using JsonMode.
-        if (options?.MaxTokens.HasValue == true && options.JsonMode != true)
+        // causes empty responses, regardless of response_format.
+        // Skip MaxOutputTokenCount entirely for gpt-5-nano model.
+        // For other models, only set when NOT using JsonMode (another known issue).
+        var isGpt5Nano = _model.Contains("gpt-5-nano", StringComparison.OrdinalIgnoreCase);
+
+        if (options?.MaxTokens.HasValue == true && options.JsonMode != true && !isGpt5Nano)
         {
             chatOptions.MaxOutputTokenCount = options.MaxTokens.Value;
         }

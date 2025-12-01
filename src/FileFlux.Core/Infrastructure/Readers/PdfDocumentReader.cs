@@ -1,20 +1,31 @@
 using FileFlux.Core;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
+using UglyToad.PdfPig.DocumentLayoutAnalysis;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.PageSegmenter;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.WordExtractor;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace FileFlux.Core.Infrastructure.Readers;
 
 /// <summary>
-/// PDF 파일 처리를 위한 문서 Reader
-/// PdfPig 라이브러리를 사용하여 텍스트 추출 및 구조 인식
+/// PDF document reader optimized for RAG preprocessing.
+/// Uses PdfPig library for text extraction with:
+/// - Table detection and markdown conversion
+/// - Page boundary sentence merging
+/// - Layout-aware text ordering
 /// </summary>
 public partial class PdfDocumentReader : IDocumentReader
 {
     public string ReaderType => "PdfReader";
 
-    public IEnumerable<string> SupportedExtensions => new[] { ".pdf" };
-    private static readonly char[] separator = new[] { ' ', '\t', '\n', '\r' };
+    public IEnumerable<string> SupportedExtensions => [".pdf"];
+    private static readonly char[] separator = [' ', '\t', '\n', '\r'];
+
+    // Patterns for detecting incomplete sentences at page boundaries
+    private static readonly Regex IncompleteEndPattern = IncompleteSentenceEndRegex();
+    private static readonly Regex IncompleteStartPattern = IncompleteSentenceStartRegex();
 
     public bool CanRead(string fileName)
     {
@@ -52,16 +63,15 @@ public partial class PdfDocumentReader : IDocumentReader
     {
         var extractionWarnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
-        var textBuilder = new StringBuilder();
+        var pageTexts = new List<PageContent>();
 
-        var startTime = DateTime.UtcNow;
         var fileInfo = new FileInfo(filePath);
 
         try
         {
             using var document = PdfDocument.Open(filePath);
 
-            // PDF 메타데이터 수집
+            // Collect PDF metadata
             var info = document.Information;
             if (info != null)
             {
@@ -81,9 +91,9 @@ public partial class PdfDocumentReader : IDocumentReader
 
             var totalPages = document.NumberOfPages;
             var processedPages = 0;
-            var pageRanges = new Dictionary<int, (int Start, int End)>();
+            var tablesDetected = 0;
 
-            // 페이지별 텍스트 추출
+            // Extract text from each page
             for (int pageNum = 1; pageNum <= totalPages; pageNum++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -91,47 +101,39 @@ public partial class PdfDocumentReader : IDocumentReader
                 try
                 {
                     var page = document.GetPage(pageNum);
-                    var pageText = ExtractPageText(page, pageNum, extractionWarnings);
+                    var pageContent = ExtractPageContent(page, pageNum, extractionWarnings);
 
-                    if (!string.IsNullOrWhiteSpace(pageText))
+                    if (pageContent.HasContent)
                     {
-                        // 페이지 시작 위치 기록
-                        var pageStartPosition = textBuilder.Length;
-
-                        // 페이지 구분자 추가 (청킹에 더 적합한 형식)
-                        if (textBuilder.Length > 0)
-                        {
-                            textBuilder.AppendLine();
-                            textBuilder.AppendLine(); // 추가 공백으로 명확한 페이지 경계
-                        }
-
-                        // 페이지 텍스트 전처리 및 정리
-                        var cleanedText = NormalizeText(pageText);
-                        textBuilder.AppendLine(cleanedText);
-
-                        // 페이지 범위 기록
-                        pageRanges[pageNum] = (pageStartPosition, textBuilder.Length - 1);
+                        pageTexts.Add(pageContent);
+                        tablesDetected += pageContent.TableCount;
                     }
 
                     processedPages++;
                 }
                 catch (Exception ex)
                 {
-                    extractionWarnings.Add($"페이지 {pageNum} 처리 중 오류: {ex.Message}");
+                    extractionWarnings.Add($"Page {pageNum} processing error: {ex.Message}");
                 }
             }
 
-            // 추출 통계
-            var extractedText = textBuilder.ToString();
+            // Merge page texts with sentence boundary handling
+            var extractedText = MergePageTexts(pageTexts);
+
+            // Build page ranges after merging
+            var pageRanges = BuildPageRanges(pageTexts, extractedText);
+
+            // Extraction statistics
             structuralHints["ProcessedPages"] = processedPages;
             structuralHints["TotalCharacters"] = extractedText.Length;
             structuralHints["WordCount"] = CountWords(extractedText);
             structuralHints["LineCount"] = extractedText.Split('\n').Length;
             structuralHints["PageRanges"] = pageRanges;
+            structuralHints["TablesDetected"] = tablesDetected;
 
             if (processedPages < totalPages)
             {
-                extractionWarnings.Add($"일부 페이지 처리 실패: {processedPages}/{totalPages} 페이지만 처리됨");
+                extractionWarnings.Add($"Partial page processing: {processedPages}/{totalPages} pages processed");
             }
 
             return new RawContent
@@ -142,7 +144,6 @@ public partial class PdfDocumentReader : IDocumentReader
                     Name = Path.GetFileName(filePath),
                     Extension = ".pdf",
                     Size = fileInfo.Length,
-
                 },
                 Hints = structuralHints,
                 Warnings = extractionWarnings,
@@ -151,7 +152,7 @@ public partial class PdfDocumentReader : IDocumentReader
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException($"PDF 파일 처리 중 오류 발생: {ex.Message}", ex);
+            throw new InvalidOperationException($"PDF file processing error: {ex.Message}", ex);
         }
     }
 
@@ -159,16 +160,15 @@ public partial class PdfDocumentReader : IDocumentReader
     {
         var extractionWarnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
-        var textBuilder = new StringBuilder();
+        var pageTexts = new List<PageContent>();
 
-        var startTime = DateTime.UtcNow;
         var streamLength = stream.CanSeek ? stream.Length : -1;
 
         try
         {
             using var document = PdfDocument.Open(stream);
 
-            // PDF 메타데이터 수집
+            // Collect PDF metadata
             var info = document.Information;
             if (info != null)
             {
@@ -188,8 +188,9 @@ public partial class PdfDocumentReader : IDocumentReader
 
             var totalPages = document.NumberOfPages;
             var processedPages = 0;
+            var tablesDetected = 0;
 
-            // 페이지별 텍스트 추출
+            // Extract text from each page
             for (int pageNum = 1; pageNum <= totalPages; pageNum++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -197,40 +198,35 @@ public partial class PdfDocumentReader : IDocumentReader
                 try
                 {
                     var page = document.GetPage(pageNum);
-                    var pageText = ExtractPageText(page, pageNum, extractionWarnings);
+                    var pageContent = ExtractPageContent(page, pageNum, extractionWarnings);
 
-                    if (!string.IsNullOrWhiteSpace(pageText))
+                    if (pageContent.HasContent)
                     {
-                        // 페이지 구분자 추가 (청킹에 더 적합한 형식)
-                        if (textBuilder.Length > 0)
-                        {
-                            textBuilder.AppendLine();
-                            textBuilder.AppendLine(); // 추가 공백으로 명확한 페이지 경계
-                        }
-
-                        // 페이지 텍스트 전처리 및 정리
-                        var cleanedText = NormalizeText(pageText);
-                        textBuilder.AppendLine(cleanedText);
+                        pageTexts.Add(pageContent);
+                        tablesDetected += pageContent.TableCount;
                     }
 
                     processedPages++;
                 }
                 catch (Exception ex)
                 {
-                    extractionWarnings.Add($"페이지 {pageNum} 처리 중 오류: {ex.Message}");
+                    extractionWarnings.Add($"Page {pageNum} processing error: {ex.Message}");
                 }
             }
 
-            // 추출 통계
-            var extractedText = textBuilder.ToString();
+            // Merge page texts with sentence boundary handling
+            var extractedText = MergePageTexts(pageTexts);
+
+            // Extraction statistics
             structuralHints["ProcessedPages"] = processedPages;
             structuralHints["TotalCharacters"] = extractedText.Length;
             structuralHints["WordCount"] = CountWords(extractedText);
             structuralHints["LineCount"] = extractedText.Split('\n').Length;
+            structuralHints["TablesDetected"] = tablesDetected;
 
             if (processedPages < totalPages)
             {
-                extractionWarnings.Add($"일부 페이지 처리 실패: {processedPages}/{totalPages} 페이지만 처리됨");
+                extractionWarnings.Add($"Partial page processing: {processedPages}/{totalPages} pages processed");
             }
 
             return new RawContent
@@ -241,7 +237,6 @@ public partial class PdfDocumentReader : IDocumentReader
                     Name = fileName,
                     Extension = ".pdf",
                     Size = streamLength,
-
                 },
                 Hints = structuralHints,
                 Warnings = extractionWarnings,
@@ -250,36 +245,335 @@ public partial class PdfDocumentReader : IDocumentReader
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException($"PDF 스트림 처리 중 오류 발생: {ex.Message}", ex);
+            throw new InvalidOperationException($"PDF stream processing error: {ex.Message}", ex);
         }
     }
 
-    private string ExtractPageText(Page page, int pageNum, List<string> warnings)
+    /// <summary>
+    /// Extract content from a single page with table detection and layout analysis.
+    /// </summary>
+    private PageContent ExtractPageContent(Page page, int pageNum, List<string> warnings)
     {
+        var content = new PageContent { PageNumber = pageNum };
+
         try
         {
             var words = page.GetWords().ToList();
             if (words.Count == 0)
             {
-                warnings.Add($"페이지 {pageNum}: 텍스트 없음");
-                return "";
+                warnings.Add($"Page {pageNum}: No text content");
+                return content;
             }
 
-            // 단어를 위치 기준으로 정렬 (위에서 아래로, 왼쪽에서 오른쪽으로)
-            var sortedWords = words
-                .OrderBy(w => Math.Round(page.Height - w.BoundingBox.Bottom, 1)) // Y 좌표 (위에서 아래)
-                .ThenBy(w => Math.Round(w.BoundingBox.Left, 1))                   // X 좌표 (왼쪽에서 오른쪽)
+            // Detect tables using layout analysis
+            var tables = DetectTables(page, words, warnings);
+            content.TableCount = tables.Count;
+
+            // Get text blocks excluding table areas
+            var textBlocks = ExtractTextBlocks(page, words, tables);
+
+            // Build page text with tables converted to markdown
+            var textBuilder = new StringBuilder();
+
+            foreach (var block in textBlocks.OrderBy(b => b.TopY).ThenBy(b => b.LeftX))
+            {
+                if (block.IsTable)
+                {
+                    // Convert table to markdown format
+                    textBuilder.AppendLine();
+                    textBuilder.AppendLine(block.Content);
+                    textBuilder.AppendLine();
+                }
+                else
+                {
+                    textBuilder.AppendLine(block.Content);
+                }
+            }
+
+            content.Text = textBuilder.ToString().Trim();
+            content.EndsWithIncompleteSentence = IsIncompleteSentenceEnd(content.Text);
+            content.StartsWithIncompleteSentence = IsIncompleteSentenceStart(content.Text);
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"Page {pageNum} text extraction error: {ex.Message}");
+        }
+
+        return content;
+    }
+
+    /// <summary>
+    /// Detect table regions in the page based on word alignment patterns.
+    /// </summary>
+    private static List<TableRegion> DetectTables(Page page, List<Word> words, List<string> warnings)
+    {
+        var tables = new List<TableRegion>();
+
+        try
+        {
+            // Group words by approximate Y position (rows)
+            var lineHeight = EstimateLineHeight(words);
+            var rows = GroupWordsIntoRows(words, lineHeight);
+
+            if (rows.Count < 2) return tables;
+
+            // Detect potential table regions by analyzing column alignment
+            var columnPositions = DetectColumnPositions(rows);
+
+            if (columnPositions.Count >= 2)
+            {
+                // Find consecutive rows that align to columns (table candidates)
+                var tableRows = new List<List<Word>>();
+                var inTable = false;
+
+                foreach (var row in rows)
+                {
+                    var alignsToColumns = RowAlignsToColumns(row, columnPositions, lineHeight);
+
+                    if (alignsToColumns)
+                    {
+                        if (!inTable)
+                        {
+                            tableRows = [];
+                            inTable = true;
+                        }
+                        tableRows.Add(row);
+                    }
+                    else if (inTable)
+                    {
+                        // End of table region
+                        if (tableRows.Count >= 2)
+                        {
+                            var table = CreateTableFromRows(tableRows, columnPositions, page.Height);
+                            if (table != null)
+                            {
+                                tables.Add(table);
+                            }
+                        }
+                        inTable = false;
+                    }
+                }
+
+                // Handle table at end of page
+                if (inTable && tableRows.Count >= 2)
+                {
+                    var table = CreateTableFromRows(tableRows, columnPositions, page.Height);
+                    if (table != null)
+                    {
+                        tables.Add(table);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"Table detection error: {ex.Message}");
+        }
+
+        return tables;
+    }
+
+    /// <summary>
+    /// Group words into rows based on Y position.
+    /// </summary>
+    private static List<List<Word>> GroupWordsIntoRows(List<Word> words, double lineHeight)
+    {
+        var rows = new List<List<Word>>();
+        var sortedWords = words.OrderBy(w => w.BoundingBox.Bottom).ThenBy(w => w.BoundingBox.Left).ToList();
+
+        List<Word>? currentRow = null;
+        double currentY = double.MinValue;
+
+        foreach (var word in sortedWords)
+        {
+            var wordY = word.BoundingBox.Bottom;
+
+            if (currentRow == null || Math.Abs(wordY - currentY) > lineHeight * 0.5)
+            {
+                currentRow = [];
+                rows.Add(currentRow);
+                currentY = wordY;
+            }
+
+            currentRow.Add(word);
+        }
+
+        // Sort words in each row by X position
+        foreach (var row in rows)
+        {
+            row.Sort((a, b) => a.BoundingBox.Left.CompareTo(b.BoundingBox.Left));
+        }
+
+        return rows;
+    }
+
+    /// <summary>
+    /// Detect column positions by analyzing word alignment across rows.
+    /// </summary>
+    private static List<double> DetectColumnPositions(List<List<Word>> rows)
+    {
+        var xPositions = new Dictionary<int, int>(); // X position (bucketed) -> occurrence count
+        const int bucketSize = 5; // 5-point tolerance for alignment
+
+        foreach (var row in rows)
+        {
+            foreach (var word in row)
+            {
+                var bucket = (int)(word.BoundingBox.Left / bucketSize) * bucketSize;
+                xPositions.TryAdd(bucket, 0);
+                xPositions[bucket]++;
+            }
+        }
+
+        // Find X positions that appear in multiple rows (likely column starts)
+        var threshold = rows.Count / 3; // At least 1/3 of rows should have this alignment
+        var columnPositions = xPositions
+            .Where(kvp => kvp.Value >= threshold)
+            .OrderBy(kvp => kvp.Key)
+            .Select(kvp => (double)kvp.Key)
+            .ToList();
+
+        return columnPositions;
+    }
+
+    /// <summary>
+    /// Check if a row aligns to detected column positions.
+    /// </summary>
+    private static bool RowAlignsToColumns(List<Word> row, List<double> columnPositions, double tolerance)
+    {
+        if (row.Count < 2 || columnPositions.Count < 2) return false;
+
+        var alignedCount = 0;
+        foreach (var word in row)
+        {
+            var x = word.BoundingBox.Left;
+            if (columnPositions.Any(cp => Math.Abs(x - cp) < tolerance * 2))
+            {
+                alignedCount++;
+            }
+        }
+
+        // At least half of words should align to column positions
+        return alignedCount >= row.Count / 2;
+    }
+
+    /// <summary>
+    /// Create a TableRegion from detected table rows.
+    /// </summary>
+    private static TableRegion? CreateTableFromRows(List<List<Word>> tableRows, List<double> columnPositions, double pageHeight)
+    {
+        if (tableRows.Count < 2) return null;
+
+        // Calculate bounding box
+        var allWords = tableRows.SelectMany(r => r).ToList();
+        var minX = allWords.Min(w => w.BoundingBox.Left);
+        var maxX = allWords.Max(w => w.BoundingBox.Right);
+        var minY = allWords.Min(w => w.BoundingBox.Bottom);
+        var maxY = allWords.Max(w => w.BoundingBox.Top);
+
+        // Build markdown table
+        var markdown = new StringBuilder();
+        var isFirstRow = true;
+
+        foreach (var row in tableRows)
+        {
+            var cells = AssignWordsToColumns(row, columnPositions);
+            markdown.Append('|');
+            foreach (var cell in cells)
+            {
+                markdown.Append(' ').Append(cell.Trim()).Append(" |");
+            }
+            markdown.AppendLine();
+
+            // Add header separator after first row
+            if (isFirstRow)
+            {
+                markdown.Append('|');
+                for (int i = 0; i < cells.Count; i++)
+                {
+                    markdown.Append(" --- |");
+                }
+                markdown.AppendLine();
+                isFirstRow = false;
+            }
+        }
+
+        return new TableRegion
+        {
+            MinX = minX,
+            MaxX = maxX,
+            MinY = minY,
+            MaxY = maxY,
+            TopY = pageHeight - maxY,
+            Markdown = markdown.ToString().Trim()
+        };
+    }
+
+    /// <summary>
+    /// Assign words in a row to their respective columns.
+    /// </summary>
+    private static List<string> AssignWordsToColumns(List<Word> row, List<double> columnPositions)
+    {
+        var cells = new List<string>();
+        var sortedColumns = columnPositions.OrderBy(x => x).ToList();
+
+        for (int i = 0; i < sortedColumns.Count; i++)
+        {
+            var colStart = sortedColumns[i];
+            var colEnd = i < sortedColumns.Count - 1 ? sortedColumns[i + 1] : double.MaxValue;
+
+            var cellWords = row
+                .Where(w => w.BoundingBox.Left >= colStart - 10 && w.BoundingBox.Left < colEnd - 10)
+                .OrderBy(w => w.BoundingBox.Left)
+                .Select(w => w.Text);
+
+            cells.Add(string.Join(" ", cellWords));
+        }
+
+        return cells;
+    }
+
+    /// <summary>
+    /// Extract text blocks from page, separating tables from regular text.
+    /// </summary>
+    private static List<TextBlock> ExtractTextBlocks(Page page, List<Word> words, List<TableRegion> tables)
+    {
+        var blocks = new List<TextBlock>();
+        var lineHeight = EstimateLineHeight(words);
+
+        // Add table blocks
+        foreach (var table in tables)
+        {
+            blocks.Add(new TextBlock
+            {
+                Content = table.Markdown,
+                IsTable = true,
+                TopY = table.TopY,
+                LeftX = table.MinX
+            });
+        }
+
+        // Filter out words that are in table regions
+        var nonTableWords = words.Where(w => !IsWordInTable(w, tables)).ToList();
+
+        if (nonTableWords.Count > 0)
+        {
+            // Group remaining words into text blocks
+            var sortedWords = nonTableWords
+                .OrderBy(w => page.Height - w.BoundingBox.Bottom)
+                .ThenBy(w => w.BoundingBox.Left)
                 .ToList();
 
             var textBuilder = new StringBuilder();
-            var currentLineY = double.MinValue;
-            var lineHeight = EstimateLineHeight(sortedWords);
+            double currentLineY = double.MinValue;
+            double blockTopY = 0;
+            double blockLeftX = 0;
+            var isFirstWord = true;
 
             foreach (var word in sortedWords)
             {
                 var wordY = Math.Round(page.Height - word.BoundingBox.Bottom, 1);
 
-                // 새로운 줄 감지
                 if (Math.Abs(wordY - currentLineY) > lineHeight * 0.5)
                 {
                     if (textBuilder.Length > 0)
@@ -287,10 +581,16 @@ public partial class PdfDocumentReader : IDocumentReader
                         textBuilder.AppendLine();
                     }
                     currentLineY = wordY;
+
+                    if (isFirstWord)
+                    {
+                        blockTopY = wordY;
+                        blockLeftX = word.BoundingBox.Left;
+                        isFirstWord = false;
+                    }
                 }
                 else
                 {
-                    // 같은 줄에서 단어 사이 공백 추가
                     if (textBuilder.Length > 0 && !textBuilder.ToString().EndsWith('\n'))
                     {
                         textBuilder.Append(' ');
@@ -300,13 +600,140 @@ public partial class PdfDocumentReader : IDocumentReader
                 textBuilder.Append(word.Text);
             }
 
-            return textBuilder.ToString();
+            if (textBuilder.Length > 0)
+            {
+                blocks.Add(new TextBlock
+                {
+                    Content = textBuilder.ToString().Trim(),
+                    IsTable = false,
+                    TopY = blockTopY,
+                    LeftX = blockLeftX
+                });
+            }
         }
-        catch (Exception ex)
+
+        return blocks;
+    }
+
+    /// <summary>
+    /// Check if a word is within any detected table region.
+    /// </summary>
+    private static bool IsWordInTable(Word word, List<TableRegion> tables)
+    {
+        return tables.Any(t =>
+            word.BoundingBox.Left >= t.MinX - 5 &&
+            word.BoundingBox.Right <= t.MaxX + 5 &&
+            word.BoundingBox.Bottom >= t.MinY - 5 &&
+            word.BoundingBox.Top <= t.MaxY + 5);
+    }
+
+    /// <summary>
+    /// Merge page texts with intelligent sentence boundary handling.
+    /// </summary>
+    private static string MergePageTexts(List<PageContent> pageTexts)
+    {
+        if (pageTexts.Count == 0) return "";
+        if (pageTexts.Count == 1) return NormalizeText(pageTexts[0].Text);
+
+        var result = new StringBuilder();
+
+        for (int i = 0; i < pageTexts.Count; i++)
         {
-            warnings.Add($"페이지 {pageNum} 텍스트 추출 오류: {ex.Message}");
-            return "";
+            var currentPage = pageTexts[i];
+            var normalizedText = NormalizeText(currentPage.Text);
+
+            if (i == 0)
+            {
+                result.Append(normalizedText);
+                continue;
+            }
+
+            var prevPage = pageTexts[i - 1];
+
+            // Check if we need to merge sentences across page boundary
+            if (prevPage.EndsWithIncompleteSentence && currentPage.StartsWithIncompleteSentence)
+            {
+                // Merge without paragraph break - just add a space
+                if (result.Length > 0 && !char.IsWhiteSpace(result[^1]))
+                {
+                    result.Append(' ');
+                }
+                result.Append(normalizedText);
+            }
+            else
+            {
+                // Add paragraph break between pages
+                result.AppendLine();
+                result.AppendLine();
+                result.Append(normalizedText);
+            }
         }
+
+        return result.ToString().Trim();
+    }
+
+    /// <summary>
+    /// Build page range mappings after text merging.
+    /// </summary>
+    private static Dictionary<int, (int Start, int End)> BuildPageRanges(List<PageContent> pageTexts, string mergedText)
+    {
+        var ranges = new Dictionary<int, (int Start, int End)>();
+        var currentPosition = 0;
+
+        foreach (var page in pageTexts)
+        {
+            var normalizedLength = NormalizeText(page.Text).Length;
+            if (normalizedLength > 0)
+            {
+                ranges[page.PageNumber] = (currentPosition, currentPosition + normalizedLength - 1);
+                currentPosition += normalizedLength + 2; // Account for paragraph breaks
+            }
+        }
+
+        return ranges;
+    }
+
+    /// <summary>
+    /// Check if text ends with an incomplete sentence.
+    /// </summary>
+    private static bool IsIncompleteSentenceEnd(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        var trimmed = text.TrimEnd();
+        if (trimmed.Length == 0) return false;
+
+        // Check for sentence-ending punctuation
+        var lastChar = trimmed[^1];
+        if (lastChar == '.' || lastChar == '!' || lastChar == '?' ||
+            lastChar == '。' || lastChar == '！' || lastChar == '？')
+        {
+            return false;
+        }
+
+        // Check for common incomplete endings
+        return IncompleteEndPattern.IsMatch(trimmed);
+    }
+
+    /// <summary>
+    /// Check if text starts with an incomplete sentence.
+    /// </summary>
+    private static bool IsIncompleteSentenceStart(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        var trimmed = text.TrimStart();
+        if (trimmed.Length == 0) return false;
+
+        // Check if starts with lowercase letter (likely continuation)
+        var firstChar = trimmed[0];
+        if (char.IsLower(firstChar))
+        {
+            return true;
+        }
+
+        // Check for continuation patterns
+        return IncompleteStartPattern.IsMatch(trimmed);
     }
 
     private static double EstimateLineHeight(IList<Word> words)
@@ -373,6 +800,55 @@ public partial class PdfDocumentReader : IDocumentReader
             .Length;
     }
 
-    [System.Text.RegularExpressions.GeneratedRegex(@"[ \t]+")]
-    private static partial System.Text.RegularExpressions.Regex MyRegex();
+    [GeneratedRegex(@"[ \t]+")]
+    private static partial Regex MyRegex();
+
+    // Pattern for text ending without sentence-ending punctuation (likely incomplete)
+    [GeneratedRegex(@"[a-zA-Z가-힣,;:\-]$")]
+    private static partial Regex IncompleteSentenceEndRegex();
+
+    // Pattern for text starting with lowercase or continuation markers
+    [GeneratedRegex(@"^[a-z]|^[,;:\-]|^[가-힣](?![.!?。！？])")]
+    private static partial Regex IncompleteSentenceStartRegex();
+
+    #region Internal Classes
+
+    /// <summary>
+    /// Represents extracted content from a single PDF page.
+    /// </summary>
+    private sealed class PageContent
+    {
+        public int PageNumber { get; set; }
+        public string Text { get; set; } = "";
+        public int TableCount { get; set; }
+        public bool EndsWithIncompleteSentence { get; set; }
+        public bool StartsWithIncompleteSentence { get; set; }
+        public bool HasContent => !string.IsNullOrWhiteSpace(Text);
+    }
+
+    /// <summary>
+    /// Represents a detected table region in the page.
+    /// </summary>
+    private sealed class TableRegion
+    {
+        public double MinX { get; set; }
+        public double MaxX { get; set; }
+        public double MinY { get; set; }
+        public double MaxY { get; set; }
+        public double TopY { get; set; }
+        public string Markdown { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Represents a text block (either table or regular text).
+    /// </summary>
+    private sealed class TextBlock
+    {
+        public string Content { get; set; } = "";
+        public bool IsTable { get; set; }
+        public double TopY { get; set; }
+        public double LeftX { get; set; }
+    }
+
+    #endregion
 }

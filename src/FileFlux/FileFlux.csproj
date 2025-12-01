@@ -34,9 +34,16 @@
     <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup Label="Text Processing">
+  <!-- DEBUG: Project references for local development -->
+  <ItemGroup Label="Text Processing" Condition="'$(Configuration)' == 'Debug'">
     <ProjectReference Include="..\..\..\FluxCurator\src\FluxCurator\FluxCurator.csproj" />
     <ProjectReference Include="..\..\..\FluxImprover\src\FluxImprover\FluxImprover.csproj" />
+  </ItemGroup>
+
+  <!-- RELEASE: NuGet package references for distribution -->
+  <ItemGroup Label="Text Processing" Condition="'$(Configuration)' == 'Release'">
+    <PackageReference Include="FluxCurator" />
+    <PackageReference Include="FluxImprover" />
   </ItemGroup>
 
 </Project>
