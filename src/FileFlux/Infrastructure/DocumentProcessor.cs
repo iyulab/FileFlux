@@ -218,6 +218,10 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 refinedText = RestructureHeadings(refinedText);
             }
 
+            // Remove empty bullet points and duplicate lines
+            refinedText = RemoveEmptyBulletPoints(refinedText);
+            refinedText = RemoveDuplicateLines(refinedText);
+
             // Create refined parsed content
             var refined = new ParsedContent
             {
@@ -315,6 +319,9 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
             @"^(CONFIDENTIAL|DRAFT|INTERNAL)$",
             @"^©\s*\d{4}",
             @"^All [Rr]ights [Rr]eserved",
+            // Korean comment section markers (common in HTML exports from Korean bulletin boards)
+            @"^#\s*댓글\s*$",
+            @"^-\s*댓글\s*\d+\s*개\s*$",
         };
 
         foreach (var pattern in patterns)
@@ -336,6 +343,46 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
             // Skip lines that are just numbers (page numbers)
             return !System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^-?\s*\d+\s*-?$");
         });
+
+        return string.Join("\n", result);
+    }
+
+    private static string RemoveEmptyBulletPoints(string text)
+    {
+        // Remove lines that are just bullet markers with no content
+        // Matches: -, *, •, +, or numbered bullets like 1., 2) etc. with optional whitespace
+        var lines = text.Split('\n');
+        var result = lines.Where(l =>
+        {
+            var trimmed = l.Trim();
+            // Skip empty bullet points (just the marker with no text)
+            return !System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[-*•+]$") &&
+                   !System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^\d+[.\)]$");
+        });
+
+        return string.Join("\n", result);
+    }
+
+    private static string RemoveDuplicateLines(string text)
+    {
+        // Remove consecutive duplicate lines (common in HTML conversions)
+        var lines = text.Split('\n');
+        var result = new List<string>();
+        string? previousLine = null;
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            // Skip exact duplicate of previous non-empty line
+            if (!string.IsNullOrWhiteSpace(trimmed) && trimmed == previousLine)
+                continue;
+
+            result.Add(line);
+
+            if (!string.IsNullOrWhiteSpace(trimmed))
+                previousLine = trimmed;
+        }
 
         return string.Join("\n", result);
     }
@@ -500,10 +547,10 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 {
                     var summary = enrichedChunks[i].Summary;
                     if (summary != null)
-                        chunks[i].Props["summary"] = summary;
+                        chunks[i].Props["enriched_summary"] = summary;
                     var keywords = enrichedChunks[i].Keywords;
                     if (keywords != null)
-                        chunks[i].Props["keywords"] = keywords;
+                        chunks[i].Props["enriched_keywords"] = keywords;
                 }
             }
 
