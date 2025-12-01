@@ -16,24 +16,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Microsoft Extensions packages -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <!-- Microsoft Extensions packages (not in Core) -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
 
-    <!-- Document Processing Libraries -->
-    <PackageReference Include="DocumentFormat.OpenXml" />
+    <!-- FileFlux-specific packages (not in Core) -->
     <PackageReference Include="NTextCat" />
-    <PackageReference Include="PdfPig" />
-    <PackageReference Include="HtmlAgilityPack" />
-    <PackageReference Include="CsvHelper" />
-    <PackageReference Include="Markdig" />
-
-    <!-- Two-hop DOCX conversion -->
-    <PackageReference Include="Mammoth" />
-    <PackageReference Include="ReverseMarkdown" />
   </ItemGroup>
 
   <ItemGroup Label="Embeddings">

@@ -64,6 +64,18 @@ public interface IDocumentProcessor
         CancellationToken cancellationToken = default);
 
     // ========================================
+    // Stage 2.5: Refine (ParsedContent -> ParsedContent)
+    // ========================================
+
+    /// <summary>
+    /// Refine/clean parsed content - batch return
+    /// </summary>
+    Task<ParsedContent> RefineAsync(
+        ParsedContent parsed,
+        RefiningOptions? options = null,
+        CancellationToken cancellationToken = default);
+
+    // ========================================
     // Stage 3: Chunk (ParsedContent -> Chunks)
     // ========================================
 

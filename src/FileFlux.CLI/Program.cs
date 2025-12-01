@@ -18,9 +18,10 @@ class Program
         var rootCommand = new RootCommand("FileFlux CLI - Document processing for RAG systems")
         {
             new ExtractCommand(),
+            new RefineCommand(),
             new ChunkCommand(),
-            new ProcessCommand(),
             new EnrichCommand(),
+            new ProcessCommand(),
             new QACommand(),
             new EvaluateCommand(),
             new InfoCommand(),
@@ -70,9 +71,10 @@ class Program
         table.AddColumn("[bold]Description[/]");
 
         table.AddRow("extract", "Extract raw text from documents");
-        table.AddRow("chunk", "Intelligent chunking with optional AI enrichment");
-        table.AddRow("process", "Complete pipeline (extract + chunk + enrich)");
+        table.AddRow("refine", "Clean/refine extracted content (headers, whitespace)");
+        table.AddRow("chunk", "Intelligent chunking (optional: --refine, --enrich)");
         table.AddRow("enrich", "Add AI summaries and keywords to chunks");
+        table.AddRow("process", "Complete 4-stage pipeline: Extract → Refine → Chunk → Enrich");
         table.AddRow("qa", "Generate QA pairs from document chunks");
         table.AddRow("evaluate", "Evaluate QA pairs for quality metrics");
         table.AddRow("info", "Display document information");
@@ -84,10 +86,10 @@ class Program
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine("[yellow]Examples:[/]");
-        AnsiConsole.MarkupLine("  [grey]fileflux process document.pdf[/]");
-        AnsiConsole.MarkupLine("  [grey]fileflux extract document.docx -f markdown[/]");
-        AnsiConsole.MarkupLine("  [grey]fileflux set OPENAI_API_KEY sk-...[/]");
-        AnsiConsole.MarkupLine("  [grey]fileflux get[/]");
+        AnsiConsole.MarkupLine("  [grey]fileflux process document.pdf --ai[/]       [dim]# Full pipeline with AI[/]");
+        AnsiConsole.MarkupLine("  [grey]fileflux chunk document.pdf --refine[/]     [dim]# Extract → Refine → Chunk[/]");
+        AnsiConsole.MarkupLine("  [grey]fileflux extract document.docx[/]           [dim]# Extract only[/]");
+        AnsiConsole.MarkupLine("  [grey]fileflux refine extracted.json[/]           [dim]# Refine only[/]");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[grey]Run 'fileflux status' for detailed configuration[/]");
     }

@@ -268,11 +268,19 @@ public partial class BasicDocumentParser : IDocumentParser
                 : rawContent.Text.Split([' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries).Length;
         }
 
-        // Get page count from hints
+        // Get page count from hints (supports various key names from different readers)
         var pageCount = 1;
         if (rawContent.Hints.TryGetValue("page_count", out var pc) && pc is int pages)
         {
             pageCount = pages;
+        }
+        else if (rawContent.Hints.TryGetValue("PageCount", out var pc2) && pc2 is int pages2)
+        {
+            pageCount = pages2;
+        }
+        else if (rawContent.Hints.TryGetValue("slide_count", out var sc) && sc is int slides)
+        {
+            pageCount = slides;
         }
 
         // Get document title from hints (set by document readers like Word, PDF, Excel, PowerPoint)
@@ -428,19 +436,24 @@ public partial class BasicDocumentParser : IDocumentParser
     {
         return string.Join("\n\n", sections.Select(s =>
         {
-            // 콘텐츠가 이미 헤더로 시작하는지 확인
+            // Content that already has markdown headers - use as-is
             var contentLines = s.Content.Split('\n');
             var firstLine = contentLines.FirstOrDefault()?.TrimStart() ?? "";
 
-            // 이미 마크다운 헤더가 있다면 그대로 사용, 없다면 헤더 추가
             if (firstLine.StartsWith('#'))
             {
                 return s.Content;
             }
-            else
+
+            // For paragraph sections without real titles, just return content without adding artificial headers
+            // "Paragraph N" titles are auto-generated and add noise to the output
+            if (s.Type == "Paragraph" && s.Title.StartsWith("Paragraph ", StringComparison.OrdinalIgnoreCase))
             {
-                return $"{new string('#', s.Level)} {s.Title}\n{s.Content}";
+                return s.Content;
             }
+
+            // Only add headers for sections with meaningful titles
+            return $"{new string('#', s.Level)} {s.Title}\n{s.Content}";
         }));
     }
 

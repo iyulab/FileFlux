@@ -100,4 +100,31 @@ public static class FileNameHelper
 
         return NormalizeFileName(fileInfo.Name);
     }
+
+    /// <summary>
+    /// Extracts filename from a path string that may be an alt text or image reference.
+    /// Handles both Windows and Unix-style paths.
+    /// </summary>
+    /// <param name="pathOrText">Path or text that may contain a file path</param>
+    /// <returns>Extracted filename, or original text if no path detected</returns>
+    /// <example>
+    /// "C:\Users\Admin\Desktop\image.jpg" => "image.jpg"
+    /// "/home/user/docs/photo.png" => "photo.png"
+    /// "Simple text" => "Simple text"
+    /// </example>
+    public static string ExtractFileNameFromPathOrText(string? pathOrText)
+    {
+        if (string.IsNullOrEmpty(pathOrText))
+            return string.Empty;
+
+        // Check if it looks like a path (contains path separators)
+        if (pathOrText.Contains('\\') || pathOrText.Contains('/'))
+        {
+            // Use Path.GetFileName which handles both separators
+            var fileName = Path.GetFileName(pathOrText);
+            return string.IsNullOrEmpty(fileName) ? pathOrText : fileName;
+        }
+
+        return pathOrText;
+    }
 }

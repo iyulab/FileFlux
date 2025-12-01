@@ -1,6 +1,7 @@
 using FileFlux.Core;
 using System.Text;
 using System.Text.RegularExpressions;
+using static FileFlux.Core.FileNameHelper;
 
 namespace FileFlux.CLI.Output;
 
@@ -226,9 +227,13 @@ public class ExtractOutputWriter
 
                 // Replace with relative path reference using actual directory name
                 var relativePath = $"./{dirName}/{fileName}";
-                var replacement = string.IsNullOrEmpty(altText)
+
+                // Extract filename only from alt text if it contains a path
+                var displayAltText = FileNameHelper.ExtractFileNameFromPathOrText(altText);
+
+                var replacement = string.IsNullOrEmpty(displayAltText)
                     ? $"![Image {currentIndex}]({relativePath})"
-                    : $"![{altText}]({relativePath})";
+                    : $"![{displayAltText}]({relativePath})";
 
                 result = result.Replace(match.Value, replacement);
             }
@@ -257,7 +262,8 @@ public class ExtractOutputWriter
         return regex.Replace(content, match =>
         {
             index++;
-            var altText = match.Groups[1].Value;
+            var altText = FileNameHelper.ExtractFileNameFromPathOrText(match.Groups[1].Value);
+
             return string.IsNullOrEmpty(altText)
                 ? $"[Image {index}]"
                 : $"[Image: {altText}]";

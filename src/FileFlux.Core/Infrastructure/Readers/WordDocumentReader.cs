@@ -275,6 +275,16 @@ public partial class WordDocumentReader : IDocumentReader
         // Clean up table formatting if needed
         markdown = markdown.Replace("| \n", "|\n");
 
+        // Clean up image alt text: extract filename from full path
+        // Pattern: ![C:\Users\...\file.jpg](url) => ![file.jpg](url)
+        markdown = ImageAltPathRegex().Replace(markdown, match =>
+        {
+            var altText = match.Groups[1].Value;
+            var url = match.Groups[2].Value;
+            var cleanAltText = FileNameHelper.ExtractFileNameFromPathOrText(altText);
+            return $"![{cleanAltText}]({url})";
+        });
+
         return markdown.Trim();
     }
 
@@ -417,4 +427,7 @@ public partial class WordDocumentReader : IDocumentReader
 
     [GeneratedRegex(@"<img\s", RegexOptions.IgnoreCase)]
     private static partial Regex ImageTagRegex();
+
+    [GeneratedRegex(@"!\[([^\]]*)\]\(([^)]+)\)")]
+    private static partial Regex ImageAltPathRegex();
 }

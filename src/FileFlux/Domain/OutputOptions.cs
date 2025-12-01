@@ -1,6 +1,55 @@
 namespace FileFlux.Domain;
 
 /// <summary>
+/// Output directory structure for FileFlux processing stages
+/// </summary>
+public class OutputDirectories
+{
+    /// <summary>
+    /// Base output directory (.fileflux/filename_output/)
+    /// </summary>
+    public string Base { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Extract stage output directory
+    /// </summary>
+    public string Extract { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Refine stage output directory
+    /// </summary>
+    public string Refine { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Chunks stage output directory
+    /// </summary>
+    public string Chunks { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Enrich stage output directory
+    /// </summary>
+    public string Enrich { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Images output directory
+    /// </summary>
+    public string Images { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Ensure all directories exist
+    /// </summary>
+    public void EnsureDirectoriesExist()
+    {
+        Directory.CreateDirectory(Base);
+        Directory.CreateDirectory(Extract);
+        Directory.CreateDirectory(Refine);
+        Directory.CreateDirectory(Chunks);
+        Directory.CreateDirectory(Enrich);
+        Directory.CreateDirectory(Images);
+    }
+}
+
+/// <summary>
 /// Options for output generation
 /// </summary>
 public class OutputOptions
@@ -36,11 +85,52 @@ public class OutputOptions
     public bool EnableAI { get; set; }
 
     /// <summary>
-    /// Generate default output directory based on input file
+    /// Generate default base output directory for a file (filename_output/)
+    /// When no custom output is specified, creates folder next to input file.
     /// </summary>
-    public static string GetDefaultOutputDirectory(string inputPath, string command)
+    public static string GetDefaultBaseDirectory(string inputPath)
     {
-        return $"{inputPath}.{command}";
+        var directory = Path.GetDirectoryName(inputPath) ?? ".";
+        var fileName = Path.GetFileName(inputPath);
+        return Path.Combine(directory, $"{fileName}_output");
+    }
+
+    /// <summary>
+    /// Generate default output directory for a specific stage
+    /// </summary>
+    public static string GetDefaultOutputDirectory(string inputPath, string stage)
+    {
+        return Path.Combine(GetDefaultBaseDirectory(inputPath), stage);
+    }
+
+    /// <summary>
+    /// Get all stage directories for a file.
+    /// If customOutput is specified, creates filename_output subfolder within it.
+    /// </summary>
+    public static OutputDirectories GetOutputDirectories(string inputPath, string? customOutput = null)
+    {
+        string baseDir;
+        if (customOutput != null)
+        {
+            // -o specified: create filename_output subfolder within custom path
+            var fileName = Path.GetFileName(inputPath);
+            baseDir = Path.Combine(customOutput, $"{fileName}_output");
+        }
+        else
+        {
+            // No -o: create filename_output next to input file
+            baseDir = GetDefaultBaseDirectory(inputPath);
+        }
+
+        return new OutputDirectories
+        {
+            Base = baseDir,
+            Extract = Path.Combine(baseDir, "extract"),
+            Refine = Path.Combine(baseDir, "refine"),
+            Chunks = Path.Combine(baseDir, "chunks"),
+            Enrich = Path.Combine(baseDir, "enrich"),
+            Images = Path.Combine(baseDir, "images")
+        };
     }
 }
 

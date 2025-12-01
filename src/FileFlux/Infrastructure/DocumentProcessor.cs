@@ -171,6 +171,209 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
 
     #endregion
 
+    #region Stage 2.5: Refine
+
+    /// <inheritdoc/>
+    public async Task<ParsedContent> RefineAsync(
+        ParsedContent parsed,
+        RefiningOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(parsed);
+        options ??= new RefiningOptions();
+
+        _logger.LogDebug("Refining document: {FileName}", parsed.Metadata.FileName);
+
+        try
+        {
+            var refinedText = parsed.Text;
+
+            // Remove artificial paragraph headings (# Paragraph N)
+            refinedText = RemoveArtificialParagraphHeadings(refinedText);
+
+            // Remove image placeholders like [그림], [Figure], [Image]
+            refinedText = RemoveImagePlaceholders(refinedText);
+
+            // Clean whitespace
+            if (options.CleanWhitespace)
+            {
+                refinedText = CleanWhitespace(refinedText);
+            }
+
+            // Remove headers/footers patterns
+            if (options.RemoveHeadersFooters)
+            {
+                refinedText = RemoveHeadersFooters(refinedText);
+            }
+
+            // Remove page numbers
+            if (options.RemovePageNumbers)
+            {
+                refinedText = RemovePageNumbers(refinedText);
+            }
+
+            // Restructure headings
+            if (options.RestructureHeadings)
+            {
+                refinedText = RestructureHeadings(refinedText);
+            }
+
+            // Create refined parsed content
+            var refined = new ParsedContent
+            {
+                Text = refinedText,
+                Metadata = parsed.Metadata,
+                Structure = parsed.Structure,
+                Info = parsed.Info
+            };
+
+            _logger.LogDebug("Refined document: {OriginalLength} -> {RefinedLength} chars",
+                parsed.Text.Length, refinedText.Length);
+
+            return await Task.FromResult(refined).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not FileFluxException)
+        {
+            throw new DocumentProcessingException(parsed.Metadata.FileName, $"Refining failed: {ex.Message}", ex);
+        }
+    }
+
+    private static string RemoveArtificialParagraphHeadings(string text)
+    {
+        // Remove "# Paragraph N" headings (auto-generated, not meaningful structure)
+        // Matches: # Paragraph 1, ## Paragraph 2, ### Paragraph 10, etc.
+        text = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"^#{1,6}\s*Paragraph\s+\d+\s*$",
+            "",
+            System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Clean up resulting empty lines (but keep paragraph spacing)
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n");
+
+        return text.Trim();
+    }
+
+    private static string RemoveImagePlaceholders(string text)
+    {
+        // Remove common image placeholder patterns
+        // Matches: [그림], [그림] 설명, [Figure], [Image], [Image: description]
+        text = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"^\[(?:그림|Figure|Image|이미지|사진|도표|표)\].*$",
+            "",
+            System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Clean up resulting empty lines
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n");
+
+        return text.Trim();
+    }
+
+    private static string CleanWhitespace(string text)
+    {
+        // Replace multiple newlines with double newline
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n");
+
+        // Replace multiple spaces with single space
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"[ \t]{2,}", " ");
+
+        // Trim lines
+        var lines = text.Split('\n').Select(l => l.Trim());
+        return string.Join("\n", lines);
+    }
+
+    private static string RemoveHeadersFooters(string text)
+    {
+        var lines = text.Split('\n').ToList();
+        var result = new List<string>();
+
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i].Trim();
+
+            // Skip common header/footer patterns
+            if (IsHeaderFooterLine(line))
+                continue;
+
+            result.Add(lines[i]);
+        }
+
+        return string.Join("\n", result);
+    }
+
+    private static bool IsHeaderFooterLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return false;
+
+        // Common patterns: "Page X of Y", "Confidential", dates alone
+        var patterns = new[]
+        {
+            @"^Page\s+\d+\s*(of\s+\d+)?$",
+            @"^\d+\s*/\s*\d+$",
+            @"^(CONFIDENTIAL|DRAFT|INTERNAL)$",
+            @"^©\s*\d{4}",
+            @"^All [Rr]ights [Rr]eserved",
+        };
+
+        foreach (var pattern in patterns)
+        {
+            if (System.Text.RegularExpressions.Regex.IsMatch(line, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static string RemovePageNumbers(string text)
+    {
+        // Remove standalone page numbers (lines with just numbers)
+        var lines = text.Split('\n');
+        var result = lines.Where(l =>
+        {
+            var trimmed = l.Trim();
+            // Skip lines that are just numbers (page numbers)
+            return !System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^-?\s*\d+\s*-?$");
+        });
+
+        return string.Join("\n", result);
+    }
+
+    private static string RestructureHeadings(string text)
+    {
+        var lines = text.Split('\n').ToList();
+        var result = new List<string>();
+
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i];
+            var trimmed = line.Trim();
+
+            // Detect potential headings (short lines followed by longer content)
+            if (trimmed.Length > 0 && trimmed.Length < 100 &&
+                !trimmed.EndsWith('.') && !trimmed.EndsWith(',') &&
+                i + 1 < lines.Count && lines[i + 1].Trim().Length > trimmed.Length)
+            {
+                // Check if it looks like a heading (starts with number or capital)
+                if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^(\d+[\.\)]\s*)?[A-Z]"))
+                {
+                    // Ensure blank line before heading (if not first line and prev isn't blank)
+                    if (result.Count > 0 && !string.IsNullOrWhiteSpace(result[^1]))
+                    {
+                        result.Add("");
+                    }
+                }
+            }
+
+            result.Add(line);
+        }
+
+        return string.Join("\n", result);
+    }
+
+    #endregion
+
     #region Stage 3: Chunk (FluxCurator delegation)
 
     /// <inheritdoc/>
@@ -279,8 +482,9 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 // Merge contextual info back to chunks
                 for (int i = 0; i < chunks.Length && i < contextualChunks.Count; i++)
                 {
-                    if (contextualChunks[i].ContextSummary != null)
-                        chunks[i].Props["contextual_summary"] = contextualChunks[i].ContextSummary;
+                    var contextSummary = contextualChunks[i].ContextSummary;
+                    if (contextSummary != null)
+                        chunks[i].Props["contextual_summary"] = contextSummary;
                     chunks[i].Props["contextual_text"] = contextualChunks[i].GetContextualizedText();
                 }
             }
@@ -294,10 +498,12 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
 
                 for (int i = 0; i < chunks.Length && i < enrichedChunks.Count; i++)
                 {
-                    if (enrichedChunks[i].Summary != null)
-                        chunks[i].Props["summary"] = enrichedChunks[i].Summary;
-                    if (enrichedChunks[i].Keywords != null)
-                        chunks[i].Props["keywords"] = enrichedChunks[i].Keywords;
+                    var summary = enrichedChunks[i].Summary;
+                    if (summary != null)
+                        chunks[i].Props["summary"] = summary;
+                    var keywords = enrichedChunks[i].Keywords;
+                    if (keywords != null)
+                        chunks[i].Props["keywords"] = keywords;
                 }
             }
 

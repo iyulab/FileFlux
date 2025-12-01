@@ -23,7 +23,7 @@ public class ExtractCommand : Command
 
         var outputOpt = new Option<string>("--output", "-o")
         {
-            Description = "Output directory path (default: input.extract/)"
+            Description = "Output directory path (default: <input>_output/)"
         };
 
         var formatOpt = new Option<string>("--format", "-f")
@@ -154,18 +154,23 @@ public class ExtractCommand : Command
             EnableAI = enableAI
         };
 
+        // Get output directories
+        var dirs = OutputOptions.GetOutputDirectories(input, output);
+
         if (!quiet)
         {
-            var outputDir = output ?? OutputOptions.GetDefaultOutputDirectory(input, "extract");
             AnsiConsole.MarkupLine($"[blue]FileFlux CLI - Extract[/]");
             AnsiConsole.MarkupLine($"  Input:  {Markup.Escape(input)}");
-            AnsiConsole.MarkupLine($"  Output: {Markup.Escape(outputDir)}/");
+            AnsiConsole.MarkupLine($"  Output: {Markup.Escape(dirs.Base)}/");
             AnsiConsole.MarkupLine($"  Format: {format ?? "md"}");
             AnsiConsole.MarkupLine($"  AI:     {(enableAI ? $"[green]Enabled[/] ({aiProvider})" : "Disabled")}");
             if (extractImages)
                 AnsiConsole.MarkupLine($"  Images: [green]Extracting[/]");
             AnsiConsole.WriteLine();
         }
+
+        // Override output options with new directory structure
+        outputOptions.OutputDirectory = dirs.Extract;
 
         try
         {
