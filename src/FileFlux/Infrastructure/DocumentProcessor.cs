@@ -1,413 +1,386 @@
-using FileFlux;
 using FileFlux.Core;
+using FileFlux.Infrastructure.Adapters;
+using FluxCurator.Core.Core;
+using FluxImprover;
+using FluxImprover.ContextualRetrieval;
+using FluxImprover.Enrichment;
+using FluxImprover.Models;
 using Microsoft.Extensions.Logging;
-using System.Runtime.CompilerServices;
+using FluxCuratorStrategy = FluxCurator.Core.Domain.ChunkingStrategy;
+using FluxCuratorChunkOptions = FluxCurator.Core.Domain.ChunkOptions;
 
 namespace FileFlux.Infrastructure;
 
 /// <summary>
-/// 문서 처리기 구현체 - 간결한 API 제공
+/// Document processor that delegates chunking to FluxCurator and enhancement to FluxImprover.
+/// Provides a unified API for the complete document processing pipeline.
 /// </summary>
-public partial class DocumentProcessor : IDocumentProcessor
+public sealed partial class FluxDocumentProcessor : IDocumentProcessor
 {
     private readonly IDocumentReaderFactory _readerFactory;
     private readonly IDocumentParserFactory _parserFactory;
-    private readonly IChunkingStrategyFactory _chunkingFactory;
-    private readonly ILogger<DocumentProcessor> _logger;
-    private readonly IMetadataEnricher? _metadataEnricher;
+    private readonly IChunkerFactory _chunkerFactory;
+    private readonly FluxImproverServices? _improverServices;
+    private readonly ILogger<FluxDocumentProcessor> _logger;
 
-    public DocumentProcessor(
+    /// <summary>
+    /// Creates a new FluxDocumentProcessor with required dependencies.
+    /// </summary>
+    /// <param name="readerFactory">Factory for document readers (from FileFlux.Core)</param>
+    /// <param name="parserFactory">Factory for document parsers</param>
+    /// <param name="chunkerFactory">Factory for chunkers (from FluxCurator)</param>
+    /// <param name="improverServices">FluxImprover services for enhancement (optional)</param>
+    /// <param name="logger">Logger instance</param>
+    public FluxDocumentProcessor(
         IDocumentReaderFactory readerFactory,
         IDocumentParserFactory parserFactory,
-        IChunkingStrategyFactory chunkingFactory,
-        IMetadataEnricher? metadataEnricher = null,
-        ILogger<DocumentProcessor>? logger = null)
+        IChunkerFactory chunkerFactory,
+        FluxImproverServices? improverServices = null,
+        ILogger<FluxDocumentProcessor>? logger = null)
     {
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _parserFactory = parserFactory ?? throw new ArgumentNullException(nameof(parserFactory));
-        _chunkingFactory = chunkingFactory ?? throw new ArgumentNullException(nameof(chunkingFactory));
-        _metadataEnricher = metadataEnricher; // Optional
-        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<DocumentProcessor>.Instance;
+        _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
+        _improverServices = improverServices;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<FluxDocumentProcessor>.Instance;
     }
 
+    #region Full Pipeline
+
+    /// <inheritdoc/>
     public async Task<DocumentChunk[]> ProcessAsync(
         string filePath,
         ChunkingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
-
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException($"File not found: {filePath}");
-
-        // Step 1: Extract text
-        var rawContent = await ExtractTextInternalAsync(filePath, cancellationToken);
-
-        // Step 1.5: Enrich metadata if enabled (Phase 16)
-        await EnrichMetadataIfEnabledAsync(filePath, rawContent, options, cancellationToken);
-
-        // Step 2: Parse document
-        var parsedContent = await ParseAsync(rawContent, (DocumentParsingOptions?)null, cancellationToken);
-
-        // Step 3: Generate chunks (with raw content for page ranges)
-        var chunks = await ChunkAsync(parsedContent, rawContent, options, cancellationToken);
-
-        return chunks;
-    }
-
-    public async Task<DocumentChunk[]> ProcessAsync(
-        Stream stream,
-        string fileName,
-        ChunkingOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(stream);
-
-        if (string.IsNullOrWhiteSpace(fileName))
-            throw new ArgumentException("File name cannot be null or empty", nameof(fileName));
-
-        // Step 1: Extract text from stream
-        var rawContent = await ExtractTextInternalAsync(stream, fileName, cancellationToken);
-
-        // Step 2: Parse document
-        var parsedContent = await ParseAsync(rawContent, (DocumentParsingOptions?)null, cancellationToken);
-
-        // Step 3: Generate chunks (with raw content for page ranges)
-        var chunks = await ChunkAsync(parsedContent, rawContent, options, cancellationToken);
-
-        return chunks;
-    }
-
-    public async Task<DocumentChunk[]> ProcessAsync(
-        RawContent rawContent,
-        ChunkingOptions? options = null,
-        DocumentParsingOptions? parsingOptions = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(rawContent);
-
-        // Step 1: Parse document
-        var parsedContent = await ParseAsync(rawContent, parsingOptions, cancellationToken);
-
-        // Step 2: Generate chunks (with raw content for page ranges)
-        var chunks = await ChunkAsync(parsedContent, rawContent, options, cancellationToken);
-
-        return chunks;
-    }
-
-    public async Task<ParsedContent> ParseAsync(
-        RawContent rawContent,
-        DocumentParsingOptions? parsingOptions = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(rawContent);
-
-        parsingOptions ??= new DocumentParsingOptions();
-
-        _logger.LogDebug("Starting document parsing. UseLlmParsing: {UseLlmParsing}, Level: {Level}",
-            parsingOptions.UseLlmParsing, parsingOptions.StructuringLevel);
-
-        try
-        {
-            // 적절한 Parser 선택
-            var parser = _parserFactory.GetParser(rawContent);
-            _logger.LogDebug("Using parser: {ParserType}", parser.ParserType);
-
-            // 문서 구조화
-            var parsedContent = await parser.ParseAsync(rawContent, parsingOptions, cancellationToken);
-
-            // 파싱 경고 로깅
-            if (parsedContent.Info.Warnings.Count != 0)
-            {
-                foreach (var warning in parsedContent.Info.Warnings)
-                {
-                    _logger.LogWarning("Parsing warning: {Warning}", warning);
-                }
-            }
-
-            return parsedContent;
-        }
-        catch (Exception ex) when (!(ex is FileFluxException))
-        {
-            throw new DocumentProcessingException(rawContent.File.Name, $"Document parsing failed: {ex.Message}", ex);
-        }
-    }
-
-    public async Task<DocumentChunk[]> ChunkAsync(
-        ParsedContent parsedContent,
-        ChunkingOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        return await ChunkAsync(parsedContent, null, options, cancellationToken);
-    }
-
-    public async Task<DocumentChunk[]> ChunkAsync(
-        ParsedContent parsedContent,
-        RawContent? rawContent,
-        ChunkingOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(parsedContent);
-
+        ValidateFilePath(filePath);
         options ??= new ChunkingOptions();
 
-        _logger.LogDebug("Starting chunking. Strategy: {Strategy}, MaxSize: {MaxSize}, Overlap: {Overlap}",
-            options.Strategy, options.MaxChunkSize, options.OverlapSize);
+        _logger.LogDebug("Processing file: {FilePath}", filePath);
 
-        try
+        // Stage 1: Extract (FileFlux.Core)
+        var rawContent = await ExtractAsync(filePath, cancellationToken).ConfigureAwait(false);
+
+        // Stage 2: Parse
+        var parsedContent = await ParseAsync(rawContent, null, cancellationToken).ConfigureAwait(false);
+
+        // Stage 3: Chunk (FluxCurator)
+        var chunks = await ChunkAsync(parsedContent, options, cancellationToken).ConfigureAwait(false);
+
+        // Stage 4: Enhance (FluxImprover) - if available and enabled
+        if (_improverServices != null && ShouldEnhance(options))
         {
-            // 청킹 전략 선택
-            var strategy = _chunkingFactory.GetStrategy(options.Strategy);
-            if (strategy == null)
-                throw new InvalidOperationException($"Chunking strategy '{options.Strategy}' not found");
-
-            _logger.LogDebug("Using chunking strategy: {StrategyName}", strategy.StrategyName);
-
-            // ParsedContent를 기존 DocumentContent로 변환 (with page ranges from raw content)
-            var documentContent = ConvertToDocumentContent(parsedContent, rawContent);
-
-            // 청킹 실행
-            var chunks = await strategy.ChunkAsync(documentContent, options, cancellationToken);
-
-            // Propagate enriched metadata to each chunk
-            var chunksArray = chunks.ToArray();
-            var enrichedProperties = options.CustomProperties
-                .Where(kvp => kvp.Key.StartsWith("enriched_"))
-                .ToList();
-
-            if (enrichedProperties.Count > 0)
-            {
-                foreach (var chunk in chunksArray)
-                {
-                    foreach (var (key, value) in enrichedProperties)
-                    {
-                        chunk.Metadata.CustomProperties[key] = value;
-                    }
-                }
-
-                _logger.LogDebug("Propagated {Count} enriched properties to {ChunkCount} chunks",
-                    enrichedProperties.Count, chunksArray.Length);
-            }
-
-            return chunksArray;
+            chunks = await EnhanceChunksAsync(chunks, rawContent.Text, options, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (!(ex is FileFluxException))
+
+        _logger.LogInformation("Processed {FileName}: {ChunkCount} chunks", rawContent.File.Name, chunks.Length);
+        return chunks;
+    }
+
+    /// <inheritdoc/>
+    public async IAsyncEnumerable<DocumentChunk> ProcessStreamAsync(
+        string filePath,
+        ChunkingOptions? options = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var chunks = await ProcessAsync(filePath, options, cancellationToken).ConfigureAwait(false);
+        foreach (var chunk in chunks)
         {
-            throw new DocumentProcessingException(parsedContent.Metadata.FileName, $"Document chunking failed: {ex.Message}", ex);
+            yield return chunk;
         }
     }
 
+    #endregion
+
+    #region Stage 1: Extract (FileFlux.Core)
+
+    /// <inheritdoc/>
     public async Task<RawContent> ExtractAsync(
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        return await ExtractTextInternalAsync(filePath, cancellationToken);
-    }
+        ValidateFilePath(filePath);
 
-    /// <summary>
-    /// 내부 텍스트 추출 메서드 (파일 경로)
-    /// </summary>
-    private async Task<RawContent> ExtractTextInternalAsync(
-        string filePath,
-        CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug("Starting text extraction for: {FilePath}", filePath);
+        _logger.LogDebug("Extracting content from: {FilePath}", filePath);
 
         try
         {
-            // 적절한 Reader 선택
-            var reader = _readerFactory.GetReader(filePath);
-            if (reader == null)
-                throw new UnsupportedFileFormatException(filePath, $"No suitable reader found for file: {filePath}");
+            var reader = _readerFactory.GetReader(filePath)
+                ?? throw new UnsupportedFileFormatException(filePath, $"No reader found for: {filePath}");
 
-            _logger.LogDebug("Using reader: {ReaderType}", reader.ReaderType);
+            var rawContent = await reader.ExtractAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-            // 텍스트 추출
-            var rawContent = await reader.ExtractAsync(filePath, cancellationToken);
-
-            // 추출 경고 로깅
-            if (rawContent.Warnings.Count != 0)
-            {
-                foreach (var warning in rawContent.Warnings)
-                {
-                    _logger.LogWarning("Extraction warning: {Warning}", warning);
-                }
-            }
-
+            LogWarnings("Extraction", rawContent.Warnings);
             return rawContent;
         }
-        catch (Exception ex) when (!(ex is FileFluxException))
+        catch (Exception ex) when (ex is not FileFluxException)
         {
-            throw new DocumentProcessingException(filePath, $"Text extraction failed: {ex.Message}", ex);
+            throw new DocumentProcessingException(filePath, $"Extraction failed: {ex.Message}", ex);
         }
     }
 
-    /// <summary>
-    /// 내부 텍스트 추출 메서드 (스트림)
-    /// </summary>
-    private async Task<RawContent> ExtractTextInternalAsync(
-        Stream stream,
-        string fileName,
+    /// <inheritdoc/>
+    public async IAsyncEnumerable<RawContent> ExtractStreamAsync(
+        string filePath,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        yield return await ExtractAsync(filePath, cancellationToken).ConfigureAwait(false);
+    }
+
+    #endregion
+
+    #region Stage 2: Parse
+
+    /// <inheritdoc/>
+    public async Task<ParsedContent> ParseAsync(
+        RawContent raw,
+        ParsingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(raw);
+        options ??= new ParsingOptions();
+
+        _logger.LogDebug("Parsing document: {FileName}", raw.File.Name);
+
         try
         {
-            var reader = _readerFactory.GetReader(fileName);
-            if (reader == null)
-                throw new UnsupportedFileFormatException(fileName, $"No suitable reader found for file: {fileName}");
-
-            var rawContent = await reader.ExtractAsync(stream, fileName, cancellationToken);
-
-            if (rawContent.Warnings.Count != 0)
+            var parser = _parserFactory.GetParser(raw);
+            var parsed = await parser.ParseAsync(raw, new DocumentParsingOptions
             {
-                foreach (var warning in rawContent.Warnings)
-                {
-                    _logger.LogWarning("Extraction warning: {Warning}", warning);
-                }
-            }
+                UseLlmParsing = options.UseLlm,
+                StructuringLevel = StructuringLevel.Medium
+            }, cancellationToken).ConfigureAwait(false);
 
-            return rawContent;
+            LogWarnings("Parsing", parsed.Info.Warnings);
+            return parsed;
         }
-        catch (Exception ex) when (!(ex is FileFluxException))
+        catch (Exception ex) when (ex is not FileFluxException)
         {
-            throw new DocumentProcessingException(fileName, $"Text extraction failed: {ex.Message}", ex);
+            throw new DocumentProcessingException(raw.File.Name, $"Parsing failed: {ex.Message}", ex);
         }
     }
 
-    /// <summary>
-    /// ParsedContent를 기존 DocumentContent로 변환
-    /// </summary>
-    private static DocumentContent ConvertToDocumentContent(ParsedContent parsedContent, RawContent? rawContent = null)
+    /// <inheritdoc/>
+    public async IAsyncEnumerable<ParsedContent> ParseStreamAsync(
+        RawContent raw,
+        ParsingOptions? options = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var documentContent = new DocumentContent
+        yield return await ParseAsync(raw, options, cancellationToken).ConfigureAwait(false);
+    }
+
+    #endregion
+
+    #region Stage 3: Chunk (FluxCurator delegation)
+
+    /// <inheritdoc/>
+    public async Task<DocumentChunk[]> ChunkAsync(
+        ParsedContent parsed,
+        ChunkingOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(parsed);
+        options ??= new ChunkingOptions();
+
+        if (string.IsNullOrWhiteSpace(parsed.Text))
+            return [];
+
+        _logger.LogDebug("Chunking with strategy: {Strategy}", options.Strategy);
+
+        try
         {
-            Text = parsedContent.Text,
-            Metadata = parsedContent.Metadata,
-            StructureInfo = new Dictionary<string, object>
+            // Map FileFlux strategy to FluxCurator strategy
+            var fcStrategy = MapToFluxCuratorStrategy(options.Strategy);
+            var chunker = _chunkerFactory.CreateChunker(fcStrategy);
+
+            // Convert options
+            var fcOptions = new FluxCuratorChunkOptions
             {
-                ["DocumentType"] = parsedContent.Structure.Type,
-                ["Topic"] = parsedContent.Structure.Topic,
-                ["SectionCount"] = parsedContent.Structure.Sections.Count,
-                ["Keywords"] = string.Join(", ", parsedContent.Structure.Keywords),
-                ["Summary"] = parsedContent.Structure.Summary,
-                ["QualityScore"] = parsedContent.Quality.OverallScore,
-                ["StructureConfidence"] = parsedContent.Quality.StructureScore,
-                ["ParsingDuration"] = parsedContent.Duration.TotalMilliseconds,
-                ["UsedLlm"] = parsedContent.Info.UsedLlm
-            },
-            // Convert Section to ContentSection for HeadingPath support
-            Sections = parsedContent.Structure.Sections
-                .Select(s => ConvertToContentSection(s))
-                .ToList()
-        };
+                MaxChunkSize = options.MaxChunkSize,
+                MinChunkSize = options.MinChunkSize,
+                OverlapSize = options.OverlapSize,
+                TargetChunkSize = options.MaxChunkSize / 2,
+                LanguageCode = options.LanguageCode == "auto" ? null : options.LanguageCode,
+                PreserveParagraphs = options.PreserveParagraphs,
+                PreserveSentences = options.PreserveSentences,
+                PreserveSectionHeaders = true,
+                IncludeMetadata = true,
+                TrimWhitespace = true
+            };
 
-        // Extract page ranges from raw content hints (PDF documents)
-        if (rawContent?.Hints.TryGetValue("PageRanges", out var pageRangesObj) == true &&
-            pageRangesObj is Dictionary<int, (int Start, int End)> pageRanges)
-        {
-            documentContent.PageRanges = pageRanges;
+            // Execute chunking via FluxCurator
+            var fcChunks = await chunker.ChunkAsync(parsed.Text, fcOptions, cancellationToken).ConfigureAwait(false);
+
+            // Convert to FileFlux chunks
+            var parsedId = Guid.NewGuid();
+            var rawId = Guid.NewGuid();
+            var chunks = fcChunks.ToFileFluxChunks(parsedId, rawId);
+
+            // Enrich with document metadata
+            EnrichChunksWithMetadata(chunks, parsed);
+
+            _logger.LogDebug("Created {Count} chunks using {Strategy}", chunks.Count, chunker.StrategyName);
+            return [.. chunks];
         }
-
-        return documentContent;
-    }
-
-    /// <summary>
-    /// Convert parsed Section to ContentSection for chunking
-    /// </summary>
-    private static ContentSection ConvertToContentSection(Section section)
-    {
-        return new ContentSection
+        catch (Exception ex) when (ex is not FileFluxException)
         {
-            Title = section.Title,
-            Level = section.Level,
-            StartPosition = section.Start,
-            EndPosition = section.End,
-            Children = section.Children.Select(ConvertToContentSection).ToList()
-        };
+            throw new DocumentProcessingException(parsed.Metadata.FileName, $"Chunking failed: {ex.Message}", ex);
+        }
     }
 
+    /// <inheritdoc/>
+    public async IAsyncEnumerable<DocumentChunk> ChunkStreamAsync(
+        ParsedContent parsed,
+        ChunkingOptions? options = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var chunks = await ChunkAsync(parsed, options, cancellationToken).ConfigureAwait(false);
+        foreach (var chunk in chunks)
+        {
+            yield return chunk;
+        }
+    }
+
+    #endregion
+
+    #region Stage 4: Enhance (FluxImprover delegation)
+
     /// <summary>
-    /// Enrich metadata if enabled in options (Phase 16)
+    /// Enhance chunks using FluxImprover services.
     /// </summary>
-    private async Task EnrichMetadataIfEnabledAsync(
-        string filePath,
-        RawContent rawContent,
-        ChunkingOptions? options,
+    private async Task<DocumentChunk[]> EnhanceChunksAsync(
+        DocumentChunk[] chunks,
+        string fullDocumentText,
+        ChunkingOptions options,
         CancellationToken cancellationToken)
     {
-        if (options == null || _metadataEnricher == null)
-            return;
+        if (_improverServices == null || chunks.Length == 0)
+            return chunks;
 
-        // Check if metadata enrichment is enabled
-        if (!options.CustomProperties.TryGetValue("enableMetadataEnrichment", out var enabledObj) ||
-            enabledObj is not bool enabled || !enabled)
-        {
-            return;
-        }
-
-        _logger.LogInformation("Metadata enrichment enabled for {FileName}", rawContent.File.Name);
+        _logger.LogDebug("Enhancing {Count} chunks with FluxImprover", chunks.Length);
 
         try
         {
-            // Get schema (default: General)
-            var schema = Core.MetadataSchema.General;
-            if (options.CustomProperties.TryGetValue("metadataSchema", out var schemaObj) &&
-                schemaObj is Core.MetadataSchema schemaValue)
+            // Convert to FluxImprover Chunk format
+            var improverChunks = chunks.Select(c => new Chunk
             {
-                schema = schemaValue;
+                Id = c.Id.ToString(),
+                Content = c.Content,
+                Metadata = c.Props
+            }).ToList();
+
+            // Apply contextual enrichment (Anthropic pattern)
+            if (ShouldUseContextualRetrieval(options))
+            {
+                var contextualChunks = await _improverServices.ContextualEnrichment
+                    .EnrichBatchAsync(improverChunks, fullDocumentText, null, cancellationToken)
+                    .ConfigureAwait(false);
+
+                // Merge contextual info back to chunks
+                for (int i = 0; i < chunks.Length && i < contextualChunks.Count; i++)
+                {
+                    if (contextualChunks[i].ContextSummary != null)
+                        chunks[i].Props["contextual_summary"] = contextualChunks[i].ContextSummary;
+                    chunks[i].Props["contextual_text"] = contextualChunks[i].GetContextualizedText();
+                }
             }
 
-            // Get enrichment options
-            Core.MetadataEnrichmentOptions? enrichmentOptions = null;
-            if (options.CustomProperties.TryGetValue("metadataOptions", out var optionsObj) &&
-                optionsObj is Core.MetadataEnrichmentOptions opts)
+            // Apply keyword extraction and summarization
+            if (ShouldEnrichWithKeywords(options))
             {
-                enrichmentOptions = opts;
+                var enrichedChunks = await _improverServices.ChunkEnrichment
+                    .EnrichBatchAsync(improverChunks, null, cancellationToken)
+                    .ConfigureAwait(false);
+
+                for (int i = 0; i < chunks.Length && i < enrichedChunks.Count; i++)
+                {
+                    if (enrichedChunks[i].Summary != null)
+                        chunks[i].Props["summary"] = enrichedChunks[i].Summary;
+                    if (enrichedChunks[i].Keywords != null)
+                        chunks[i].Props["keywords"] = enrichedChunks[i].Keywords;
+                }
             }
 
-            // Generate cache key
-            var cacheKey = _metadataEnricher.GenerateCacheKey(filePath, schema);
-
-            // Extract metadata with caching
-            var enrichedMetadata = await _metadataEnricher.EnrichWithCacheAsync(
-                content: rawContent.Text,
-                cacheKey: cacheKey,
-                schema: schema,
-                options: enrichmentOptions,
-                cancellationToken: cancellationToken);
-
-            // Store enriched metadata in ChunkingOptions.CustomProperties for later use
-            foreach (var (key, value) in enrichedMetadata)
-            {
-                options.CustomProperties[$"enriched_{key}"] = value;
-            }
-
-            _logger.LogInformation(
-                "Metadata enrichment completed: {Count} fields, confidence: {Confidence}, method: {Method}",
-                enrichedMetadata.Count,
-                enrichedMetadata.TryGetValue("confidence", out var confVal) ? confVal : 0.0,
-                enrichedMetadata.TryGetValue("extractionMethod", out var methodVal) ? methodVal : "unknown");
+            _logger.LogDebug("Enhancement completed for {Count} chunks", chunks.Length);
+            return chunks;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Metadata enrichment failed for {FileName}", rawContent.File.Name);
-
-            // Check if we should continue on failure (default: true)
-            var continueOnFailure = true;
-            if (options.CustomProperties.TryGetValue("metadataOptions", out var optionsObj) &&
-                optionsObj is Core.MetadataEnrichmentOptions opts)
-            {
-                continueOnFailure = opts.ContinueOnEnrichmentFailure;
-            }
-
-            if (!continueOnFailure)
-            {
-                throw;
-            }
-
-            // Store error in CustomProperties
-            options.CustomProperties["enriched_error"] = ex.Message;
+            _logger.LogWarning(ex, "Enhancement failed, returning original chunks");
+            return chunks;
         }
     }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static FluxCuratorStrategy MapToFluxCuratorStrategy(string strategy)
+    {
+        return strategy?.ToLowerInvariant() switch
+        {
+            "auto" => FluxCuratorStrategy.Auto,
+            "sentence" => FluxCuratorStrategy.Sentence,
+            "paragraph" => FluxCuratorStrategy.Paragraph,
+            "token" => FluxCuratorStrategy.Token,
+            "semantic" => FluxCuratorStrategy.Semantic,
+            "hierarchical" => FluxCuratorStrategy.Hierarchical,
+            // Legacy mappings
+            "smart" => FluxCuratorStrategy.Sentence,
+            "intelligent" => FluxCuratorStrategy.Semantic,
+            "fixedsize" => FluxCuratorStrategy.Token,
+            "pagelevel" => FluxCuratorStrategy.Paragraph,
+            _ => FluxCuratorStrategy.Auto
+        };
+    }
+
+    private static void EnrichChunksWithMetadata(IReadOnlyList<DocumentChunk> chunks, ParsedContent parsed)
+    {
+        foreach (var chunk in chunks)
+        {
+            chunk.SourceInfo.Title = parsed.Metadata.Title ?? parsed.Metadata.FileName;
+            chunk.SourceInfo.SourceType = parsed.Metadata.FileType ?? "unknown";
+            chunk.SourceInfo.FilePath = parsed.Metadata.FileName;
+            chunk.SourceInfo.ChunkCount = chunks.Count;
+
+            // Add structure info
+            if (!string.IsNullOrEmpty(parsed.Structure.Topic))
+                chunk.Props["document_topic"] = parsed.Structure.Topic;
+            if (parsed.Structure.Keywords.Count > 0)
+                chunk.Props["document_keywords"] = parsed.Structure.Keywords;
+        }
+    }
+
+    private static bool ShouldEnhance(ChunkingOptions options)
+    {
+        return options.CustomProperties.TryGetValue("enableEnhancement", out var val) && val is true;
+    }
+
+    private static bool ShouldUseContextualRetrieval(ChunkingOptions options)
+    {
+        return options.CustomProperties.TryGetValue("useContextualRetrieval", out var val) && val is true;
+    }
+
+    private static bool ShouldEnrichWithKeywords(ChunkingOptions options)
+    {
+        return options.CustomProperties.TryGetValue("enrichKeywords", out var val) && val is true;
+    }
+
+    private static void ValidateFilePath(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"File not found: {filePath}");
+    }
+
+    private void LogWarnings(string stage, IReadOnlyList<string> warnings)
+    {
+        foreach (var warning in warnings)
+        {
+            _logger.LogWarning("{Stage} warning: {Warning}", stage, warning);
+        }
+    }
+
+    #endregion
 }

@@ -57,10 +57,12 @@ public class FileFluxApp
             {
                 Strategy = strategy switch
                 {
-                    "FixedSize" => ChunkingStrategies.FixedSize,
+                    "Token" => ChunkingStrategies.Token,
                     "Semantic" => ChunkingStrategies.Semantic,
                     "Paragraph" => ChunkingStrategies.Paragraph,
-                    "Intelligent" or _ => ChunkingStrategies.Intelligent
+                    "Sentence" => ChunkingStrategies.Sentence,
+                    "Hierarchical" => ChunkingStrategies.Hierarchical,
+                    _ => ChunkingStrategies.Auto
                 },
                 MaxChunkSize = 500,
                 OverlapSize = 50
@@ -278,7 +280,7 @@ public class FileFluxApp
                     // 기본 문서 처리로 테스트
                     var chunkingOptions = new ChunkingOptions
                     {
-                        Strategy = ChunkingStrategies.Intelligent,
+                        Strategy = ChunkingStrategies.Auto,
                         MaxChunkSize = 500,
                         OverlapSize = 50
                     };
@@ -368,10 +370,12 @@ public class FileFluxApp
             {
                 Strategy = strategy switch
                 {
-                    "FixedSize" => ChunkingStrategies.FixedSize,
+                    "Token" => ChunkingStrategies.Token,
                     "Semantic" => ChunkingStrategies.Semantic,
                     "Paragraph" => ChunkingStrategies.Paragraph,
-                    "Intelligent" or _ => ChunkingStrategies.Intelligent
+                    "Sentence" => ChunkingStrategies.Sentence,
+                    "Hierarchical" => ChunkingStrategies.Hierarchical,
+                    _ => ChunkingStrategies.Auto
                 },
                 MaxChunkSize = 500,
                 OverlapSize = 50

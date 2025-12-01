@@ -68,7 +68,7 @@ public static class ForceSmallChunkTestProgram
             // 매우 작은 청크 크기로 강제 분할
             var smallChunkOptions = new ChunkingOptions
             {
-                Strategy = ChunkingStrategies.Smart,  // Smart 전략 사용
+                Strategy = ChunkingStrategies.Sentence,  // Sentence 전략 사용
                 MaxChunkSize = 300,                   // 매우 작은 청크 크기 (300자)
                 OverlapSize = 30                      // 작은 오버랩
             };

@@ -136,7 +136,7 @@ public class ExtractCommand : Command
 
         services.AddFileFlux();
         using var provider = services.BuildServiceProvider();
-        var processor = (DocumentProcessor)provider.GetRequiredService<IDocumentProcessor>();
+        var processor = (FluxDocumentProcessor)provider.GetRequiredService<IDocumentProcessor>();
 
         if (enableAI)
         {

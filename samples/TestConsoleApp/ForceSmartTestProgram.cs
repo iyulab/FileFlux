@@ -68,7 +68,7 @@ public static class ForceSmartTestProgram
             // Smart 전략 강제 사용
             var smartOptions = new ChunkingOptions
             {
-                Strategy = ChunkingStrategies.Smart,  // 강제로 Smart 전략 사용
+                Strategy = ChunkingStrategies.Sentence,  // Sentence 전략 사용
                 MaxChunkSize = 600,                   // 작은 청크 크기
                 OverlapSize = 50
             };

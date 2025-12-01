@@ -1,6 +1,6 @@
 namespace FileFlux.Infrastructure.Adapters;
 
-using FileFlux.Domain;
+using FileFlux.Core;
 using FluxCuratorChunk = FluxCurator.Core.Domain.DocumentChunk;
 using FluxCuratorMetadata = FluxCurator.Core.Domain.ChunkMetadata;
 using FluxCuratorLocation = FluxCurator.Core.Domain.ChunkLocation;

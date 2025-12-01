@@ -31,7 +31,7 @@ public class FluxImproverIntegrationTests
             Id = Guid.NewGuid(),
             Content = "Test content for conversion.",
             Index = 5,
-            Strategy = "Intelligent",
+            Strategy = ChunkingStrategies.Auto,
             Quality = 0.85,
             Tokens = 10
         };
@@ -50,7 +50,7 @@ public class FluxImproverIntegrationTests
         Assert.Equal(1, result.Metadata!["StartPage"]);
         Assert.Equal(2, result.Metadata["EndPage"]);
         Assert.Equal(5, result.Metadata["Index"]);
-        Assert.Equal("Intelligent", result.Metadata["Strategy"]);
+        Assert.Equal(ChunkingStrategies.Auto, result.Metadata["Strategy"]);
         Assert.Equal(0.85, result.Metadata["Quality"]);
         Assert.Equal(10, result.Metadata["TokenCount"]);
         Assert.Equal("CustomValue", result.Metadata["CustomKey"]);

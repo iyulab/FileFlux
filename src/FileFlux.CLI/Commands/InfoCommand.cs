@@ -84,7 +84,7 @@ public class InfoCommand : Command
 
                         var chunks = await processor.ProcessAsync(input, new ChunkingOptions
                         {
-                            Strategy = "FixedSize",
+                            Strategy = ChunkingStrategies.Token,
                             MaxChunkSize = 100000
                         }, cancellationToken);
 

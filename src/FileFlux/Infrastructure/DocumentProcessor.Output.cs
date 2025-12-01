@@ -6,12 +6,12 @@ using FileFlux.Infrastructure.Services;
 namespace FileFlux.Infrastructure;
 
 /// <summary>
-/// DocumentProcessor - Output API implementations
+/// FluxDocumentProcessor - Output API implementations for CLI commands.
 /// </summary>
-public partial class DocumentProcessor
+public sealed partial class FluxDocumentProcessor
 {
     /// <summary>
-    /// Extract document and write to output directory
+    /// Extract document and write to output directory.
     /// </summary>
     /// <param name="filePath">Input file path</param>
     /// <param name="outputOptions">Output options</param>
@@ -24,12 +24,7 @@ public partial class DocumentProcessor
         IImageToTextService? imageToTextService = null,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
-
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException($"File not found: {filePath}");
-
+        ValidateFilePath(filePath);
         outputOptions ??= new OutputOptions();
 
         // Determine output directory
@@ -39,10 +34,10 @@ public partial class DocumentProcessor
         Directory.CreateDirectory(outputDirectory);
 
         // Extract raw content
-        var rawContent = await ExtractAsync(filePath, cancellationToken);
+        var rawContent = await ExtractAsync(filePath, cancellationToken).ConfigureAwait(false);
 
         // Parse document structure
-        var parsedContent = await ParseAsync(rawContent, (ParsingOptions?)null, cancellationToken);
+        var parsedContent = await ParseAsync(rawContent, null, cancellationToken).ConfigureAwait(false);
 
         // Process images
         var processedText = parsedContent.Text;
@@ -54,7 +49,7 @@ public partial class DocumentProcessor
             var imagesDir = Path.Combine(outputDirectory, "images");
             var imageProcessor = new ImageProcessor(outputOptions);
             var imageResult = await imageProcessor.ProcessImagesAsync(
-                parsedContent.Text, imagesDir, imageToTextService, cancellationToken);
+                parsedContent.Text, imagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
 
             processedText = imageResult.ProcessedContent;
             images = imageResult.Images;
@@ -78,13 +73,13 @@ public partial class DocumentProcessor
 
         // Write output
         var writer = new FileSystemOutputWriter();
-        await writer.WriteExtractionAsync(result, outputDirectory, outputOptions, cancellationToken);
+        await writer.WriteExtractionAsync(result, outputDirectory, outputOptions, cancellationToken).ConfigureAwait(false);
 
         return result;
     }
 
     /// <summary>
-    /// Chunk document and write to output directory
+    /// Chunk document and write to output directory.
     /// </summary>
     /// <param name="filePath">Input file path</param>
     /// <param name="chunkingOptions">Chunking options</param>
@@ -99,12 +94,7 @@ public partial class DocumentProcessor
         IImageToTextService? imageToTextService = null,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
-
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException($"File not found: {filePath}");
-
+        ValidateFilePath(filePath);
         chunkingOptions ??= new ChunkingOptions();
         outputOptions ??= new OutputOptions();
 
@@ -115,13 +105,10 @@ public partial class DocumentProcessor
         Directory.CreateDirectory(outputDirectory);
 
         // Extract raw content
-        var rawContent = await ExtractAsync(filePath, cancellationToken);
-
-        // Enrich metadata if enabled
-        await EnrichMetadataIfEnabledAsync(filePath, rawContent, chunkingOptions, cancellationToken);
+        var rawContent = await ExtractAsync(filePath, cancellationToken).ConfigureAwait(false);
 
         // Parse document structure
-        var parsedContent = await ParseAsync(rawContent, (ParsingOptions?)null, cancellationToken);
+        var parsedContent = await ParseAsync(rawContent, null, cancellationToken).ConfigureAwait(false);
 
         // Process images
         var processedText = parsedContent.Text;
@@ -133,7 +120,7 @@ public partial class DocumentProcessor
             var imagesDir = Path.Combine(outputDirectory, "images");
             var imageProcessor = new ImageProcessor(outputOptions);
             var imageResult = await imageProcessor.ProcessImagesAsync(
-                parsedContent.Text, imagesDir, imageToTextService, cancellationToken);
+                parsedContent.Text, imagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
 
             processedText = imageResult.ProcessedContent;
             images = imageResult.Images;
@@ -148,7 +135,7 @@ public partial class DocumentProcessor
         parsedContent.Text = processedText;
 
         // Chunk the processed content
-        var chunks = await ChunkAsync(parsedContent, chunkingOptions, cancellationToken);
+        var chunks = await ChunkAsync(parsedContent, chunkingOptions, cancellationToken).ConfigureAwait(false);
 
         var extraction = new ExtractionResult
         {
@@ -171,13 +158,13 @@ public partial class DocumentProcessor
 
         // Write output
         var writer = new FileSystemOutputWriter();
-        await writer.WriteChunkingAsync(result, outputDirectory, outputOptions, cancellationToken);
+        await writer.WriteChunkingAsync(result, outputDirectory, outputOptions, cancellationToken).ConfigureAwait(false);
 
         return result;
     }
 
     /// <summary>
-    /// Process document (extract + chunk + enrich) and write to output directory
+    /// Process document (extract + chunk + enrich) and write to output directory.
     /// </summary>
     /// <param name="filePath">Input file path</param>
     /// <param name="chunkingOptions">Chunking options</param>
@@ -200,6 +187,6 @@ public partial class DocumentProcessor
             outputOptions.OutputDirectory = OutputOptions.GetDefaultOutputDirectory(filePath, "processed");
         }
 
-        return await ChunkToDirectoryAsync(filePath, chunkingOptions, outputOptions, imageToTextService, cancellationToken);
+        return await ChunkToDirectoryAsync(filePath, chunkingOptions, outputOptions, imageToTextService, cancellationToken).ConfigureAwait(false);
     }
 }

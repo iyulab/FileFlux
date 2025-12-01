@@ -258,39 +258,6 @@ public class DocumentReadersIntegrationTests
         Assert.True(result.Text.Length > 0, "Markdown file should have extractable content");
     }
 
-    [Fact]
-    public void ChunkingStrategyFactory_ShouldBeRegisteredCorrectly()
-    {
-        // Arrange
-        var chunkingFactory = new Infrastructure.Factories.ChunkingStrategyFactory();
-        
-        // 전략들 수동 등록 (ServiceCollectionExtensions와 동일)
-        chunkingFactory.RegisterStrategy(() => new Infrastructure.Strategies.FixedSizeChunkingStrategy());
-        chunkingFactory.RegisterStrategy(() => new Infrastructure.Strategies.SemanticChunkingStrategy());
-        chunkingFactory.RegisterStrategy(() => new Infrastructure.Strategies.ParagraphChunkingStrategy());
-        chunkingFactory.RegisterStrategy(() => new Infrastructure.Strategies.IntelligentChunkingStrategy());
-
-        // Act & Assert
-        var fixedSizeStrategy = chunkingFactory.GetStrategy(ChunkingStrategies.FixedSize);
-        var semanticStrategy = chunkingFactory.GetStrategy(ChunkingStrategies.Semantic);
-        var paragraphStrategy = chunkingFactory.GetStrategy(ChunkingStrategies.Paragraph);
-        var intelligentStrategy = chunkingFactory.GetStrategy(ChunkingStrategies.Intelligent);
-
-        Assert.NotNull(fixedSizeStrategy);
-        Assert.NotNull(semanticStrategy);
-        Assert.NotNull(paragraphStrategy);
-        Assert.NotNull(intelligentStrategy);
-
-        _logger.LogInformation("✅ All chunking strategies registered successfully");
-        
-        var availableStrategies = chunkingFactory.AvailableStrategyNames.ToList();
-        _logger.LogInformation("📋 Available strategies: {Strategies}", string.Join(", ", availableStrategies));
-        
-        Assert.Contains(ChunkingStrategies.FixedSize, availableStrategies);
-        Assert.Contains(ChunkingStrategies.Semantic, availableStrategies);
-        Assert.Contains(ChunkingStrategies.Paragraph, availableStrategies);
-        Assert.Contains(ChunkingStrategies.Intelligent, availableStrategies);
-    }
 
     [Fact]
     public async Task AllReaders_ShouldProduceValidOutput()

@@ -162,7 +162,7 @@ public class ProcessCommand : Command
 
         services.AddFileFlux();
         using var provider = services.BuildServiceProvider();
-        var processor = (DocumentProcessor)provider.GetRequiredService<IDocumentProcessor>();
+        var processor = (FluxDocumentProcessor)provider.GetRequiredService<IDocumentProcessor>();
         var imageToTextService = enableAI ? provider.GetService<IImageToTextService>() : null;
 
         // Configure options

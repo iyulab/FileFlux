@@ -101,7 +101,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
                 ExpectedF1Score = 0.85,
                 ExpectedAccuracy = 0.82,
                 ProcessingSpeedFactor = 1.0,
-                RecommendedStrategy = "Intelligent",
+                RecommendedStrategy = ChunkingStrategies.Auto,
                 OptimizationHints = new List<string>
                 {
                     "Preserve code blocks intact",
@@ -116,7 +116,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
                 ExpectedF1Score = 0.88,
                 ExpectedAccuracy = 0.85,
                 ProcessingSpeedFactor = 0.9,
-                RecommendedStrategy = "Semantic",
+                RecommendedStrategy = ChunkingStrategies.Semantic,
                 OptimizationHints = new List<string>
                 {
                     "Preserve clause boundaries",
@@ -131,7 +131,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
                 ExpectedF1Score = 0.90,
                 ExpectedAccuracy = 0.87,
                 ProcessingSpeedFactor = 0.8,
-                RecommendedStrategy = "Intelligent",
+                RecommendedStrategy = ChunkingStrategies.Auto,
                 OptimizationHints = new List<string>
                 {
                     "Preserve citations and references",
@@ -146,7 +146,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
                 ExpectedF1Score = 0.86,
                 ExpectedAccuracy = 0.83,
                 ProcessingSpeedFactor = 1.1,
-                RecommendedStrategy = "Intelligent",
+                RecommendedStrategy = ChunkingStrategies.Auto,
                 OptimizationHints = new List<string>
                 {
                     "Use element-based chunking for tables",
@@ -161,7 +161,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
                 ExpectedF1Score = 0.87,
                 ExpectedAccuracy = 0.84,
                 ProcessingSpeedFactor = 0.95,
-                RecommendedStrategy = "Semantic",
+                RecommendedStrategy = ChunkingStrategies.Semantic,
                 OptimizationHints = new List<string>
                 {
                     "Preserve medical terminology context",
@@ -176,7 +176,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
                 ExpectedF1Score = 0.83,
                 ExpectedAccuracy = 0.80,
                 ProcessingSpeedFactor = 1.2,
-                RecommendedStrategy = "Paragraph",
+                RecommendedStrategy = ChunkingStrategies.Paragraph,
                 OptimizationHints = new List<string>
                 {
                     "Maintain executive summary integrity",
@@ -191,7 +191,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
                 ExpectedF1Score = 0.78,
                 ExpectedAccuracy = 0.75,
                 ProcessingSpeedFactor = 1.3,
-                RecommendedStrategy = "Paragraph",
+                RecommendedStrategy = ChunkingStrategies.Paragraph,
                 OptimizationHints = new List<string>
                 {
                     "Preserve narrative flow",
@@ -206,7 +206,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
                 ExpectedF1Score = 0.80,
                 ExpectedAccuracy = 0.77,
                 ProcessingSpeedFactor = 1.0,
-                RecommendedStrategy = "Intelligent",
+                RecommendedStrategy = ChunkingStrategies.Auto,
                 OptimizationHints = new List<string>
                 {
                     "Use adaptive chunking",
@@ -495,7 +495,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         // 코드가 많으면 Intelligent 전략 선호
         if (hasCode && documentType.StructuralElements.First(e => e.Type == "CodeBlock").Count > 5)
         {
-            options.Strategy = "Intelligent";
+            options.Strategy = ChunkingStrategies.Auto;
         }
 
         // 테이블이 있으면 청크 크기 증가
@@ -507,9 +507,9 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         // 명확한 헤더 구조가 있으면 Semantic 전략 고려
         if (hasHeaders && documentType.StructuralElements.First(e => e.Type == "Header").Count > 10)
         {
-            if (options.Strategy == "Paragraph")
+            if (options.Strategy == ChunkingStrategies.Paragraph)
             {
-                options.Strategy = "Semantic";
+                options.Strategy = ChunkingStrategies.Semantic;
             }
         }
     }

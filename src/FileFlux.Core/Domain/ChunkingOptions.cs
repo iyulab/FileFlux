@@ -83,18 +83,28 @@ public class ChunkingOptions
 }
 
 /// <summary>
-/// Supported chunking strategy names
+/// Chunking strategies (delegated to FluxCurator)
 /// </summary>
 public static class ChunkingStrategies
 {
+    /// <summary>Auto-select best strategy based on document analysis</summary>
     public const string Auto = nameof(Auto);
-    public const string Smart = nameof(Smart);
-    public const string Intelligent = nameof(Intelligent);
-    public const string Semantic = nameof(Semantic);
-    public const string Paragraph = nameof(Paragraph);
-    public const string FixedSize = nameof(FixedSize);
-    public const string Hierarchical = nameof(Hierarchical);
-    public const string PageLevel = nameof(PageLevel);
 
-    public static readonly string[] All = { Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel };
+    /// <summary>Sentence-based chunking</summary>
+    public const string Sentence = nameof(Sentence);
+
+    /// <summary>Paragraph-based chunking</summary>
+    public const string Paragraph = nameof(Paragraph);
+
+    /// <summary>Token-based chunking (fixed size)</summary>
+    public const string Token = nameof(Token);
+
+    /// <summary>Semantic chunking with embeddings (requires embedder)</summary>
+    public const string Semantic = nameof(Semantic);
+
+    /// <summary>Hierarchical structure-aware chunking</summary>
+    public const string Hierarchical = nameof(Hierarchical);
+
+    /// <summary>All available strategies</summary>
+    public static readonly string[] All = [Auto, Sentence, Paragraph, Token, Semantic, Hierarchical];
 }
