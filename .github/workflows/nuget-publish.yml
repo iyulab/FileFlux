@@ -42,11 +42,49 @@ jobs:
           echo "Detected version: ${{ steps.extract-version.outputs.version }}"
           echo "This workflow will proceed to build and publish the NuGet package."
 
+  # NuGet 패키지 빌드 (FileFlux.Core - Extraction Only)
+  build-core:
+    name: 📦 Build FileFlux.Core
+    runs-on: ubuntu-latest
+    needs: detect-version
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 📦 Create FileFlux.Core NuGet Package
+        run: |
+          dotnet pack src/FileFlux.Core/FileFlux.Core.csproj \
+            --configuration Release \
+            --output nupkg/ \
+            -p:PackageVersion=${{ needs.detect-version.outputs.version }} \
+            -p:AssemblyVersion=${{ needs.detect-version.outputs.version }} \
+            -p:FileVersion=${{ needs.detect-version.outputs.version }}
+
+      - name: 📋 List Generated Packages
+        run: ls -la nupkg/
+
+      - name: 📤 Upload Core Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: fileflux-core
+          path: nupkg/FileFlux.Core.*.nupkg
+
+      - name: 📤 Upload Core Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: fileflux-core-symbols
+          path: nupkg/FileFlux.Core.*.snupkg
+
   # NuGet 패키지 빌드 (FileFlux SDK)
   build-sdk:
     name: 📦 Build FileFlux SDK
     runs-on: ubuntu-latest
-    needs: detect-version
+    needs: [detect-version, build-core]
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
@@ -122,7 +160,7 @@ jobs:
   publish-nuget:
     name: 🚀 Publish to NuGet.org
     runs-on: ubuntu-latest
-    needs: [detect-version, build-sdk, build-cli]
+    needs: [detect-version, build-core, build-sdk, build-cli]
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
@@ -131,6 +169,18 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 📦 Download Core Package
+        uses: actions/download-artifact@v4
+        with:
+          name: fileflux-core
+          path: nupkg/
+
+      - name: 📦 Download Core Symbols
+        uses: actions/download-artifact@v4
+        with:
+          name: fileflux-core-symbols
+          path: nupkg/
 
       - name: 📦 Download SDK Package
         uses: actions/download-artifact@v4
@@ -158,6 +208,19 @@ jobs:
 
       - name: 📋 Verify Downloaded Packages
         run: ls -la nupkg/
+
+      - name: 🚀 Publish FileFlux.Core to NuGet.org
+        run: |
+          for package in nupkg/FileFlux.Core.*.nupkg; do
+            echo "Publishing Core: $package..."
+            dotnet nuget push "$package" \
+              --api-key ${{ secrets.NUGET_API_KEY }} \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate \
+              --no-symbols
+          done
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
 
       - name: 🚀 Publish FileFlux SDK to NuGet.org
         run: |
@@ -203,6 +266,12 @@ jobs:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
+      - name: 📦 Download Core Package
+        uses: actions/download-artifact@v4
+        with:
+          name: fileflux-core
+          path: nupkg/
+
       - name: 📦 Download SDK Package
         uses: actions/download-artifact@v4
         with:
@@ -221,7 +290,12 @@ jobs:
           cat > release-notes.md << 'EOF'
           ## 🚀 FileFlux v${{ needs.detect-version.outputs.version }}
 
-          ### 📦 FileFlux SDK (NuGet Package)
+          ### 📦 FileFlux.Core (Extraction Only)
+          ```bash
+          dotnet add package FileFlux.Core --version ${{ needs.detect-version.outputs.version }}
+          ```
+
+          ### 📦 FileFlux SDK (Full RAG Pipeline)
           ```bash
           dotnet add package FileFlux --version ${{ needs.detect-version.outputs.version }}
           ```
@@ -232,6 +306,7 @@ jobs:
           ```
 
           ### 🔗 Links
+          - [FileFlux.Core on NuGet](https://www.nuget.org/packages/FileFlux.Core/${{ needs.detect-version.outputs.version }})
           - [FileFlux SDK on NuGet](https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }})
           - [FileFlux CLI on NuGet](https://www.nuget.org/packages/FileFlux.CLI/${{ needs.detect-version.outputs.version }})
           - [Documentation](https://github.com/iyulab/FileFlux#readme)
@@ -241,11 +316,17 @@ jobs:
 
           ### 🛠️ What's Included
 
+          **FileFlux.Core:**
+          - Document extraction SDK with zero AI dependencies
+          - All document readers (PDF, DOCX, Excel, PowerPoint, Markdown, HTML, etc.)
+          - Core interfaces and domain models
+          - Use when you want extraction only and will implement your own chunking logic
+
           **FileFlux SDK:**
           - Complete RAG-optimized document processing SDK
-          - Support for PDF, DOCX, Excel, PowerPoint, Markdown and more
           - Intelligent chunking strategies with semantic boundary detection
           - Advanced metadata extraction and performance optimization
+          - Includes FluxCurator and FluxImprover
 
           **FileFlux CLI:**
           - Command-line interface for document processing
@@ -281,6 +362,7 @@ jobs:
         if: needs.create-release.result == 'success'
         run: |
           echo "🎉 Successfully published FileFlux v${{ needs.detect-version.outputs.version }} to NuGet.org!"
+          echo "📦 Core: https://www.nuget.org/packages/FileFlux.Core/${{ needs.detect-version.outputs.version }}"
           echo "📦 SDK: https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }}"
           echo "🔧 CLI: https://www.nuget.org/packages/FileFlux.CLI/${{ needs.detect-version.outputs.version }}"
 
