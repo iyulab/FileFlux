@@ -763,6 +763,9 @@ public partial class PdfDocumentReader : IDocumentReader
     {
         if (string.IsNullOrWhiteSpace(text)) return "";
 
+        // 0. Remove null bytes (invalid in UTF-8 text)
+        text = TextSanitizer.RemoveNullBytes(text);
+
         // 1. 연속된 공백 및 탭 정리
         text = MyRegex().Replace(text, " ");
 

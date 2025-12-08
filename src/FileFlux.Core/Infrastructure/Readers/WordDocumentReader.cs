@@ -301,6 +301,9 @@ public partial class WordDocumentReader : IDocumentReader
         if (string.IsNullOrEmpty(markdown))
             return markdown;
 
+        // Remove null bytes (invalid in UTF-8 text)
+        markdown = TextSanitizer.RemoveNullBytes(markdown);
+
         // Replace <br> and <br/> tags with proper markdown line breaks
         markdown = BrTagRegex().Replace(markdown, "  \n");
 
