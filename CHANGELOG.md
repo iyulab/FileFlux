@@ -5,6 +5,21 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2025-12-08
+
+### Added
+- **TextSanitizer Utility**: New utility class for text sanitization in FileFlux.Core
+  - `RemoveNullBytes()` - Removes null bytes (0x00) from text
+  - `Sanitize()` - Comprehensive text sanitization with optional control character removal
+  - `ContainsNullBytes()` - Check for null byte presence
+  - `IsValidUtf8()` - Validate UTF-8 compatibility
+
+### Fixed
+- **UTF-8 Null Byte Issue**: PDF and DOCX text extraction now removes null bytes
+  - Prevents PostgreSQL and other database UTF-8 encoding errors
+  - Handles embedded binary objects, form field data, and legacy encoding artifacts
+  - Applied in PdfDocumentReader.NormalizeText() and WordDocumentReader.CleanupMarkdown()
+
 ## [0.5.0] - 2025-12-01
 
 ### Added
