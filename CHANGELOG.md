@@ -5,6 +5,26 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2025-12-10
+
+### Added
+- **Base64 Image Extraction**: HtmlDocumentReader now extracts embedded base64 images
+  - Replaces base64 data in text with placeholder: `![alt](embedded:img_000)`
+  - Stores binary image data in `RawContent.Images` collection
+  - Dramatically reduces text output size (4.4MB → ~50KB for documents with embedded images)
+  - Improves RAG embedding quality by removing non-semantic base64 noise
+- **ImageInfo Extended**: Enhanced image metadata model
+  - `MimeType`: Image MIME type (e.g., "image/png", "image/jpeg")
+  - `Data`: Optional binary data for embedded images
+  - `SourceUrl`: External URL or "embedded:{id}" reference
+  - `OriginalSize`: Original base64 data size in bytes
+- **RawContent.Images**: New property to access extracted images immediately after extraction
+- **Structural Hints**: `embedded_image_count` and `embedded_images_extracted` hints added
+
+### Changed
+- **HtmlDocumentReader**: ProcessImage method now detects and extracts base64 images
+- External image URLs are preserved as-is with metadata in Images collection
+
 ## [0.6.2] - 2025-12-08
 
 ### Added

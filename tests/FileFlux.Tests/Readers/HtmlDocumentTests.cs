@@ -435,16 +435,172 @@ public class HtmlDocumentTests
         }
     }
 
+    [Fact]
+    public async Task ExtractAsync_WithBase64Images_ShouldExtractAndReplacePlaceholder()
+    {
+        // Arrange - Create a small valid PNG base64 (1x1 red pixel)
+        var base64Png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+        var base64Jpeg = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigD//2Q==";
+
+        var htmlContent = $"""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Base64 Image Test</title></head>
+            <body>
+                <h1>Document with Embedded Images</h1>
+                <p>Here is an embedded PNG image:</p>
+                <img src="data:image/png;base64,{base64Png}" alt="Red Pixel PNG" title="A 1x1 red pixel">
+                <p>And an embedded JPEG image:</p>
+                <img src="data:image/jpeg;base64,{base64Jpeg}" alt="Tiny JPEG">
+                <p>And a regular external image:</p>
+                <img src="https://example.com/image.png" alt="External Image">
+            </body>
+            </html>
+            """;
+
+        var tempFile = await CreateTempHtmlFileAsync(htmlContent);
+
+        try
+        {
+            // Act
+            var reader = new HtmlDocumentReader();
+            var result = await reader.ExtractAsync(tempFile);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.NotEmpty(result.Text);
+
+            // Base64 should NOT appear in text (replaced with placeholder)
+            Assert.DoesNotContain("iVBORw0KGgo", result.Text);
+            Assert.DoesNotContain("/9j/4AAQSkZJRg", result.Text);
+
+            // Placeholders should appear
+            Assert.Contains("![Red Pixel PNG](embedded:img_000)", result.Text);
+            Assert.Contains("![Tiny JPEG](embedded:img_001)", result.Text);
+
+            // External image should remain as-is
+            Assert.Contains("![External Image](https://example.com/image.png)", result.Text);
+
+            // Images should be extracted to RawContent.Images
+            Assert.Equal(3, result.Images.Count);
+
+            // First image (PNG)
+            var pngImage = result.Images.First(i => i.Id == "img_000");
+            Assert.Equal("Red Pixel PNG", pngImage.Caption);
+            Assert.Equal("image/png", pngImage.MimeType);
+            Assert.NotNull(pngImage.Data);
+            Assert.True(pngImage.Data.Length > 0);
+            Assert.Equal("embedded:img_000", pngImage.SourceUrl);
+
+            // Second image (JPEG)
+            var jpegImage = result.Images.First(i => i.Id == "img_001");
+            Assert.Equal("Tiny JPEG", jpegImage.Caption);
+            Assert.Equal("image/jpeg", jpegImage.MimeType);
+            Assert.NotNull(jpegImage.Data);
+
+            // Third image (External URL)
+            var externalImage = result.Images.First(i => i.Id == "img_002");
+            Assert.Equal("External Image", externalImage.Caption);
+            Assert.Null(externalImage.Data); // No binary data for external URLs
+            Assert.Equal("https://example.com/image.png", externalImage.SourceUrl);
+
+            // Hints should indicate embedded images were extracted
+            Assert.True(result.Hints.ContainsKey("embedded_image_count"));
+            Assert.Equal(2, result.Hints["embedded_image_count"]);
+            Assert.True((bool)result.Hints["embedded_images_extracted"]);
+
+            _output.WriteLine($"Base64 image extraction result:");
+            _output.WriteLine($"Text length: {result.Text.Length} chars");
+            _output.WriteLine($"Images extracted: {result.Images.Count}");
+            _output.WriteLine($"Text preview: {result.Text[..Math.Min(500, result.Text.Length)]}...");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ExtractAsync_WithLargeBase64Image_ShouldExtractAndReduceTextSize()
+    {
+        // Arrange - Simulate a large base64 image (repeat base64 data to simulate ~100KB)
+        var smallBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+        // Create a fake "large" base64 by repeating valid base64 chars (won't decode but tests text size reduction)
+        var largeBase64 = string.Concat(Enumerable.Repeat("AAAA", 25000)); // ~100KB of base64-like data
+
+        var htmlContentWithBase64 = $"""
+            <!DOCTYPE html>
+            <html>
+            <body>
+                <p>Document content</p>
+                <img src="data:image/png;base64,{largeBase64}" alt="Large Image">
+            </body>
+            </html>
+            """;
+
+        var htmlContentWithoutBase64 = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+                <p>Document content</p>
+                <img src="large-image.png" alt="Large Image">
+            </body>
+            </html>
+            """;
+
+        var tempFileWithBase64 = await CreateTempHtmlFileAsync(htmlContentWithBase64);
+        var tempFileWithoutBase64 = await CreateTempHtmlFileAsync(htmlContentWithoutBase64);
+
+        try
+        {
+            // Act
+            var reader = new HtmlDocumentReader();
+            var resultWithBase64 = await reader.ExtractAsync(tempFileWithBase64);
+            var resultWithoutBase64 = await reader.ExtractAsync(tempFileWithoutBase64);
+
+            // Assert - Text size should be similar (base64 replaced with small placeholder)
+            var textWithExtraction = resultWithBase64.Text;
+            var textWithoutBase64 = resultWithoutBase64.Text;
+
+            // The extracted text should NOT contain the huge base64 data
+            Assert.DoesNotContain("AAAA", textWithExtraction);
+
+            // Text sizes should be comparable (within ~100 chars difference)
+            Assert.True(Math.Abs(textWithExtraction.Length - textWithoutBase64.Length) < 100,
+                $"Text sizes differ significantly: with extraction={textWithExtraction.Length}, without={textWithoutBase64.Length}");
+
+            // Image should still be tracked
+            Assert.Single(resultWithBase64.Images);
+            Assert.Equal("embedded:img_000", resultWithBase64.Images[0].SourceUrl);
+
+            // Original size should be recorded
+            Assert.True(resultWithBase64.Images[0].OriginalSize > 50000); // Should be ~100KB
+
+            _output.WriteLine($"Text reduction test:");
+            _output.WriteLine($"Original base64 size: ~{largeBase64.Length} chars");
+            _output.WriteLine($"Extracted text size: {textWithExtraction.Length} chars");
+            _output.WriteLine($"Reference text size: {textWithoutBase64.Length} chars");
+        }
+        finally
+        {
+            if (File.Exists(tempFileWithBase64))
+                File.Delete(tempFileWithBase64);
+            if (File.Exists(tempFileWithoutBase64))
+                File.Delete(tempFileWithoutBase64);
+        }
+    }
+
     private static async Task<string> CreateTempHtmlFileAsync(string htmlContent)
     {
         var tempFile = Path.GetTempFileName();
         var htmlFile = Path.ChangeExtension(tempFile, ".html");
-        
+
         await File.WriteAllTextAsync(htmlFile, htmlContent, Encoding.UTF8);
-        
+
         if (File.Exists(tempFile))
             File.Delete(tempFile);
-            
+
         return htmlFile;
     }
 }

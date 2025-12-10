@@ -68,6 +68,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     {
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
+        var images = new List<ImageInfo>();
 
         try
         {
@@ -90,13 +91,21 @@ public partial class HtmlDocumentReader : IDocumentReader
 
             // 본문 콘텐츠 추출
             var bodyNode = doc.DocumentNode.SelectSingleNode("//body") ?? doc.DocumentNode;
-            ExtractBodyContent(bodyNode, textBuilder, structuralHints, warnings, cancellationToken);
+            ExtractBodyContent(bodyNode, textBuilder, structuralHints, warnings, images, cancellationToken);
 
             var extractedText = textBuilder.ToString().Trim();
 
             // 문서 통계
             structuralHints["file_type"] = "html_document";
             structuralHints["character_count"] = extractedText.Length;
+
+            // Count embedded images separately
+            var embeddedImageCount = images.Count(img => img.Data != null);
+            if (embeddedImageCount > 0)
+            {
+                structuralHints["embedded_image_count"] = embeddedImageCount;
+                structuralHints["embedded_images_extracted"] = true;
+            }
 
             return new RawContent
             {
@@ -112,7 +121,8 @@ public partial class HtmlDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = warnings,
-                ReaderType = "HtmlReader"
+                ReaderType = "HtmlReader",
+                Images = images
             };
         }
         catch (Exception ex)
@@ -126,6 +136,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     {
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
+        var images = new List<ImageInfo>();
 
         try
         {
@@ -148,13 +159,21 @@ public partial class HtmlDocumentReader : IDocumentReader
 
             // 본문 콘텐츠 추출
             var bodyNode = doc.DocumentNode.SelectSingleNode("//body") ?? doc.DocumentNode;
-            ExtractBodyContent(bodyNode, textBuilder, structuralHints, warnings, cancellationToken);
+            ExtractBodyContent(bodyNode, textBuilder, structuralHints, warnings, images, cancellationToken);
 
             var extractedText = textBuilder.ToString().Trim();
 
             // 문서 통계
             structuralHints["file_type"] = "html_document";
             structuralHints["character_count"] = extractedText.Length;
+
+            // Count embedded images separately
+            var embeddedImageCount = images.Count(img => img.Data != null);
+            if (embeddedImageCount > 0)
+            {
+                structuralHints["embedded_image_count"] = embeddedImageCount;
+                structuralHints["embedded_images_extracted"] = true;
+            }
 
             return new RawContent
             {
@@ -169,7 +188,8 @@ public partial class HtmlDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = warnings,
-                ReaderType = "HtmlReader"
+                ReaderType = "HtmlReader",
+                Images = images
             };
         }
         catch (Exception ex)
@@ -264,7 +284,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    private static void ExtractBodyContent(HtmlNode bodyNode, StringBuilder textBuilder, Dictionary<string, object> structuralHints, List<string> warnings, CancellationToken cancellationToken)
+    private static void ExtractBodyContent(HtmlNode bodyNode, StringBuilder textBuilder, Dictionary<string, object> structuralHints, List<string> warnings, List<ImageInfo> images, CancellationToken cancellationToken)
     {
         var listCount = 0;
         var tableCount = 0;
@@ -274,7 +294,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         var externalLinks = new List<string>();
         var hasCode = false;
 
-        TraverseNode(bodyNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken);
+        TraverseNode(bodyNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, cancellationToken);
 
         // 구조적 힌트 업데이트
         if (listCount > 0)
@@ -318,7 +338,7 @@ public partial class HtmlDocumentReader : IDocumentReader
 
     private static void TraverseNode(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
         ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount,
-        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, CancellationToken cancellationToken, int depth = 0)
+        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, List<ImageInfo> images, CancellationToken cancellationToken, int depth = 0)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -358,12 +378,12 @@ public partial class HtmlDocumentReader : IDocumentReader
                 break;
 
             case "p":
-                ProcessParagraph(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, depth, cancellationToken);
+                ProcessParagraph(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, depth, cancellationToken);
                 break;
 
             case "ul":
             case "ol":
-                ProcessList(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, depth, tagName, cancellationToken);
+                ProcessList(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, depth, tagName, cancellationToken);
                 listCount++;
                 break;
 
@@ -377,7 +397,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 break;
 
             case "img":
-                ProcessImage(node, textBuilder, ref imageCount);
+                ProcessImage(node, textBuilder, ref imageCount, images);
                 break;
 
             case "code":
@@ -389,7 +409,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 break;
 
             case "figure":
-                ProcessFigure(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, depth, cancellationToken);
+                ProcessFigure(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, depth, cancellationToken);
                 break;
 
             case "br":
@@ -400,7 +420,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 // 기타 요소들은 재귀적으로 처리
                 foreach (var childNode in node.ChildNodes)
                 {
-                    TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken, depth + 1);
+                    TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, cancellationToken, depth + 1);
                 }
                 break;
         }
@@ -426,17 +446,17 @@ public partial class HtmlDocumentReader : IDocumentReader
 
     private static void ProcessParagraph(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
         ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount,
-        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, int depth, CancellationToken cancellationToken)
+        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, List<ImageInfo> images, int depth, CancellationToken cancellationToken)
     {
         foreach (var childNode in node.ChildNodes)
         {
-            TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken, depth + 1);
+            TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, cancellationToken, depth + 1);
         }
     }
 
     private static void ProcessList(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
         ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount,
-        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, int depth, string tagName, CancellationToken cancellationToken)
+        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, List<ImageInfo> images, int depth, string tagName, CancellationToken cancellationToken)
     {
         var isOrdered = tagName == "ol";
         var items = node.SelectNodes(".//li");
@@ -461,7 +481,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 {
                     if (!childNode.Name.Equals("ul", StringComparison.InvariantCultureIgnoreCase) && !childNode.Name.Equals("ol", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken, depth + 1);
+                        TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, cancellationToken, depth + 1);
                     }
                 }
 
@@ -473,7 +493,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 {
                     foreach (var nestedList in nestedLists)
                     {
-                        TraverseNode(nestedList, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken, depth + 1);
+                        TraverseNode(nestedList, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, cancellationToken, depth + 1);
                     }
                 }
             }
@@ -539,13 +559,46 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    private static void ProcessImage(HtmlNode node, StringBuilder textBuilder, ref int imageCount)
+    private static void ProcessImage(HtmlNode node, StringBuilder textBuilder, ref int imageCount, List<ImageInfo> images)
     {
         var src = node.GetAttributeValue("src", "");
         var alt = node.GetAttributeValue("alt", "");
+        var title = node.GetAttributeValue("title", "");
 
-        if (!string.IsNullOrWhiteSpace(src))
+        if (string.IsNullOrWhiteSpace(src)) return;
+
+        // Check for base64 embedded image
+        if (IsBase64Image(src))
         {
+            var (mimeType, data, originalSize) = ParseBase64Image(src);
+            var imageId = $"img_{imageCount:D3}";
+
+            images.Add(new ImageInfo
+            {
+                Id = imageId,
+                Caption = !string.IsNullOrWhiteSpace(alt) ? alt : title,
+                Position = textBuilder.Length,
+                MimeType = mimeType,
+                Data = data,
+                SourceUrl = $"embedded:{imageId}",
+                OriginalSize = originalSize
+            });
+
+            // Output placeholder instead of huge base64 data
+            var captionText = !string.IsNullOrWhiteSpace(alt) ? alt : "";
+            textBuilder.AppendLine($"![{captionText}](embedded:{imageId})");
+        }
+        else
+        {
+            // External URL - keep as-is
+            images.Add(new ImageInfo
+            {
+                Id = $"img_{imageCount:D3}",
+                Caption = !string.IsNullOrWhiteSpace(alt) ? alt : title,
+                Position = textBuilder.Length,
+                SourceUrl = src
+            });
+
             if (!string.IsNullOrWhiteSpace(alt))
             {
                 textBuilder.AppendLine($"![{alt}]({src})");
@@ -554,9 +607,41 @@ public partial class HtmlDocumentReader : IDocumentReader
             {
                 textBuilder.AppendLine($"![]({src})");
             }
-            imageCount++;
+        }
+
+        imageCount++;
+    }
+
+    private static bool IsBase64Image(string src)
+    {
+        return src.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static (string? mimeType, byte[]? data, long originalSize) ParseBase64Image(string src)
+    {
+        try
+        {
+            // Format: data:image/png;base64,iVBORw0KGgo...
+            var match = Base64ImageRegex().Match(src);
+            if (!match.Success)
+                return (null, null, src.Length);
+
+            var mimeType = $"image/{match.Groups[1].Value}";
+            var base64Data = match.Groups[2].Value;
+            var originalSize = base64Data.Length;
+
+            var data = Convert.FromBase64String(base64Data);
+            return (mimeType, data, originalSize);
+        }
+        catch
+        {
+            // If parsing fails, return null data but preserve size info
+            return (null, null, src.Length);
         }
     }
+
+    [GeneratedRegex(@"^data:image/(\w+);base64,(.+)$", RegexOptions.Singleline)]
+    private static partial Regex Base64ImageRegex();
 
     private static void ProcessInlineCode(HtmlNode node, StringBuilder textBuilder, ref bool hasCode)
     {
@@ -611,13 +696,13 @@ public partial class HtmlDocumentReader : IDocumentReader
 
     private static void ProcessFigure(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
         ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount,
-        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, int depth, CancellationToken cancellationToken)
+        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, List<ImageInfo> images, int depth, CancellationToken cancellationToken)
     {
         // figure 내의 이미지 처리
         var imgNode = node.SelectSingleNode(".//img");
         if (imgNode != null)
         {
-            ProcessImage(imgNode, textBuilder, ref imageCount);
+            ProcessImage(imgNode, textBuilder, ref imageCount, images);
         }
 
         // figcaption 처리
@@ -636,7 +721,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         {
             if (!childNode.Name.Equals("img", StringComparison.InvariantCultureIgnoreCase) && !childNode.Name.Equals("figcaption", StringComparison.InvariantCultureIgnoreCase))
             {
-                TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, cancellationToken, depth + 1);
+                TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, cancellationToken, depth + 1);
             }
         }
     }

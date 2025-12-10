@@ -64,6 +64,11 @@ public class RawContent
     /// Success indicator.
     /// </summary>
     public bool IsSuccess => Status == ProcessingStatus.Completed && Errors.Count == 0;
+
+    /// <summary>
+    /// Extracted images from document (base64, embedded, etc.)
+    /// </summary>
+    public List<ImageInfo> Images { get; set; } = new();
 }
 
 /// <summary>

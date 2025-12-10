@@ -43,13 +43,48 @@ public class DocumentContent
 }
 
 /// <summary>
-/// Image information
+/// Image information with optional binary data
 /// </summary>
 public class ImageInfo
 {
+    /// <summary>
+    /// Unique image identifier (e.g., "img_001")
+    /// </summary>
     public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Image caption or alt text
+    /// </summary>
     public string? Caption { get; set; }
+
+    /// <summary>
+    /// Character position in extracted text
+    /// </summary>
     public int Position { get; set; }
+
+    /// <summary>
+    /// MIME type (e.g., "image/png", "image/jpeg")
+    /// </summary>
+    public string? MimeType { get; set; }
+
+    /// <summary>
+    /// Image binary data (optional, for embedded/base64 images)
+    /// </summary>
+    public byte[]? Data { get; set; }
+
+    /// <summary>
+    /// Source reference: external URL or "embedded:{id}" for extracted images
+    /// </summary>
+    public string? SourceUrl { get; set; }
+
+    /// <summary>
+    /// Original data size in bytes (before extraction)
+    /// </summary>
+    public long OriginalSize { get; set; }
+
+    /// <summary>
+    /// Additional properties
+    /// </summary>
     public Dictionary<string, object> Properties { get; } = new();
 }
 
