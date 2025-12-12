@@ -248,11 +248,12 @@ public class MarkdownDocumentReader : IDocumentReader
         var listType = list.IsOrdered ? "ORDERED" : "UNORDERED";
         content.AppendLine($"<!-- LIST_START:{listType} -->");
 
+        var itemIndex = 1;
         foreach (var item in list)
         {
             if (item is ListItemBlock listItem)
             {
-                var bullet = list.IsOrdered ? "1. " : "• ";
+                var bullet = list.IsOrdered ? $"{itemIndex++}. " : "• ";
                 content.Append(bullet);
 
                 foreach (var block in listItem)
