@@ -204,6 +204,24 @@ services.AddFileFluxWithLocalEmbedder(options =>
 | HTML | .html, .htm | Web content extraction |
 | Text | .txt, .json, .csv | Basic text processing |
 
+## Known Limitations
+
+### PDF Processing
+- **Vector Graphics Tables**: Tables created with drawing primitives (lines/rectangles) instead of text layout may not be detected. These are rendered as images in most PDF viewers.
+- **Complex Multi-column Layouts**: Documents with intricate multi-column arrangements may have suboptimal text ordering.
+- **Scanned Documents**: OCR is not included; scanned PDFs require pre-processing with external OCR tools.
+
+### Table Extraction
+FileFlux uses layout-based table detection with confidence scoring:
+- Tables with confidence score ≥ 0.5 are converted to Markdown format
+- Low-confidence tables fall back to plain text to prevent garbled output
+- Table quality metrics are exposed via `StructuralHints` for consumer applications
+
+### Document-Specific Notes
+- **Excel**: Very large worksheets (>100K rows) may impact memory usage
+- **PowerPoint**: Embedded objects are extracted as placeholder text
+- **HTML**: JavaScript-rendered content is not supported
+
 ## Chunking Strategies
 
 | Strategy | Use Case |

@@ -19,6 +19,78 @@ public class ManualReaderTest
         _logger = loggerFactory.CreateLogger<ManualReaderTest>();
     }
 
+    /// <summary>
+    /// Manual test for PDF table extraction quality verification.
+    /// Requires external test file - skips if not available.
+    /// </summary>
+    [Fact(Skip = "Manual test - requires external PDF file")]
+    public async Task TestPdfTableExtraction_WithExternalFile()
+    {
+        // Arrange - Change this path to test with your own PDF files
+        var pdfPath = @"D:\aims-data\매뉴얼\ClusterPlex_v5.0.5.5_p4_Release Note.pdf";
+
+        if (!File.Exists(pdfPath))
+        {
+            _logger.LogWarning("Test file not found: {FilePath}", pdfPath);
+            return;
+        }
+
+        var reader = new PdfDocumentReader();
+
+        // Act
+        _logger.LogInformation("🧪 PDF Table Extraction Test: ClusterPlex Release Note");
+        _logger.LogInformation("==========================================");
+
+        var result = await reader.ExtractAsync(pdfPath, CancellationToken.None);
+
+        // Assert and Log Results
+        _logger.LogInformation("📊 Document Info:");
+        _logger.LogInformation("   File: {FileName}", result.File.Name);
+        _logger.LogInformation("   Size: {Size:N0} bytes", result.File.Size);
+
+        _logger.LogInformation("\n📋 Structural Hints (Table Extraction Quality):");
+        foreach (var hint in result.Hints)
+        {
+            _logger.LogInformation("   {Key}: {Value}", hint.Key, hint.Value);
+        }
+
+        // Check for table-related hints
+        if (result.Hints.TryGetValue("TableCount", out var tableCount))
+        {
+            _logger.LogInformation("\n📊 Table Detection Summary:");
+            _logger.LogInformation("   Total Tables: {Count}", tableCount);
+        }
+
+        if (result.Hints.TryGetValue("LowConfidenceTables", out var lowConfTables))
+        {
+            _logger.LogInformation("   Low Confidence Tables (using fallback): {Count}", lowConfTables);
+        }
+
+        if (result.Hints.TryGetValue("MinTableConfidence", out var minConf))
+        {
+            _logger.LogInformation("   Minimum Table Confidence: {MinConf}", minConf);
+        }
+
+        // Output content preview
+        _logger.LogInformation("\n📄 Content Preview:");
+        var contentLength = result.Text?.Length ?? 0;
+        _logger.LogInformation("   Total Length: {Length:N0} characters", contentLength);
+
+        // Show first 3000 chars
+        if (result.Text != null)
+        {
+            var preview = result.Text.Length > 3000
+                ? result.Text.Substring(0, 3000) + "\n... [TRUNCATED]"
+                : result.Text;
+            _logger.LogInformation("{Preview}", preview);
+        }
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Text);
+        Assert.True(result.Text.Length > 0);
+        _logger.LogInformation("\n✅ PDF Table Extraction Test COMPLETED");
+    }
+
     [Fact]
     public async Task TestAllReadersWithRealFiles()
     {

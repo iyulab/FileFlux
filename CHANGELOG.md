@@ -5,6 +5,29 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2025-12-13
+
+### Added
+- **PDF Table Confidence Scoring**: New algorithm evaluates table extraction quality (0.0-1.0)
+  - Considers column consistency, content density, and column count reasonableness
+  - Tables below threshold (0.5) automatically fall back to plain text
+- **StructuralHints for Tables**: New hints exposed for consumer applications
+  - `TablesDetected`: Total number of tables found in document
+  - `LowConfidenceTables`: Count of tables using plain text fallback
+  - `MinTableConfidence`: Lowest confidence score among all tables
+- **Known Limitations Section**: Added to README documenting PDF processing constraints
+
+### Fixed
+- **PDF Table Extraction Quality**: Major improvements to table detection and formatting
+  - Adaptive column detection using character-width-based bucket sizing
+  - Column merging to prevent over-fragmentation from whitespace
+  - Empty cell handling with deduplication and normalization
+  - Maximum column limit (10) prevents false positives
+- **Garbled Table Output**: Low-confidence tables now render as clean plain text instead of malformed markdown
+
+### Changed
+- **PdfDocumentReader**: Enhanced table extraction with confidence-based fallback mechanism
+
 ## [0.7.0] - 2025-12-10
 
 ### Added

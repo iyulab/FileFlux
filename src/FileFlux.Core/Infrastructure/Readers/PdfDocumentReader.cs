@@ -92,6 +92,8 @@ public partial class PdfDocumentReader : IDocumentReader
             var totalPages = document.NumberOfPages;
             var processedPages = 0;
             var tablesDetected = 0;
+            var lowConfidenceTables = 0;
+            var minTableConfidence = 1.0;
 
             // Extract text from each page
             for (int pageNum = 1; pageNum <= totalPages; pageNum++)
@@ -107,6 +109,11 @@ public partial class PdfDocumentReader : IDocumentReader
                     {
                         pageTexts.Add(pageContent);
                         tablesDetected += pageContent.TableCount;
+                        lowConfidenceTables += pageContent.LowConfidenceTableCount;
+                        if (pageContent.TableCount > 0 && pageContent.MinTableConfidence < minTableConfidence)
+                        {
+                            minTableConfidence = pageContent.MinTableConfidence;
+                        }
                     }
 
                     processedPages++;
@@ -130,6 +137,8 @@ public partial class PdfDocumentReader : IDocumentReader
             structuralHints["LineCount"] = extractedText.Split('\n').Length;
             structuralHints["PageRanges"] = pageRanges;
             structuralHints["TablesDetected"] = tablesDetected;
+            structuralHints["LowConfidenceTables"] = lowConfidenceTables;
+            structuralHints["MinTableConfidence"] = tablesDetected > 0 ? minTableConfidence : 1.0;
 
             if (processedPages < totalPages)
             {
@@ -189,6 +198,8 @@ public partial class PdfDocumentReader : IDocumentReader
             var totalPages = document.NumberOfPages;
             var processedPages = 0;
             var tablesDetected = 0;
+            var lowConfidenceTables = 0;
+            var minTableConfidence = 1.0;
 
             // Extract text from each page
             for (int pageNum = 1; pageNum <= totalPages; pageNum++)
@@ -204,6 +215,11 @@ public partial class PdfDocumentReader : IDocumentReader
                     {
                         pageTexts.Add(pageContent);
                         tablesDetected += pageContent.TableCount;
+                        lowConfidenceTables += pageContent.LowConfidenceTableCount;
+                        if (pageContent.TableCount > 0 && pageContent.MinTableConfidence < minTableConfidence)
+                        {
+                            minTableConfidence = pageContent.MinTableConfidence;
+                        }
                     }
 
                     processedPages++;
@@ -223,6 +239,8 @@ public partial class PdfDocumentReader : IDocumentReader
             structuralHints["WordCount"] = CountWords(extractedText);
             structuralHints["LineCount"] = extractedText.Split('\n').Length;
             structuralHints["TablesDetected"] = tablesDetected;
+            structuralHints["LowConfidenceTables"] = lowConfidenceTables;
+            structuralHints["MinTableConfidence"] = tablesDetected > 0 ? minTableConfidence : 1.0;
 
             if (processedPages < totalPages)
             {
@@ -268,6 +286,19 @@ public partial class PdfDocumentReader : IDocumentReader
             // Detect tables using layout analysis
             var tables = DetectTables(page, words, warnings);
             content.TableCount = tables.Count;
+
+            // Track table confidence metrics
+            if (tables.Count > 0)
+            {
+                content.LowConfidenceTableCount = tables.Count(t => t.ConfidenceScore < TableConfidenceThreshold);
+                content.MinTableConfidence = tables.Min(t => t.ConfidenceScore);
+
+                // Add warning for low confidence tables
+                if (content.LowConfidenceTableCount > 0)
+                {
+                    warnings.Add($"Page {pageNum}: {content.LowConfidenceTableCount} table(s) with low confidence, using plain text fallback");
+                }
+            }
 
             // Get text blocks excluding table areas
             var textBlocks = ExtractTextBlocks(page, words, tables);
@@ -408,12 +439,33 @@ public partial class PdfDocumentReader : IDocumentReader
     }
 
     /// <summary>
+    /// Maximum reasonable column count for table detection.
+    /// Tables with more columns are likely false positives.
+    /// </summary>
+    private const int MaxReasonableColumnCount = 10;
+
+    /// <summary>
     /// Detect column positions by analyzing word alignment across rows.
+    /// Uses adaptive bucket size based on average character width.
     /// </summary>
     private static List<double> DetectColumnPositions(List<List<Word>> rows)
     {
+        if (rows.Count == 0) return [];
+
+        // Calculate adaptive bucket size based on average character width
+        var allWords = rows.SelectMany(r => r).ToList();
+        if (allWords.Count == 0) return [];
+
+        var avgCharWidth = allWords
+            .Where(w => !string.IsNullOrEmpty(w.Text))
+            .Select(w => w.BoundingBox.Width / Math.Max(1, w.Text.Length))
+            .DefaultIfEmpty(5.0)
+            .Average();
+
+        // Bucket size is approximately 1-2 character widths
+        var bucketSize = Math.Max(3, (int)(avgCharWidth * 1.5));
+
         var xPositions = new Dictionary<int, int>(); // X position (bucketed) -> occurrence count
-        const int bucketSize = 5; // 5-point tolerance for alignment
 
         foreach (var row in rows)
         {
@@ -426,14 +478,47 @@ public partial class PdfDocumentReader : IDocumentReader
         }
 
         // Find X positions that appear in multiple rows (likely column starts)
-        var threshold = rows.Count / 3; // At least 1/3 of rows should have this alignment
-        var columnPositions = xPositions
+        // Use adaptive threshold: at least 40% of rows should have this alignment
+        var threshold = Math.Max(2, (int)(rows.Count * 0.4));
+        var rawPositions = xPositions
             .Where(kvp => kvp.Value >= threshold)
             .OrderBy(kvp => kvp.Key)
             .Select(kvp => (double)kvp.Key)
             .ToList();
 
-        return columnPositions;
+        // Merge columns that are too close together (within 2x bucket size)
+        var mergedPositions = MergeCloseColumns(rawPositions, bucketSize * 2);
+
+        // Limit to reasonable column count
+        if (mergedPositions.Count > MaxReasonableColumnCount)
+        {
+            // Keep only the most significant columns (highest occurrence count)
+            mergedPositions = mergedPositions.Take(MaxReasonableColumnCount).ToList();
+        }
+
+        return mergedPositions;
+    }
+
+    /// <summary>
+    /// Merge column positions that are too close together.
+    /// </summary>
+    private static List<double> MergeCloseColumns(List<double> positions, double minDistance)
+    {
+        if (positions.Count <= 1) return positions;
+
+        var merged = new List<double> { positions[0] };
+
+        for (int i = 1; i < positions.Count; i++)
+        {
+            var lastMerged = merged[^1];
+            if (positions[i] - lastMerged >= minDistance)
+            {
+                merged.Add(positions[i]);
+            }
+            // If too close, keep the existing column position (skip this one)
+        }
+
+        return merged;
     }
 
     /// <summary>
@@ -458,7 +543,7 @@ public partial class PdfDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// Create a TableRegion from detected table rows.
+    /// Create a TableRegion from detected table rows with confidence scoring.
     /// </summary>
     private static TableRegion? CreateTableFromRows(List<List<Word>> tableRows, List<double> columnPositions, double pageHeight)
     {
@@ -471,19 +556,35 @@ public partial class PdfDocumentReader : IDocumentReader
         var minY = allWords.Min(w => w.BoundingBox.Bottom);
         var maxY = allWords.Max(w => w.BoundingBox.Top);
 
-        // Build markdown table
+        // Build markdown table and collect cells for analysis
         var markdown = new StringBuilder();
+        var plainText = new StringBuilder();
         var isFirstRow = true;
+        var allCells = new List<List<string>>();
+        var totalCellCount = 0;
+        var emptyCellCount = 0;
 
         foreach (var row in tableRows)
         {
             var cells = AssignWordsToColumns(row, columnPositions);
+            allCells.Add(cells);
+
+            // Build markdown row
             markdown.Append('|');
             foreach (var cell in cells)
             {
-                markdown.Append(' ').Append(cell.Trim()).Append(" |");
+                var trimmedCell = cell.Trim();
+                markdown.Append(' ').Append(trimmedCell).Append(" |");
+                totalCellCount++;
+                if (string.IsNullOrWhiteSpace(trimmedCell))
+                    emptyCellCount++;
             }
             markdown.AppendLine();
+
+            // Build plain text fallback (space-separated cells per row)
+            var rowText = string.Join("  ", cells.Select(c => c.Trim()).Where(c => !string.IsNullOrWhiteSpace(c)));
+            if (!string.IsNullOrWhiteSpace(rowText))
+                plainText.AppendLine(rowText);
 
             // Add header separator after first row
             if (isFirstRow)
@@ -498,6 +599,9 @@ public partial class PdfDocumentReader : IDocumentReader
             }
         }
 
+        // Calculate confidence score
+        var confidenceScore = CalculateTableConfidence(allCells, columnPositions.Count, emptyCellCount, totalCellCount);
+
         return new TableRegion
         {
             MinX = minX,
@@ -505,17 +609,69 @@ public partial class PdfDocumentReader : IDocumentReader
             MinY = minY,
             MaxY = maxY,
             TopY = pageHeight - maxY,
-            Markdown = markdown.ToString().Trim()
+            Markdown = markdown.ToString().Trim(),
+            PlainTextFallback = plainText.ToString().Trim(),
+            ConfidenceScore = confidenceScore,
+            RowCount = tableRows.Count,
+            ColumnCount = columnPositions.Count
         };
     }
 
     /// <summary>
-    /// Assign words in a row to their respective columns.
+    /// Calculate confidence score for table detection.
+    /// </summary>
+    /// <returns>Score between 0.0 (low confidence) and 1.0 (high confidence)</returns>
+    private static double CalculateTableConfidence(List<List<string>> allCells, int expectedColumns, int emptyCellCount, int totalCellCount)
+    {
+        if (allCells.Count == 0 || expectedColumns == 0) return 0.0;
+
+        // Factor 1: Column count consistency (40% weight)
+        // All rows should have the same number of columns
+        var columnCounts = allCells.Select(r => r.Count).ToList();
+        var modeColumnCount = columnCounts.GroupBy(c => c).OrderByDescending(g => g.Count()).First().Key;
+        var consistentRowCount = columnCounts.Count(c => c == modeColumnCount);
+        var columnConsistency = (double)consistentRowCount / allCells.Count;
+
+        // Factor 2: Empty cell ratio (30% weight)
+        // Too many empty cells indicates poor table detection
+        var emptyCellRatio = totalCellCount > 0 ? (double)emptyCellCount / totalCellCount : 1.0;
+        var contentScore = 1.0 - emptyCellRatio;
+
+        // Factor 3: Reasonable column count (30% weight)
+        // Tables with too many columns (>10) are often false positives
+        var columnCountScore = expectedColumns switch
+        {
+            <= 2 => 0.7,  // Too few columns might not be a real table
+            <= 6 => 1.0,  // Ideal range
+            <= 10 => 0.8, // Acceptable
+            <= 15 => 0.5, // Suspicious
+            _ => 0.2      // Likely false positive
+        };
+
+        // Weighted average
+        var score = (columnConsistency * 0.4) + (contentScore * 0.3) + (columnCountScore * 0.3);
+
+        return Math.Round(score, 2);
+    }
+
+    /// <summary>
+    /// Assign words in a row to their respective columns with adaptive tolerance.
     /// </summary>
     private static List<string> AssignWordsToColumns(List<Word> row, List<double> columnPositions)
     {
         var cells = new List<string>();
         var sortedColumns = columnPositions.OrderBy(x => x).ToList();
+
+        if (sortedColumns.Count == 0) return cells;
+
+        // Calculate adaptive tolerance based on average column width
+        var avgColumnWidth = sortedColumns.Count > 1
+            ? sortedColumns.Zip(sortedColumns.Skip(1), (a, b) => b - a).Average()
+            : 50.0; // Default if only one column
+        var tolerance = Math.Max(5, avgColumnWidth * 0.15); // 15% of column width, minimum 5
+
+        // Track which words have been assigned to avoid double-counting
+        var assignedWords = new HashSet<Word>();
 
         for (int i = 0; i < sortedColumns.Count; i++)
         {
@@ -523,31 +679,52 @@ public partial class PdfDocumentReader : IDocumentReader
             var colEnd = i < sortedColumns.Count - 1 ? sortedColumns[i + 1] : double.MaxValue;
 
             var cellWords = row
-                .Where(w => w.BoundingBox.Left >= colStart - 10 && w.BoundingBox.Left < colEnd - 10)
+                .Where(w => !assignedWords.Contains(w) &&
+                            w.BoundingBox.Left >= colStart - tolerance &&
+                            w.BoundingBox.Left < colEnd - tolerance)
                 .OrderBy(w => w.BoundingBox.Left)
-                .Select(w => w.Text);
+                .ToList();
 
-            cells.Add(string.Join(" ", cellWords));
+            foreach (var word in cellWords)
+            {
+                assignedWords.Add(word);
+            }
+
+            cells.Add(string.Join(" ", cellWords.Select(w => w.Text)));
+        }
+
+        // Ensure we have exactly the expected number of columns
+        while (cells.Count < sortedColumns.Count)
+        {
+            cells.Add(""); // Pad with empty cells if needed
         }
 
         return cells;
     }
 
     /// <summary>
+    /// Confidence threshold for table detection. Below this, plain text fallback is used.
+    /// </summary>
+    private const double TableConfidenceThreshold = 0.5;
+
+    /// <summary>
     /// Extract text blocks from page, separating tables from regular text.
+    /// Uses confidence-based fallback for low-quality table detection.
     /// </summary>
     private static List<TextBlock> ExtractTextBlocks(Page page, List<Word> words, List<TableRegion> tables)
     {
         var blocks = new List<TextBlock>();
         var lineHeight = EstimateLineHeight(words);
 
-        // Add table blocks
+        // Add table blocks with confidence-based content selection
         foreach (var table in tables)
         {
+            // Use plain text fallback for low-confidence tables
+            var useMarkdown = table.ConfidenceScore >= TableConfidenceThreshold;
             blocks.Add(new TextBlock
             {
-                Content = table.Markdown,
-                IsTable = true,
+                Content = useMarkdown ? table.Markdown : table.PlainTextFallback,
+                IsTable = useMarkdown,
                 TopY = table.TopY,
                 LeftX = table.MinX
             });
@@ -824,6 +1001,14 @@ public partial class PdfDocumentReader : IDocumentReader
         public int PageNumber { get; set; }
         public string Text { get; set; } = "";
         public int TableCount { get; set; }
+        /// <summary>
+        /// Number of tables that used plain text fallback due to low confidence.
+        /// </summary>
+        public int LowConfidenceTableCount { get; set; }
+        /// <summary>
+        /// Minimum confidence score among detected tables (1.0 if no tables).
+        /// </summary>
+        public double MinTableConfidence { get; set; } = 1.0;
         public bool EndsWithIncompleteSentence { get; set; }
         public bool StartsWithIncompleteSentence { get; set; }
         public bool HasContent => !string.IsNullOrWhiteSpace(Text);
@@ -840,6 +1025,17 @@ public partial class PdfDocumentReader : IDocumentReader
         public double MaxY { get; set; }
         public double TopY { get; set; }
         public string Markdown { get; set; } = "";
+        /// <summary>
+        /// Confidence score for table detection (0.0 to 1.0).
+        /// Below 0.5 threshold, plain text fallback is recommended.
+        /// </summary>
+        public double ConfidenceScore { get; set; } = 1.0;
+        /// <summary>
+        /// Plain text representation as fallback for low-confidence tables.
+        /// </summary>
+        public string PlainTextFallback { get; set; } = "";
+        public int RowCount { get; set; }
+        public int ColumnCount { get; set; }
     }
 
     /// <summary>
