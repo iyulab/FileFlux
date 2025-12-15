@@ -37,9 +37,9 @@
     <PackageVersion Include="FluxImprover" Version="0.5.0" />
   </ItemGroup>
   <ItemGroup Label="LocalAI (Release - NuGet packages)">
-    <PackageVersion Include="LocalAI.Core" Version="0.7.0" />
-    <PackageVersion Include="LocalAI.Embedder" Version="0.7.0" />
-    <PackageVersion Include="LocalAI.Generator" Version="0.7.0" />
+    <PackageVersion Include="LocalAI.Core" Version="0.7.2" />
+    <PackageVersion Include="LocalAI.Embedder" Version="0.7.2" />
+    <PackageVersion Include="LocalAI.Generator" Version="0.7.2" />
     <PackageVersion Include="LocalAI.Captioner" Version="0.7.0" />
     <PackageVersion Include="LocalAI.Ocr" Version="0.7.0" />
   </ItemGroup>

@@ -368,7 +368,8 @@ FodyWeavers.xsd
 
 .claude/
 claudedocs/
-CLAUDE.local.md
+*.local.md
+CLAUDE.md
 /src/FileFlux.SampleApp/fileflux.db
 .env.local
 
