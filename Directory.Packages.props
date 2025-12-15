@@ -36,14 +36,18 @@
     <PackageVersion Include="ReverseMarkdown" Version="4.7.1" />
   </ItemGroup>
   <ItemGroup Label="AI Providers">
-    <PackageVersion Include="OpenAI" Version="2.7.0" />
+    <PackageVersion Include="OpenAI" Version="2.8.0" />
   </ItemGroup>
   <ItemGroup Label="Flux Packages">
     <PackageVersion Include="FluxCurator" Version="0.5.0" />
-    <PackageVersion Include="FluxImprover" Version="0.4.1" />
+    <PackageVersion Include="FluxImprover" Version="0.5.0" />
   </ItemGroup>
-  <ItemGroup Label="Embeddings">
-    <PackageVersion Include="LocalEmbedder" Version="0.3.1" />
+  <ItemGroup Label="LocalAI (Release - NuGet packages)">
+    <PackageVersion Include="LocalAI.Core" Version="0.7.0" />
+    <PackageVersion Include="LocalAI.Embedder" Version="0.7.0" />
+    <PackageVersion Include="LocalAI.Generator" Version="0.7.0" />
+    <PackageVersion Include="LocalAI.Captioner" Version="0.7.0" />
+    <PackageVersion Include="LocalAI.Ocr" Version="0.7.0" />
   </ItemGroup>
   <ItemGroup Label="CLI and UI">
     <PackageVersion Include="System.CommandLine" Version="2.0.1" />

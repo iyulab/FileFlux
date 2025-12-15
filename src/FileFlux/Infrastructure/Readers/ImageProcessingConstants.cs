@@ -1,4 +1,4 @@
-namespace FileFlux.Core.Infrastructure.Readers;
+namespace FileFlux.Infrastructure.Readers;
 
 /// <summary>
 /// 이미지 처리 관련 공통 상수

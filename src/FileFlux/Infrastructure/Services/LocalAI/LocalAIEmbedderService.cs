@@ -1,0 +1,120 @@
+using LocalAI;
+using LocalAI.Embedder;
+
+namespace FileFlux.Infrastructure.Services.LocalAI;
+
+/// <summary>
+/// IEmbeddingService implementation using LocalAI.Embedder.
+/// </summary>
+public sealed class LocalAIEmbedderService : IEmbeddingService, IAsyncDisposable
+{
+    private readonly IEmbeddingModel _model;
+    private bool _disposed;
+
+    /// <summary>
+    /// Creates a new instance of LocalAIEmbedderService with the specified model.
+    /// </summary>
+    /// <param name="model">The loaded embedding model.</param>
+    public LocalAIEmbedderService(IEmbeddingModel model)
+    {
+        _model = model ?? throw new ArgumentNullException(nameof(model));
+    }
+
+    /// <summary>
+    /// Creates a new LocalAIEmbedderService with the default model.
+    /// </summary>
+    /// <param name="options">Configuration options.</param>
+    /// <param name="progress">Optional progress reporting for downloads.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A new LocalAIEmbedderService instance.</returns>
+    public static async Task<LocalAIEmbedderService> CreateAsync(
+        LocalAIOptions? options = null,
+        IProgress<DownloadProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        options ??= new LocalAIOptions();
+
+        var embedderOptions = new EmbedderOptions
+        {
+            CacheDirectory = options.CacheDirectory,
+            MaxSequenceLength = options.MaxSequenceLength,
+            Provider = options.UseGpuAcceleration
+                ? ExecutionProvider.DirectML
+                : ExecutionProvider.Cpu
+        };
+
+        var model = await global::LocalAI.Embedder.LocalEmbedder.LoadAsync(
+            options.EmbeddingModel,
+            embedderOptions,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (options.WarmupOnInit)
+        {
+            await model.WarmupAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return new LocalAIEmbedderService(model);
+    }
+
+    /// <inheritdoc />
+    public int EmbeddingDimension => _model.Dimensions;
+
+    /// <inheritdoc />
+    public int MaxTokens => 8192;
+
+    /// <inheritdoc />
+    public bool SupportsBatchProcessing => true;
+
+    /// <inheritdoc />
+    public async Task<float[]> GenerateEmbeddingAsync(
+        string text,
+        EmbeddingPurpose purpose = EmbeddingPurpose.Analysis,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(text);
+
+        return await _model.EmbedAsync(text, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<float[]>> GenerateBatchEmbeddingsAsync(
+        IEnumerable<string> texts,
+        EmbeddingPurpose purpose = EmbeddingPurpose.Analysis,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(texts);
+
+        var textList = texts as IReadOnlyList<string> ?? texts.ToList();
+        if (textList.Count == 0)
+        {
+            return [];
+        }
+
+        var results = await _model.EmbedAsync(textList, cancellationToken).ConfigureAwait(false);
+        return results;
+    }
+
+    /// <inheritdoc />
+    public double CalculateSimilarity(float[] embedding1, float[] embedding2)
+    {
+        ArgumentNullException.ThrowIfNull(embedding1);
+        ArgumentNullException.ThrowIfNull(embedding2);
+
+        return global::LocalAI.Embedder.LocalEmbedder.CosineSimilarity(embedding1, embedding2);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        await _model.DisposeAsync().ConfigureAwait(false);
+    }
+}

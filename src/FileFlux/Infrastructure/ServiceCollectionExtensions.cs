@@ -7,8 +7,10 @@ using FileFlux.Infrastructure.Adapters;
 using FileFlux.Infrastructure.Factories;
 using FileFlux.Infrastructure.Languages;
 using FileFlux.Core.Infrastructure.Readers;
+using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
 using FileFlux.Infrastructure.Services;
+using FileFlux.Infrastructure.Services.LocalAI;
 using FluxCurator;
 using FluxCurator.Core.Core;
 using FluxImprover;
@@ -76,15 +78,11 @@ public static class ServiceCollectionExtensions
 
         // === Optional Services ===
 
-        // Embedding service (LocalEmbedder as default)
-        services.TryAddSingleton<IEmbeddingService>(provider =>
-        {
-            var logger = provider.GetService<ILogger<LocalEmbedderService>>();
-            return new LocalEmbedderService(options: null, logger);
-        });
-
         // Memory cache for metadata
         services.AddMemoryCache(options => options.SizeLimit = 100);
+
+        // Note: IEmbeddingService is not registered by default.
+        // Use AddFileFluxWithLocalAI() to enable local AI features (embedding, generation, captioning, OCR).
 
         return services;
     }
@@ -114,27 +112,6 @@ public static class ServiceCollectionExtensions
 
         if (imageToTextService != null)
             services.AddSingleton(imageToTextService);
-
-        return AddFileFlux(services);
-    }
-
-    /// <summary>
-    /// Adds FileFlux with LocalEmbedder configuration.
-    /// </summary>
-    public static IServiceCollection AddFileFluxWithLocalEmbedder(
-        this IServiceCollection services,
-        Action<LocalEmbedderOptions> configureOptions)
-    {
-        ArgumentNullException.ThrowIfNull(configureOptions);
-
-        var options = new LocalEmbedderOptions();
-        configureOptions(options);
-
-        services.AddSingleton<IEmbeddingService>(provider =>
-        {
-            var logger = provider.GetService<ILogger<LocalEmbedderService>>();
-            return new LocalEmbedderService(options, logger);
-        });
 
         return AddFileFlux(services);
     }
@@ -175,4 +152,106 @@ public static class ServiceCollectionExtensions
         return AddFileFlux(services);
     }
 #endif
+
+    // =========================================================================
+    // LocalAI Integration Extensions
+    // =========================================================================
+
+    /// <summary>
+    /// Adds FileFlux with LocalAI services for local AI processing.
+    /// Includes embedding, text generation, image captioning, and OCR.
+    /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <returns>Service collection for chaining</returns>
+    /// <remarks>
+    /// This method registers LocalAI service factories. Services are created lazily
+    /// on first use because they require async model loading.
+    /// Use <see cref="LocalAIServiceFactory"/> to create service instances.
+    /// </remarks>
+    public static IServiceCollection AddFileFluxWithLocalAI(this IServiceCollection services)
+    {
+        return AddFileFluxWithLocalAI(services, _ => { });
+    }
+
+    /// <summary>
+    /// Adds FileFlux with LocalAI services using custom configuration.
+    /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <param name="configure">Configuration action for LocalAIOptions</param>
+    /// <returns>Service collection for chaining</returns>
+    public static IServiceCollection AddFileFluxWithLocalAI(
+        this IServiceCollection services,
+        Action<LocalAIOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        // Register options
+        var options = new LocalAIOptions();
+        configure(options);
+        services.AddSingleton(options);
+
+        // Register service factory for lazy initialization
+        services.AddSingleton<LocalAIServiceFactory>();
+
+        // Register individual service accessors
+        services.AddLocalAIEmbedder();
+        services.AddLocalAIGenerator();
+        services.AddLocalAICaptioner();
+        services.AddLocalAIOcr();
+
+        return AddFileFlux(services);
+    }
+
+    /// <summary>
+    /// Adds LocalAI embedding service.
+    /// </summary>
+    public static IServiceCollection AddLocalAIEmbedder(this IServiceCollection services)
+    {
+        services.TryAddSingleton<IEmbeddingService>(provider =>
+        {
+            var factory = provider.GetRequiredService<LocalAIServiceFactory>();
+            return factory.GetEmbedderAsync().GetAwaiter().GetResult();
+        });
+        return services;
+    }
+
+    /// <summary>
+    /// Adds LocalAI text generation service.
+    /// </summary>
+    public static IServiceCollection AddLocalAIGenerator(this IServiceCollection services)
+    {
+        services.TryAddSingleton<ITextCompletionService>(provider =>
+        {
+            var factory = provider.GetRequiredService<LocalAIServiceFactory>();
+            return factory.GetGeneratorAsync().GetAwaiter().GetResult();
+        });
+        return services;
+    }
+
+    /// <summary>
+    /// Adds LocalAI image captioning service.
+    /// </summary>
+    public static IServiceCollection AddLocalAICaptioner(this IServiceCollection services)
+    {
+        services.TryAddSingleton<IImageToTextService>(provider =>
+        {
+            var factory = provider.GetRequiredService<LocalAIServiceFactory>();
+            return factory.GetCaptionerAsync().GetAwaiter().GetResult();
+        });
+        return services;
+    }
+
+    /// <summary>
+    /// Adds LocalAI OCR service for text extraction from images.
+    /// </summary>
+    public static IServiceCollection AddLocalAIOcr(this IServiceCollection services)
+    {
+        // OCR is registered as a named service since IImageToTextService is also used by Captioner
+        services.TryAddKeyedSingleton<IImageToTextService>("ocr", (provider, _) =>
+        {
+            var factory = provider.GetRequiredService<LocalAIServiceFactory>();
+            return factory.GetOcrAsync().GetAwaiter().GetResult();
+        });
+        return services;
+    }
 }

@@ -1,11 +1,12 @@
 using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.Core;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace FileFlux.Core.Infrastructure.Readers;
+namespace FileFlux.Infrastructure.Readers;
 
 /// <summary>
 /// 이미지 처리 기능이 통합된 멀티모달 PDF 문서 리더

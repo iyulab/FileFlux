@@ -15,7 +15,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, Markdown, HTML, TXT, JSON, CSV
 - **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel
-- **Local Embeddings**: Built-in LocalEmbedder support with zero configuration
+- **Local AI Processing**: Built-in LocalAI support for embeddings, text generation, captioning, and OCR
 - **Structural Metadata**: HeadingPath, page numbers, ContextDependency scores for enhanced RAG
 - **Language Detection**: Automatic language detection using NTextCat
 - **IEnrichedChunk Interface**: Standardized interface for RAG system integration
@@ -42,8 +42,9 @@ dotnet add package FileFlux.Core
 | Core Interfaces & Models | ✅ | ✅ |
 | Chunking Strategies | ❌ | ✅ |
 | FluxCurator & FluxImprover | ❌ | ✅ |
+| LocalAI Integration | ❌ | ✅ |
 | DocumentProcessor | ❌ | ✅ |
-| Use Case | Custom chunking | Full pipeline |
+| Use Case | Custom chunking | Full RAG pipeline |
 
 ## Quick Start
 
@@ -127,19 +128,42 @@ foreach (var chunk in chunks)
 }
 ```
 
-### Local Embeddings
+### Local AI Processing
 
-FileFlux includes **built-in local embedding support** via LocalEmbedder, providing high-quality embeddings without external API calls.
+FileFlux includes **built-in local AI capabilities** via [LocalAI](https://github.com/iyulab/local-ai), providing embeddings, text generation, image captioning, and OCR without external API calls.
 
-#### Zero Configuration
+#### Full LocalAI Integration
 
 ```csharp
-// LocalEmbedder is automatically registered - no configuration needed!
-services.AddFileFlux();
+using FileFlux;
+using Microsoft.Extensions.DependencyInjection;
 
-// Models are auto-downloaded from HuggingFace on first use
+var services = new ServiceCollection();
+
+// Register FileFlux with all LocalAI services
+services.AddFileFluxWithLocalAI();
+
+// Or with custom configuration
+services.AddFileFluxWithLocalAI(options =>
+{
+    options.UseGpuAcceleration = true;           // DirectML, CUDA, CoreML
+    options.EmbeddingModel = "default";          // all-MiniLM-L6-v2
+    options.GeneratorModel = "microsoft/Phi-4-mini-instruct-onnx";
+    options.WarmupOnInit = true;                 // Preload models
+});
+
+var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
-var chunks = await processor.ProcessAsync("document.pdf");
+```
+
+#### Selective Service Registration
+
+```csharp
+// Register only the services you need
+services.AddLocalAIEmbedder();    // IEmbeddingService
+services.AddLocalAIGenerator();   // ITextCompletionService
+services.AddLocalAICaptioner();   // IImageToTextService (captions)
+services.AddLocalAIOcr();         // IImageToTextService (OCR)
 ```
 
 #### Semantic Similarity
@@ -161,36 +185,21 @@ var similarity = embeddingService.CalculateSimilarity(queryEmb, docEmb);
 // Returns ~0.7 for related content
 ```
 
-#### Custom Configuration
+#### LocalAI Services
 
-```csharp
-// Use high-quality models or GPU acceleration
-services.AddFileFluxWithLocalEmbedder(options =>
-{
-    options.AnalysisModel = "all-mpnet-base-v2";      // 768 dimensions
-    options.SearchModel = "all-mpnet-base-v2";         // High quality
-    options.PrimaryDimension = 768;
-    options.Provider = ExecutionProvider.Cuda;         // GPU acceleration
-});
-```
-
-#### Available Models
-
-| Model | Dimensions | Speed | Quality | Use Case |
-|-------|------------|-------|---------|----------|
-| `all-MiniLM-L6-v2` | 384 | Fast | Good | Analysis, chunking (default) |
-| `all-mpnet-base-v2` | 768 | Medium | High | Semantic search, storage |
-| `bge-small-en-v1.5` | 384 | Fast | Good | English documents |
-| `bge-base-en-v1.5` | 768 | Medium | High | High-quality English |
-| `multilingual-e5-small` | 384 | Fast | Good | Multilingual support |
-| `multilingual-e5-base` | 768 | Medium | High | High-quality multilingual |
+| Service | Interface | Description |
+|---------|-----------|-------------|
+| Embedder | `IEmbeddingService` | Local embedding generation (384/768 dimensions) |
+| Generator | `ITextCompletionService` | Local text generation with Phi models |
+| Captioner | `IImageToTextService` | Image captioning for visual content |
+| OCR | `IImageToTextService` | Text extraction from images |
 
 **Features:**
-- **Auto-download**: Models downloaded from HuggingFace automatically
-- **Caching**: Models cached locally (~/.cache/huggingface)
+- **Auto-download**: Models downloaded automatically on first use
 - **GPU Support**: CUDA, DirectML (Windows), CoreML (macOS)
-- **Batch Processing**: Efficient multi-text embedding
-- **Thread-Safe**: Concurrent access supported
+- **Thread-Safe**: Concurrent access with lazy initialization
+- **Multi-language OCR**: Support for English, Korean, Chinese, Japanese
+- **Zero API Costs**: All processing runs locally
 
 ## Supported Document Formats
 

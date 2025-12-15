@@ -1,44 +1,44 @@
 using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Spreadsheet;
 using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 
-namespace FileFlux.Core.Infrastructure.Readers;
+namespace FileFlux.Infrastructure.Readers;
 
 /// <summary>
-/// 이미지 처리 기능이 통합된 멀티모달 Excel 문서 리더
+/// 이미지 처리 기능이 통합된 멀티모달 Word 문서 리더
 /// IImageToTextService가 제공된 경우 이미지에서 텍스트를 추출하여 enrichment
 /// IImageRelevanceEvaluator가 제공된 경우 관련성 평가 후 선택적 포함
 /// </summary>
-public class MultiModalExcelDocumentReader : IDocumentReader
+public class MultiModalWordDocumentReader : IDocumentReader
 {
     private readonly IImageToTextService? _imageToTextService;
     private readonly IImageRelevanceEvaluator? _relevanceEvaluator;
-    private readonly ExcelDocumentReader _baseExcelReader;
+    private readonly WordDocumentReader _baseWordReader;
 
-    public string ReaderType => "MultiModalExcelReader";
+    public string ReaderType => "MultiModalWordReader";
 
-    public IEnumerable<string> SupportedExtensions => new[] { ".xlsx" };
+    public IEnumerable<string> SupportedExtensions => new[] { ".docx" };
 
-    public MultiModalExcelDocumentReader(IServiceProvider serviceProvider)
+    public MultiModalWordDocumentReader(IServiceProvider serviceProvider)
     {
         // IImageToTextService는 선택적 의존성
         _imageToTextService = serviceProvider.GetService<IImageToTextService>();
         // IImageRelevanceEvaluator는 선택적 의존성
         _relevanceEvaluator = serviceProvider.GetService<IImageRelevanceEvaluator>();
-        _baseExcelReader = new ExcelDocumentReader();
+        _baseWordReader = new WordDocumentReader();
     }
 
     public bool CanRead(string fileName)
     {
-        return _baseExcelReader.CanRead(fileName);
+        return _baseWordReader.CanRead(fileName);
     }
 
     public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        // 기본 Excel 텍스트 추출
-        var baseContent = await _baseExcelReader.ExtractAsync(filePath, cancellationToken);
+        // 기본 Word 텍스트 추출
+        var baseContent = await _baseWordReader.ExtractAsync(filePath, cancellationToken);
 
         // 이미지 서비스가 없으면 기본 결과 반환
         if (_imageToTextService == null)
@@ -50,8 +50,8 @@ public class MultiModalExcelDocumentReader : IDocumentReader
 
     public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
-        // 기본 Excel 텍스트 추출
-        var baseContent = await _baseExcelReader.ExtractAsync(stream, fileName, cancellationToken);
+        // 기본 Word 텍스트 추출
+        var baseContent = await _baseWordReader.ExtractAsync(stream, fileName, cancellationToken);
 
         // 이미지 서비스가 없으면 기본 결과 반환
         if (_imageToTextService == null)
@@ -62,7 +62,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// 이미지 처리를 포함한 향상된 Excel 텍스트 추출
+    /// 이미지 처리를 포함한 향상된 Word 텍스트 추출
     /// </summary>
     private async Task<RawContent> ExtractWithImageProcessing(
         string filePath,
@@ -79,106 +79,90 @@ public class MultiModalExcelDocumentReader : IDocumentReader
 
         try
         {
-            using var spreadsheetDocument = SpreadsheetDocument.Open(filePath, false);
-            var workbookPart = spreadsheetDocument.WorkbookPart;
+            using var wordDocument = WordprocessingDocument.Open(filePath, false);
+            var mainPart = wordDocument.MainDocumentPart;
 
-            if (workbookPart?.Workbook?.Sheets == null)
+            if (mainPart == null)
             {
                 return baseContent;
             }
 
-            var sheets = workbookPart.Workbook.Sheets.Cast<Sheet>().ToList();
             var imageCount = 0;
             var includedImageCount = 0;
             var excludedImageCount = 0;
 
-            for (int sheetIndex = 0; sheetIndex < sheets.Count; sheetIndex++)
+            // 문서 전체 텍스트 (컨텍스트용)
+            documentContext.SurroundingText = TruncateText(baseContent.Text, 500);
+            documentContext.PageNumber = 1; // Word는 페이지 개념이 약함
+
+            var documentImages = await ExtractDocumentImages(wordDocument, cancellationToken);
+
+            if (documentImages.Any())
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var sheet = sheets[sheetIndex];
-                if (sheet.Id?.Value == null) continue;
-
-                var worksheetPart = (WorksheetPart)workbookPart.GetPartById(sheet.Id.Value);
-                var sheetName = sheet.Name?.Value ?? $"Sheet{sheetIndex + 1}";
-                documentContext.PageNumber = sheetIndex + 1;
-
-                // 워크시트 텍스트 추출 (컨텍스트용)
-                var sheetText = ExtractSheetText(worksheetPart);
-                if (!string.IsNullOrEmpty(sheetText))
+                // 관련성 평가가 활성화된 경우 배치 평가 수행
+                List<ImageRelevanceResult>? relevanceResults = null;
+                if (_relevanceEvaluator != null)
                 {
-                    documentContext.SurroundingText = TruncateText(sheetText, 500);
+                    var imageTexts = documentImages.Select(img => img.ExtractedText).ToList();
+                    relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
+                        imageTexts, documentContext, cancellationToken)).ToList();
                 }
 
-                var sheetImages = await ExtractWorksheetImages(worksheetPart, sheetName, cancellationToken);
+                // 문서 이미지 섹션 시작
+                var hasRelevantImages = false;
+                var documentImageTexts = new StringBuilder();
 
-                if (sheetImages.Any())
+                for (int i = 0; i < documentImages.Count; i++)
                 {
-                    // 관련성 평가가 활성화된 경우 배치 평가 수행
-                    List<ImageRelevanceResult>? relevanceResults = null;
-                    if (_relevanceEvaluator != null)
+                    var imageResult = documentImages[i];
+                    imageCount++;
+
+                    // 관련성 평가 결과 확인
+                    bool shouldInclude = true;
+                    string? processedText = imageResult.ExtractedText;
+                    string inclusionReason = "No relevance evaluation";
+
+                    if (relevanceResults != null && i < relevanceResults.Count)
                     {
-                        var imageTexts = sheetImages.Select(img => img.ExtractedText).ToList();
-                        relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
-                            imageTexts, documentContext, cancellationToken)).ToList();
-                    }
+                        var relevance = relevanceResults[i];
+                        shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
+                                      relevance.Recommendation != InclusionRecommendation.ShouldExclude;
 
-                    // 워크시트 이미지 섹션 시작
-                    var hasRelevantImages = false;
-                    var sheetImageTexts = new StringBuilder();
-
-                    for (int i = 0; i < sheetImages.Count; i++)
-                    {
-                        var imageResult = sheetImages[i];
-                        imageCount++;
-
-                        // 관련성 평가 결과 확인
-                        bool shouldInclude = true;
-                        string? processedText = imageResult.ExtractedText;
-                        string inclusionReason = "No relevance evaluation";
-
-                        if (relevanceResults != null && i < relevanceResults.Count)
+                        if (!string.IsNullOrEmpty(relevance.ProcessedText))
                         {
-                            var relevance = relevanceResults[i];
-                            shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
-                                          relevance.Recommendation != InclusionRecommendation.ShouldExclude;
-
-                            if (!string.IsNullOrEmpty(relevance.ProcessedText))
-                            {
-                                processedText = relevance.ProcessedText;
-                            }
-
-                            inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
+                            processedText = relevance.ProcessedText;
                         }
 
-                        if (shouldInclude)
-                        {
-                            if (!hasRelevantImages)
-                            {
-                                sheetImageTexts.AppendLine($"<!-- SHEET_{sheetName}_IMAGES_START -->");
-                                hasRelevantImages = true;
-                            }
-
-                            sheetImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
-                            sheetImageTexts.AppendLine($"Sheet '{sheetName}' - Image {imageCount}:");
-                            sheetImageTexts.AppendLine(processedText);
-                            sheetImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
-
-                            includedImageCount++;
-                            imageProcessingResults.Add($"Sheet '{sheetName}': {imageResult.ImageType} image INCLUDED - {inclusionReason}");
-                        }
-                        else
-                        {
-                            excludedImageCount++;
-                            imageProcessingResults.Add($"Sheet '{sheetName}': {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
-                        }
+                        inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
                     }
 
-                    if (hasRelevantImages)
+                    if (shouldInclude)
                     {
-                        sheetImageTexts.AppendLine($"<!-- SHEET_{sheetName}_IMAGES_END -->");
-                        enhancedText.AppendLine(sheetImageTexts.ToString());
+                        if (!hasRelevantImages)
+                        {
+                            documentImageTexts.AppendLine($"<!-- DOCUMENT_IMAGES_START -->");
+                            hasRelevantImages = true;
+                        }
+
+                        documentImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
+                        documentImageTexts.AppendLine($"Document Image {imageCount}:");
+                        documentImageTexts.AppendLine(processedText);
+                        documentImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
+
+                        includedImageCount++;
+                        imageProcessingResults.Add($"Document: {imageResult.ImageType} image INCLUDED - {inclusionReason}");
                     }
+                    else
+                    {
+                        excludedImageCount++;
+                        imageProcessingResults.Add($"Document: {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
+                    }
+                }
+
+                if (hasRelevantImages)
+                {
+                    documentImageTexts.AppendLine($"<!-- DOCUMENT_IMAGES_END -->");
+                    enhancedText.AppendLine(documentImageTexts.ToString());
                 }
             }
 
@@ -224,11 +208,10 @@ public class MultiModalExcelDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// 워크시트에서 이미지를 추출하고 텍스트 변환 처리
+    /// 문서에서 이미지를 추출하고 텍스트 변환 처리
     /// </summary>
-    private async Task<List<ImageToTextResult>> ExtractWorksheetImages(
-        WorksheetPart worksheetPart,
-        string sheetName,
+    private async Task<List<ImageToTextResult>> ExtractDocumentImages(
+        WordprocessingDocument wordDocument,
         CancellationToken cancellationToken)
     {
         var results = new List<ImageToTextResult>();
@@ -238,11 +221,11 @@ public class MultiModalExcelDocumentReader : IDocumentReader
 
         try
         {
-            // OpenXml의 DrawingsPart에서 이미지 추출
-            var drawingsPart = worksheetPart.DrawingsPart;
-            if (drawingsPart == null) return results;
+            var mainPart = wordDocument.MainDocumentPart;
+            if (mainPart == null) return results;
 
-            var imageParts = drawingsPart.ImageParts;
+            // OpenXml의 ImagePart에서 이미지 추출
+            var imageParts = mainPart.ImageParts;
 
             foreach (var imagePart in imageParts)
             {
@@ -261,7 +244,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
                     if (ImageProcessingConstants.IsDecorativeImage(width, height))
                     {
                         // 작은 이미지(아이콘, 로고, 장식) 제외
-                        Console.WriteLine($"Skipping decorative image in sheet '{sheetName}': {width}x{height}px " +
+                        Console.WriteLine($"Skipping decorative image in document: {width}x{height}px " +
                             $"(threshold: {ImageProcessingConstants.MinImageWidth}x{ImageProcessingConstants.MinImageHeight}px)");
                         continue;
                     }
@@ -269,7 +252,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
                     // 이미지 타입 힌트 결정
                     var options = new ImageToTextOptions
                     {
-                        ImageTypeHint = "chart", // Excel 이미지는 주로 차트/그래프
+                        ImageTypeHint = "document", // Word 이미지는 주로 문서/차트/다이어그램
                         Quality = "medium",
                         ExtractStructure = true
                     };
@@ -283,14 +266,14 @@ public class MultiModalExcelDocumentReader : IDocumentReader
                 catch (Exception ex)
                 {
                     // 개별 이미지 처리 실패는 로그만 남기고 계속 진행
-                    Console.WriteLine($"Failed to process image in sheet '{sheetName}': {ex.Message}");
+                    Console.WriteLine($"Failed to process image in document: {ex.Message}");
                 }
             }
         }
         catch (Exception ex)
         {
-            // 워크시트 전체 이미지 처리 실패
-            Console.WriteLine($"Failed to extract images from sheet '{sheetName}': {ex.Message}");
+            // 문서 전체 이미지 처리 실패
+            Console.WriteLine($"Failed to extract images from document: {ex.Message}");
         }
 
         return results;
@@ -352,45 +335,13 @@ public class MultiModalExcelDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// 워크시트에서 텍스트만 추출 (컨텍스트용)
-    /// </summary>
-    private static string ExtractSheetText(WorksheetPart worksheetPart)
-    {
-        var textBuilder = new StringBuilder();
-
-        try
-        {
-            var rows = worksheetPart.Worksheet.Descendants<Row>().Take(10); // 처음 10행만 (컨텍스트용)
-
-            foreach (var row in rows)
-            {
-                var cells = row.Elements<Cell>();
-                foreach (var cell in cells)
-                {
-                    if (cell.CellValue != null)
-                    {
-                        textBuilder.Append(cell.CellValue.Text);
-                        textBuilder.Append(" ");
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // 텍스트 추출 실패는 무시
-        }
-
-        return textBuilder.ToString().Trim();
-    }
-
-    /// <summary>
     /// 문서 컨텍스트 준비 (관련성 평가용)
     /// </summary>
     private DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
     {
         var context = new DocumentContext
         {
-            DocumentType = "Excel",
+            DocumentType = "Word",
             DocumentText = TruncateText(baseContent.Text, 1000)
         };
 
@@ -407,7 +358,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
         }
 
         // 간단한 키워드 추출 (공백으로 분리된 단어 중 길이가 5 이상인 것들)
-        var words = baseContent.Text.Split(new[] { ' ', '\n', '\r', '\t', '|' }, StringSplitOptions.RemoveEmptyEntries);
+        var words = baseContent.Text.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
         context.Keywords = words
             .Where(w => w.Length >= 5)
             .Distinct(StringComparer.OrdinalIgnoreCase)

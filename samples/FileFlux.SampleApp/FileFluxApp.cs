@@ -452,7 +452,7 @@ public class FileFluxApp
                     new Services.OpenAiImageToTextService(Environment.GetEnvironmentVariable("OPENAI_API_KEY")!))
                 .BuildServiceProvider();
 
-            var multiModalReader = new FileFlux.Core.Infrastructure.Readers.MultiModalPdfDocumentReader(serviceProvider);
+            var multiModalReader = new FileFlux.Infrastructure.Readers.MultiModalPdfDocumentReader(serviceProvider);
 
             Console.WriteLine("📄 PDF 텍스트 + 이미지 추출 중...");
             var rawContent = await multiModalReader.ExtractAsync(filePath);

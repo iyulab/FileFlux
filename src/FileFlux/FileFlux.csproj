@@ -26,10 +26,6 @@
     <PackageReference Include="NTextCat" />
   </ItemGroup>
 
-  <ItemGroup Label="Embeddings">
-    <PackageReference Include="LocalEmbedder" />
-  </ItemGroup>
-
   <ItemGroup Label="Core">
     <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" />
   </ItemGroup>
@@ -40,10 +36,28 @@
     <ProjectReference Include="..\..\..\FluxImprover\src\FluxImprover\FluxImprover.csproj" />
   </ItemGroup>
 
+  <!-- DEBUG: LocalAI project references for local development -->
+  <ItemGroup Label="LocalAI" Condition="'$(Configuration)' == 'Debug'">
+    <ProjectReference Include="..\..\..\local-ai\src\LocalAI.Core\LocalAI.Core.csproj" />
+    <ProjectReference Include="..\..\..\local-ai\src\LocalAI.Embedder\LocalAI.Embedder.csproj" />
+    <ProjectReference Include="..\..\..\local-ai\src\LocalAI.Generator\LocalAI.Generator.csproj" />
+    <ProjectReference Include="..\..\..\local-ai\src\LocalAI.Captioner\LocalAI.Captioner.csproj" />
+    <ProjectReference Include="..\..\..\local-ai\src\LocalAI.Ocr\LocalAI.Ocr.csproj" />
+  </ItemGroup>
+
   <!-- RELEASE: NuGet package references for distribution -->
   <ItemGroup Label="Text Processing" Condition="'$(Configuration)' == 'Release'">
     <PackageReference Include="FluxCurator" />
     <PackageReference Include="FluxImprover" />
+  </ItemGroup>
+
+  <!-- RELEASE: LocalAI NuGet packages for distribution -->
+  <ItemGroup Label="LocalAI" Condition="'$(Configuration)' == 'Release'">
+    <PackageReference Include="LocalAI.Core" />
+    <PackageReference Include="LocalAI.Embedder" />
+    <PackageReference Include="LocalAI.Generator" />
+    <PackageReference Include="LocalAI.Captioner" />
+    <PackageReference Include="LocalAI.Ocr" />
   </ItemGroup>
 
 </Project>

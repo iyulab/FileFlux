@@ -1,11 +1,12 @@
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 using A = DocumentFormat.OpenXml.Drawing;
 
-namespace FileFlux.Core.Infrastructure.Readers;
+namespace FileFlux.Infrastructure.Readers;
 
 /// <summary>
 /// 이미지 처리 기능이 통합된 멀티모달 PowerPoint 문서 리더

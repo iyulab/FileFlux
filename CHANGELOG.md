@@ -5,6 +5,38 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2025-12-15
+
+### Added
+- **LocalAI Integration**: Complete local AI processing capabilities without external API dependencies
+  - `LocalAIEmbedderService`: Local embedding generation using LocalAI.Embedder
+  - `LocalAIGeneratorService`: Local text generation using LocalAI.Generator
+  - `LocalAICaptionerService`: Local image captioning using LocalAI.Captioner
+  - `LocalAIOcrService`: Local OCR text extraction using LocalAI.Ocr
+- **LocalAIServiceFactory**: Thread-safe factory for lazy initialization of LocalAI services
+- **LocalAIOptions**: Centralized configuration for all LocalAI services
+  - GPU acceleration support (DirectML, CUDA, CoreML)
+  - Configurable model selection
+  - Warmup and caching options
+- **New DI Extension Methods**:
+  - `AddFileFluxWithLocalAI()`: Register all LocalAI services
+  - `AddLocalAIEmbedder()`: Register embedding service only
+  - `AddLocalAIGenerator()`: Register text generation service only
+  - `AddLocalAICaptioner()`: Register image captioning service only
+  - `AddLocalAIOcr()`: Register OCR service only
+
+### Changed
+- **Architecture Refactoring**: Cleaner separation between Core and main package
+  - FileFlux.Core: Pure document extraction (zero AI dependencies)
+  - FileFlux: LocalAI integrated RAG pipeline
+- **Dependency Management**: Debug/Release conditional references
+  - Debug: Project references to local `../local-ai` source
+  - Release: NuGet package references for distribution
+
+### Removed
+- **LocalEmbedder Dependency**: Replaced with LocalAI ecosystem
+  - Archived package replaced with actively maintained LocalAI modules
+
 ## [0.7.3] - 2025-12-13
 
 ### Added
