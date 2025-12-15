@@ -110,16 +110,11 @@
     <PackageReleaseNotes>Complete FileFlux SDK with document readers, intelligent chunking strategies, and RAG optimization</PackageReleaseNotes>
   </PropertyGroup>
 
-  <!-- FileFlux.CLI - dotnet tool package -->
+  <!-- FileFlux.CLI - Local testing tool (not published to NuGet) -->
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.CLI'">
-    <IsPackable>true</IsPackable>
-    <PackAsTool>true</PackAsTool>
-    <ToolCommandName>fileflux</ToolCommandName>
-    <PackageId>FileFlux.CLI</PackageId>
-    <Title>FileFlux CLI - Document Processing Command-Line Tool</Title>
-    <Description>Command-line interface for FileFlux document processing SDK. Extract, chunk, and process documents for RAG systems with AI-powered metadata enrichment. Supports OpenAI and Anthropic providers.</Description>
-    <PackageTags>$(PackageTagsBase);cli;tool;command-line;openai;anthropic</PackageTags>
-    <PackageReleaseNotes>FileFlux CLI with OpenAI and Anthropic support for AI-powered document processing</PackageReleaseNotes>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <!-- Tests Project -->

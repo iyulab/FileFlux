@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.Tests", "tests\Fil
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.SampleApp", "samples\FileFlux.SampleApp\FileFlux.SampleApp.csproj", "{A818B454-5265-411E-8999-035C36256C3E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.CLI", "src\FileFlux.CLI\FileFlux.CLI.csproj", "{DA9AD4D4-7294-8633-C775-6AAD0F661F1E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileFlux.CLI", "cli\FileFlux.CLI.csproj", "{DA9AD4D4-7294-8633-C775-6AAD0F661F1E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

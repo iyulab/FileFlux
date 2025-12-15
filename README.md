@@ -261,34 +261,6 @@ services.AddFileFlux();
 
 For AI service implementation examples, see the `samples/` directory.
 
-## CLI Tool
-
-FileFlux includes a command-line interface for quick document processing:
-
-```powershell
-# Install CLI tool
-dotnet tool install -g FileFlux.CLI
-
-# Complete processing pipeline (extract + chunk + enrich)
-fileflux process "document.pdf" --ai --verbose
-
-# Chunk with specific strategy
-fileflux chunk "document.pdf" -s Smart -m 512 -l 64
-
-# Extract only (with image extraction)
-fileflux extract "document.pptx" --ai
-
-# Available options
-# --ai (-a)         Enable AI metadata enrichment
-# --strategy (-s)   Chunking strategy: Auto, Smart, Intelligent, Semantic
-# --max-size (-m)   Maximum chunk size in tokens (default: 512)
-# --overlap (-l)    Overlap size between chunks (default: 64)
-# --format (-f)     Output format: md, json, jsonl
-# --verbose (-v)    Show detailed processing information
-```
-
-See [CLI Documentation](docs/CLI.md) for complete guide.
-
 ## Advanced Features
 
 ### 🤖 AI Integration (Optional)
@@ -358,7 +330,7 @@ services.AddFileFlux();
 
 ## Documentation
 
-- [**Tutorial**](docs/TUTORIAL.md) - Detailed usage guide including CLI
+- [**Tutorial**](docs/TUTORIAL.md) - Detailed usage guide
 - [**Architecture**](docs/ARCHITECTURE.md) - System design document
 
 ### Integration Guides
@@ -379,11 +351,9 @@ services.AddFileFlux();
 ```
 FileFlux/
 ├── src/
-│   ├── FileFlux/                    # Main package (unified project)
-│   │   ├── Core/                    # Interfaces
-│   │   ├── Domain/                  # Domain models
-│   │   └── Infrastructure/          # Implementations
-│   └── Directory.Build.props        # Build configuration
+│   ├── FileFlux.Core/               # Extraction only (zero AI dependencies)
+│   └── FileFlux/                    # Full RAG pipeline with LocalAI
+├── cli/                             # CLI for local testing (not published)
 ├── tests/
 │   └── FileFlux.Tests/              # Test suite
 └── samples/
