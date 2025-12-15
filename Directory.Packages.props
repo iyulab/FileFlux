@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
-  <!--
-    Central Package Management (CPM)
-    All package versions are centrally managed here.
-    Individual projects reference packages without Version attribute.
-    See: https://learn.microsoft.com/nuget/consume-packages/central-package-management
-  -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>

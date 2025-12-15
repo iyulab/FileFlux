@@ -8,13 +8,15 @@
 
 FileFlux follows clean architecture principles with a **two-package structure**:
 
-- **FileFlux.Core**: Complete document extraction with zero AI dependencies
-  - All document readers (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML)
+- **FileFlux.Core**: Pure document extraction with zero AI dependencies
+  - Standard document readers (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML)
   - Core interfaces and domain models
-  - AI service interfaces (user implements)
-- **FileFlux**: Full RAG pipeline implementation
-  - Chunking strategies
-  - FluxCurator and FluxImprover
+  - No AI service dependencies
+- **FileFlux**: Full RAG pipeline with LocalAI integration
+  - MultiModal document readers (AI-enhanced)
+  - AI service interfaces and LocalAI implementations
+  - Chunking strategies (FluxCurator)
+  - Content enhancement (FluxImprover)
   - Processing orchestration
 
 ### 2. Interface-Driven Design
@@ -83,7 +85,7 @@ FileFlux.Core/                    # Extraction-Only Package (Zero AI Dependencie
 │   ├── DocumentProcessingException
 │   └── UnsupportedFileFormatException
 ├── Infrastructure/
-│   └── Readers/                  # All Document Readers
+│   └── Readers/                  # Standard Document Readers
 │       ├── PdfDocumentReader
 │       ├── WordDocumentReader
 │       ├── ExcelDocumentReader
@@ -92,27 +94,32 @@ FileFlux.Core/                    # Extraction-Only Package (Zero AI Dependencie
 │       ├── HtmlDocumentReader
 │       ├── TextDocumentReader
 │       ├── JsonDocumentReader
-│       ├── CsvDocumentReader
-│       └── MultiModal* Readers
+│       └── CsvDocumentReader
 ├── Utils/                        # Utilities
 │   └── FileNameHelper
 ├── IDocumentReader.cs            # Reader interface
 ├── IDocumentParser.cs            # Parser interface
 ├── IChunkingStrategy.cs          # Strategy interface
-├── ITextCompletionService.cs     # AI service interface
-├── IImageToTextService.cs        # Vision AI interface
-├── IImageRelevanceEvaluator.cs   # Image relevance interface
 ├── DocumentChunk.cs              # Chunk model
 ├── RawContent.cs                 # Extraction result model
 ├── ParsedContent.cs              # Parsed content model
 └── ChunkingOptions.cs            # Options model
 
 FileFlux/                         # Full RAG Pipeline Package
-├── Core/                         # Additional interfaces
+├── Core/                         # AI Service Interfaces
 │   ├── IDocumentProcessor
+│   ├── ITextCompletionService    # AI text generation interface
+│   ├── IImageToTextService       # Vision AI interface
+│   ├── IImageRelevanceEvaluator  # Image relevance interface
+│   ├── IEmbeddingService         # Embedding generation interface
 │   ├── IMetadataEnricher
 │   └── Factories/
 ├── Infrastructure/
+│   ├── Readers/                  # MultiModal Readers (AI-enhanced)
+│   │   ├── MultiModalPdfDocumentReader
+│   │   ├── MultiModalWordDocumentReader
+│   │   ├── MultiModalExcelDocumentReader
+│   │   └── MultiModalPowerPointDocumentReader
 │   ├── Strategies/               # Chunking Strategies
 │   │   ├── AutoChunkingStrategy
 │   │   ├── SmartChunkingStrategy
@@ -121,6 +128,13 @@ FileFlux/                         # Full RAG Pipeline Package
 │   ├── Languages/                # Language Profiles
 │   │   └── LanguageProfiles.cs
 │   ├── Services/                 # Processing Services
+│   │   ├── LocalAI/              # LocalAI Implementations
+│   │   │   ├── LocalAIEmbedderService
+│   │   │   ├── LocalAIGeneratorService
+│   │   │   ├── LocalAICaptionerService
+│   │   │   ├── LocalAIOcrService
+│   │   │   ├── LocalAIServiceFactory
+│   │   │   └── LocalAIOptions
 │   │   ├── AIMetadataEnricher
 │   │   ├── FluxCurator
 │   │   └── FluxImprover
@@ -342,25 +356,41 @@ var options = new ChunkingOptions
 
 ### Dependency Injection Setup
 
-**Basic Registration**:
+**Basic Registration** (no AI):
 ```csharp
-services.AddFileFlux();  // No logger registration required
+services.AddFileFlux();  // Pure extraction + chunking
 ```
 
-**With Optional Services**:
+**With LocalAI** (local AI processing):
 ```csharp
-// Optional: Logger (uses NullLogger if not provided)
-services.AddLogging(builder => builder.AddConsole());
+// Full LocalAI integration
+services.AddFileFluxWithLocalAI();
 
-// Optional: AI services for advanced features
+// With custom configuration
+services.AddFileFluxWithLocalAI(options =>
+{
+    options.UseGpuAcceleration = true;
+    options.EmbeddingModel = "default";
+    options.GeneratorModel = "microsoft/Phi-4-mini-instruct-onnx";
+    options.WarmupOnInit = true;
+});
+```
+
+**Selective LocalAI Services**:
+```csharp
+services.AddLocalAIEmbedder();    // IEmbeddingService only
+services.AddLocalAIGenerator();   // ITextCompletionService only
+services.AddLocalAICaptioner();   // IImageToTextService (captions)
+services.AddLocalAIOcr();         // IImageToTextService (OCR)
+```
+
+**With External AI Services**:
+```csharp
+// Use your own AI service implementations
 services.AddScoped<ITextCompletionService, YourLLMService>();
 services.AddScoped<IImageToTextService, YourVisionService>();
-
-// Register FileFlux
 services.AddFileFlux();
 ```
-
-**Custom Configuration**: Configure defaults with options callback
 
 **Extension Registration**: Add custom readers/strategies
 
@@ -532,13 +562,25 @@ DocumentChunk.ParsedId → ParsedDocumentContent.Id
 
 ## Design Philosophy
 
-FileFlux focuses on transforming documents into structured chunks, leaving embedding generation and vector storage to user choice.
+FileFlux focuses on transforming documents into structured chunks optimized for RAG systems.
 
 **Two-Package Strategy**:
-- **FileFlux.Core**: For users who need only document extraction and want to implement their own chunking logic
-- **FileFlux**: For users who want the complete RAG processing pipeline with FluxCurator and FluxImprover
+- **FileFlux.Core**: Pure extraction, zero AI dependencies
+  - Standard document readers
+  - Core interfaces and models
+  - For users implementing custom pipelines
+- **FileFlux**: Full RAG pipeline with LocalAI integration
+  - MultiModal readers (AI-enhanced)
+  - LocalAI services (embedding, generation, captioning, OCR)
+  - FluxCurator and FluxImprover
 
-**Interface Provider Pattern**: FileFlux defines interfaces (ITextCompletionService, IImageToTextService) while implementation is up to consuming applications.
+**LocalAI Integration**: Built-in local AI processing without external API dependencies:
+- Embedding generation (LocalAI.Embedder)
+- Text generation (LocalAI.Generator)
+- Image captioning (LocalAI.Captioner)
+- OCR text extraction (LocalAI.Ocr)
+
+**Interface Provider Pattern**: FileFlux defines interfaces while providing both local implementations and allowing custom providers.
 
 **Package Selection Guide**:
 ```csharp
@@ -546,13 +588,16 @@ FileFlux focuses on transforming documents into structured chunks, leaving embed
 using FileFlux.Core;
 var reader = new PdfDocumentReader();
 var rawContent = await reader.ReadAsync("document.pdf");
-// Implement your own chunking logic
 
-// Full RAG pipeline - use built-in features
+// Full RAG pipeline with LocalAI
 using FileFlux;
-services.AddFileFlux();
+services.AddFileFluxWithLocalAI();
 var processor = serviceProvider.GetRequiredService<IDocumentProcessor>();
 var chunks = await processor.ProcessAsync("document.pdf", options);
+
+// Custom AI providers
+services.AddScoped<ITextCompletionService, OpenAIService>();
+services.AddFileFlux();
 ```
 
 ## Related Documentation
