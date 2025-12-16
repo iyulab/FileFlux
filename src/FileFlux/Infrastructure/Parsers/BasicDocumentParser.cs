@@ -284,17 +284,31 @@ public partial class BasicDocumentParser : IDocumentParser
         }
 
         // Get document title from hints (set by document readers like Word, PDF, Excel, PowerPoint)
+        // Support multiple key names: document_title (DOCX/PPTX/XLSX), Title (PDF)
         string? title = null;
         if (rawContent.Hints.TryGetValue("document_title", out var dt) && dt is string docTitle && !string.IsNullOrWhiteSpace(docTitle))
         {
             title = docTitle;
         }
+        else if (rawContent.Hints.TryGetValue("Title", out var pdfTitle) && pdfTitle is string pdfTitleStr && !string.IsNullOrWhiteSpace(pdfTitleStr))
+        {
+            title = pdfTitleStr;
+        }
 
         // Get author from hints (set by document readers)
+        // Support multiple key names: author (DOCX), Author (PDF), Creator (PDF alternative)
         string? author = null;
         if (rawContent.Hints.TryGetValue("author", out var auth) && auth is string docAuthor && !string.IsNullOrWhiteSpace(docAuthor))
         {
             author = docAuthor;
+        }
+        else if (rawContent.Hints.TryGetValue("Author", out var pdfAuth) && pdfAuth is string pdfAuthor && !string.IsNullOrWhiteSpace(pdfAuthor))
+        {
+            author = pdfAuthor;
+        }
+        else if (rawContent.Hints.TryGetValue("Creator", out var creator) && creator is string creatorStr && !string.IsNullOrWhiteSpace(creatorStr))
+        {
+            author = creatorStr;
         }
 
         return new DocumentMetadata

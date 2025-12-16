@@ -78,6 +78,7 @@ public partial class WordDocumentReader : IDocumentReader
         var fileInfo = new FileInfo(filePath);
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
+        var extractedImages = new List<ImageInfo>();
 
         try
         {
@@ -96,14 +97,18 @@ public partial class WordDocumentReader : IDocumentReader
                     warnings.Add($"Mammoth: {warning}");
                 }
 
+                // Extract base64 images and replace with placeholders in HTML
+                var (processedHtml, images) = ExtractBase64ImagesFromHtml(result.Value);
+                extractedImages = images;
+
                 // Convert HTML to Markdown
-                markdown = MarkdownConverter.Convert(result.Value);
+                markdown = MarkdownConverter.Convert(processedHtml);
 
                 // Clean up HTML artifacts in markdown output
                 markdown = CleanupMarkdown(markdown);
 
-                // Count images in HTML
-                imageCount = CountImages(result.Value);
+                // Count images (both extracted and remaining)
+                imageCount = extractedImages.Count + CountImages(processedHtml);
             }
 
             // Extract metadata using OpenXML
@@ -159,6 +164,7 @@ public partial class WordDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = warnings,
+                Images = extractedImages,
                 ReaderType = "WordReader"
             };
         }
@@ -173,6 +179,7 @@ public partial class WordDocumentReader : IDocumentReader
     {
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
+        var extractedImages = new List<ImageInfo>();
 
         try
         {
@@ -191,14 +198,18 @@ public partial class WordDocumentReader : IDocumentReader
                 warnings.Add($"Mammoth: {warning}");
             }
 
+            // Extract base64 images and replace with placeholders in HTML
+            var (processedHtml, images) = ExtractBase64ImagesFromHtml(result.Value);
+            extractedImages = images;
+
             // Convert HTML to Markdown
-            var markdown = MarkdownConverter.Convert(result.Value);
+            var markdown = MarkdownConverter.Convert(processedHtml);
 
             // Clean up HTML artifacts in markdown output
             markdown = CleanupMarkdown(markdown);
 
-            // Count images in HTML
-            var imageCount = CountImages(result.Value);
+            // Count images (both extracted and remaining)
+            var imageCount = extractedImages.Count + CountImages(processedHtml);
 
             // Extract metadata using OpenXML
             memoryStream.Position = 0;
@@ -254,6 +265,7 @@ public partial class WordDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = warnings,
+                Images = extractedImages,
                 ReaderType = "WordReader"
             };
         }
@@ -262,6 +274,52 @@ public partial class WordDocumentReader : IDocumentReader
             warnings.Add($"Error processing Word document from stream: {ex.Message}");
             return CreateEmptyStreamResult(stream, fileName, warnings, structuralHints);
         }
+    }
+
+    /// <summary>
+    /// Extract base64 images from HTML and replace with placeholders
+    /// </summary>
+    private static (string ProcessedHtml, List<ImageInfo> Images) ExtractBase64ImagesFromHtml(string html)
+    {
+        var images = new List<ImageInfo>();
+        var imageIndex = 0;
+
+        var processedHtml = Base64ImageHtmlRegex().Replace(html, match =>
+        {
+            try
+            {
+                var mimeType = match.Groups[1].Value;
+                var base64Data = match.Groups[2].Value;
+
+                // Clean whitespace from base64
+                var cleanBase64 = System.Text.RegularExpressions.Regex.Replace(base64Data, @"\s", "");
+                var imageBytes = Convert.FromBase64String(cleanBase64);
+
+                imageIndex++;
+                var imageId = $"img_{imageIndex:D3}";
+
+                var imageInfo = new ImageInfo
+                {
+                    Id = imageId,
+                    MimeType = $"image/{mimeType}",
+                    Data = imageBytes,
+                    OriginalSize = imageBytes.Length,
+                    SourceUrl = $"embedded:{imageId}"
+                };
+
+                images.Add(imageInfo);
+
+                // Return placeholder image tag
+                return $"<img src=\"embedded:{imageId}\" alt=\"{imageId}\" />";
+            }
+            catch
+            {
+                // If extraction fails, remove the image entirely
+                return string.Empty;
+            }
+        });
+
+        return (processedHtml, images);
     }
 
     private static string PostProcessMarkdown(string markdown)
@@ -433,4 +491,8 @@ public partial class WordDocumentReader : IDocumentReader
 
     [GeneratedRegex(@"!\[([^\]]*)\]\(([^)]+)\)")]
     private static partial Regex ImageAltPathRegex();
+
+    // Match base64 images in HTML: <img src="data:image/png;base64,..." />
+    [GeneratedRegex(@"<img[^>]*\ssrc\s*=\s*[""']data:image/(\w+);base64,([A-Za-z0-9+/\s=]+)[""'][^>]*/?>", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex Base64ImageHtmlRegex();
 }

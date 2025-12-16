@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using FileFlux.Core;
@@ -266,20 +267,11 @@ public class PowerPointDocumentReader : IDocumentReader
             contentBuilder.AppendLine($"## Slide {slideNumber}");
             contentBuilder.AppendLine();
 
-            // 슬라이드의 모든 텍스트 요소 추출
-            var shapes = slide.CommonSlideData?.ShapeTree?.Elements<Shape>().ToList() ?? new List<Shape>();
-
-            foreach (var shape in shapes)
+            var shapeTree = slide.CommonSlideData?.ShapeTree;
+            if (shapeTree != null)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var shapeText = ExtractTextFromShape(shape);
-                if (!string.IsNullOrWhiteSpace(shapeText))
-                {
-                    contentBuilder.AppendLine(shapeText);
-                    contentBuilder.AppendLine();
-                    shapeCount++;
-                }
+                // Process all child elements in ShapeTree (Shape, GraphicFrame, GroupShape, etc.)
+                shapeCount = ExtractContentFromShapeTree(shapeTree, contentBuilder, warnings, cancellationToken);
             }
 
             // 슬라이드 노트 추출
@@ -300,6 +292,208 @@ public class PowerPointDocumentReader : IDocumentReader
         }
 
         return (contentBuilder.ToString(), shapeCount);
+    }
+
+    private static int ExtractContentFromShapeTree(ShapeTree shapeTree, StringBuilder contentBuilder, List<string> warnings, CancellationToken cancellationToken)
+    {
+        var elementCount = 0;
+
+        foreach (var element in shapeTree.ChildElements)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var extractedText = ExtractTextFromElement(element, warnings);
+            if (!string.IsNullOrWhiteSpace(extractedText))
+            {
+                contentBuilder.AppendLine(extractedText);
+                contentBuilder.AppendLine();
+                elementCount++;
+            }
+        }
+
+        return elementCount;
+    }
+
+    private static string ExtractTextFromElement(OpenXmlElement element, List<string> warnings)
+    {
+        try
+        {
+            return element switch
+            {
+                Shape shape => ExtractTextFromShape(shape),
+                GraphicFrame graphicFrame => ExtractTextFromGraphicFrame(graphicFrame),
+                GroupShape groupShape => ExtractTextFromGroupShape(groupShape, warnings),
+                _ => string.Empty
+            };
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"Error extracting text from element {element.GetType().Name}: {ex.Message}");
+            return string.Empty;
+        }
+    }
+
+    private static string ExtractTextFromGraphicFrame(GraphicFrame graphicFrame)
+    {
+        var textBuilder = new StringBuilder();
+
+        try
+        {
+            // Extract table content from GraphicFrame
+            var graphic = graphicFrame.Graphic;
+            var graphicData = graphic?.GraphicData;
+
+            if (graphicData == null) return string.Empty;
+
+            // Find table element (A.Table)
+            var table = graphicData.Descendants<A.Table>().FirstOrDefault();
+            if (table != null)
+            {
+                textBuilder.Append(ExtractTextFromTable(table));
+            }
+
+            // Also extract any direct text content
+            foreach (var paragraph in graphicData.Descendants<A.Paragraph>())
+            {
+                var paragraphText = ExtractParagraphText(paragraph);
+                if (!string.IsNullOrWhiteSpace(paragraphText))
+                {
+                    textBuilder.AppendLine(paragraphText);
+                }
+            }
+        }
+        catch
+        {
+            // GraphicFrame extraction failure - return empty
+        }
+
+        return textBuilder.ToString().Trim();
+    }
+
+    private static string ExtractTextFromTable(A.Table table)
+    {
+        var rows = new List<List<string>>();
+
+        try
+        {
+            foreach (var tableRow in table.Elements<A.TableRow>())
+            {
+                var row = new List<string>();
+
+                foreach (var tableCell in tableRow.Elements<A.TableCell>())
+                {
+                    var cellText = new StringBuilder();
+
+                    foreach (var paragraph in tableCell.Elements<A.Paragraph>())
+                    {
+                        var paragraphText = ExtractParagraphText(paragraph);
+                        if (!string.IsNullOrWhiteSpace(paragraphText))
+                        {
+                            if (cellText.Length > 0) cellText.Append(" ");
+                            cellText.Append(paragraphText);
+                        }
+                    }
+
+                    row.Add(cellText.ToString().Trim());
+                }
+
+                if (row.Count > 0)
+                {
+                    rows.Add(row);
+                }
+            }
+
+            if (rows.Count == 0) return string.Empty;
+
+            // Convert to markdown table
+            return ConvertToMarkdownTable(rows);
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string ConvertToMarkdownTable(List<List<string>> rows)
+    {
+        if (rows.Count == 0) return string.Empty;
+
+        var maxColumns = rows.Max(r => r.Count);
+        var tableBuilder = new StringBuilder();
+
+        // Normalize all rows to have the same number of columns
+        foreach (var row in rows)
+        {
+            while (row.Count < maxColumns)
+            {
+                row.Add(string.Empty);
+            }
+        }
+
+        // Header row
+        var headerRow = rows[0];
+        tableBuilder.AppendLine("| " + string.Join(" | ", headerRow.Select(c => c.Replace("|", "\\|"))) + " |");
+
+        // Separator row
+        tableBuilder.AppendLine("| " + string.Join(" | ", Enumerable.Repeat("---", maxColumns)) + " |");
+
+        // Data rows
+        for (int i = 1; i < rows.Count; i++)
+        {
+            tableBuilder.AppendLine("| " + string.Join(" | ", rows[i].Select(c => c.Replace("|", "\\|"))) + " |");
+        }
+
+        return tableBuilder.ToString().Trim();
+    }
+
+    private static string ExtractTextFromGroupShape(GroupShape groupShape, List<string> warnings)
+    {
+        var textBuilder = new StringBuilder();
+
+        try
+        {
+            // Recursively extract text from all child elements in the group
+            foreach (var childElement in groupShape.ChildElements)
+            {
+                var extractedText = ExtractTextFromElement(childElement, warnings);
+                if (!string.IsNullOrWhiteSpace(extractedText))
+                {
+                    textBuilder.AppendLine(extractedText);
+                }
+            }
+        }
+        catch
+        {
+            // GroupShape extraction failure - return empty
+        }
+
+        return textBuilder.ToString().Trim();
+    }
+
+    private static string ExtractParagraphText(A.Paragraph paragraph)
+    {
+        var paragraphText = new StringBuilder();
+
+        foreach (var run in paragraph.Elements<A.Run>())
+        {
+            var text = run.Elements<A.Text>().FirstOrDefault();
+            if (text?.Text != null)
+            {
+                paragraphText.Append(text.Text);
+            }
+        }
+
+        // Also check for A.Field elements (for slide numbers, dates, etc.)
+        foreach (var field in paragraph.Elements<A.Field>())
+        {
+            var text = field.Elements<A.Text>().FirstOrDefault();
+            if (text?.Text != null)
+            {
+                paragraphText.Append(text.Text);
+            }
+        }
+
+        return paragraphText.ToString().Trim();
     }
 
     private static string ExtractTextFromShape(Shape shape)

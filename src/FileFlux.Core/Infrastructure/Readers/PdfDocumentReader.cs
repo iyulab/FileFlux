@@ -27,6 +27,9 @@ public partial class PdfDocumentReader : IDocumentReader
     private static readonly Regex IncompleteEndPattern = IncompleteSentenceEndRegex();
     private static readonly Regex IncompleteStartPattern = IncompleteSentenceStartRegex();
 
+    // Patterns for detecting page numbers (to be filtered out)
+    private static readonly Regex PageNumberPatterns = PageNumberRegex();
+
     public bool CanRead(string fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;
@@ -321,7 +324,10 @@ public partial class PdfDocumentReader : IDocumentReader
                 }
             }
 
-            content.Text = textBuilder.ToString().Trim();
+            var rawText = textBuilder.ToString().Trim();
+
+            // Filter out page numbers from the extracted text
+            content.Text = FilterPageNumbers(rawText);
             content.EndsWithIncompleteSentence = IsIncompleteSentenceEnd(content.Text);
             content.StartsWithIncompleteSentence = IsIncompleteSentenceStart(content.Text);
         }
@@ -445,17 +451,166 @@ public partial class PdfDocumentReader : IDocumentReader
     private const int MaxReasonableColumnCount = 10;
 
     /// <summary>
+    /// Minimum gap ratio to consider as column separator.
+    /// Gap must be at least this multiple of average word spacing.
+    /// </summary>
+    private const double MinColumnGapRatio = 2.0;
+
+    /// <summary>
     /// Detect column positions by analyzing word alignment across rows.
-    /// Uses adaptive bucket size based on average character width.
+    /// Combines position-based and gap-based detection for better accuracy.
     /// </summary>
     private static List<double> DetectColumnPositions(List<List<Word>> rows)
     {
         if (rows.Count == 0) return [];
 
-        // Calculate adaptive bucket size based on average character width
         var allWords = rows.SelectMany(r => r).ToList();
         if (allWords.Count == 0) return [];
 
+        // Try gap-based detection first (more reliable for well-formatted tables)
+        var gapBasedColumns = DetectColumnsByGaps(rows);
+
+        // Try position-based detection as fallback
+        var positionBasedColumns = DetectColumnsByPositions(rows, allWords);
+
+        // Choose the better detection method based on quality metrics
+        if (gapBasedColumns.Count >= 2 && gapBasedColumns.Count <= MaxReasonableColumnCount)
+        {
+            // Validate gap-based columns: check if rows align reasonably
+            var gapAlignmentScore = CalculateColumnAlignmentScore(rows, gapBasedColumns);
+            var posAlignmentScore = positionBasedColumns.Count >= 2
+                ? CalculateColumnAlignmentScore(rows, positionBasedColumns)
+                : 0;
+
+            // Use gap-based if it has better or equal alignment
+            if (gapAlignmentScore >= posAlignmentScore)
+            {
+                return gapBasedColumns;
+            }
+        }
+
+        return positionBasedColumns;
+    }
+
+    /// <summary>
+    /// Detect columns by analyzing consistent gaps between words across rows.
+    /// </summary>
+    private static List<double> DetectColumnsByGaps(List<List<Word>> rows)
+    {
+        if (rows.Count < 2) return [];
+
+        // Calculate average within-word spacing for each row
+        var rowGaps = new List<List<(double GapStart, double GapEnd, double Width)>>();
+
+        foreach (var row in rows)
+        {
+            if (row.Count < 2) continue;
+
+            var sortedWords = row.OrderBy(w => w.BoundingBox.Left).ToList();
+            var gaps = new List<(double GapStart, double GapEnd, double Width)>();
+
+            // Calculate average word spacing within this row
+            var wordSpacings = new List<double>();
+            for (int i = 0; i < sortedWords.Count - 1; i++)
+            {
+                var gap = sortedWords[i + 1].BoundingBox.Left - sortedWords[i].BoundingBox.Right;
+                if (gap > 0)
+                    wordSpacings.Add(gap);
+            }
+
+            if (wordSpacings.Count == 0) continue;
+
+            var avgSpacing = wordSpacings.Average();
+            var significantGapThreshold = avgSpacing * MinColumnGapRatio;
+
+            // Find significant gaps (larger than average word spacing)
+            for (int i = 0; i < sortedWords.Count - 1; i++)
+            {
+                var gapStart = sortedWords[i].BoundingBox.Right;
+                var gapEnd = sortedWords[i + 1].BoundingBox.Left;
+                var gapWidth = gapEnd - gapStart;
+
+                if (gapWidth >= significantGapThreshold)
+                {
+                    gaps.Add((gapStart, gapEnd, gapWidth));
+                }
+            }
+
+            if (gaps.Count > 0)
+                rowGaps.Add(gaps);
+        }
+
+        if (rowGaps.Count < 2) return [];
+
+        // Find consistent gap positions across rows
+        var consistentGaps = FindConsistentGaps(rowGaps, rows.Count);
+
+        if (consistentGaps.Count == 0) return [];
+
+        // Convert gaps to column start positions
+        var columnPositions = new List<double>();
+
+        // First column starts at leftmost word position
+        var leftmostX = rows.SelectMany(r => r).Min(w => w.BoundingBox.Left);
+        columnPositions.Add(leftmostX);
+
+        // Add column starts after each gap
+        foreach (var gap in consistentGaps.OrderBy(g => g))
+        {
+            columnPositions.Add(gap);
+        }
+
+        return columnPositions;
+    }
+
+    /// <summary>
+    /// Find gap positions that are consistent across multiple rows.
+    /// </summary>
+    private static List<double> FindConsistentGaps(
+        List<List<(double GapStart, double GapEnd, double Width)>> rowGaps,
+        int totalRows)
+    {
+        if (rowGaps.Count == 0) return [];
+
+        // Calculate tolerance based on average gap width
+        var allGaps = rowGaps.SelectMany(g => g).ToList();
+        var avgGapWidth = allGaps.Average(g => g.Width);
+        var tolerance = Math.Max(5, avgGapWidth * 0.5);
+
+        // Group gaps by approximate position (using gap center)
+        var gapClusters = new Dictionary<int, List<double>>();
+        var bucketSize = Math.Max(10, (int)tolerance);
+
+        foreach (var rowGap in rowGaps)
+        {
+            foreach (var gap in rowGap)
+            {
+                var gapCenter = (gap.GapStart + gap.GapEnd) / 2;
+                var bucket = (int)(gapCenter / bucketSize) * bucketSize;
+
+                if (!gapClusters.ContainsKey(bucket))
+                    gapClusters[bucket] = [];
+
+                gapClusters[bucket].Add(gap.GapEnd); // Use gap end as column start
+            }
+        }
+
+        // Find clusters that appear in at least 50% of rows with gaps
+        var threshold = Math.Max(2, rowGaps.Count / 2);
+        var consistentGaps = gapClusters
+            .Where(kvp => kvp.Value.Count >= threshold)
+            .Select(kvp => kvp.Value.Average()) // Use average position for cluster
+            .OrderBy(x => x)
+            .ToList();
+
+        return consistentGaps;
+    }
+
+    /// <summary>
+    /// Detect column positions using position-based bucketing (original method).
+    /// </summary>
+    private static List<double> DetectColumnsByPositions(List<List<Word>> rows, List<Word> allWords)
+    {
         var avgCharWidth = allWords
             .Where(w => !string.IsNullOrEmpty(w.Text))
             .Select(w => w.BoundingBox.Width / Math.Max(1, w.Text.Length))
@@ -492,11 +647,41 @@ public partial class PdfDocumentReader : IDocumentReader
         // Limit to reasonable column count
         if (mergedPositions.Count > MaxReasonableColumnCount)
         {
-            // Keep only the most significant columns (highest occurrence count)
             mergedPositions = mergedPositions.Take(MaxReasonableColumnCount).ToList();
         }
 
         return mergedPositions;
+    }
+
+    /// <summary>
+    /// Calculate alignment score for column positions against row data.
+    /// Higher score indicates better column detection quality.
+    /// </summary>
+    private static double CalculateColumnAlignmentScore(List<List<Word>> rows, List<double> columnPositions)
+    {
+        if (rows.Count == 0 || columnPositions.Count < 2) return 0;
+
+        var totalWords = 0;
+        var alignedWords = 0;
+        var avgColumnWidth = columnPositions.Count > 1
+            ? columnPositions.Zip(columnPositions.Skip(1), (a, b) => b - a).Average()
+            : 50.0;
+        var tolerance = Math.Max(10, avgColumnWidth * 0.2);
+
+        foreach (var row in rows)
+        {
+            foreach (var word in row)
+            {
+                totalWords++;
+                // Check if word aligns to any column start position
+                if (columnPositions.Any(cp => Math.Abs(word.BoundingBox.Left - cp) <= tolerance))
+                {
+                    alignedWords++;
+                }
+            }
+        }
+
+        return totalWords > 0 ? (double)alignedWords / totalWords : 0;
     }
 
     /// <summary>
@@ -893,6 +1078,53 @@ public partial class PdfDocumentReader : IDocumentReader
     }
 
     /// <summary>
+    /// Filter out page numbers from text lines.
+    /// Page numbers are typically short lines that match common patterns.
+    /// </summary>
+    private static string FilterPageNumbers(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+
+        var lines = text.Split('\n');
+        var filteredLines = new List<string>();
+
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+
+            // Skip empty lines (will be re-added as needed)
+            if (string.IsNullOrWhiteSpace(trimmedLine))
+            {
+                filteredLines.Add(line);
+                continue;
+            }
+
+            // Page numbers are typically very short (< 20 characters)
+            // and match specific patterns
+            if (trimmedLine.Length < 20 && IsPageNumber(trimmedLine))
+            {
+                // Skip this line (it's a page number)
+                continue;
+            }
+
+            filteredLines.Add(line);
+        }
+
+        return string.Join('\n', filteredLines);
+    }
+
+    /// <summary>
+    /// Check if a line is likely a page number.
+    /// </summary>
+    private static bool IsPageNumber(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        // Check against page number patterns
+        return PageNumberPatterns.IsMatch(line);
+    }
+
+    /// <summary>
     /// Check if text starts with an incomplete sentence.
     /// </summary>
     private static bool IsIncompleteSentenceStart(string text)
@@ -990,6 +1222,16 @@ public partial class PdfDocumentReader : IDocumentReader
     // Pattern for text starting with lowercase or continuation markers
     [GeneratedRegex(@"^[a-z]|^[,;:\-]|^[가-힣](?![.!?。！？])")]
     private static partial Regex IncompleteSentenceStartRegex();
+
+    // Pattern for common page number formats:
+    // - Standalone numbers: "1", "12"
+    // - Dash-surrounded: "- 1 -", "-2-"
+    // - Page prefix: "Page 1", "PAGE 12", "page 1 of 10", "p. 1"
+    // - Korean: "페이지 1", "쪽 1"
+    // - Fraction format: "1/10", "1 / 10"
+    // - Roman numerals: "i", "ii", "iii", "iv", "v" (lowercase only for page numbers)
+    [GeneratedRegex(@"^\s*(?:-\s*)?\d{1,4}(?:\s*-)?$|^(?:page|p\.?)\s*\d{1,4}(?:\s*(?:of|/)\s*\d{1,4})?\s*$|^(?:페이지|쪽)\s*\d{1,4}$|^\d{1,4}\s*/\s*\d{1,4}$|^[ivxlc]{1,4}$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex PageNumberRegex();
 
     #region Internal Classes
 
