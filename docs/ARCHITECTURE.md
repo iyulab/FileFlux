@@ -189,16 +189,23 @@ FileFlux/                         # Full RAG Pipeline Package
 
 ### 2. DocumentProcessor (Orchestrator)
 
-**Processing Pipeline**:
-1. Input validation
-2. Document type detection
-3. Reader selection
-4. Content extraction
-5. Optional metadata enrichment (if enabled)
-6. Structure parsing
-7. Strategy selection
-8. Chunking application
-9. Post-processing
+**5-Stage Processing Pipeline**:
+
+```
+📂 Extract → 📄 Parse → 🔄 Refine → 📦 Chunk → ✨ Enhance
+```
+
+| Stage | Description | Component |
+|-------|-------------|-----------|
+| **Extract** | Raw content extraction from files | IDocumentReader |
+| **Parse** | Structure analysis and parsing | IDocumentParser |
+| **Refine** | Content transformation (Markdown, Image-to-Text) | IMarkdownConverter, IImageToTextService |
+| **Chunk** | Text segmentation into chunks | IChunkerFactory (FluxCurator) |
+| **Enhance** | Metadata enrichment and quality scoring | FluxImprover |
+
+**Refine Stage (Default Enabled)**:
+- `ConvertToMarkdown = true`: 구조 보존을 위한 Markdown 변환 (기본 활성화)
+- `ProcessImagesToText = false`: 이미지 텍스트 추출 (opt-in, 비용 고려)
 
 **Dependency Management**:
 - Optional logger support via NullLogger pattern

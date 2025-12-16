@@ -26,6 +26,8 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
     private readonly FluxImproverServices? _improverServices;
     private readonly ITextRefiner _textRefiner;
     private readonly ILogger<FluxDocumentProcessor> _logger;
+    private readonly IMarkdownConverter? _markdownConverter;
+    private readonly IImageToTextService? _imageToTextService;
 
     /// <summary>
     /// Creates a new FluxDocumentProcessor with required dependencies.
@@ -40,12 +42,16 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
         IDocumentParserFactory parserFactory,
         IChunkerFactory chunkerFactory,
         FluxImproverServices? improverServices = null,
+        IMarkdownConverter? markdownConverter = null,
+        IImageToTextService? imageToTextService = null,
         ILogger<FluxDocumentProcessor>? logger = null)
     {
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _parserFactory = parserFactory ?? throw new ArgumentNullException(nameof(parserFactory));
         _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
         _improverServices = improverServices;
+        _markdownConverter = markdownConverter;
+        _imageToTextService = imageToTextService;
         _textRefiner = new TextRefiner();
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<FluxDocumentProcessor>.Instance;
     }
@@ -69,10 +75,18 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
         // Stage 2: Parse
         var parsedContent = await ParseAsync(rawContent, null, cancellationToken).ConfigureAwait(false);
 
-        // Stage 3: Chunk (FluxCurator)
+        // Stage 3: Refine (optional - when RefiningOptions is set)
+        if (options.RefiningOptions != null)
+        {
+            // Pass RawContent via Extra for IMarkdownConverter usage
+            options.RefiningOptions.Extra["_rawContent"] = rawContent;
+            parsedContent = await RefineAsync(parsedContent, options.RefiningOptions, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Stage 4: Chunk (FluxCurator)
         var chunks = await ChunkAsync(parsedContent, options, cancellationToken).ConfigureAwait(false);
 
-        // Stage 4: Enhance (FluxImprover) - if available and enabled
+        // Stage 5: Enhance (FluxImprover) - if available and enabled
         if (_improverServices != null && ShouldEnhance(options))
         {
             chunks = await EnhanceChunksAsync(chunks, rawContent.Text, options, cancellationToken).ConfigureAwait(false);
@@ -193,12 +207,58 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
         {
             var refinedText = parsed.Text;
 
-            // Stage 1: Document-level refinement (FileFlux-specific)
+            // Stage 1: Markdown conversion (if enabled and IMarkdownConverter available)
+            if (options.ConvertToMarkdown && _markdownConverter != null)
+            {
+                // Get RawContent from Extra if provided (for full conversion support)
+                if (options.Extra.TryGetValue("_rawContent", out var rawObj) && rawObj is RawContent rawContent)
+                {
+                    var markdownResult = await _markdownConverter.ConvertAsync(rawContent, new MarkdownConversionOptions
+                    {
+                        PreserveHeadings = true,
+                        ConvertTables = true,
+                        PreserveLists = true,
+                        IncludeImagePlaceholders = true,
+                        DetectCodeBlocks = true,
+                        NormalizeWhitespace = true
+                    }, cancellationToken).ConfigureAwait(false);
+
+                    if (markdownResult.IsSuccess)
+                    {
+                        refinedText = markdownResult.Markdown;
+                        _logger.LogDebug("Converted to Markdown: {Method}, {HeadingCount} headings, {TableCount} tables",
+                            markdownResult.Method, markdownResult.Statistics.HeadingCount, markdownResult.Statistics.TableCount);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Markdown conversion failed, using original text");
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug("ConvertToMarkdown enabled but RawContent not provided in Extra, skipping Markdown conversion");
+                }
+            }
+
+            // Stage 2: Image-to-text processing (if enabled and IImageToTextService available)
+            if (options.ProcessImagesToText && _imageToTextService != null)
+            {
+                // Get RawContent for image data
+                if (options.Extra.TryGetValue("_rawContent", out var rawObj) && rawObj is RawContent rawContent && rawContent.Images.Count > 0)
+                {
+                    refinedText = await ProcessImagesToTextAsync(refinedText, rawContent.Images, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // Stage 3: Document-level refinement (FileFlux-specific)
             // Remove artificial paragraph headings (# Paragraph N)
             refinedText = RemoveArtificialParagraphHeadings(refinedText);
 
-            // Remove image placeholders like [그림], [Figure], [Image]
-            refinedText = RemoveImagePlaceholders(refinedText);
+            // Remove image placeholders like [그림], [Figure], [Image] (only if not processing images)
+            if (!options.ProcessImagesToText)
+            {
+                refinedText = RemoveImagePlaceholders(refinedText);
+            }
 
             // Clean whitespace
             if (options.CleanWhitespace)
@@ -227,7 +287,7 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
                 refinedText = RestructureHeadings(refinedText);
             }
 
-            // Stage 2: Text-level refinement (delegated to FluxCurator)
+            // Stage 4: Text-level refinement (delegated to FluxCurator)
             // Handles: empty bullets, duplicate lines, custom patterns, etc.
             var textRefineOptions = MapTextRefinementPreset(options.TextRefinementPreset);
             refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
@@ -244,7 +304,7 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
             _logger.LogDebug("Refined document: {OriginalLength} -> {RefinedLength} chars",
                 parsed.Text.Length, refinedText.Length);
 
-            return await Task.FromResult(refined).ConfigureAwait(false);
+            return refined;
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -478,6 +538,58 @@ public sealed partial class FluxDocumentProcessor : IDocumentProcessor
         }
 
         return string.Join("\n", result);
+    }
+
+    /// <summary>
+    /// Process images in the document and replace placeholders with extracted text.
+    /// </summary>
+    private async Task<string> ProcessImagesToTextAsync(
+        string text,
+        IReadOnlyList<Core.ImageInfo> images,
+        CancellationToken cancellationToken)
+    {
+        if (_imageToTextService == null || images.Count == 0)
+            return text;
+
+        var result = text;
+
+        foreach (var image in images)
+        {
+            if (image.Data == null || image.Data.Length == 0)
+                continue;
+
+            try
+            {
+                var extractionResult = await _imageToTextService.ExtractTextAsync(
+                    image.Data,
+                    new ImageToTextOptions
+                    {
+                        Language = "auto",
+                        Quality = "medium",
+                        ExtractStructure = true
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                if (!string.IsNullOrWhiteSpace(extractionResult.ExtractedText))
+                {
+                    // Replace image placeholder with extracted text
+                    // Common patterns: ![alt](embedded:img_001), [Image: img_001], etc.
+                    var placeholder = $"embedded:{image.Id}";
+                    var replacement = $"\n\n[Image Content: {extractionResult.ExtractedText.Trim()}]\n\n";
+
+                    result = result.Replace(placeholder, replacement);
+
+                    _logger.LogDebug("Processed image {ImageId}: extracted {CharCount} chars",
+                        image.Id, extractionResult.ExtractedText.Length);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to extract text from image {ImageId}", image.Id);
+            }
+        }
+
+        return result;
     }
 
     #endregion

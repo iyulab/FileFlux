@@ -5,6 +5,23 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2025-12-16
+
+### Added
+- **Refine Stage Pipeline Integration**: 5단계 파이프라인 완성
+  - Extract → Parse → **Refine** → Chunk → Enhance
+  - `ChunkingOptions.RefiningOptions`: 기본 활성화 (Markdown 변환 포함)
+  - `RefiningOptions.ConvertToMarkdown`: 기본값 `true` (RAG 품질 향상)
+  - `RefiningOptions.ProcessImagesToText`: opt-in 방식 (비용 고려)
+- **IMarkdownConverter Integration**: Refine 단계에서 Markdown 변환 자동 적용
+- **IImageToTextService Integration**: 이미지 텍스트 추출 파이프라인 통합
+- **Factory Methods**: `RefiningOptions.ForRAG`, `RefiningOptions.ForRAGWithImages`
+
+### Changed
+- `ChunkingOptions.RefiningOptions` 기본값: `null` → `new RefiningOptions()` (자동 활성화)
+- `RefiningOptions.ConvertToMarkdown` 기본값: `false` → `true` (RAG 최적화)
+- `FluxDocumentProcessor` 생성자: `IMarkdownConverter?`, `IImageToTextService?` 선택적 의존성 추가
+
 ## [0.8.6] - 2025-12-16
 
 ### Added

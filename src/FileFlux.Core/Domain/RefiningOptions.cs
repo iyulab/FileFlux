@@ -38,6 +38,21 @@ public class RefiningOptions
     public bool UseAIForDescriptions { get; set; }
 
     /// <summary>
+    /// Convert content to structured Markdown format (default: true).
+    /// Uses IMarkdownConverter to preserve document structure
+    /// (headings, tables, lists, code blocks) in Markdown format.
+    /// Set to false only when raw text output is preferred.
+    /// </summary>
+    public bool ConvertToMarkdown { get; set; } = true;
+
+    /// <summary>
+    /// Process embedded images to text using IImageToTextService (default: false).
+    /// When enabled, extracts text from images and replaces image placeholders
+    /// with the extracted content in the document.
+    /// </summary>
+    public bool ProcessImagesToText { get; set; }
+
+    /// <summary>
     /// Custom refining parameters
     /// </summary>
     public Dictionary<string, object> Extra { get; set; } = new();
@@ -105,5 +120,35 @@ public class RefiningOptions
         CleanWhitespace = true,
         RestructureHeadings = false,
         TextRefinementPreset = "None"
+    };
+
+    /// <summary>
+    /// Options optimized for RAG pipelines with full content transformation.
+    /// Enables Markdown conversion for better structure preservation.
+    /// </summary>
+    public static RefiningOptions ForRAG => new()
+    {
+        RemoveHeadersFooters = true,
+        RemovePageNumbers = true,
+        CleanWhitespace = true,
+        RestructureHeadings = true,
+        ConvertToMarkdown = true,
+        ProcessImagesToText = false,
+        TextRefinementPreset = "Standard"
+    };
+
+    /// <summary>
+    /// Options optimized for RAG pipelines with image processing.
+    /// Enables both Markdown conversion and image-to-text extraction.
+    /// </summary>
+    public static RefiningOptions ForRAGWithImages => new()
+    {
+        RemoveHeadersFooters = true,
+        RemovePageNumbers = true,
+        CleanWhitespace = true,
+        RestructureHeadings = true,
+        ConvertToMarkdown = true,
+        ProcessImagesToText = true,
+        TextRefinementPreset = "Standard"
     };
 }
