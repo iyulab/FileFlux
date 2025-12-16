@@ -262,8 +262,6 @@ public class MultiModalExcelDocumentReader : IDocumentReader
                     if (ImageProcessingConstants.IsDecorativeImage(width, height))
                     {
                         // 작은 이미지(아이콘, 로고, 장식) 제외
-                        Console.WriteLine($"Skipping decorative image in sheet '{sheetName}': {width}x{height}px " +
-                            $"(threshold: {ImageProcessingConstants.MinImageWidth}x{ImageProcessingConstants.MinImageHeight}px)");
                         continue;
                     }
 
@@ -281,17 +279,15 @@ public class MultiModalExcelDocumentReader : IDocumentReader
                         results.Add(result);
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    // 개별 이미지 처리 실패는 로그만 남기고 계속 진행
-                    Console.WriteLine($"Failed to process image in sheet '{sheetName}': {ex.Message}");
+                    // 개별 이미지 처리 실패는 무시하고 계속 진행
                 }
             }
         }
-        catch (Exception ex)
+        catch
         {
             // 워크시트 전체 이미지 처리 실패
-            Console.WriteLine($"Failed to extract images from sheet '{sheetName}': {ex.Message}");
         }
 
         return results;

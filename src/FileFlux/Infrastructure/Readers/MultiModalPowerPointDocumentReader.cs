@@ -71,11 +71,6 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
         RawContent baseContent,
         CancellationToken cancellationToken)
     {
-        Console.WriteLine($"[MultiModalPPTX] Starting image processing for: {filePath}");
-        Console.WriteLine($"[MultiModalPPTX] IImageToTextService available: {_imageToTextService != null}");
-        Console.WriteLine($"[MultiModalPPTX] IImageRelevanceEvaluator available: {_relevanceEvaluator != null}");
-        Console.WriteLine($"[MultiModalPPTX] Base content length: {baseContent.Text.Length} characters");
-
         var enhancedText = new StringBuilder(baseContent.Text);
         var imageProcessingResults = new List<string>();
         var structuralHints = baseContent.Hints?.ToDictionary(kv => kv.Key, kv => kv.Value)
@@ -91,13 +86,11 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
 
             if (presentationPart?.Presentation == null)
             {
-                Console.WriteLine($"[MultiModalPPTX] No presentation part found");
                 return baseContent;
             }
 
             var slideIds = presentationPart.Presentation.SlideIdList?.Elements<SlideId>().ToList()
                           ?? new List<SlideId>();
-            Console.WriteLine($"[MultiModalPPTX] Found {slideIds.Count} slides");
 
             var imageCount = 0;
             var includedImageCount = 0;
@@ -121,7 +114,6 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                 }
 
                 var slideImages = await ExtractSlideImages(slidePart, slideIndex + 1, cancellationToken);
-                Console.WriteLine($"[MultiModalPPTX] Slide {slideIndex + 1}: Extracted {slideImages.Count} images");
 
                 if (slideImages.Any())
                 {
@@ -208,14 +200,10 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                 }
             }
 
-            Console.WriteLine($"[MultiModalPPTX] Image processing complete - Total: {imageCount}, Included: {includedImageCount}, Excluded: {excludedImageCount}");
-            Console.WriteLine($"[MultiModalPPTX] Enhanced text length: {enhancedText.Length} characters");
         }
         catch (Exception ex)
         {
             // 이미지 처리 실패 시 기본 결과 사용하되 경고 추가
-            Console.WriteLine($"[MultiModalPPTX] ERROR: Image processing failed - {ex.Message}");
-            Console.WriteLine($"[MultiModalPPTX] Stack trace: {ex.StackTrace}");
 
             var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
             warnings.Add($"Image processing failed: {ex.Message}");
@@ -252,7 +240,6 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
 
         if (_imageToTextService == null)
         {
-            Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: _imageToTextService is null, skipping image extraction");
             return results;
         }
 
@@ -261,36 +248,24 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
             // OpenXml의 ImagePart에서 이미지 추출
             var imageParts = slidePart.ImageParts;
             var imagePartsList = imageParts.ToList();
-            Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Found {imagePartsList.Count} ImageParts");
 
-            int processedCount = 0;
             foreach (var imagePart in imagePartsList)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                processedCount++;
 
                 try
                 {
-                    Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Processing image {processedCount}/{imagePartsList.Count}");
-
                     // 이미지 데이터 추출
                     var imageBytes = await ExtractImageBytes(imagePart);
                     if (imageBytes == null || imageBytes.Length == 0)
-                    {
-                        Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Image {processedCount} - Failed to extract bytes or empty");
                         continue;
-                    }
-
-                    Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Image {processedCount} - Extracted {imageBytes.Length} bytes");
 
                     // 이미지 크기 확인
                     var (width, height) = GetImageDimensions(imageBytes);
-                    Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Image {processedCount} - Dimensions: {width}x{height}px");
 
                     if (ImageProcessingConstants.IsDecorativeImage(width, height))
                     {
                         // 작은 이미지(아이콘, 로고, 장식) 제외
-                        Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Image {processedCount} - SKIPPED (decorative, threshold: {ImageProcessingConstants.MinImageWidth}x{ImageProcessingConstants.MinImageHeight}px)");
                         continue;
                     }
 
@@ -302,37 +277,22 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                         ExtractStructure = true
                     };
 
-                    Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Image {processedCount} - Calling vision API...");
                     var result = await _imageToTextService.ExtractTextAsync(imageBytes, options, cancellationToken);
 
                     if (!string.IsNullOrWhiteSpace(result.ExtractedText))
                     {
-                        Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Image {processedCount} - SUCCESS: Extracted {result.ExtractedText.Length} characters");
                         results.Add(result);
                     }
-                    else
-                    {
-                        if (!string.IsNullOrEmpty(result.ErrorMessage))
-                        {
-                            Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Image {processedCount} - FAILED: {result.ErrorMessage}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[MultiModalPPTX] Slide {slideNumber}: Image {processedCount} - Vision API returned empty text (no error reported)");
-                        }
-                    }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    // 개별 이미지 처리 실패는 로그만 남기고 계속 진행
-                    Console.WriteLine($"Failed to process image on slide {slideNumber}: {ex.Message}");
+                    // 개별 이미지 처리 실패는 무시하고 계속 진행
                 }
             }
         }
-        catch (Exception ex)
+        catch
         {
             // 슬라이드 전체 이미지 처리 실패
-            Console.WriteLine($"Failed to extract images from slide {slideNumber}: {ex.Message}");
         }
 
         return results;

@@ -244,8 +244,6 @@ public class MultiModalWordDocumentReader : IDocumentReader
                     if (ImageProcessingConstants.IsDecorativeImage(width, height))
                     {
                         // 작은 이미지(아이콘, 로고, 장식) 제외
-                        Console.WriteLine($"Skipping decorative image in document: {width}x{height}px " +
-                            $"(threshold: {ImageProcessingConstants.MinImageWidth}x{ImageProcessingConstants.MinImageHeight}px)");
                         continue;
                     }
 
@@ -263,17 +261,15 @@ public class MultiModalWordDocumentReader : IDocumentReader
                         results.Add(result);
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    // 개별 이미지 처리 실패는 로그만 남기고 계속 진행
-                    Console.WriteLine($"Failed to process image in document: {ex.Message}");
+                    // 개별 이미지 처리 실패는 무시하고 계속 진행
                 }
             }
         }
-        catch (Exception ex)
+        catch
         {
             // 문서 전체 이미지 처리 실패
-            Console.WriteLine($"Failed to extract images from document: {ex.Message}");
         }
 
         return results;

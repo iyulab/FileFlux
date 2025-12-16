@@ -246,8 +246,6 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                     if (ImageProcessingConstants.IsDecorativeImage(width, height))
                     {
                         // 작은 이미지(아이콘, 로고, 장식) 제외
-                        Console.WriteLine($"Skipping decorative image on page {pageNum}: {width}x{height}px " +
-                            $"(threshold: {ImageProcessingConstants.MinImageWidth}x{ImageProcessingConstants.MinImageHeight}px)");
                         continue;
                     }
 
@@ -270,17 +268,15 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                         }
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    // 개별 이미지 처리 실패는 로그만 남기고 계속 진행
-                    Console.WriteLine($"Failed to process image on page {pageNum}: {ex.Message}");
+                    // 개별 이미지 처리 실패는 무시하고 계속 진행
                 }
             }
         }
-        catch (Exception ex)
+        catch
         {
             // 페이지 전체 이미지 처리 실패
-            Console.WriteLine($"Failed to extract images from page {pageNum}: {ex.Message}");
         }
 
         return results;
