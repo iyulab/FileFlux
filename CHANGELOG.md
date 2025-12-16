@@ -5,6 +5,30 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] - 2025-12-16
+
+### Added
+- **IMarkdownConverter Interface**: RAG 청킹 품질 향상을 위한 Markdown 변환 기능
+  - `IMarkdownConverter`: 구조화된 Markdown 변환 인터페이스
+  - `MarkdownConverter`: 휴리스틱 기반 변환 구현체
+  - `MarkdownConversionOptions`: 변환 옵션 설정
+  - `MarkdownConversionResult`: 변환 결과 및 통계
+- **헤딩 감지 및 변환**
+  - 기존 Markdown 헤딩 보존 (`#`, `##`, `###`)
+  - ALL CAPS 텍스트 → 헤딩 변환
+  - 번호 섹션 → 헤딩 변환
+  - 헤딩 레벨 제약 옵션 (MinHeadingLevel, MaxHeadingLevel)
+- **리스트 변환**
+  - Unicode 글머리 기호 변환 (`•`, `●`, `○`, `■` → `-`)
+  - 대체 형식 변환 (`1)`, `a)`, `(1)` → 표준 Markdown)
+- **테이블 처리**: 헤더 구분선 자동 추가
+- **이미지 플레이스홀더 변환**: 표준 Markdown 이미지 형식
+- **공백 정규화**: Windows/Unix 줄바꿈 호환
+- **선택적 LLM 향상**: `ITextCompletionService` DI를 통한 LLM 통합 지원
+
+### Changed
+- MultiModal readers에서 디버그용 Console.WriteLine 제거
+
 ## [0.8.0] - 2025-12-15
 
 ### Added
