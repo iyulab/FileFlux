@@ -4,6 +4,7 @@ using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.DocumentLayoutAnalysis;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.PageSegmenter;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.WordExtractor;
+using UglyToad.PdfPig.Graphics.Colors;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -67,6 +68,7 @@ public partial class PdfDocumentReader : IDocumentReader
         var extractionWarnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
         var pageTexts = new List<PageContent>();
+        var images = new List<ImageInfo>();
 
         var fileInfo = new FileInfo(filePath);
 
@@ -98,7 +100,7 @@ public partial class PdfDocumentReader : IDocumentReader
             var lowConfidenceTables = 0;
             var minTableConfidence = 1.0;
 
-            // Extract text from each page
+            // Extract text and images from each page
             for (int pageNum = 1; pageNum <= totalPages; pageNum++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -118,6 +120,9 @@ public partial class PdfDocumentReader : IDocumentReader
                             minTableConfidence = pageContent.MinTableConfidence;
                         }
                     }
+
+                    // Extract images from page
+                    ExtractImagesFromPage(page, pageNum, images, extractionWarnings);
 
                     processedPages++;
                 }
@@ -142,6 +147,7 @@ public partial class PdfDocumentReader : IDocumentReader
             structuralHints["TablesDetected"] = tablesDetected;
             structuralHints["LowConfidenceTables"] = lowConfidenceTables;
             structuralHints["MinTableConfidence"] = tablesDetected > 0 ? minTableConfidence : 1.0;
+            structuralHints["ImagesExtracted"] = images.Count;
 
             if (processedPages < totalPages)
             {
@@ -159,7 +165,8 @@ public partial class PdfDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = extractionWarnings,
-                ReaderType = ReaderType
+                ReaderType = ReaderType,
+                Images = images
             };
         }
         catch (Exception ex)
@@ -173,6 +180,7 @@ public partial class PdfDocumentReader : IDocumentReader
         var extractionWarnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
         var pageTexts = new List<PageContent>();
+        var images = new List<ImageInfo>();
 
         var streamLength = stream.CanSeek ? stream.Length : -1;
 
@@ -204,7 +212,7 @@ public partial class PdfDocumentReader : IDocumentReader
             var lowConfidenceTables = 0;
             var minTableConfidence = 1.0;
 
-            // Extract text from each page
+            // Extract text and images from each page
             for (int pageNum = 1; pageNum <= totalPages; pageNum++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -225,6 +233,9 @@ public partial class PdfDocumentReader : IDocumentReader
                         }
                     }
 
+                    // Extract images from page
+                    ExtractImagesFromPage(page, pageNum, images, extractionWarnings);
+
                     processedPages++;
                 }
                 catch (Exception ex)
@@ -244,6 +255,7 @@ public partial class PdfDocumentReader : IDocumentReader
             structuralHints["TablesDetected"] = tablesDetected;
             structuralHints["LowConfidenceTables"] = lowConfidenceTables;
             structuralHints["MinTableConfidence"] = tablesDetected > 0 ? minTableConfidence : 1.0;
+            structuralHints["ImagesExtracted"] = images.Count;
 
             if (processedPages < totalPages)
             {
@@ -261,7 +273,8 @@ public partial class PdfDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = extractionWarnings,
-                ReaderType = ReaderType
+                ReaderType = ReaderType,
+                Images = images
             };
         }
         catch (Exception ex)
@@ -1232,6 +1245,142 @@ public partial class PdfDocumentReader : IDocumentReader
     // - Roman numerals: "i", "ii", "iii", "iv", "v" (lowercase only for page numbers)
     [GeneratedRegex(@"^\s*(?:-\s*)?\d{1,4}(?:\s*-)?$|^(?:page|p\.?)\s*\d{1,4}(?:\s*(?:of|/)\s*\d{1,4})?\s*$|^(?:페이지|쪽)\s*\d{1,4}$|^\d{1,4}\s*/\s*\d{1,4}$|^[ivxlc]{1,4}$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex PageNumberRegex();
+
+    #region Image Extraction
+
+    /// <summary>
+    /// Minimum image dimension (width or height) in pixels to extract.
+    /// Images smaller than this are considered decorative (icons, bullets) and filtered out.
+    /// </summary>
+    private const int MinImageDimension = 50;
+
+    /// <summary>
+    /// Minimum image data size in bytes to extract.
+    /// Very small images are likely decorative elements.
+    /// </summary>
+    private const int MinImageDataSize = 1000;
+
+    /// <summary>
+    /// Extract embedded images from a PDF page.
+    /// </summary>
+    private static void ExtractImagesFromPage(Page page, int pageNum, List<ImageInfo> images, List<string> warnings)
+    {
+        try
+        {
+            var pageImages = page.GetImages();
+
+            foreach (var image in pageImages)
+            {
+                try
+                {
+                    // Filter out small decorative images (icons, bullets, etc.)
+                    var bounds = image.Bounds;
+                    if (bounds.Width < MinImageDimension || bounds.Height < MinImageDimension)
+                    {
+                        continue;
+                    }
+
+                    // Try to extract image bytes
+                    byte[]? imageBytes = null;
+                    string mimeType = "image/png";
+
+                    // Try PNG conversion first (most compatible)
+                    if (image.TryGetPng(out var pngBytes) && pngBytes != null && pngBytes.Length > 0)
+                    {
+                        imageBytes = pngBytes;
+                        mimeType = "image/png";
+                    }
+                    // Fallback to raw bytes if PNG conversion fails
+                    else
+                    {
+                        var rawBytes = image.RawBytes.ToArray();
+                        if (rawBytes.Length > 0)
+                        {
+                            imageBytes = rawBytes;
+                            mimeType = DetermineImageMimeType(rawBytes);
+                        }
+                    }
+
+                    // Skip if no valid image data or too small
+                    if (imageBytes == null || imageBytes.Length < MinImageDataSize)
+                    {
+                        continue;
+                    }
+
+                    var imageId = $"img_{images.Count:D3}";
+
+                    images.Add(new ImageInfo
+                    {
+                        Id = imageId,
+                        Data = imageBytes,
+                        MimeType = mimeType,
+                        Position = pageNum,
+                        SourceUrl = $"embedded:{imageId}",
+                        OriginalSize = imageBytes.Length,
+                        Properties =
+                        {
+                            ["Width"] = (int)bounds.Width,
+                            ["Height"] = (int)bounds.Height,
+                            ["PageNumber"] = pageNum,
+                            ["BoundsLeft"] = bounds.Left,
+                            ["BoundsBottom"] = bounds.Bottom
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    // Log individual image extraction failure but continue with others
+                    warnings.Add($"Page {pageNum}: Image extraction failed - {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"Page {pageNum}: Image enumeration failed - {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Determine the MIME type of image data based on magic bytes.
+    /// </summary>
+    private static string DetermineImageMimeType(byte[] bytes)
+    {
+        if (bytes.Length >= 2)
+        {
+            // JPEG magic bytes: FF D8
+            if (bytes[0] == 0xFF && bytes[1] == 0xD8)
+            {
+                return "image/jpeg";
+            }
+            // PNG magic bytes: 89 50 4E 47
+            if (bytes.Length >= 4 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
+            {
+                return "image/png";
+            }
+            // GIF magic bytes: 47 49 46
+            if (bytes.Length >= 3 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46)
+            {
+                return "image/gif";
+            }
+            // BMP magic bytes: 42 4D
+            if (bytes[0] == 0x42 && bytes[1] == 0x4D)
+            {
+                return "image/bmp";
+            }
+            // TIFF magic bytes: 49 49 2A 00 (little-endian) or 4D 4D 00 2A (big-endian)
+            if (bytes.Length >= 4 &&
+                ((bytes[0] == 0x49 && bytes[1] == 0x49 && bytes[2] == 0x2A && bytes[3] == 0x00) ||
+                 (bytes[0] == 0x4D && bytes[1] == 0x4D && bytes[2] == 0x00 && bytes[3] == 0x2A)))
+            {
+                return "image/tiff";
+            }
+        }
+
+        // Default to application/octet-stream for unknown formats
+        return "application/octet-stream";
+    }
+
+    #endregion
 
     #region Internal Classes
 

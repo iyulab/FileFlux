@@ -11,6 +11,8 @@ namespace FileFlux.Core.Infrastructure.Readers;
 /// </summary>
 public class ExcelDocumentReader : IDocumentReader
 {
+    private const int MinImageDataSize = 1000; // Minimum ~1KB to filter out icons/decorative images
+
     public string ReaderType => "ExcelReader";
 
     public IEnumerable<string> SupportedExtensions => new[] { ".xlsx" };
@@ -66,6 +68,7 @@ public class ExcelDocumentReader : IDocumentReader
         var fileInfo = new FileInfo(filePath);
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
+        var images = new List<ImageInfo>();
 
         try
         {
@@ -124,6 +127,9 @@ public class ExcelDocumentReader : IDocumentReader
                         totalCells += sheetContent.CellCount;
                     }
 
+                    // Extract images from worksheet
+                    ExtractImagesFromWorksheet(worksheetPart, worksheetCount + 1, sheet.Name?.Value, images, warnings);
+
                     worksheetCount++;
                 }
                 catch (Exception ex)
@@ -140,6 +146,7 @@ public class ExcelDocumentReader : IDocumentReader
             structuralHints["worksheet_count"] = worksheetCount;
             structuralHints["total_rows"] = totalRows;
             structuralHints["total_cells"] = totalCells;
+            structuralHints["ImagesExtracted"] = images.Count;
 
             return new RawContent
             {
@@ -155,7 +162,8 @@ public class ExcelDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = warnings,
-                ReaderType = "ExcelReader"
+                ReaderType = "ExcelReader",
+                Images = images
             };
         }
         catch (Exception ex)
@@ -169,6 +177,7 @@ public class ExcelDocumentReader : IDocumentReader
     {
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
+        var images = new List<ImageInfo>();
 
         try
         {
@@ -227,6 +236,9 @@ public class ExcelDocumentReader : IDocumentReader
                         totalCells += sheetContent.CellCount;
                     }
 
+                    // Extract images from worksheet
+                    ExtractImagesFromWorksheet(worksheetPart, worksheetCount + 1, sheet.Name?.Value, images, warnings);
+
                     worksheetCount++;
                 }
                 catch (Exception ex)
@@ -243,6 +255,7 @@ public class ExcelDocumentReader : IDocumentReader
             structuralHints["worksheet_count"] = worksheetCount;
             structuralHints["total_rows"] = totalRows;
             structuralHints["total_cells"] = totalCells;
+            structuralHints["ImagesExtracted"] = images.Count;
 
             return new RawContent
             {
@@ -257,7 +270,8 @@ public class ExcelDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = warnings,
-                ReaderType = "ExcelReader"
+                ReaderType = "ExcelReader",
+                Images = images
             };
         }
         catch (Exception ex)
@@ -366,6 +380,99 @@ public class ExcelDocumentReader : IDocumentReader
         {
             return string.Empty;
         }
+    }
+
+    private static void ExtractImagesFromWorksheet(WorksheetPart worksheetPart, int sheetNumber, string? sheetName, List<ImageInfo> images, List<string> warnings)
+    {
+        try
+        {
+            var drawingsPart = worksheetPart.DrawingsPart;
+            if (drawingsPart == null) return;
+
+            foreach (var imagePart in drawingsPart.ImageParts)
+            {
+                try
+                {
+                    using var stream = imagePart.GetStream();
+                    using var memoryStream = new MemoryStream();
+                    stream.CopyTo(memoryStream);
+                    var imageBytes = memoryStream.ToArray();
+
+                    // Filter out small decorative images
+                    if (imageBytes.Length < MinImageDataSize)
+                        continue;
+
+                    var imageId = $"img_{images.Count:D3}";
+                    var mimeType = imagePart.ContentType ?? DetermineImageMimeType(imageBytes);
+
+                    images.Add(new ImageInfo
+                    {
+                        Id = imageId,
+                        Data = imageBytes,
+                        MimeType = mimeType,
+                        Position = sheetNumber,
+                        SourceUrl = $"embedded:{imageId}",
+                        OriginalSize = imageBytes.Length,
+                        Properties =
+                        {
+                            ["SheetNumber"] = sheetNumber,
+                            ["SheetName"] = sheetName ?? $"Sheet{sheetNumber}",
+                            ["ContentType"] = mimeType
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    warnings.Add($"Sheet '{sheetName ?? sheetNumber.ToString()}': Image extraction failed - {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"Sheet '{sheetName ?? sheetNumber.ToString()}': Image enumeration failed - {ex.Message}");
+        }
+    }
+
+    private static string DetermineImageMimeType(byte[] imageBytes)
+    {
+        if (imageBytes.Length < 8)
+            return "application/octet-stream";
+
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+            return "image/png";
+
+        // JPEG: FF D8 FF
+        if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8 && imageBytes[2] == 0xFF)
+            return "image/jpeg";
+
+        // GIF: 47 49 46 38
+        if (imageBytes[0] == 0x47 && imageBytes[1] == 0x49 && imageBytes[2] == 0x46 && imageBytes[3] == 0x38)
+            return "image/gif";
+
+        // BMP: 42 4D
+        if (imageBytes[0] == 0x42 && imageBytes[1] == 0x4D)
+            return "image/bmp";
+
+        // TIFF: 49 49 2A 00 or 4D 4D 00 2A
+        if ((imageBytes[0] == 0x49 && imageBytes[1] == 0x49 && imageBytes[2] == 0x2A && imageBytes[3] == 0x00) ||
+            (imageBytes[0] == 0x4D && imageBytes[1] == 0x4D && imageBytes[2] == 0x00 && imageBytes[3] == 0x2A))
+            return "image/tiff";
+
+        // WebP: 52 49 46 46 ... 57 45 42 50
+        if (imageBytes.Length > 12 && imageBytes[0] == 0x52 && imageBytes[1] == 0x49 && imageBytes[2] == 0x46 && imageBytes[3] == 0x46 &&
+            imageBytes[8] == 0x57 && imageBytes[9] == 0x45 && imageBytes[10] == 0x42 && imageBytes[11] == 0x50)
+            return "image/webp";
+
+        // EMF: 01 00 00 00
+        if (imageBytes[0] == 0x01 && imageBytes[1] == 0x00 && imageBytes[2] == 0x00 && imageBytes[3] == 0x00)
+            return "image/emf";
+
+        // WMF: D7 CD C6 9A
+        if (imageBytes[0] == 0xD7 && imageBytes[1] == 0xCD && imageBytes[2] == 0xC6 && imageBytes[3] == 0x9A)
+            return "image/wmf";
+
+        return "application/octet-stream";
     }
 
     private static RawContent CreateEmptyResult(FileInfo fileInfo, List<string> warnings, Dictionary<string, object> structuralHints)

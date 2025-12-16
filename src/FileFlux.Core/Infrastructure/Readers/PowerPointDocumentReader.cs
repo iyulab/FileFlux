@@ -68,6 +68,7 @@ public class PowerPointDocumentReader : IDocumentReader
         var fileInfo = new FileInfo(filePath);
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
+        var images = new List<ImageInfo>();
 
         try
         {
@@ -125,6 +126,9 @@ public class PowerPointDocumentReader : IDocumentReader
                         totalShapes += slideContent.ShapeCount;
                     }
 
+                    // Extract images from slide
+                    ExtractImagesFromSlide(slidePart, slideCount + 1, images, warnings);
+
                     slideCount++;
                 }
                 catch (Exception ex)
@@ -140,6 +144,7 @@ public class PowerPointDocumentReader : IDocumentReader
             structuralHints["character_count"] = extractedText.Length;
             structuralHints["slide_count"] = slideCount;
             structuralHints["total_shapes"] = totalShapes;
+            structuralHints["ImagesExtracted"] = images.Count;
 
             return new RawContent
             {
@@ -155,7 +160,8 @@ public class PowerPointDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = warnings,
-                ReaderType = "PowerPointReader"
+                ReaderType = "PowerPointReader",
+                Images = images
             };
         }
         catch (Exception ex)
@@ -169,6 +175,7 @@ public class PowerPointDocumentReader : IDocumentReader
     {
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
+        var images = new List<ImageInfo>();
 
         try
         {
@@ -226,6 +233,9 @@ public class PowerPointDocumentReader : IDocumentReader
                         totalShapes += slideContent.ShapeCount;
                     }
 
+                    // Extract images from slide
+                    ExtractImagesFromSlide(slidePart, slideCount + 1, images, warnings);
+
                     slideCount++;
                 }
                 catch (Exception ex)
@@ -241,6 +251,7 @@ public class PowerPointDocumentReader : IDocumentReader
             structuralHints["character_count"] = extractedText.Length;
             structuralHints["slide_count"] = slideCount;
             structuralHints["total_shapes"] = totalShapes;
+            structuralHints["ImagesExtracted"] = images.Count;
 
             return new RawContent
             {
@@ -255,7 +266,8 @@ public class PowerPointDocumentReader : IDocumentReader
                 },
                 Hints = structuralHints,
                 Warnings = warnings,
-                ReaderType = "PowerPointReader"
+                ReaderType = "PowerPointReader",
+                Images = images
             };
         }
         catch (Exception ex)
@@ -581,6 +593,117 @@ public class PowerPointDocumentReader : IDocumentReader
             return (string.Empty, null);
         }
     }
+
+    #region Image Extraction
+
+    /// <summary>
+    /// Minimum image data size in bytes to extract.
+    /// Very small images are likely decorative elements (icons, bullets).
+    /// </summary>
+    private const int MinImageDataSize = 1000;
+
+    /// <summary>
+    /// Extract embedded images from a PowerPoint slide.
+    /// </summary>
+    private static void ExtractImagesFromSlide(SlidePart slidePart, int slideNumber, List<ImageInfo> images, List<string> warnings)
+    {
+        try
+        {
+            foreach (var imagePart in slidePart.ImageParts)
+            {
+                try
+                {
+                    using var stream = imagePart.GetStream();
+                    using var memoryStream = new MemoryStream();
+                    stream.CopyTo(memoryStream);
+                    var imageBytes = memoryStream.ToArray();
+
+                    // Skip very small images (likely decorative)
+                    if (imageBytes.Length < MinImageDataSize)
+                    {
+                        continue;
+                    }
+
+                    var imageId = $"img_{images.Count:D3}";
+                    var mimeType = imagePart.ContentType ?? DetermineImageMimeType(imageBytes);
+
+                    images.Add(new ImageInfo
+                    {
+                        Id = imageId,
+                        Data = imageBytes,
+                        MimeType = mimeType,
+                        Position = slideNumber,
+                        SourceUrl = $"embedded:{imageId}",
+                        OriginalSize = imageBytes.Length,
+                        Properties =
+                        {
+                            ["SlideNumber"] = slideNumber,
+                            ["ContentType"] = mimeType
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    warnings.Add($"Slide {slideNumber}: Image extraction failed - {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"Slide {slideNumber}: Image enumeration failed - {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Determine the MIME type of image data based on magic bytes.
+    /// </summary>
+    private static string DetermineImageMimeType(byte[] bytes)
+    {
+        if (bytes.Length >= 2)
+        {
+            // JPEG magic bytes: FF D8
+            if (bytes[0] == 0xFF && bytes[1] == 0xD8)
+            {
+                return "image/jpeg";
+            }
+            // PNG magic bytes: 89 50 4E 47
+            if (bytes.Length >= 4 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
+            {
+                return "image/png";
+            }
+            // GIF magic bytes: 47 49 46
+            if (bytes.Length >= 3 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46)
+            {
+                return "image/gif";
+            }
+            // BMP magic bytes: 42 4D
+            if (bytes[0] == 0x42 && bytes[1] == 0x4D)
+            {
+                return "image/bmp";
+            }
+            // TIFF magic bytes: 49 49 2A 00 (little-endian) or 4D 4D 00 2A (big-endian)
+            if (bytes.Length >= 4 &&
+                ((bytes[0] == 0x49 && bytes[1] == 0x49 && bytes[2] == 0x2A && bytes[3] == 0x00) ||
+                 (bytes[0] == 0x4D && bytes[1] == 0x4D && bytes[2] == 0x00 && bytes[3] == 0x2A)))
+            {
+                return "image/tiff";
+            }
+            // EMF magic bytes: 01 00 00 00 (first 4 bytes of EMF header)
+            if (bytes.Length >= 4 && bytes[0] == 0x01 && bytes[1] == 0x00 && bytes[2] == 0x00 && bytes[3] == 0x00)
+            {
+                return "image/emf";
+            }
+            // WMF magic bytes: D7 CD C6 9A
+            if (bytes.Length >= 4 && bytes[0] == 0xD7 && bytes[1] == 0xCD && bytes[2] == 0xC6 && bytes[3] == 0x9A)
+            {
+                return "image/wmf";
+            }
+        }
+
+        return "application/octet-stream";
+    }
+
+    #endregion
 
     private static RawContent CreateEmptyResult(FileInfo fileInfo, List<string> warnings, Dictionary<string, object> structuralHints)
     {
