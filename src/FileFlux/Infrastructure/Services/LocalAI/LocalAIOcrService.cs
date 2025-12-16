@@ -223,7 +223,7 @@ public sealed class LocalAIOcrService : IImageToTextService, IAsyncDisposable
                 ? ocrResult.GetTextWithLayout()
                 : ocrResult.FullText,
             ConfidenceScore = avgConfidence,
-            DetectedLanguage = DetectLanguageFromText(ocrResult.FullText),
+            DetectedLanguage = LanguageDetector.Detect(ocrResult.FullText).Language,
             ImageType = options?.ImageTypeHint ?? "document",
             StructuralElements = structuralElements,
             Metadata = new ImageMetadata
@@ -247,31 +247,4 @@ public sealed class LocalAIOcrService : IImageToTextService, IAsyncDisposable
         };
     }
 
-    private static string DetectLanguageFromText(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return "unknown";
-
-        // Simple heuristic based on character ranges
-        var koreanCount = text.Count(c => c >= 0xAC00 && c <= 0xD7AF);
-        var chineseCount = text.Count(c => c >= 0x4E00 && c <= 0x9FFF);
-        var japaneseCount = text.Count(c => (c >= 0x3040 && c <= 0x309F) || (c >= 0x30A0 && c <= 0x30FF));
-        var totalChars = text.Length;
-
-        if (totalChars == 0)
-            return "unknown";
-
-        var koreanRatio = (double)koreanCount / totalChars;
-        var chineseRatio = (double)chineseCount / totalChars;
-        var japaneseRatio = (double)japaneseCount / totalChars;
-
-        if (koreanRatio > 0.1)
-            return "ko";
-        if (japaneseRatio > 0.1)
-            return "ja";
-        if (chineseRatio > 0.1)
-            return "zh";
-
-        return "en";
-    }
 }

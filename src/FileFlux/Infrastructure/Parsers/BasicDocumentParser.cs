@@ -1,5 +1,6 @@
 using FileFlux;
 using FileFlux.Core;
+using FileFlux.Infrastructure.Services;
 using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure.Parsers;
@@ -369,6 +370,9 @@ public partial class BasicDocumentParser : IDocumentParser
             author = creatorStr;
         }
 
+        // 언어 감지 (NTextCat 기반 - 언어 코드 + 신뢰도)
+        var (language, languageConfidence) = LanguageDetector.Detect(rawContent.Text);
+
         return new DocumentMetadata
         {
             FileName = rawContent.File.Name,
@@ -379,7 +383,8 @@ public partial class BasicDocumentParser : IDocumentParser
             CreatedAt = rawContent.File.CreatedAt,
             ModifiedAt = rawContent.File.ModifiedAt,
             ProcessedAt = DateTime.UtcNow,
-            Language = DetectLanguage(rawContent.Text),
+            Language = language,
+            LanguageConfidence = languageConfidence,
             WordCount = wordCount,
             PageCount = pageCount
         };
@@ -450,25 +455,6 @@ public partial class BasicDocumentParser : IDocumentParser
         }
 
         return "General";
-    }
-
-    private static string DetectLanguage(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return "unknown";
-
-        var koreanChars = text.Count(c => c >= '가' && c <= '힣');
-        var japaneseChars = text.Count(c => (c >= '\u3040' && c <= '\u309F') || (c >= '\u30A0' && c <= '\u30FF'));
-        var chineseChars = text.Count(c => c >= '\u4E00' && c <= '\u9FFF');
-        var totalChars = text.Count(char.IsLetter);
-
-        if (totalChars == 0) return "unknown";
-
-        // 한글이 5% 이상이면 한국어로 판단 (마크다운/영어 단어/숫자 혼용 고려)
-        if ((double)koreanChars / totalChars > 0.05) return "ko";
-        if ((double)japaneseChars / totalChars > 0.05) return "ja";
-        if ((double)chineseChars / totalChars > 0.05) return "zh";
-
-        return "en";
     }
 
     private static List<string> ExtractKeywords(string text, int maxKeywords)
