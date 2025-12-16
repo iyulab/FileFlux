@@ -82,13 +82,17 @@ public class PowerPointDocumentReader : IDocumentReader
 
             var textBuilder = new StringBuilder();
 
-            // 문서 제목 추출
-            var documentTitle = ExtractDocumentTitle(presentationDocument);
+            // 문서 메타데이터 추출 (제목, 작성자)
+            var (documentTitle, documentAuthor) = ExtractDocumentMetadata(presentationDocument);
             if (!string.IsNullOrEmpty(documentTitle))
             {
                 structuralHints["document_title"] = documentTitle;
                 textBuilder.AppendLine($"# {documentTitle}");
                 textBuilder.AppendLine();
+            }
+            if (!string.IsNullOrEmpty(documentAuthor))
+            {
+                structuralHints["author"] = documentAuthor;
             }
 
             var slideIds = presentationPart.Presentation.SlideIdList?.Elements<SlideId>().ToList() ?? new List<SlideId>();
@@ -179,13 +183,17 @@ public class PowerPointDocumentReader : IDocumentReader
 
             var textBuilder = new StringBuilder();
 
-            // 문서 제목 추출
-            var documentTitle = ExtractDocumentTitle(presentationDocument);
+            // 문서 메타데이터 추출 (제목, 작성자)
+            var (documentTitle, documentAuthor) = ExtractDocumentMetadata(presentationDocument);
             if (!string.IsNullOrEmpty(documentTitle))
             {
                 structuralHints["document_title"] = documentTitle;
                 textBuilder.AppendLine($"# {documentTitle}");
                 textBuilder.AppendLine();
+            }
+            if (!string.IsNullOrEmpty(documentAuthor))
+            {
+                structuralHints["author"] = documentAuthor;
             }
 
             var slideIds = presentationPart.Presentation.SlideIdList?.Elements<SlideId>().ToList() ?? new List<SlideId>();
@@ -397,7 +405,8 @@ public class PowerPointDocumentReader : IDocumentReader
                     row.Add(cellText.ToString().Trim());
                 }
 
-                if (row.Count > 0)
+                // 빈 행이 아닌 경우에만 추가 (모든 셀이 빈 경우 제외)
+                if (row.Count > 0 && row.Any(cell => !string.IsNullOrWhiteSpace(cell)))
                 {
                     rows.Add(row);
                 }
@@ -558,16 +567,18 @@ public class PowerPointDocumentReader : IDocumentReader
         return textBuilder.ToString().Trim();
     }
 
-    private static string ExtractDocumentTitle(PresentationDocument document)
+    private static (string Title, string? Author) ExtractDocumentMetadata(PresentationDocument document)
     {
         try
         {
             var coreProperties = document.PackageProperties;
-            return coreProperties?.Title ?? string.Empty;
+            var title = coreProperties?.Title ?? string.Empty;
+            var author = coreProperties?.Creator;
+            return (title, author);
         }
         catch
         {
-            return string.Empty;
+            return (string.Empty, null);
         }
     }
 

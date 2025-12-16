@@ -2,7 +2,7 @@
 <Project>
   <!-- Version Information (can be overridden by build scripts) -->
   <PropertyGroup>
-    <VersionPrefix>0.8.2</VersionPrefix>
+    <VersionPrefix>0.8.3</VersionPrefix>
     <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
     <FileVersion>$(VersionPrefix)</FileVersion>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(VersionPrefix)</PackageVersion>

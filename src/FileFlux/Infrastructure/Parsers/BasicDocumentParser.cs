@@ -162,20 +162,61 @@ public partial class BasicDocumentParser : IDocumentParser
 
     private List<Section> ExtractSections(string text, Dictionary<string, object> hints)
     {
-        var sections = new List<Section>();
+        List<Section> flatSections;
 
         // 마크다운 헤더 기반 섹션 분할
         if (hints.TryGetValue("has_headers", out object? value) && (bool)value)
         {
-            sections.AddRange(ExtractMarkdownSections(text));
+            flatSections = ExtractMarkdownSections(text);
+            // Build hierarchical structure for header-based sections
+            return BuildHierarchy(flatSections);
         }
         else
         {
-            // 단락 기반 섹션 분할
-            sections.AddRange(ExtractParagraphSections(text));
+            // 단락 기반 섹션 분할 (flat structure)
+            return ExtractParagraphSections(text);
+        }
+    }
+
+    /// <summary>
+    /// Converts a flat list of sections into a hierarchical structure based on Level.
+    /// Sections with lower Level values become parents of sections with higher Level values.
+    /// </summary>
+    /// <param name="flatSections">Flat list of sections with Level information</param>
+    /// <returns>Hierarchical list of top-level sections with Children populated</returns>
+    private static List<Section> BuildHierarchy(List<Section> flatSections)
+    {
+        if (flatSections.Count == 0)
+            return flatSections;
+
+        var rootSections = new List<Section>();
+        var parentStack = new Stack<Section>();
+
+        foreach (var section in flatSections)
+        {
+            // Clear out any parent sections that are at the same or deeper level
+            while (parentStack.Count > 0 && parentStack.Peek().Level >= section.Level)
+            {
+                parentStack.Pop();
+            }
+
+            if (parentStack.Count == 0)
+            {
+                // No parent - this is a root section
+                rootSections.Add(section);
+            }
+            else
+            {
+                // Add as child of the current parent
+                var parent = parentStack.Peek();
+                parent.Children.Add(section);
+            }
+
+            // Push current section as potential parent for subsequent sections
+            parentStack.Push(section);
         }
 
-        return sections;
+        return rootSections;
     }
 
     private static List<Section> ExtractMarkdownSections(string text)
@@ -184,17 +225,21 @@ public partial class BasicDocumentParser : IDocumentParser
         var lines = text.Split('\n');
         var currentSection = new Section();
         var sectionId = 0;
+        var currentPosition = 0;
 
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
+            var lineStart = currentPosition;
+            var lineEnd = currentPosition + line.Length;
 
             // 헤더 감지
             if (line.TrimStart().StartsWith('#'))
             {
-                // 이전 섹션 저장
+                // 이전 섹션의 End 설정 및 저장
                 if (!string.IsNullOrEmpty(currentSection.Content))
                 {
+                    currentSection.End = lineStart > 0 ? lineStart - 1 : 0;
                     sections.Add(currentSection);
                 }
 
@@ -208,7 +253,7 @@ public partial class BasicDocumentParser : IDocumentParser
                         Title = headerMatch.Groups[3].Value.Trim(),
                         Type = "Header",
                         Level = headerMatch.Groups[2].Value.Length,
-                        Start = text.IndexOf(line, StringComparison.Ordinal),
+                        Start = lineStart,
                         Content = line
                     };
                 }
@@ -218,11 +263,15 @@ public partial class BasicDocumentParser : IDocumentParser
                 // 내용 추가
                 currentSection.Content += (string.IsNullOrEmpty(currentSection.Content) ? "" : "\n") + line;
             }
+
+            // 다음 줄 위치 계산 (+1 for newline character)
+            currentPosition = lineEnd + 1;
         }
 
-        // 마지막 섹션 추가
+        // 마지막 섹션의 End 설정 및 추가
         if (!string.IsNullOrEmpty(currentSection.Content))
         {
+            currentSection.End = text.Length - 1;
             sections.Add(currentSection);
         }
 
@@ -233,11 +282,17 @@ public partial class BasicDocumentParser : IDocumentParser
     {
         var sections = new List<Section>();
         var paragraphs = text.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+        var searchStart = 0;
 
         for (int i = 0; i < paragraphs.Length; i++)
         {
             var paragraph = paragraphs[i].Trim();
             if (string.IsNullOrEmpty(paragraph)) continue;
+
+            var start = text.IndexOf(paragraph, searchStart, StringComparison.Ordinal);
+            if (start < 0) start = text.IndexOf(paragraph, StringComparison.Ordinal);
+
+            var end = start + paragraph.Length - 1;
 
             sections.Add(new Section
             {
@@ -246,8 +301,11 @@ public partial class BasicDocumentParser : IDocumentParser
                 Type = "Paragraph",
                 Content = paragraph,
                 Level = 1,
-                Start = text.IndexOf(paragraph, StringComparison.Ordinal)
+                Start = start,
+                End = end
             });
+
+            searchStart = end + 1;
         }
 
         return sections;
