@@ -12,9 +12,9 @@ FileFlux follows clean architecture principles with a **two-package structure**:
   - Standard document readers (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML)
   - Core interfaces and domain models
   - No AI service dependencies
-- **FileFlux**: Full RAG pipeline with LocalAI integration
+- **FileFlux**: Full RAG pipeline with LMSupply integration
   - MultiModal document readers (AI-enhanced)
-  - AI service interfaces and LocalAI implementations
+  - AI service interfaces and LMSupply implementations
   - Chunking strategies (FluxCurator)
   - Content enhancement (FluxImprover)
   - Processing orchestration
@@ -128,13 +128,13 @@ FileFlux/                         # Full RAG Pipeline Package
 │   ├── Languages/                # Language Profiles
 │   │   └── LanguageProfiles.cs
 │   ├── Services/                 # Processing Services
-│   │   ├── LocalAI/              # LocalAI Implementations
-│   │   │   ├── LocalAIEmbedderService
-│   │   │   ├── LocalAIGeneratorService
-│   │   │   ├── LocalAICaptionerService
-│   │   │   ├── LocalAIOcrService
-│   │   │   ├── LocalAIServiceFactory
-│   │   │   └── LocalAIOptions
+│   │   ├── LMSupply/              # LMSupply Implementations
+│   │   │   ├── LMSupplyEmbedderService
+│   │   │   ├── LMSupplyGeneratorService
+│   │   │   ├── LMSupplyCaptionerService
+│   │   │   ├── LMSupplyOcrService
+│   │   │   ├── LMSupplyServiceFactory
+│   │   │   └── LMSupplyOptions
 │   │   ├── AIMetadataEnricher
 │   │   ├── FluxCurator
 │   │   └── FluxImprover
@@ -368,13 +368,13 @@ var options = new ChunkingOptions
 services.AddFileFlux();  // Pure extraction + chunking
 ```
 
-**With LocalAI** (local AI processing):
+**With LMSupply** (Locally running AI processing):
 ```csharp
-// Full LocalAI integration
-services.AddFileFluxWithLocalAI();
+// Full LMSupply integration
+services.AddFileFluxWithLMSupply();
 
 // With custom configuration
-services.AddFileFluxWithLocalAI(options =>
+services.AddFileFluxWithLMSupply(options =>
 {
     options.UseGpuAcceleration = true;
     options.EmbeddingModel = "default";
@@ -383,12 +383,12 @@ services.AddFileFluxWithLocalAI(options =>
 });
 ```
 
-**Selective LocalAI Services**:
+**Selective LMSupply Services**:
 ```csharp
-services.AddLocalAIEmbedder();    // IEmbeddingService only
-services.AddLocalAIGenerator();   // ITextCompletionService only
-services.AddLocalAICaptioner();   // IImageToTextService (captions)
-services.AddLocalAIOcr();         // IImageToTextService (OCR)
+services.AddLMSupplyEmbedder();    // IEmbeddingService only
+services.AddLMSupplyGenerator();   // ITextCompletionService only
+services.AddLMSupplyCaptioner();   // IImageToTextService (captions)
+services.AddLMSupplyOcr();         // IImageToTextService (OCR)
 ```
 
 **With External AI Services**:
@@ -576,16 +576,16 @@ FileFlux focuses on transforming documents into structured chunks optimized for 
   - Standard document readers
   - Core interfaces and models
   - For users implementing custom pipelines
-- **FileFlux**: Full RAG pipeline with LocalAI integration
+- **FileFlux**: Full RAG pipeline with LMSupply integration
   - MultiModal readers (AI-enhanced)
-  - LocalAI services (embedding, generation, captioning, OCR)
+  - LMSupply services (embedding, generation, captioning, OCR)
   - FluxCurator and FluxImprover
 
-**LocalAI Integration**: Built-in local AI processing without external API dependencies:
-- Embedding generation (LocalAI.Embedder)
-- Text generation (LocalAI.Generator)
-- Image captioning (LocalAI.Captioner)
-- OCR text extraction (LocalAI.Ocr)
+**LMSupply Integration**: Built-in Locally running AI processing without external API dependencies:
+- Embedding generation (LMSupply.Embedder)
+- Text generation (LMSupply.Generator)
+- Image captioning (LMSupply.Captioner)
+- OCR text extraction (LMSupply.Ocr)
 
 **Interface Provider Pattern**: FileFlux defines interfaces while providing both local implementations and allowing custom providers.
 
@@ -596,9 +596,9 @@ using FileFlux.Core;
 var reader = new PdfDocumentReader();
 var rawContent = await reader.ReadAsync("document.pdf");
 
-// Full RAG pipeline with LocalAI
+// Full RAG pipeline with LMSupply
 using FileFlux;
-services.AddFileFluxWithLocalAI();
+services.AddFileFluxWithLMSupply();
 var processor = serviceProvider.GetRequiredService<IDocumentProcessor>();
 var chunks = await processor.ProcessAsync("document.pdf", options);
 

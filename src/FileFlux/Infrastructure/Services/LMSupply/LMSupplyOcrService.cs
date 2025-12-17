@@ -1,14 +1,14 @@
 using System.Diagnostics;
-using LocalAI;
-using LocalAI.Ocr;
+using LMSupply;
+using LMSupply.Ocr;
 
-namespace FileFlux.Infrastructure.Services.LocalAI;
+namespace FileFlux.Infrastructure.Services.LMSupply;
 
 /// <summary>
-/// IImageToTextService implementation using LocalAI.Ocr.
+/// IImageToTextService implementation using LMSupply.Ocr.
 /// Provides optical character recognition for document and text images.
 /// </summary>
-public sealed class LocalAIOcrService : IImageToTextService, IAsyncDisposable
+public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable
 {
     private readonly IOcr _ocr;
     private bool _disposed;
@@ -16,27 +16,27 @@ public sealed class LocalAIOcrService : IImageToTextService, IAsyncDisposable
     private static readonly string[] SupportedFormats = ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "webp"];
 
     /// <summary>
-    /// Creates a new instance of LocalAIOcrService with the specified OCR pipeline.
+    /// Creates a new instance of LMSupplyOcrService with the specified OCR pipeline.
     /// </summary>
     /// <param name="ocr">The loaded OCR pipeline.</param>
-    public LocalAIOcrService(IOcr ocr)
+    public LMSupplyOcrService(IOcr ocr)
     {
         _ocr = ocr ?? throw new ArgumentNullException(nameof(ocr));
     }
 
     /// <summary>
-    /// Creates a new LocalAIOcrService with the default models.
+    /// Creates a new LMSupplyOcrService with the default models.
     /// </summary>
     /// <param name="options">Configuration options.</param>
     /// <param name="progress">Optional progress reporting for downloads.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A new LocalAIOcrService instance.</returns>
-    public static async Task<LocalAIOcrService> CreateAsync(
-        LocalAIOptions? options = null,
+    /// <returns>A new LMSupplyOcrService instance.</returns>
+    public static async Task<LMSupplyOcrService> CreateAsync(
+        LMSupplyOptions? options = null,
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        options ??= new LocalAIOptions();
+        options ??= new LMSupplyOptions();
 
         var ocrOptions = new OcrOptions
         {
@@ -56,24 +56,24 @@ public sealed class LocalAIOcrService : IImageToTextService, IAsyncDisposable
             await ocr.WarmupAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return new LocalAIOcrService(ocr);
+        return new LMSupplyOcrService(ocr);
     }
 
     /// <summary>
-    /// Creates a new LocalAIOcrService for a specific language.
+    /// Creates a new LMSupplyOcrService for a specific language.
     /// </summary>
     /// <param name="languageCode">ISO language code (e.g., "en", "ko", "zh", "ja").</param>
     /// <param name="options">Optional configuration options.</param>
     /// <param name="progress">Optional progress reporting for downloads.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A new LocalAIOcrService instance.</returns>
-    public static async Task<LocalAIOcrService> CreateForLanguageAsync(
+    /// <returns>A new LMSupplyOcrService instance.</returns>
+    public static async Task<LMSupplyOcrService> CreateForLanguageAsync(
         string languageCode,
-        LocalAIOptions? options = null,
+        LMSupplyOptions? options = null,
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        options ??= new LocalAIOptions();
+        options ??= new LMSupplyOptions();
 
         var ocrOptions = new OcrOptions
         {
@@ -92,14 +92,14 @@ public sealed class LocalAIOcrService : IImageToTextService, IAsyncDisposable
             await ocr.WarmupAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return new LocalAIOcrService(ocr);
+        return new LMSupplyOcrService(ocr);
     }
 
     /// <inheritdoc />
     public IEnumerable<string> SupportedImageFormats => SupportedFormats;
 
     /// <inheritdoc />
-    public string ProviderName => $"LocalAI OCR ({_ocr.DetectionModelId}/{_ocr.RecognitionModelId})";
+    public string ProviderName => $"LMSupply OCR ({_ocr.DetectionModelId}/{_ocr.RecognitionModelId})";
 
     /// <inheritdoc />
     public async Task<ImageToTextResult> ExtractTextAsync(

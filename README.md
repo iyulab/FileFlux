@@ -15,7 +15,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, Markdown, HTML, TXT, JSON, CSV
 - **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel
-- **Local AI Processing**: Built-in LocalAI support for embeddings, text generation, captioning, and OCR
+- **Local AI Processing**: Built-in LMSupply support for embeddings, text generation, captioning, and OCR
 - **Structural Metadata**: HeadingPath, page numbers, ContextDependency scores for enhanced RAG
 - **Language Detection**: Automatic language detection using NTextCat
 - **IEnrichedChunk Interface**: Standardized interface for RAG system integration
@@ -42,7 +42,7 @@ dotnet add package FileFlux.Core
 | Core Interfaces & Models | ✅ | ✅ |
 | Chunking Strategies | ❌ | ✅ |
 | FluxCurator & FluxImprover | ❌ | ✅ |
-| LocalAI Integration | ❌ | ✅ |
+| LMSupply Integration | ❌ | ✅ |
 | DocumentProcessor | ❌ | ✅ |
 | Use Case | Custom chunking | Full RAG pipeline |
 
@@ -130,9 +130,9 @@ foreach (var chunk in chunks)
 
 ### Local AI Processing
 
-FileFlux includes **built-in local AI capabilities** via [LocalAI](https://github.com/iyulab/local-ai), providing embeddings, text generation, image captioning, and OCR without external API calls.
+FileFlux includes **built-in Local AI capabilities** via [LMSupply](https://github.com/iyulab/lm-supply), providing embeddings, text generation, image captioning, and OCR without external API calls.
 
-#### Full LocalAI Integration
+#### Full LMSupply Integration
 
 ```csharp
 using FileFlux;
@@ -140,11 +140,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-// Register FileFlux with all LocalAI services
-services.AddFileFluxWithLocalAI();
+// Register FileFlux with all LMSupply services
+services.AddFileFluxWithLMSupply();
 
 // Or with custom configuration
-services.AddFileFluxWithLocalAI(options =>
+services.AddFileFluxWithLMSupply(options =>
 {
     options.UseGpuAcceleration = true;           // DirectML, CUDA, CoreML
     options.EmbeddingModel = "default";          // all-MiniLM-L6-v2
@@ -160,10 +160,10 @@ var processor = provider.GetRequiredService<IDocumentProcessor>();
 
 ```csharp
 // Register only the services you need
-services.AddLocalAIEmbedder();    // IEmbeddingService
-services.AddLocalAIGenerator();   // ITextCompletionService
-services.AddLocalAICaptioner();   // IImageToTextService (captions)
-services.AddLocalAIOcr();         // IImageToTextService (OCR)
+services.AddLMSupplyEmbedder();    // IEmbeddingService
+services.AddLMSupplyGenerator();   // ITextCompletionService
+services.AddLMSupplyCaptioner();   // IImageToTextService (captions)
+services.AddLMSupplyOcr();         // IImageToTextService (OCR)
 ```
 
 #### Semantic Similarity
@@ -185,7 +185,7 @@ var similarity = embeddingService.CalculateSimilarity(queryEmb, docEmb);
 // Returns ~0.7 for related content
 ```
 
-#### LocalAI Services
+#### LMSupply Services
 
 | Service | Interface | Description |
 |---------|-----------|-------------|
@@ -352,7 +352,7 @@ services.AddFileFlux();
 FileFlux/
 ├── src/
 │   ├── FileFlux.Core/               # Extraction only (zero AI dependencies)
-│   └── FileFlux/                    # Full RAG pipeline with LocalAI
+│   └── FileFlux/                    # Full RAG pipeline with LMSupply
 ├── cli/                             # CLI for local testing (not published)
 ├── tests/
 │   └── FileFlux.Tests/              # Test suite

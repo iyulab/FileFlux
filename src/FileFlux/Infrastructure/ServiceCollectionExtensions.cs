@@ -10,7 +10,7 @@ using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
 using FileFlux.Infrastructure.Services;
-using FileFlux.Infrastructure.Services.LocalAI;
+using FileFlux.Infrastructure.Services.LMSupply;
 using FluxCurator;
 using FluxCurator.Core.Core;
 using FluxImprover;
@@ -82,7 +82,7 @@ public static class ServiceCollectionExtensions
         services.AddMemoryCache(options => options.SizeLimit = 100);
 
         // Note: IEmbeddingService is not registered by default.
-        // Use AddFileFluxWithLocalAI() to enable local AI features (embedding, generation, captioning, OCR).
+        // Use AddFileFluxWithLMSupply() to enable Locally running AI features (embedding, generation, captioning, OCR).
 
         return services;
     }
@@ -154,102 +154,102 @@ public static class ServiceCollectionExtensions
 #endif
 
     // =========================================================================
-    // LocalAI Integration Extensions
+    // LMSupply Integration Extensions
     // =========================================================================
 
     /// <summary>
-    /// Adds FileFlux with LocalAI services for local AI processing.
+    /// Adds FileFlux with LMSupply services for locally running AI features.
     /// Includes embedding, text generation, image captioning, and OCR.
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <returns>Service collection for chaining</returns>
     /// <remarks>
-    /// This method registers LocalAI service factories. Services are created lazily
+    /// This method registers LMSupply service factories. Services are created lazily
     /// on first use because they require async model loading.
-    /// Use <see cref="LocalAIServiceFactory"/> to create service instances.
+    /// Use <see cref="LMSupplyServiceFactory"/> to create service instances.
     /// </remarks>
-    public static IServiceCollection AddFileFluxWithLocalAI(this IServiceCollection services)
+    public static IServiceCollection AddFileFluxWithLMSupply(this IServiceCollection services)
     {
-        return AddFileFluxWithLocalAI(services, _ => { });
+        return AddFileFluxWithLMSupply(services, _ => { });
     }
 
     /// <summary>
-    /// Adds FileFlux with LocalAI services using custom configuration.
+    /// Adds FileFlux with LMSupply services using custom configuration.
     /// </summary>
     /// <param name="services">Service collection</param>
-    /// <param name="configure">Configuration action for LocalAIOptions</param>
+    /// <param name="configure">Configuration action for LMSupplyOptions</param>
     /// <returns>Service collection for chaining</returns>
-    public static IServiceCollection AddFileFluxWithLocalAI(
+    public static IServiceCollection AddFileFluxWithLMSupply(
         this IServiceCollection services,
-        Action<LocalAIOptions> configure)
+        Action<LMSupplyOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
 
         // Register options
-        var options = new LocalAIOptions();
+        var options = new LMSupplyOptions();
         configure(options);
         services.AddSingleton(options);
 
         // Register service factory for lazy initialization
-        services.AddSingleton<LocalAIServiceFactory>();
+        services.AddSingleton<LMSupplyServiceFactory>();
 
         // Register individual service accessors
-        services.AddLocalAIEmbedder();
-        services.AddLocalAIGenerator();
-        services.AddLocalAICaptioner();
-        services.AddLocalAIOcr();
+        services.AddLMSupplyEmbedder();
+        services.AddLMSupplyGenerator();
+        services.AddLMSupplyCaptioner();
+        services.AddLMSupplyOcr();
 
         return AddFileFlux(services);
     }
 
     /// <summary>
-    /// Adds LocalAI embedding service.
+    /// Adds LMSupply embedding service.
     /// </summary>
-    public static IServiceCollection AddLocalAIEmbedder(this IServiceCollection services)
+    public static IServiceCollection AddLMSupplyEmbedder(this IServiceCollection services)
     {
         services.TryAddSingleton<IEmbeddingService>(provider =>
         {
-            var factory = provider.GetRequiredService<LocalAIServiceFactory>();
+            var factory = provider.GetRequiredService<LMSupplyServiceFactory>();
             return factory.GetEmbedderAsync().GetAwaiter().GetResult();
         });
         return services;
     }
 
     /// <summary>
-    /// Adds LocalAI text generation service.
+    /// Adds LMSupply text generation service.
     /// </summary>
-    public static IServiceCollection AddLocalAIGenerator(this IServiceCollection services)
+    public static IServiceCollection AddLMSupplyGenerator(this IServiceCollection services)
     {
         services.TryAddSingleton<ITextCompletionService>(provider =>
         {
-            var factory = provider.GetRequiredService<LocalAIServiceFactory>();
+            var factory = provider.GetRequiredService<LMSupplyServiceFactory>();
             return factory.GetGeneratorAsync().GetAwaiter().GetResult();
         });
         return services;
     }
 
     /// <summary>
-    /// Adds LocalAI image captioning service.
+    /// Adds LMSupply image captioning service.
     /// </summary>
-    public static IServiceCollection AddLocalAICaptioner(this IServiceCollection services)
+    public static IServiceCollection AddLMSupplyCaptioner(this IServiceCollection services)
     {
         services.TryAddSingleton<IImageToTextService>(provider =>
         {
-            var factory = provider.GetRequiredService<LocalAIServiceFactory>();
+            var factory = provider.GetRequiredService<LMSupplyServiceFactory>();
             return factory.GetCaptionerAsync().GetAwaiter().GetResult();
         });
         return services;
     }
 
     /// <summary>
-    /// Adds LocalAI OCR service for text extraction from images.
+    /// Adds LMSupply OCR service for text extraction from images.
     /// </summary>
-    public static IServiceCollection AddLocalAIOcr(this IServiceCollection services)
+    public static IServiceCollection AddLMSupplyOcr(this IServiceCollection services)
     {
         // OCR is registered as a named service since IImageToTextService is also used by Captioner
         services.TryAddKeyedSingleton<IImageToTextService>("ocr", (provider, _) =>
         {
-            var factory = provider.GetRequiredService<LocalAIServiceFactory>();
+            var factory = provider.GetRequiredService<LMSupplyServiceFactory>();
             return factory.GetOcrAsync().GetAwaiter().GetResult();
         });
         return services;

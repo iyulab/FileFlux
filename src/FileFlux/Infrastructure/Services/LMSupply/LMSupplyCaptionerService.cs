@@ -1,14 +1,14 @@
 using System.Diagnostics;
-using LocalAI;
-using LocalAI.Captioner;
+using LMSupply;
+using LMSupply.Captioner;
 
-namespace FileFlux.Infrastructure.Services.LocalAI;
+namespace FileFlux.Infrastructure.Services.LMSupply;
 
 /// <summary>
-/// IImageToTextService implementation using LocalAI.Captioner.
+/// IImageToTextService implementation using LMSupply.Captioner.
 /// Provides image captioning capabilities for visual content description.
 /// </summary>
-public sealed class LocalAICaptionerService : IImageToTextService, IAsyncDisposable
+public sealed class LMSupplyCaptionerService : IImageToTextService, IAsyncDisposable
 {
     private readonly ICaptionerModel _model;
     private bool _disposed;
@@ -16,27 +16,27 @@ public sealed class LocalAICaptionerService : IImageToTextService, IAsyncDisposa
     private static readonly string[] SupportedFormats = ["png", "jpg", "jpeg", "gif", "bmp", "webp"];
 
     /// <summary>
-    /// Creates a new instance of LocalAICaptionerService with the specified model.
+    /// Creates a new instance of LMSupplyCaptionerService with the specified model.
     /// </summary>
     /// <param name="model">The loaded captioner model.</param>
-    public LocalAICaptionerService(ICaptionerModel model)
+    public LMSupplyCaptionerService(ICaptionerModel model)
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
     }
 
     /// <summary>
-    /// Creates a new LocalAICaptionerService with the default model.
+    /// Creates a new LMSupplyCaptionerService with the default model.
     /// </summary>
     /// <param name="options">Configuration options.</param>
     /// <param name="progress">Optional progress reporting for downloads.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A new LocalAICaptionerService instance.</returns>
-    public static async Task<LocalAICaptionerService> CreateAsync(
-        LocalAIOptions? options = null,
+    /// <returns>A new LMSupplyCaptionerService instance.</returns>
+    public static async Task<LMSupplyCaptionerService> CreateAsync(
+        LMSupplyOptions? options = null,
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        options ??= new LocalAIOptions();
+        options ??= new LMSupplyOptions();
 
         var captionerOptions = new CaptionerOptions
         {
@@ -54,14 +54,14 @@ public sealed class LocalAICaptionerService : IImageToTextService, IAsyncDisposa
             await model.WarmupAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return new LocalAICaptionerService(model);
+        return new LMSupplyCaptionerService(model);
     }
 
     /// <inheritdoc />
     public IEnumerable<string> SupportedImageFormats => SupportedFormats;
 
     /// <inheritdoc />
-    public string ProviderName => $"LocalAI Captioner ({_model.ModelId})";
+    public string ProviderName => $"LMSupply Captioner ({_model.ModelId})";
 
     /// <inheritdoc />
     public async Task<ImageToTextResult> ExtractTextAsync(

@@ -49,34 +49,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.0] - 2025-12-15
 
 ### Added
-- **LocalAI Integration**: Complete local AI processing capabilities without external API dependencies
-  - `LocalAIEmbedderService`: Local embedding generation using LocalAI.Embedder
-  - `LocalAIGeneratorService`: Local text generation using LocalAI.Generator
-  - `LocalAICaptionerService`: Local image captioning using LocalAI.Captioner
-  - `LocalAIOcrService`: Local OCR text extraction using LocalAI.Ocr
-- **LocalAIServiceFactory**: Thread-safe factory for lazy initialization of LocalAI services
-- **LocalAIOptions**: Centralized configuration for all LocalAI services
+- **LMSupply Integration**: Complete Locally running AI processing capabilities without external API dependencies
+  - `LMSupplyEmbedderService`: Local embedding generation using LMSupply.Embedder
+  - `LMSupplyGeneratorService`: Local text generation using LMSupply.Generator
+  - `LMSupplyCaptionerService`: Local image captioning using LMSupply.Captioner
+  - `LMSupplyOcrService`: Local OCR text extraction using LMSupply.Ocr
+- **LMSupplyServiceFactory**: Thread-safe factory for lazy initialization of LMSupply services
+- **LMSupplyOptions**: Centralized configuration for all LMSupply services
   - GPU acceleration support (DirectML, CUDA, CoreML)
   - Configurable model selection
   - Warmup and caching options
 - **New DI Extension Methods**:
-  - `AddFileFluxWithLocalAI()`: Register all LocalAI services
-  - `AddLocalAIEmbedder()`: Register embedding service only
-  - `AddLocalAIGenerator()`: Register text generation service only
-  - `AddLocalAICaptioner()`: Register image captioning service only
-  - `AddLocalAIOcr()`: Register OCR service only
+  - `AddFileFluxWithLMSupply()`: Register all LMSupply services
+  - `AddLMSupplyEmbedder()`: Register embedding service only
+  - `AddLMSupplyGenerator()`: Register text generation service only
+  - `AddLMSupplyCaptioner()`: Register image captioning service only
+  - `AddLMSupplyOcr()`: Register OCR service only
 
 ### Changed
 - **Architecture Refactoring**: Cleaner separation between Core and main package
   - FileFlux.Core: Pure document extraction (zero AI dependencies)
-  - FileFlux: LocalAI integrated RAG pipeline
+  - FileFlux: LMSupply integrated RAG pipeline
 - **Dependency Management**: Debug/Release conditional references
-  - Debug: Project references to local `../local-ai` source
+  - Debug: Project references to local `../lm-supply` source
   - Release: NuGet package references for distribution
 
 ### Removed
-- **LocalEmbedder Dependency**: Replaced with LocalAI ecosystem
-  - Archived package replaced with actively maintained LocalAI modules
+- **LocalEmbedder Dependency**: Replaced with LMSupply ecosystem
+  - Archived package replaced with actively maintained LMSupply modules
 
 ## [0.7.3] - 2025-12-13
 

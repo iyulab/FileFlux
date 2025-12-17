@@ -1,44 +1,44 @@
 using FileFlux.Domain;
-using LocalAI;
-using LocalAI.Generator;
-using LocalAI.Generator.Abstractions;
-using LocalAI.Generator.Models;
+using LMSupply;
+using LMSupply.Generator;
+using LMSupply.Generator.Abstractions;
+using LMSupply.Generator.Models;
 
-namespace FileFlux.Infrastructure.Services.LocalAI;
+namespace FileFlux.Infrastructure.Services.LMSupply;
 
 /// <summary>
-/// ITextCompletionService implementation using LocalAI.Generator.
+/// ITextCompletionService implementation using LMSupply.Generator.
 /// </summary>
-public sealed class LocalAIGeneratorService : ITextCompletionService, IAsyncDisposable
+public sealed class LMSupplyGeneratorService : ITextCompletionService, IAsyncDisposable
 {
     private readonly IGeneratorModel _model;
-    private readonly LocalAIOptions _options;
+    private readonly LMSupplyOptions _options;
     private bool _disposed;
 
     /// <summary>
-    /// Creates a new instance of LocalAIGeneratorService with the specified model.
+    /// Creates a new instance of LMSupplyGeneratorService with the specified model.
     /// </summary>
     /// <param name="model">The loaded generator model.</param>
     /// <param name="options">Configuration options.</param>
-    public LocalAIGeneratorService(IGeneratorModel model, LocalAIOptions? options = null)
+    public LMSupplyGeneratorService(IGeneratorModel model, LMSupplyOptions? options = null)
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
-        _options = options ?? new LocalAIOptions();
+        _options = options ?? new LMSupplyOptions();
     }
 
     /// <summary>
-    /// Creates a new LocalAIGeneratorService with the default model.
+    /// Creates a new LMSupplyGeneratorService with the default model.
     /// </summary>
     /// <param name="options">Configuration options.</param>
     /// <param name="progress">Optional progress reporting for downloads.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A new LocalAIGeneratorService instance.</returns>
-    public static async Task<LocalAIGeneratorService> CreateAsync(
-        LocalAIOptions? options = null,
+    /// <returns>A new LMSupplyGeneratorService instance.</returns>
+    public static async Task<LMSupplyGeneratorService> CreateAsync(
+        LMSupplyOptions? options = null,
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        options ??= new LocalAIOptions();
+        options ??= new LMSupplyOptions();
 
         var generatorOptions = new GeneratorOptions
         {
@@ -59,13 +59,13 @@ public sealed class LocalAIGeneratorService : ITextCompletionService, IAsyncDisp
             await model.WarmupAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return new LocalAIGeneratorService(model, options);
+        return new LMSupplyGeneratorService(model, options);
     }
 
     /// <inheritdoc />
     public TextCompletionServiceInfo ProviderInfo => new()
     {
-        Name = "LocalAI Generator",
+        Name = "LMSupply Generator",
         Type = TextCompletionProviderType.Local,
         SupportedModels = [_model.ModelId],
         MaxContextLength = _model.MaxContextLength,

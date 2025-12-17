@@ -1,9 +1,9 @@
-namespace FileFlux.Infrastructure.Services.LocalAI;
+namespace FileFlux.Infrastructure.Services.LMSupply;
 
 /// <summary>
-/// Configuration options for LocalAI services.
+/// Configuration options for LMSupply services.
 /// </summary>
-public class LocalAIOptions
+public class LMSupplyOptions
 {
     /// <summary>
     /// Gets or sets whether to use GPU acceleration if available.

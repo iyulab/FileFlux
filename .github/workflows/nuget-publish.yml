@@ -251,7 +251,7 @@ jobs:
           - Complete RAG-optimized document processing SDK
           - Intelligent chunking strategies with semantic boundary detection
           - Advanced metadata extraction and performance optimization
-          - LocalAI integration for local AI processing
+          - LMSupply integration for Locally running AI features
           - Includes FluxCurator and FluxImprover
 
           ---

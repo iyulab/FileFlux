@@ -1,38 +1,38 @@
-using LocalAI;
-using LocalAI.Embedder;
+using LMSupply;
+using LMSupply.Embedder;
 
-namespace FileFlux.Infrastructure.Services.LocalAI;
+namespace FileFlux.Infrastructure.Services.LMSupply;
 
 /// <summary>
-/// IEmbeddingService implementation using LocalAI.Embedder.
+/// IEmbeddingService implementation using LMSupply.Embedder.
 /// </summary>
-public sealed class LocalAIEmbedderService : IEmbeddingService, IAsyncDisposable
+public sealed class LMSupplyEmbedderService : IEmbeddingService, IAsyncDisposable
 {
     private readonly IEmbeddingModel _model;
     private bool _disposed;
 
     /// <summary>
-    /// Creates a new instance of LocalAIEmbedderService with the specified model.
+    /// Creates a new instance of LMSupplyEmbedderService with the specified model.
     /// </summary>
     /// <param name="model">The loaded embedding model.</param>
-    public LocalAIEmbedderService(IEmbeddingModel model)
+    public LMSupplyEmbedderService(IEmbeddingModel model)
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
     }
 
     /// <summary>
-    /// Creates a new LocalAIEmbedderService with the default model.
+    /// Creates a new LMSupplyEmbedderService with the default model.
     /// </summary>
     /// <param name="options">Configuration options.</param>
     /// <param name="progress">Optional progress reporting for downloads.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A new LocalAIEmbedderService instance.</returns>
-    public static async Task<LocalAIEmbedderService> CreateAsync(
-        LocalAIOptions? options = null,
+    /// <returns>A new LMSupplyEmbedderService instance.</returns>
+    public static async Task<LMSupplyEmbedderService> CreateAsync(
+        LMSupplyOptions? options = null,
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        options ??= new LocalAIOptions();
+        options ??= new LMSupplyOptions();
 
         var embedderOptions = new EmbedderOptions
         {
@@ -43,7 +43,7 @@ public sealed class LocalAIEmbedderService : IEmbeddingService, IAsyncDisposable
                 : ExecutionProvider.Cpu
         };
 
-        var model = await global::LocalAI.Embedder.LocalEmbedder.LoadAsync(
+        var model = await global::LMSupply.Embedder.LocalEmbedder.LoadAsync(
             options.EmbeddingModel,
             embedderOptions,
             progress,
@@ -54,7 +54,7 @@ public sealed class LocalAIEmbedderService : IEmbeddingService, IAsyncDisposable
             await model.WarmupAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return new LocalAIEmbedderService(model);
+        return new LMSupplyEmbedderService(model);
     }
 
     /// <inheritdoc />
@@ -103,7 +103,7 @@ public sealed class LocalAIEmbedderService : IEmbeddingService, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(embedding1);
         ArgumentNullException.ThrowIfNull(embedding2);
 
-        return global::LocalAI.Embedder.LocalEmbedder.CosineSimilarity(embedding1, embedding2);
+        return global::LMSupply.Embedder.LocalEmbedder.CosineSimilarity(embedding1, embedding2);
     }
 
     /// <inheritdoc />

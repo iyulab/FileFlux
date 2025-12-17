@@ -1,27 +1,27 @@
-using LocalAI;
+using LMSupply;
 
-namespace FileFlux.Infrastructure.Services.LocalAI;
+namespace FileFlux.Infrastructure.Services.LMSupply;
 
 /// <summary>
-/// Factory for creating and caching LocalAI service instances.
+/// Factory for creating and caching LMSupply service instances.
 /// Services are created lazily on first access because they require async model loading.
 /// </summary>
-public sealed class LocalAIServiceFactory : IAsyncDisposable
+public sealed class LMSupplyServiceFactory : IAsyncDisposable
 {
-    private readonly LocalAIOptions _options;
+    private readonly LMSupplyOptions _options;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    private LocalAIEmbedderService? _embedder;
-    private LocalAIGeneratorService? _generator;
-    private LocalAICaptionerService? _captioner;
-    private LocalAIOcrService? _ocr;
+    private LMSupplyEmbedderService? _embedder;
+    private LMSupplyGeneratorService? _generator;
+    private LMSupplyCaptionerService? _captioner;
+    private LMSupplyOcrService? _ocr;
     private bool _disposed;
 
     /// <summary>
-    /// Creates a new LocalAIServiceFactory with the specified options.
+    /// Creates a new LMSupplyServiceFactory with the specified options.
     /// </summary>
-    /// <param name="options">Configuration options for LocalAI services.</param>
-    public LocalAIServiceFactory(LocalAIOptions options)
+    /// <param name="options">Configuration options for LMSupply services.</param>
+    public LMSupplyServiceFactory(LMSupplyOptions options)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
     }
@@ -32,7 +32,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
     /// <param name="progress">Optional progress reporting for model download.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The embedding service instance.</returns>
-    public async Task<LocalAIEmbedderService> GetEmbedderAsync(
+    public async Task<LMSupplyEmbedderService> GetEmbedderAsync(
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -44,7 +44,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _embedder ??= await LocalAIEmbedderService.CreateAsync(_options, progress, cancellationToken)
+            _embedder ??= await LMSupplyEmbedderService.CreateAsync(_options, progress, cancellationToken)
                 .ConfigureAwait(false);
             return _embedder;
         }
@@ -60,7 +60,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
     /// <param name="progress">Optional progress reporting for model download.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The text generation service instance.</returns>
-    public async Task<LocalAIGeneratorService> GetGeneratorAsync(
+    public async Task<LMSupplyGeneratorService> GetGeneratorAsync(
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -72,7 +72,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _generator ??= await LocalAIGeneratorService.CreateAsync(_options, progress, cancellationToken)
+            _generator ??= await LMSupplyGeneratorService.CreateAsync(_options, progress, cancellationToken)
                 .ConfigureAwait(false);
             return _generator;
         }
@@ -88,7 +88,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
     /// <param name="progress">Optional progress reporting for model download.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The image captioning service instance.</returns>
-    public async Task<LocalAICaptionerService> GetCaptionerAsync(
+    public async Task<LMSupplyCaptionerService> GetCaptionerAsync(
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -100,7 +100,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _captioner ??= await LocalAICaptionerService.CreateAsync(_options, progress, cancellationToken)
+            _captioner ??= await LMSupplyCaptionerService.CreateAsync(_options, progress, cancellationToken)
                 .ConfigureAwait(false);
             return _captioner;
         }
@@ -116,7 +116,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
     /// <param name="progress">Optional progress reporting for model download.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The OCR service instance.</returns>
-    public async Task<LocalAIOcrService> GetOcrAsync(
+    public async Task<LMSupplyOcrService> GetOcrAsync(
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -128,7 +128,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _ocr ??= await LocalAIOcrService.CreateAsync(_options, progress, cancellationToken)
+            _ocr ??= await LMSupplyOcrService.CreateAsync(_options, progress, cancellationToken)
                 .ConfigureAwait(false);
             return _ocr;
         }
@@ -145,7 +145,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
     /// <param name="progress">Optional progress reporting for model download.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The OCR service instance for the specified language.</returns>
-    public async Task<LocalAIOcrService> GetOcrForLanguageAsync(
+    public async Task<LMSupplyOcrService> GetOcrForLanguageAsync(
         string languageCode,
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
@@ -154,7 +154,7 @@ public sealed class LocalAIServiceFactory : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(languageCode);
 
         // For language-specific OCR, we don't cache as users may request different languages
-        return await LocalAIOcrService.CreateForLanguageAsync(languageCode, _options, progress, cancellationToken)
+        return await LMSupplyOcrService.CreateForLanguageAsync(languageCode, _options, progress, cancellationToken)
             .ConfigureAwait(false);
     }
 

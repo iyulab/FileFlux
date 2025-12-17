@@ -50,7 +50,7 @@ git submodule add <repository-url> lib/fileflux-extensions
 
 **Providers:**
 - OpenAI API (GPT-4, GPT-3.5-turbo)
-- Compatible with OpenAI-compatible APIs (e.g., LocalAI, LM Studio)
+- Compatible with OpenAI-compatible APIs (e.g., LMSupply, LM Studio)
 
 **Links:**
 - **Repository:** *[Submit your implementation!]*

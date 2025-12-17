@@ -34,14 +34,14 @@
   </ItemGroup>
   <ItemGroup Label="Flux Packages">
     <PackageVersion Include="FluxCurator" Version="0.5.0" />
-    <PackageVersion Include="FluxImprover" Version="0.5.0" />
+    <PackageVersion Include="FluxImprover" Version="0.5.1" />
   </ItemGroup>
-  <ItemGroup Label="LocalAI (Release - NuGet packages)">
-    <PackageVersion Include="LocalAI.Core" Version="0.7.2" />
-    <PackageVersion Include="LocalAI.Embedder" Version="0.7.2" />
-    <PackageVersion Include="LocalAI.Generator" Version="0.7.2" />
-    <PackageVersion Include="LocalAI.Captioner" Version="0.7.0" />
-    <PackageVersion Include="LocalAI.Ocr" Version="0.7.0" />
+  <ItemGroup Label="LMSupply (Release - NuGet packages)">
+    <PackageVersion Include="LMSupply.Core" Version="0.7.2" />
+    <PackageVersion Include="LMSupply.Embedder" Version="0.7.2" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.7.2" />
+    <PackageVersion Include="LMSupply.Captioner" Version="0.7.0" />
+    <PackageVersion Include="LMSupply.Ocr" Version="0.7.0" />
   </ItemGroup>
   <ItemGroup Label="CLI and UI">
     <PackageVersion Include="System.CommandLine" Version="2.0.1" />
