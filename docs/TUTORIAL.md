@@ -6,10 +6,10 @@ Complete guide to using FileFlux for document processing and RAG system integrat
 
 - [Installation](#installation)
 - [Basic Usage](#basic-usage)
+- [Stateful Pipeline](#stateful-pipeline) *(v0.9.0+)*
 - [Document Formats](#document-formats)
 - [Chunking Strategies](#chunking-strategies)
 - [Advanced Features](#advanced-features)
-- [CLI Usage](#cli-usage)
 - [RAG Integration](#rag-integration)
 - [Error Handling](#error-handling)
 - [Customization](#customization)
@@ -87,6 +87,118 @@ var options = new ChunkingOptions
 };
 
 var chunks = await processor.ProcessAsync("document.pdf", options);
+```
+
+## Stateful Pipeline
+
+The stateful pipeline (v0.9.0+) provides explicit control over each processing stage with state management.
+
+### Creating a Stateful Processor
+
+```csharp
+using FileFlux;
+using FileFlux.Infrastructure.Factories;
+
+var services = new ServiceCollection();
+services.AddFileFlux();
+var provider = services.BuildServiceProvider();
+
+// Create processor via factory
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+using var processor = factory.Create("document.pdf");
+```
+
+### Stage-by-Stage Execution
+
+```csharp
+// Stage 1: Extract raw content
+await processor.ExtractAsync();
+Console.WriteLine($"Extracted: {processor.Result.Raw?.Text.Length} chars");
+
+// Stage 2: Refine content with structure analysis
+await processor.RefineAsync(new RefineOptions
+{
+    CleanNoise = true,
+    BuildSections = true,
+    ExtractStructures = true
+});
+Console.WriteLine($"Sections: {processor.Result.Refined?.Sections.Count}");
+
+// Stage 3: Chunk content
+await processor.ChunkAsync(new ChunkingOptions
+{
+    Strategy = "Auto",
+    MaxChunkSize = 512
+});
+Console.WriteLine($"Chunks: {processor.Result.Chunks?.Count}");
+
+// Stage 4: Enrich with LLM (optional)
+await processor.EnrichAsync(new EnrichOptions
+{
+    BuildGraph = true,
+    GenerateSummaries = true,
+    ExtractKeywords = true
+});
+Console.WriteLine($"Graph nodes: {processor.Result.Graph?.NodeCount}");
+```
+
+### Full Pipeline Execution
+
+```csharp
+// Run all stages at once
+await processor.ProcessAsync(new ProcessingOptions
+{
+    IncludeEnrich = true,
+    Chunking = new ChunkingOptions { Strategy = "Auto", MaxChunkSize = 512 },
+    Enrich = new EnrichOptions { BuildGraph = true }
+});
+
+// Access all results
+var raw = processor.Result.Raw;
+var refined = processor.Result.Refined;
+var chunks = processor.Result.Chunks;
+var graph = processor.Result.Graph;
+```
+
+### Processing State
+
+```csharp
+// Check current state
+Console.WriteLine($"State: {processor.State}");
+// Created → Extracted → Refined → Chunked → Enriched
+
+// State transitions are automatic
+await processor.ChunkAsync();  // Auto-runs Extract + Refine if needed
+```
+
+### Document Graph
+
+```csharp
+// Build graph showing relationships between chunks
+var graph = processor.Result.Graph;
+
+// Graph contains nodes (chunks) and edges (relationships)
+foreach (var node in graph.Nodes)
+{
+    Console.WriteLine($"Node {node.Index}: {node.ChunkId}");
+}
+
+foreach (var edge in graph.Edges)
+{
+    Console.WriteLine($"Edge: {edge.FromIndex} → {edge.ToIndex} ({edge.Type})");
+}
+
+// Edge types: Sequential, Hierarchical, Semantic
+```
+
+### Streaming Enrichment
+
+```csharp
+// Process chunks as they're enriched
+await foreach (var enrichedChunk in processor.EnrichStreamAsync())
+{
+    Console.WriteLine($"Chunk {enrichedChunk.Chunk.Index}: {enrichedChunk.Summary}");
+}
 ```
 
 ## Document Formats
@@ -520,39 +632,6 @@ var validation = await qualityEngine.ValidateAnswerabilityAsync(questions, chunk
 Console.WriteLine($"Answerable: {validation.AnswerableQuestions}/{validation.TotalQuestions}");
 ```
 
-## CLI Usage
-
-FileFlux provides a command-line interface for quick document processing without writing code.
-
-### Quick Start
-
-```powershell
-# Install CLI
-dotnet tool install -g FileFlux.CLI
-
-# Basic usage
-fileflux extract "document.pdf"                    # Extract text
-fileflux chunk "document.pdf" -s Smart             # Create semantic chunks
-fileflux process "document.pdf" --ai               # Full pipeline with AI
-
-# With AI providers (OpenAI or Anthropic)
-$env:OPENAI_API_KEY = "sk-..."                     # OpenAI
-$env:ANTHROPIC_API_KEY = "sk-ant-..."              # Anthropic
-fileflux process "slides.pptx" --ai --verbose
-```
-
-### Comprehensive Documentation
-
-For complete CLI documentation including:
-- **Installation and setup**: Deployment scripts, PATH configuration
-- **All commands**: Extract, Chunk, Process, Info with examples
-- **AI provider integration**: OpenAI and Anthropic Vision API setup
-- **Environment variables**: Complete reference with priority order
-- **Cost optimization**: Provider comparison and best practices
-- **Troubleshooting**: Common issues and solutions
-
-See **[CLI Documentation](CLI.md)** for detailed information.
-
 ## RAG Integration
 
 ### Complete RAG Pipeline
@@ -826,8 +905,7 @@ services.AddScoped<ITextCompletionService, CustomTextCompletionService>();
 
 ## Related Documentation
 
-- [Architecture](ARCHITECTURE.md) - System design and architecture
-- [Building](../BUILDING.md) - Build and test guide
-- [Test Results](RESULTS.md) - Real-world API test results
+- [Architecture](ARCHITECTURE.md) - System design and pipeline documentation
+- [Changelog](../CHANGELOG.md) - Version history and release notes
 - [GitHub Repository](https://github.com/iyulab/FileFlux)
 - [NuGet Package](https://www.nuget.org/packages/FileFlux)

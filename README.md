@@ -13,9 +13,11 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 
 ### Key Features
 
+- **4-Stage Stateful Pipeline**: Extract → Refine → Chunk → Enrich with explicit state management
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, Markdown, HTML, TXT, JSON, CSV
 - **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel
 - **Local AI Processing**: Built-in LMSupply support for embeddings, text generation, captioning, and OCR
+- **Document Graph**: Inter-chunk relationship tracking with sequential, hierarchical, and semantic edges
 - **Structural Metadata**: HeadingPath, page numbers, ContextDependency scores for enhanced RAG
 - **Language Detection**: Automatic language detection using NTextCat
 - **IEnrichedChunk Interface**: Standardized interface for RAG system integration
@@ -101,6 +103,53 @@ var options = new ChunkingOptions
 
 var chunks = await processor.ProcessAsync("document.pdf", options);
 ```
+
+### Stateful Pipeline (v0.9.0+)
+
+The new stateful pipeline provides explicit control over each processing stage:
+
+```csharp
+using FileFlux;
+using FileFlux.Infrastructure.Factories;
+
+// Create processor via factory
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+using var processor = factory.Create("document.pdf");
+
+// Execute stages explicitly
+await processor.ExtractAsync();   // Stage 1: Raw content extraction
+await processor.RefineAsync();    // Stage 2: Text cleaning, structure analysis
+await processor.ChunkAsync();     // Stage 3: Content chunking
+await processor.EnrichAsync();    // Stage 4: LLM-powered enrichment (optional)
+
+// Access results at each stage
+Console.WriteLine($"State: {processor.State}");
+Console.WriteLine($"Raw text length: {processor.Result.Raw?.Text.Length}");
+Console.WriteLine($"Sections found: {processor.Result.Refined?.Sections.Count}");
+Console.WriteLine($"Chunks created: {processor.Result.Chunks?.Count}");
+
+// Or run full pipeline at once
+await processor.ProcessAsync(new ProcessingOptions
+{
+    IncludeEnrich = true,
+    Enrich = new EnrichOptions { BuildGraph = true }
+});
+
+// Access the document graph
+if (processor.Result.Graph != null)
+{
+    Console.WriteLine($"Graph nodes: {processor.Result.Graph.NodeCount}");
+    Console.WriteLine($"Graph edges: {processor.Result.Graph.EdgeCount}");
+}
+```
+
+**Pipeline Stages**:
+| Stage | Interface | Description |
+|-------|-----------|-------------|
+| Extract | `IDocumentReader` | Raw content extraction from files |
+| Refine | `IDocumentRefiner` | Text cleaning, normalization, structure analysis |
+| Chunk | `IChunkerFactory` | Content segmentation with various strategies |
+| Enrich | `IDocumentEnricher` | LLM-powered summaries, keywords, contextual text |
 
 ### Metadata Enrichment
 
@@ -279,10 +328,7 @@ services.AddFileFlux();
 - AI-powered quality assessment
 - Q&A benchmark generation for RAG testing
 
-📖 **Documentation:**
-- [ITextCompletionService Integration Guide](docs/integration/text-completion-service.md) - Implementing the interface
-- [Mock Implementations](docs/testing/mock-implementations.md) - Testing reference
-- [Community Implementations](docs/community/implementations.md) - Ready-to-use packages (OpenAI, Azure, Anthropic, etc.)
+📖 See [Tutorial](docs/TUTORIAL.md) for AI service implementation examples.
 
 ### 📊 Quality Analysis
 
@@ -303,7 +349,7 @@ var strategies = new[] { "Intelligent", "Semantic", "Smart" };
 var comparison = await analyzer.BenchmarkChunkingAsync("document.pdf", strategies);
 ```
 
-📖 **[Quality Analysis Guide](docs/features/quality-analysis.md)** - Comprehensive quality metrics and optimization
+📖 See [Architecture](docs/ARCHITECTURE.md) for quality analysis details.
 
 ### 🔧 Dependency Injection
 
@@ -326,25 +372,13 @@ else
 services.AddFileFlux();
 ```
 
-📖 **[Dependency Injection Patterns](docs/configuration/dependency-injection.md)** - Service registration and lifecycle management
+📖 See [Tutorial](docs/TUTORIAL.md) for more DI patterns and examples.
 
 ## Documentation
 
-- [**Tutorial**](docs/TUTORIAL.md) - Detailed usage guide
-- [**Architecture**](docs/ARCHITECTURE.md) - System design document
-
-### Integration Guides
-- [ITextCompletionService Integration](docs/integration/text-completion-service.md) - AI service implementation
-- [Dependency Injection Patterns](docs/configuration/dependency-injection.md) - Service registration
-
-### Features
-- [Quality Analysis](docs/features/quality-analysis.md) - RAG optimization and benchmarking
-
-### Testing & Development
-- [Mock Implementations](docs/testing/mock-implementations.md) - Testing without AI services
-
-### Community
-- [Community Implementations](docs/community/implementations.md) - Third-party AI integrations
+- [**Tutorial**](docs/TUTORIAL.md) - Detailed usage guide and examples
+- [**Architecture**](docs/ARCHITECTURE.md) - System design and pipeline documentation
+- [**Changelog**](CHANGELOG.md) - Version history and release notes
 
 ## Project Structure
 
@@ -352,10 +386,14 @@ services.AddFileFlux();
 FileFlux/
 ├── src/
 │   ├── FileFlux.Core/               # Extraction only (zero AI dependencies)
+│   │   ├── Contracts/               # IDocumentProcessor, ProcessingResult
+│   │   ├── Core/                    # IDocumentRefiner, IDocumentEnricher
+│   │   └── Domain/                  # DocumentGraph, RefinedContent, StructuredElement
 │   └── FileFlux/                    # Full RAG pipeline with LMSupply
+│       └── Infrastructure/          # StatefulDocumentProcessor, DocumentRefiner, DocumentEnricher
 ├── cli/                             # CLI for local testing (not published)
 ├── tests/
-│   └── FileFlux.Tests/              # Test suite
+│   └── FileFlux.Tests/              # Test suite (343+ tests)
 └── samples/
     └── FileFlux.SampleApp/          # Usage examples
 ```

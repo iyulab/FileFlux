@@ -176,20 +176,102 @@ FileFlux/                         # Full RAG Pipeline Package
 
 ### 1. IDocumentProcessor (Main Interface)
 
-**Role**: Single entry point for all document processing
+**Role**: Single entry point for all document processing with explicit state management
 
 **Key Methods**:
-- `ProcessAsync(filePath/stream)`: Complete processing pipeline
-- `ProcessStreamAsync(filePath/stream)`: Streaming processing
-- `ExtractAsync()`: Extract raw content
-- `ParseAsync()`: Parse structure
-- `ChunkAsync()`: Apply chunking
+- `ExtractAsync()`: Stage 1 - Extract raw content
+- `RefineAsync()`: Stage 2 - Refine and structure analysis
+- `ChunkAsync()`: Stage 3 - Apply chunking strategy
+- `EnrichAsync()`: Stage 4 - LLM-powered enrichment
+- `ProcessAsync()`: Run complete pipeline
 
-**Responsibilities**: Pipeline orchestration, error handling, result validation
+**Properties**:
+- `State`: Current processor state (Created → Extracted → Refined → Chunked → Enriched)
+- `Result`: Accumulated results across all stages
+- `FilePath`: Source document path
 
-### 2. DocumentProcessor (Orchestrator)
+**Responsibilities**: Pipeline orchestration, state management, error handling, result validation
 
-**5-Stage Processing Pipeline**:
+### 2. StatefulDocumentProcessor (v0.9.0+)
+
+**4-Stage Processing Pipeline**:
+
+```
+📂 Extract → 🔄 Refine → 📦 Chunk → ✨ Enrich
+```
+
+| Stage | Interface | Description | Output |
+|-------|-----------|-------------|--------|
+| **Extract** | `IDocumentReader` | Raw content extraction from files | `RawContent` |
+| **Refine** | `IDocumentRefiner` | Text cleaning, normalization, structure analysis | `RefinedContent` |
+| **Chunk** | `IChunkerFactory` | Text segmentation into chunks | `List<DocumentChunk>` |
+| **Enrich** | `IDocumentEnricher` | LLM-powered summaries, keywords, contextual text | `List<EnrichedDocumentChunk>`, `DocumentGraph` |
+
+**State Flow**:
+```
+Created → Extracted → Refined → Chunked → Enriched → Disposed
+```
+
+**Auto-Dependency Resolution**:
+- Calling `RefineAsync()` automatically runs `ExtractAsync()` if not already completed
+- Calling `ChunkAsync()` automatically runs `ExtractAsync()` and `RefineAsync()`
+- Each stage is idempotent - calling twice returns cached results
+
+**Dependency Management**:
+- Optional logger support via NullLogger pattern
+- Optional IDocumentRefiner for refinement stage
+- Optional IDocumentEnricher for enrichment stage
+- All optional dependencies use graceful fallback strategies
+
+### 3. IDocumentRefiner (Stage 2)
+
+**Role**: Content refinement and structure extraction
+
+**Key Methods**:
+- `RefineAsync(RawContent, RefineOptions)`: Refine raw content
+
+**Output (RefinedContent)**:
+- `Text`: Cleaned and normalized text
+- `Sections`: Document structure (headings, paragraphs)
+- `Structures`: Structured elements (code blocks, tables, images)
+- `Metadata`: Document metadata (filename, type, created date)
+- `Quality`: Refinement quality scores
+
+**RefineOptions**:
+- `CleanNoise`: Remove extra whitespace, normalize formatting
+- `ConvertToMarkdown`: Convert to markdown for better structure
+- `BuildSections`: Extract document sections from headings
+- `ExtractStructures`: Extract code blocks, tables, images
+
+### 4. IDocumentEnricher (Stage 4)
+
+**Role**: LLM-powered chunk enrichment and graph building
+
+**Key Methods**:
+- `EnrichAsync(chunks, refinedContent, options)`: Enrich chunks with LLM
+- `EnrichStreamAsync(chunks, refinedContent)`: Streaming enrichment
+- `BuildGraphAsync(enrichedChunks, options)`: Build document graph
+
+**Output (EnrichmentResult)**:
+- `Chunks`: List of enriched chunks with metadata
+- `Graph`: Document graph showing inter-chunk relationships
+- `Stats`: Enrichment statistics
+
+**EnrichedDocumentChunk**:
+- `Chunk`: Original DocumentChunk
+- `Summary`: LLM-generated chunk summary
+- `Keywords`: Extracted keywords with relevance scores
+- `ContextualText`: Context for RAG retrieval
+- `SearchableText`: Combined text for search
+
+**DocumentGraph**:
+- `Nodes`: Chunk nodes with metadata
+- `Edges`: Relationships (sequential, hierarchical, semantic)
+- `NodeCount`, `EdgeCount`: Graph statistics
+
+### 5. Legacy DocumentProcessor
+
+**5-Stage Processing Pipeline** (maintained for backward compatibility):
 
 ```
 📂 Extract → 📄 Parse → 🔄 Refine → 📦 Chunk → ✨ Enhance
@@ -204,16 +286,10 @@ FileFlux/                         # Full RAG Pipeline Package
 | **Enhance** | Metadata enrichment and quality scoring | FluxImprover |
 
 **Refine Stage (Default Enabled)**:
-- `ConvertToMarkdown = true`: 구조 보존을 위한 Markdown 변환 (기본 활성화)
-- `ProcessImagesToText = false`: 이미지 텍스트 추출 (opt-in, 비용 고려)
+- `ConvertToMarkdown = true`: Markdown conversion for structure preservation (enabled by default)
+- `ProcessImagesToText = false`: Image text extraction (opt-in, cost consideration)
 
-**Dependency Management**:
-- Optional logger support via NullLogger pattern
-- Optional IMetadataEnricher for advanced metadata features
-- Optional ITextCompletionService for AI-powered features
-- All optional dependencies use graceful fallback strategies
-
-### 3. IDocumentReader (Content Extraction)
+### 6. IDocumentReader (Content Extraction)
 
 **Current Implementations**:
 - **PdfDocumentReader**: PDF text and image extraction
@@ -226,7 +302,7 @@ FileFlux/                         # Full RAG Pipeline Package
 - **JsonDocumentReader**: JSON structured data
 - **CsvDocumentReader**: CSV table data
 
-### 4. IChunkingStrategy (Content Splitting)
+### 7. IChunkingStrategy (Content Splitting)
 
 **Strategy Types**:
 - **AutoChunkingStrategy**: Automatic strategy selection (recommended)
@@ -237,7 +313,7 @@ FileFlux/                         # Full RAG Pipeline Package
 - **ParagraphChunkingStrategy**: Paragraph-level segmentation
 - **FixedSizeChunkingStrategy**: Fixed-size token-based chunking
 
-### 5. ILanguageProfile (Multilingual Text Segmentation)
+### 8. ILanguageProfile (Multilingual Text Segmentation)
 
 **Purpose**: Language-specific rules for accurate sentence boundary detection and text segmentation.
 
@@ -609,8 +685,7 @@ services.AddFileFlux();
 
 ## Related Documentation
 
-- [Tutorial](TUTORIAL.md) - Detailed usage guide
-- [Building](../BUILDING.md) - Build and test guide
-- [Test Results](RESULTS.md) - Real-world API test results
+- [Tutorial](TUTORIAL.md) - Detailed usage guide and examples
+- [Changelog](../CHANGELOG.md) - Version history and release notes
 - [GitHub Repository](https://github.com/iyulab/FileFlux)
 - [NuGet Package](https://www.nuget.org/packages/FileFlux)
