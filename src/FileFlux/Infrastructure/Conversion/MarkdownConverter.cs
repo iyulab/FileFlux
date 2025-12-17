@@ -560,18 +560,15 @@ public class MarkdownConverter : IMarkdownConverter
             return string.Empty;
 
         // Determine headers
+        // Note: TableData.Headers is a computed property that returns Cells[0] when HasHeader is true
+        // So we always use Cells[0] as header and start data from row 1 when HasHeader is true
         string[] headers;
         int dataStartRow;
 
-        if (table.HasHeader && table.Headers != null && table.Headers.Length > 0)
-        {
-            headers = table.Headers;
-            dataStartRow = 0;
-        }
-        else if (table.HasHeader && table.Cells.Length > 0)
+        if (table.HasHeader && table.Cells.Length > 0)
         {
             headers = table.Cells[0] ?? [];
-            dataStartRow = 1;
+            dataStartRow = 1;  // Skip first row since it's the header
         }
         else
         {

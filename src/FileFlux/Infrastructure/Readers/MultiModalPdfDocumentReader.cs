@@ -308,36 +308,32 @@ public class MultiModalPdfDocumentReader : IDocumentReader
 
     /// <summary>
     /// PdfPig 이미지 객체에서 바이트 배열 추출
+    /// PdfPig는 TryGetPng, TryGetBytes, RawBytes를 통해 이미지 데이터를 제공
     /// </summary>
-    private static async Task<byte[]?> ExtractImageBytes(IPdfImage image)
+    private static Task<byte[]?> ExtractImageBytes(IPdfImage image)
     {
         try
         {
-            // PdfPig API를 통한 이미지 데이터 추출
-            // 현재 PdfPig 버전에서는 직접적인 이미지 바이트 추출이 제한적
-            // Mock 데이터를 반환하여 기능 시연 (실제 구현에서는 이미지 처리 라이브러리 사용)
-
-            // 이미지 크기 정보를 기반으로 Mock 이미지 생성
-            var width = (int)(image.Bounds.Width);
-            var height = (int)(image.Bounds.Height);
-
-            // 간단한 Mock 이미지 데이터 (PNG 헤더 + 기본 데이터)
-            var mockImageData = new byte[]
+            // 1. PNG 변환 시도 (가장 호환성 좋음)
+            if (image.TryGetPng(out var pngBytes) && pngBytes != null && pngBytes.Length > 100)
             {
-                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-                // Mock data representing image content
-                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-                (byte)(width >> 8), (byte)(width & 0xFF),
-                (byte)(height >> 8), (byte)(height & 0xFF),
-                0x08, 0x02, 0x00, 0x00, 0x00 // PNG parameters
-            };
+                return Task.FromResult<byte[]?>(pngBytes);
+            }
 
-            return await Task.FromResult(mockImageData);
+            // 2. Raw 바이트 (JPEG 등) 시도 - RawBytes는 ReadOnlySpan<byte> 타입
+            var rawBytes = image.RawBytes;
+            if (rawBytes.Length > 100)
+            {
+                return Task.FromResult<byte[]?>(rawBytes.ToArray());
+            }
+
+            // 유효한 이미지 데이터를 추출할 수 없음
+            return Task.FromResult<byte[]?>(null);
         }
         catch (Exception)
         {
             // 이미지 추출 실패
-            return null;
+            return Task.FromResult<byte[]?>(null);
         }
     }
 
