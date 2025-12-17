@@ -10,12 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\src\FileFlux\FileFlux.csproj" />
   </ItemGroup>
-
-  <ItemGroup Label="FluxImprover">
-    <!-- FluxImprover quality layer for LLM-based chunk enrichment -->
-    <PackageReference Include="FluxImprover" />
-  </ItemGroup>
-
+  
   <ItemGroup>
     <!-- CLI Framework -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />

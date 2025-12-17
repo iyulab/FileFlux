@@ -25,7 +25,90 @@ public class TextDocumentReader : IDocumentReader
         return SupportedExtensions.Contains(extension);
     }
 
-    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    // ========================================
+    // Stage 0: Read (Document Structure)
+    // ========================================
+
+    public async Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"File not found: {filePath}");
+
+        if (!CanRead(filePath))
+            throw new NotSupportedException($"File format not supported: {Path.GetExtension(filePath)}");
+
+        var startTime = DateTime.UtcNow;
+        var fileInfo = new FileInfo(filePath);
+
+        try
+        {
+            var result = new ReadResult
+            {
+                File = new SourceFileInfo
+                {
+                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                    Extension = Path.GetExtension(filePath).ToLowerInvariant(),
+                    Size = fileInfo.Length,
+                    CreatedAt = fileInfo.CreationTimeUtc,
+                    ModifiedAt = fileInfo.LastWriteTimeUtc
+                },
+                ReaderType = ReaderType,
+                Duration = DateTime.UtcNow - startTime
+            };
+
+            // Text files are single-page documents
+            result.Pages.Add(new PageInfo
+            {
+                Number = 1,
+                HasContent = fileInfo.Length > 0,
+                Props = { ["file_type"] = Path.GetExtension(filePath).ToLowerInvariant() }
+            });
+
+            return result;
+        }
+        catch (Exception ex) when (ex is not FileFluxException)
+        {
+            throw new DocumentProcessingException(filePath, $"Failed to read text file: {ex.Message}", ex);
+        }
+    }
+
+    public Task<ReadResult> ReadAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new ArgumentException("Filename cannot be null or empty", nameof(fileName));
+
+        var startTime = DateTime.UtcNow;
+
+        var result = new ReadResult
+        {
+            File = new SourceFileInfo
+            {
+                Name = fileName,
+                Extension = Path.GetExtension(fileName).ToLowerInvariant(),
+                Size = stream.CanSeek ? stream.Length : 0,
+                CreatedAt = DateTime.UtcNow
+            },
+            ReaderType = ReaderType,
+            Duration = DateTime.UtcNow - startTime
+        };
+
+        result.Pages.Add(new PageInfo
+        {
+            Number = 1,
+            HasContent = stream.Length > 0,
+            Props = { ["file_type"] = Path.GetExtension(fileName).ToLowerInvariant() }
+        });
+
+        return Task.FromResult(result);
+    }
+
+    // ========================================
+    // Stage 1: Extract (Raw Content)
+    // ========================================
+
+    public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"File not found: {filePath}");
@@ -75,7 +158,7 @@ public class TextDocumentReader : IDocumentReader
         }
     }
 
-    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 

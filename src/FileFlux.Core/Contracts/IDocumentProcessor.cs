@@ -218,49 +218,62 @@ public class ProcessingOptions
 
 /// <summary>
 /// Options for document refinement (Stage 2).
-/// Transforms RawContent into RefinedContent by cleaning, normalizing, and extracting structure.
+/// Transforms RawContent into RefinedContent by cleaning, normalizing, and converting to markdown.
 /// </summary>
 public class RefineOptions
 {
     /// <summary>
-    /// Enable LLM-enhanced processing (OCR correction, descriptions).
+    /// Use LLM for enhanced processing (set internally when ITextCompletionService is injected).
+    /// When LLM is available, it's always used for table/image processing.
     /// </summary>
-    public bool UseLlm { get; init; }
+    public bool UseLlm { get; set; }
 
     /// <summary>
-    /// Extract structured elements (tables, code, lists).
+    /// Extract structured elements (tables, code, lists) into StructuredElement objects.
     /// </summary>
-    public bool ExtractStructures { get; init; } = true;
+    public bool ExtractStructures { get; set; } = true;
 
     /// <summary>
     /// Clean noise (headers, footers, page numbers).
     /// </summary>
-    public bool CleanNoise { get; init; } = true;
+    public bool CleanNoise { get; set; } = true;
 
     /// <summary>
-    /// Convert to markdown format.
+    /// Convert tables to markdown format.
+    /// Tables are converted from RawContent.Tables using rule-based or LLM approach.
     /// </summary>
-    public bool ConvertToMarkdown { get; init; } = true;
+    public bool ConvertTablesToMarkdown { get; set; } = true;
+
+    /// <summary>
+    /// Convert text blocks to markdown format.
+    /// Blocks are converted from RawContent.Blocks with heading/list detection.
+    /// </summary>
+    public bool ConvertBlocksToMarkdown { get; set; } = true;
 
     /// <summary>
     /// Build hierarchical sections from headings.
     /// </summary>
-    public bool BuildSections { get; init; } = true;
+    public bool BuildSections { get; set; } = true;
 
     /// <summary>
     /// Remove excessive whitespace.
     /// </summary>
-    public bool NormalizeWhitespace { get; init; } = true;
+    public bool NormalizeWhitespace { get; set; } = true;
+
+    /// <summary>
+    /// Process images (generate captions with LLM if available).
+    /// </summary>
+    public bool ProcessImages { get; set; } = false;
 
     /// <summary>
     /// LLM model to use (if UseLlm is true).
     /// </summary>
-    public string? LlmModel { get; init; }
+    public string? LlmModel { get; set; }
 
     /// <summary>
-    /// Maximum tokens for LLM processing.
+    /// Maximum tokens for LLM processing per request.
     /// </summary>
-    public int? MaxLlmTokens { get; init; }
+    public int? MaxLlmTokens { get; set; }
 
     /// <summary>
     /// Default refinement options.
@@ -268,13 +281,27 @@ public class RefineOptions
     public static RefineOptions Default => new();
 
     /// <summary>
-    /// Minimal refinement (fast, no LLM).
+    /// Minimal refinement (fast, rule-based only).
     /// </summary>
     public static RefineOptions Minimal => new()
     {
-        UseLlm = false,
         ExtractStructures = false,
-        BuildSections = false
+        BuildSections = false,
+        ProcessImages = false
+    };
+
+    /// <summary>
+    /// Full refinement with all features.
+    /// </summary>
+    public static RefineOptions Full => new()
+    {
+        ExtractStructures = true,
+        CleanNoise = true,
+        ConvertTablesToMarkdown = true,
+        ConvertBlocksToMarkdown = true,
+        BuildSections = true,
+        NormalizeWhitespace = true,
+        ProcessImages = true
     };
 
     /// <summary>
@@ -285,7 +312,8 @@ public class RefineOptions
         UseLlm = false,
         ExtractStructures = true,
         CleanNoise = true,
-        ConvertToMarkdown = true,
+        ConvertTablesToMarkdown = true,
+        ConvertBlocksToMarkdown = true,
         BuildSections = true,
         NormalizeWhitespace = true
     };
@@ -298,7 +326,8 @@ public class RefineOptions
         UseLlm = true,
         ExtractStructures = true,
         CleanNoise = true,
-        ConvertToMarkdown = true,
+        ConvertTablesToMarkdown = true,
+        ConvertBlocksToMarkdown = true,
         BuildSections = true,
         NormalizeWhitespace = true
     };

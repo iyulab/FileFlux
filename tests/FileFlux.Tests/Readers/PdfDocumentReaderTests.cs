@@ -65,7 +65,7 @@ public class PdfDocumentReaderTests
     {
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync(null!, CancellationToken.None));
+            _reader.ExtractAsync(null!, null, CancellationToken.None));
         
         Assert.Contains("File path cannot be null or empty", exception.Message);
     }
@@ -75,7 +75,7 @@ public class PdfDocumentReaderTests
     {
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync("", CancellationToken.None));
+            _reader.ExtractAsync("", null, CancellationToken.None));
         
         Assert.Contains("File path cannot be null or empty", exception.Message);
     }
@@ -88,7 +88,7 @@ public class PdfDocumentReaderTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<FileNotFoundException>(() => 
-            _reader.ExtractAsync(nonExistentFile, CancellationToken.None));
+            _reader.ExtractAsync(nonExistentFile, null, CancellationToken.None));
         
         Assert.Contains("PDF file not found", exception.Message);
     }
@@ -105,7 +105,7 @@ public class PdfDocumentReaderTests
         {
             // Act & Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-                _reader.ExtractAsync(wrongExtFile, CancellationToken.None));
+                _reader.ExtractAsync(wrongExtFile, null, CancellationToken.None));
             
             Assert.Contains("File format not supported", exception.Message);
         }
@@ -131,7 +131,7 @@ public class PdfDocumentReaderTests
         }
 
         // Act
-        var result = await _reader.ExtractAsync(testFile, CancellationToken.None);
+        var result = await _reader.ExtractAsync(testFile, null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -197,7 +197,7 @@ public class PdfDocumentReaderTests
         using var fileStream = File.OpenRead(testFile);
 
         // Act
-        var result = await _reader.ExtractAsync(fileStream, "oai_gpt-oss_model_card.pdf", CancellationToken.None);
+        var result = await _reader.ExtractAsync(fileStream, "oai_gpt-oss_model_card.pdf", null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -216,7 +216,7 @@ public class PdfDocumentReaderTests
     {
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() => 
-            _reader.ExtractAsync((Stream)null!, "test.pdf", CancellationToken.None));
+            _reader.ExtractAsync((Stream)null!, "test.pdf", null, CancellationToken.None));
         
         Assert.Equal("stream", exception.ParamName);
     }
@@ -229,7 +229,7 @@ public class PdfDocumentReaderTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync(memoryStream, "test.docx", CancellationToken.None));
+            _reader.ExtractAsync(memoryStream, "test.docx", null, CancellationToken.None));
         
         Assert.Contains("File format not supported", exception.Message);
     }
@@ -252,7 +252,7 @@ public class PdfDocumentReaderTests
 
         // Act & Assert
         await Assert.ThrowsAsync<TaskCanceledException>(() => 
-            _reader.ExtractAsync(testFile, cts.Token));
+            _reader.ExtractAsync(testFile, null, cts.Token));
     }
 
     [Fact]

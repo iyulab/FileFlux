@@ -25,7 +25,144 @@ public class ExcelDocumentReader : IDocumentReader
         return extension == ".xlsx";
     }
 
-    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    // ========================================
+    // Stage 0: Read (Document Structure)
+    // ========================================
+
+    public async Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(filePath))
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"Excel document not found: {filePath}");
+
+        if (!CanRead(filePath))
+            throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
+
+        var startTime = DateTime.UtcNow;
+        var fileInfo = new FileInfo(filePath);
+
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var result = new ReadResult
+                {
+                    File = new SourceFileInfo
+                    {
+                        Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                        Extension = ".xlsx",
+                        Size = fileInfo.Length,
+                        CreatedAt = fileInfo.CreationTimeUtc,
+                        ModifiedAt = fileInfo.LastWriteTimeUtc
+                    },
+                    ReaderType = ReaderType
+                };
+
+                using var spreadsheetDocument = SpreadsheetDocument.Open(filePath, false);
+                var workbookPart = spreadsheetDocument.WorkbookPart;
+
+                var documentTitle = ExtractDocumentTitle(spreadsheetDocument);
+                if (!string.IsNullOrEmpty(documentTitle))
+                    result.DocumentProps["title"] = documentTitle;
+
+                if (workbookPart?.Workbook?.Sheets != null)
+                {
+                    var sheets = workbookPart.Workbook.Sheets.Cast<Sheet>().ToList();
+                    result.DocumentProps["worksheet_count"] = sheets.Count;
+
+                    var pageNum = 1;
+                    foreach (var sheet in sheets)
+                    {
+                        result.Pages.Add(new PageInfo
+                        {
+                            Number = pageNum++,
+                            HasContent = true,
+                            Props =
+                            {
+                                ["sheet_name"] = sheet.Name?.Value ?? $"Sheet{pageNum}",
+                                ["file_type"] = "excel_worksheet"
+                            }
+                        });
+                    }
+                }
+
+                result.Duration = DateTime.UtcNow - startTime;
+                return result;
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not FileFluxException)
+        {
+            throw new DocumentProcessingException(filePath, $"Failed to read Excel document: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<ReadResult> ReadAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        if (!CanRead(fileName))
+            throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
+
+        var startTime = DateTime.UtcNow;
+
+        try
+        {
+            var result = new ReadResult
+            {
+                File = new SourceFileInfo
+                {
+                    Name = fileName,
+                    Extension = ".xlsx",
+                    Size = stream.CanSeek ? stream.Length : 0,
+                    CreatedAt = DateTime.UtcNow
+                },
+                ReaderType = ReaderType
+            };
+
+            using var spreadsheetDocument = SpreadsheetDocument.Open(stream, false);
+            var workbookPart = spreadsheetDocument.WorkbookPart;
+
+            var documentTitle = ExtractDocumentTitle(spreadsheetDocument);
+            if (!string.IsNullOrEmpty(documentTitle))
+                result.DocumentProps["title"] = documentTitle;
+
+            if (workbookPart?.Workbook?.Sheets != null)
+            {
+                var sheets = workbookPart.Workbook.Sheets.Cast<Sheet>().ToList();
+                result.DocumentProps["worksheet_count"] = sheets.Count;
+
+                var pageNum = 1;
+                foreach (var sheet in sheets)
+                {
+                    result.Pages.Add(new PageInfo
+                    {
+                        Number = pageNum++,
+                        HasContent = true,
+                        Props =
+                        {
+                            ["sheet_name"] = sheet.Name?.Value ?? $"Sheet{pageNum}",
+                            ["file_type"] = "excel_worksheet"
+                        }
+                    });
+                }
+            }
+
+            result.Duration = DateTime.UtcNow - startTime;
+            return result;
+        }
+        catch (Exception ex) when (ex is not FileFluxException)
+        {
+            throw new DocumentProcessingException(fileName, $"Failed to read Excel document from stream: {ex.Message}", ex);
+        }
+    }
+
+    // ========================================
+    // Stage 1: Extract (Raw Content)
+    // ========================================
+
+    public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(filePath))
             throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
@@ -46,7 +183,7 @@ public class ExcelDocumentReader : IDocumentReader
         }
     }
 
-    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 

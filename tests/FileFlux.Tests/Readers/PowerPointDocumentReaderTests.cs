@@ -67,7 +67,7 @@ public class PowerPointDocumentReaderTests
     {
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync(null!, CancellationToken.None));
+            _reader.ExtractAsync(null!, null, CancellationToken.None));
         
         Assert.Contains("File path cannot be null or empty", exception.Message);
     }
@@ -77,7 +77,7 @@ public class PowerPointDocumentReaderTests
     {
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync("", CancellationToken.None));
+            _reader.ExtractAsync("", null, CancellationToken.None));
         
         Assert.Contains("File path cannot be null or empty", exception.Message);
     }
@@ -90,7 +90,7 @@ public class PowerPointDocumentReaderTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<FileNotFoundException>(() => 
-            _reader.ExtractAsync(nonExistentFile, CancellationToken.None));
+            _reader.ExtractAsync(nonExistentFile, null, CancellationToken.None));
         
         Assert.Contains("PowerPoint document not found", exception.Message);
     }
@@ -107,7 +107,7 @@ public class PowerPointDocumentReaderTests
         {
             // Act & Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-                _reader.ExtractAsync(wrongExtFile, CancellationToken.None));
+                _reader.ExtractAsync(wrongExtFile, null, CancellationToken.None));
             
             Assert.Contains("File format not supported", exception.Message);
         }
@@ -133,7 +133,7 @@ public class PowerPointDocumentReaderTests
         }
 
         // Act
-        var result = await _reader.ExtractAsync(testFile, CancellationToken.None);
+        var result = await _reader.ExtractAsync(testFile, null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -199,7 +199,7 @@ public class PowerPointDocumentReaderTests
         using var fileStream = File.OpenRead(testFile);
 
         // Act
-        var result = await _reader.ExtractAsync(fileStream, "samplepptx.pptx", CancellationToken.None);
+        var result = await _reader.ExtractAsync(fileStream, "samplepptx.pptx", null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -218,7 +218,7 @@ public class PowerPointDocumentReaderTests
     {
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() => 
-            _reader.ExtractAsync((Stream)null!, "test.pptx", CancellationToken.None));
+            _reader.ExtractAsync((Stream)null!, "test.pptx", null, CancellationToken.None));
         
         Assert.Equal("stream", exception.ParamName);
     }
@@ -231,7 +231,7 @@ public class PowerPointDocumentReaderTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync(memoryStream, "test.pdf", CancellationToken.None));
+            _reader.ExtractAsync(memoryStream, "test.pdf", null, CancellationToken.None));
         
         Assert.Contains("File format not supported", exception.Message);
     }
@@ -254,7 +254,7 @@ public class PowerPointDocumentReaderTests
 
         // Act & Assert
         await Assert.ThrowsAsync<DocumentProcessingException>(() => 
-            _reader.ExtractAsync(testFile, cts.Token));
+            _reader.ExtractAsync(testFile, null, cts.Token));
     }
 
     [Fact]

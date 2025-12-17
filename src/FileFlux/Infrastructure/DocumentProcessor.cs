@@ -135,7 +135,7 @@ public sealed partial class FluxDocumentProcessor
             var reader = _readerFactory.GetReader(filePath)
                 ?? throw new UnsupportedFileFormatException(filePath, $"No reader found for: {filePath}");
 
-            var rawContent = await reader.ExtractAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var rawContent = await reader.ExtractAsync(filePath, null, cancellationToken).ConfigureAwait(false);
 
             LogWarnings("Extraction", rawContent.Warnings);
             return rawContent;

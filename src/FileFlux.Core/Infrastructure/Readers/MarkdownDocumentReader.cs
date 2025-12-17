@@ -25,7 +25,84 @@ public class MarkdownDocumentReader : IDocumentReader
         return SupportedExtensions.Contains(extension);
     }
 
-    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    // ========================================
+    // Stage 0: Read (Document Structure)
+    // ========================================
+
+    public async Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"Markdown file not found: {filePath}");
+
+        var startTime = DateTime.UtcNow;
+        var fileInfo = new FileInfo(filePath);
+
+        var result = new ReadResult
+        {
+            File = new SourceFileInfo
+            {
+                Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                Extension = fileInfo.Extension,
+                Size = fileInfo.Length,
+                CreatedAt = fileInfo.CreationTime,
+                ModifiedAt = fileInfo.LastWriteTime
+            },
+            ReaderType = ReaderType,
+            Duration = DateTime.UtcNow - startTime
+        };
+
+        // Markdown files are single-page documents
+        result.Pages.Add(new PageInfo
+        {
+            Number = 1,
+            HasContent = fileInfo.Length > 0,
+            Props = { ["file_type"] = "markdown" }
+        });
+
+        return result;
+    }
+
+    public Task<ReadResult> ReadAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(stream);
+
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new ArgumentException("File name cannot be null or empty", nameof(fileName));
+
+        var startTime = DateTime.UtcNow;
+
+        var result = new ReadResult
+        {
+            File = new SourceFileInfo
+            {
+                Name = fileName,
+                Extension = Path.GetExtension(fileName),
+                Size = stream.CanSeek ? stream.Length : 0,
+                CreatedAt = DateTime.UtcNow,
+                ModifiedAt = DateTime.UtcNow
+            },
+            ReaderType = ReaderType,
+            Duration = DateTime.UtcNow - startTime
+        };
+
+        result.Pages.Add(new PageInfo
+        {
+            Number = 1,
+            HasContent = stream.Length > 0,
+            Props = { ["file_type"] = "markdown" }
+        });
+
+        return Task.FromResult(result);
+    }
+
+    // ========================================
+    // Stage 1: Extract (Raw Content)
+    // ========================================
+
+    public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -54,7 +131,7 @@ public class MarkdownDocumentReader : IDocumentReader
         };
     }
 
-    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 

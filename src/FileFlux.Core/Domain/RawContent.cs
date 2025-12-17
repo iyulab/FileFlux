@@ -1,7 +1,8 @@
 namespace FileFlux.Core;
 
 /// <summary>
-/// Stage 1 output: Raw text extraction result.
+/// Stage 1 output: Raw content extraction result.
+/// Contains structured raw data before markdown conversion.
 /// </summary>
 public class RawContent
 {
@@ -11,9 +12,29 @@ public class RawContent
     public Guid Id { get; init; } = Guid.NewGuid();
 
     /// <summary>
-    /// Extracted raw text.
+    /// Reference to ReadResult ID (if available).
+    /// </summary>
+    public Guid? ReadId { get; set; }
+
+    /// <summary>
+    /// Extracted raw text (plain text, no markdown).
     /// </summary>
     public string Text { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Structured text blocks with position and style info.
+    /// </summary>
+    public List<TextBlock> Blocks { get; set; } = [];
+
+    /// <summary>
+    /// Extracted tables with raw cell data (no markdown conversion).
+    /// </summary>
+    public List<TableData> Tables { get; set; } = [];
+
+    /// <summary>
+    /// Extracted images from document.
+    /// </summary>
+    public List<ImageInfo> Images { get; set; } = [];
 
     /// <summary>
     /// Source file information.
@@ -41,14 +62,14 @@ public class RawContent
     public string ReaderType { get; set; } = string.Empty;
 
     /// <summary>
-    /// Structural hints detected by reader (optional).
+    /// Structural hints detected by reader.
     /// </summary>
-    public Dictionary<string, object> Hints { get; set; } = new();
+    public Dictionary<string, object> Hints { get; set; } = [];
 
     /// <summary>
     /// Extraction warnings.
     /// </summary>
-    public List<string> Warnings { get; set; } = new();
+    public List<string> Warnings { get; set; } = [];
 
     /// <summary>
     /// Processing status.
@@ -58,7 +79,7 @@ public class RawContent
     /// <summary>
     /// Errors encountered during extraction.
     /// </summary>
-    public List<ProcessingError> Errors { get; set; } = new();
+    public List<ProcessingError> Errors { get; set; } = [];
 
     /// <summary>
     /// Success indicator.
@@ -66,9 +87,29 @@ public class RawContent
     public bool IsSuccess => Status == ProcessingStatus.Completed && Errors.Count == 0;
 
     /// <summary>
-    /// Extracted images from document (base64, embedded, etc.)
+    /// Whether content has structured blocks.
     /// </summary>
-    public List<ImageInfo> Images { get; set; } = new();
+    public bool HasBlocks => Blocks.Count > 0;
+
+    /// <summary>
+    /// Whether content has tables.
+    /// </summary>
+    public bool HasTables => Tables.Count > 0;
+
+    /// <summary>
+    /// Whether content has images.
+    /// </summary>
+    public bool HasImages => Images.Count > 0;
+
+    /// <summary>
+    /// Total table count.
+    /// </summary>
+    public int TableCount => Tables.Count;
+
+    /// <summary>
+    /// Count of tables needing LLM assistance.
+    /// </summary>
+    public int LowConfidenceTableCount => Tables.Count(t => t.NeedsLlmAssist);
 }
 
 /// <summary>

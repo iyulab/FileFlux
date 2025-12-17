@@ -41,7 +41,7 @@ public class ManualReaderTest
         _logger.LogInformation("🧪 PDF Table Extraction Test: ClusterPlex Release Note");
         _logger.LogInformation("==========================================");
 
-        var result = await reader.ExtractAsync(pdfPath, CancellationToken.None);
+        var result = await reader.ExtractAsync(pdfPath, null, CancellationToken.None);
 
         // Assert and Log Results
         _logger.LogInformation("📊 Document Info:");
@@ -130,7 +130,7 @@ public class ManualReaderTest
                 _logger.LogInformation("🔍 Testing {Type} Reader ({ReaderType})", type, reader.ReaderType);
                 _logger.LogInformation("   File: {FileName}", fileName);
 
-                var result = await reader.ExtractAsync(filePath, CancellationToken.None);
+                var result = await reader.ExtractAsync(filePath, null, CancellationToken.None);
 
                 _logger.LogInformation("📊 Extraction Results:");
                 _logger.LogInformation("   ✅ Text length: {Length:N0} characters", result.Text.Length);

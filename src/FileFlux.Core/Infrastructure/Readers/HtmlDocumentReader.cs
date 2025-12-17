@@ -23,7 +23,89 @@ public partial class HtmlDocumentReader : IDocumentReader
         return extension == ".html" || extension == ".htm";
     }
 
-    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    // ========================================
+    // Stage 0: Read (Document Structure)
+    // ========================================
+
+    public async Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(filePath))
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"HTML document not found: {filePath}");
+
+        if (!CanRead(filePath))
+            throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
+
+        var startTime = DateTime.UtcNow;
+        var fileInfo = new FileInfo(filePath);
+
+        var result = new ReadResult
+        {
+            File = new SourceFileInfo
+            {
+                Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                Extension = fileInfo.Extension,
+                Size = fileInfo.Length,
+                CreatedAt = fileInfo.CreationTimeUtc,
+                ModifiedAt = fileInfo.LastWriteTimeUtc
+            },
+            ReaderType = ReaderType,
+            Duration = DateTime.UtcNow - startTime
+        };
+
+        // HTML files are single-page documents
+        result.Pages.Add(new PageInfo
+        {
+            Number = 1,
+            HasContent = fileInfo.Length > 0,
+            Props = { ["file_type"] = "html_document" }
+        });
+
+        return result;
+    }
+
+    public Task<ReadResult> ReadAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new ArgumentException("File name cannot be null or empty", nameof(fileName));
+
+        if (!CanRead(fileName))
+            throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
+
+        var startTime = DateTime.UtcNow;
+
+        var result = new ReadResult
+        {
+            File = new SourceFileInfo
+            {
+                Name = fileName,
+                Extension = Path.GetExtension(fileName),
+                Size = stream.CanSeek ? stream.Length : 0,
+                CreatedAt = DateTime.UtcNow
+            },
+            ReaderType = ReaderType,
+            Duration = DateTime.UtcNow - startTime
+        };
+
+        result.Pages.Add(new PageInfo
+        {
+            Number = 1,
+            HasContent = stream.Length > 0,
+            Props = { ["file_type"] = "html_document" }
+        });
+
+        return Task.FromResult(result);
+    }
+
+    // ========================================
+    // Stage 1: Extract (Raw Content)
+    // ========================================
+
+    public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(filePath))
             throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
@@ -45,7 +127,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
-    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 

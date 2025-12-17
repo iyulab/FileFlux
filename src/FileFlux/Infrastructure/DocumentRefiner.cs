@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using FileFlux.Core;
@@ -60,9 +61,20 @@ public sealed class DocumentRefiner : IDocumentRefiner
                 refinedText = CleanDocumentNoise(refinedText);
             }
 
-            // Step 2: Convert to markdown if converter available and enabled
-            if (options.ConvertToMarkdown && _markdownConverter != null)
+            // Step 2: Convert structured data to markdown
+            // Priority: Use RawContent.Tables/Blocks if available, otherwise fallback to IMarkdownConverter
+            var hasStructuredData = raw.HasTables || raw.HasBlocks;
+
+            if (hasStructuredData)
             {
+                // Use structured data from RawContent (new architecture)
+                refinedText = ConvertStructuredToMarkdown(raw, options);
+                _logger.LogDebug("Converted structured data to markdown: {TableCount} tables, {BlockCount} blocks",
+                    raw.TableCount, raw.Blocks.Count);
+            }
+            else if ((options.ConvertTablesToMarkdown || options.ConvertBlocksToMarkdown) && _markdownConverter != null)
+            {
+                // Fallback to IMarkdownConverter for legacy readers
                 var markdownResult = await _markdownConverter.ConvertAsync(raw, new MarkdownConversionOptions
                 {
                     PreserveHeadings = true,
@@ -79,9 +91,16 @@ public sealed class DocumentRefiner : IDocumentRefiner
                 }
             }
 
-            // Step 3: Extract structured elements (tables, code blocks, lists)
+            // Step 3: Extract structured elements (tables, code blocks, lists) from text
             if (options.ExtractStructures)
             {
+                // Add structures from RawContent.Tables first
+                if (raw.HasTables)
+                {
+                    structures.AddRange(ConvertTablesToStructuredElements(raw.Tables));
+                }
+
+                // Then extract from text for additional structures
                 structures.AddRange(ExtractStructuredElements(refinedText));
             }
 
@@ -315,6 +334,266 @@ public sealed class DocumentRefiner : IDocumentRefiner
                 {
                     StartChar = match.Index,
                     EndChar = match.Index + match.Length
+                }
+            };
+        }
+    }
+
+    #endregion
+
+    #region Structured Data Conversion
+
+    /// <summary>
+    /// Converts structured data (Tables and Blocks) from RawContent to markdown text.
+    /// This is the core conversion logic moved from Extract stage to Refine stage.
+    /// </summary>
+    private string ConvertStructuredToMarkdown(RawContent raw, RefineOptions options)
+    {
+        var sb = new StringBuilder();
+
+        // Process blocks in order, inserting tables at appropriate positions
+        var tableIndex = 0;
+        var tables = raw.Tables;
+
+        foreach (var block in raw.Blocks)
+        {
+            // Insert any tables that should appear before this block
+            // (For now, we append tables at the end if no position info)
+            var markdown = ConvertBlockToMarkdown(block);
+            if (!string.IsNullOrEmpty(markdown))
+            {
+                sb.AppendLine(markdown);
+                sb.AppendLine();
+            }
+        }
+
+        // Append remaining tables
+        if (options.ConvertTablesToMarkdown)
+        {
+            for (int i = tableIndex; i < tables.Count; i++)
+            {
+                var tableMarkdown = ConvertTableToMarkdown(tables[i]);
+                if (!string.IsNullOrEmpty(tableMarkdown))
+                {
+                    sb.AppendLine(tableMarkdown);
+                    sb.AppendLine();
+                }
+            }
+        }
+
+        // If no blocks but has tables, just convert tables
+        if (raw.Blocks.Count == 0 && raw.HasTables && options.ConvertTablesToMarkdown)
+        {
+            foreach (var table in tables)
+            {
+                var tableMarkdown = ConvertTableToMarkdown(table);
+                if (!string.IsNullOrEmpty(tableMarkdown))
+                {
+                    sb.AppendLine(tableMarkdown);
+                    sb.AppendLine();
+                }
+            }
+        }
+
+        // If still empty, fall back to raw text
+        var result = sb.ToString().Trim();
+        return string.IsNullOrEmpty(result) ? raw.Text : result;
+    }
+
+    /// <summary>
+    /// Converts a single TextBlock to markdown format.
+    /// </summary>
+    private static string ConvertBlockToMarkdown(TextBlock block)
+    {
+        if (string.IsNullOrWhiteSpace(block.Content))
+            return string.Empty;
+
+        return block.Type switch
+        {
+            BlockType.Heading => ConvertHeadingToMarkdown(block),
+            BlockType.ListItem => ConvertListItemToMarkdown(block),
+            BlockType.CodeBlock => $"```\n{block.Content}\n```",
+            BlockType.Quote => $"> {block.Content}",
+            BlockType.Header => $"<!-- Header: {block.Content} -->",
+            BlockType.Footer => $"<!-- Footer: {block.Content} -->",
+            BlockType.Caption => $"*{block.Content}*",
+            BlockType.TocEntry => $"- {block.Content}",
+            BlockType.Note => $"> **Note:** {block.Content}",
+            BlockType.Paragraph or _ => block.Content
+        };
+    }
+
+    /// <summary>
+    /// Converts a heading block to markdown with appropriate level.
+    /// </summary>
+    private static string ConvertHeadingToMarkdown(TextBlock block)
+    {
+        var level = block.HeadingLevel ?? 1;
+        level = Math.Clamp(level, 1, 6);
+        var prefix = new string('#', level);
+        return $"{prefix} {block.Content}";
+    }
+
+    /// <summary>
+    /// Converts a list item block to markdown format.
+    /// </summary>
+    private static string ConvertListItemToMarkdown(TextBlock block)
+    {
+        var indent = block.ListLevel.HasValue ? new string(' ', (block.ListLevel.Value - 1) * 2) : "";
+        var marker = block.IsOrderedList == true ? "1." : "-";
+        return $"{indent}{marker} {block.Content}";
+    }
+
+    /// <summary>
+    /// Converts a TableData to markdown table format.
+    /// </summary>
+    private static string ConvertTableToMarkdown(TableData table)
+    {
+        if (table.Cells == null || table.Cells.Length == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        var columnCount = table.Cells.Max(row => row?.Length ?? 0);
+
+        if (columnCount == 0)
+            return string.Empty;
+
+        // Determine headers
+        string[] headers;
+        int dataStartRow;
+
+        if (table.HasHeader && table.Headers != null && table.Headers.Length > 0)
+        {
+            headers = table.Headers;
+            dataStartRow = 0;
+        }
+        else if (table.HasHeader && table.Cells.Length > 0)
+        {
+            headers = table.Cells[0] ?? [];
+            dataStartRow = 1;
+        }
+        else
+        {
+            // Generate column headers (Col1, Col2, etc.)
+            headers = Enumerable.Range(1, columnCount).Select(i => $"Col{i}").ToArray();
+            dataStartRow = 0;
+        }
+
+        // Ensure headers match column count
+        if (headers.Length < columnCount)
+        {
+            var newHeaders = new string[columnCount];
+            Array.Copy(headers, newHeaders, headers.Length);
+            for (int i = headers.Length; i < columnCount; i++)
+            {
+                newHeaders[i] = $"Col{i + 1}";
+            }
+            headers = newHeaders;
+        }
+
+        // Header row
+        sb.Append('|');
+        foreach (var header in headers.Take(columnCount))
+        {
+            sb.Append($" {EscapeMarkdownCell(header ?? "")} |");
+        }
+        sb.AppendLine();
+
+        // Separator row with alignment
+        sb.Append('|');
+        for (int i = 0; i < columnCount; i++)
+        {
+            TextAlignment? alignment = table.ColumnAlignments != null && i < table.ColumnAlignments.Length
+                ? table.ColumnAlignments[i]
+                : null;
+
+            var separator = alignment switch
+            {
+                TextAlignment.Left => ":---",
+                TextAlignment.Right => "---:",
+                TextAlignment.Center => ":---:",
+                TextAlignment.Justify => ":---:",
+                _ => "---"
+            };
+            sb.Append($" {separator} |");
+        }
+        sb.AppendLine();
+
+        // Data rows
+        for (int rowIdx = dataStartRow; rowIdx < table.Cells.Length; rowIdx++)
+        {
+            var row = table.Cells[rowIdx];
+            if (row == null) continue;
+
+            sb.Append('|');
+            for (int colIdx = 0; colIdx < columnCount; colIdx++)
+            {
+                var cell = colIdx < row.Length ? row[colIdx] : "";
+                sb.Append($" {EscapeMarkdownCell(cell ?? "")} |");
+            }
+            sb.AppendLine();
+        }
+
+        // Add confidence warning comment if low confidence
+        if (table.NeedsLlmAssist)
+        {
+            sb.AppendLine($"<!-- Table confidence: {table.Confidence:F2} - may need LLM assistance -->");
+        }
+
+        return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Escapes special characters in markdown table cells.
+    /// </summary>
+    private static string EscapeMarkdownCell(string content)
+    {
+        if (string.IsNullOrEmpty(content))
+            return "";
+
+        // Replace pipe characters and newlines
+        return content
+            .Replace("|", "\\|")
+            .Replace("\n", " ")
+            .Replace("\r", "")
+            .Trim();
+    }
+
+    /// <summary>
+    /// Converts TableData list to StructuredElement list for extraction.
+    /// </summary>
+    private static IEnumerable<StructuredElement> ConvertTablesToStructuredElements(List<TableData> tables)
+    {
+        for (int i = 0; i < tables.Count; i++)
+        {
+            var table = tables[i];
+            if (table.Cells == null || table.Cells.Length == 0)
+                continue;
+
+            var rowCount = table.Cells.Length;
+            var colCount = table.Cells.Max(row => row?.Length ?? 0);
+
+            // Create structured data from TableData
+            var tableStructure = new
+            {
+                RowCount = rowCount,
+                ColumnCount = colCount,
+                HasHeader = table.HasHeader,
+                Headers = table.Headers,
+                Confidence = table.Confidence,
+                NeedsLlmAssist = table.NeedsLlmAssist,
+                Cells = table.Cells
+            };
+
+            yield return new StructuredElement
+            {
+                Type = StructureType.Table,
+                Caption = $"Table {i + 1} ({rowCount}x{colCount}){(table.NeedsLlmAssist ? " [low confidence]" : "")}",
+                Data = JsonSerializer.SerializeToElement(tableStructure),
+                Location = new StructureLocation
+                {
+                    StartChar = 0, // Position info not available from TableData
+                    EndChar = 0
                 }
             };
         }

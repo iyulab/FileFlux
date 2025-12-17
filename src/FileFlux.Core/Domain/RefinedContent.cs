@@ -81,25 +81,25 @@ public class RefinementQuality
     /// Structure preservation score (0.0 - 1.0).
     /// How well document structure was preserved.
     /// </summary>
-    public double StructureScore { get; init; }
+    public double StructureScore { get; set; }
 
     /// <summary>
     /// Noise removal score (0.0 - 1.0).
     /// How effectively noise was removed.
     /// </summary>
-    public double CleanupScore { get; init; }
+    public double CleanupScore { get; set; }
 
     /// <summary>
     /// Information retention score (0.0 - 1.0).
     /// How much meaningful content was preserved.
     /// </summary>
-    public double RetentionScore { get; init; }
+    public double RetentionScore { get; set; }
 
     /// <summary>
     /// Confidence score (0.0 - 1.0).
     /// Overall confidence in refinement quality.
     /// </summary>
-    public double ConfidenceScore { get; init; }
+    public double ConfidenceScore { get; set; }
 
     /// <summary>
     /// Overall quality score.
@@ -109,12 +109,12 @@ public class RefinementQuality
     /// <summary>
     /// Character count before refinement.
     /// </summary>
-    public int OriginalCharCount { get; init; }
+    public int OriginalCharCount { get; set; }
 
     /// <summary>
     /// Character count after refinement.
     /// </summary>
-    public int RefinedCharCount { get; init; }
+    public int RefinedCharCount { get; set; }
 
     /// <summary>
     /// Compression ratio (refined / original).
@@ -122,6 +122,31 @@ public class RefinementQuality
     public double CompressionRatio => OriginalCharCount > 0
         ? (double)RefinedCharCount / OriginalCharCount
         : 1.0;
+
+    /// <summary>
+    /// Total tables converted to markdown.
+    /// </summary>
+    public int TablesConverted { get; set; }
+
+    /// <summary>
+    /// Tables converted using LLM assistance.
+    /// </summary>
+    public int TablesWithLlm { get; set; }
+
+    /// <summary>
+    /// Tables converted using rule-based approach.
+    /// </summary>
+    public int TablesWithRules => TablesConverted - TablesWithLlm;
+
+    /// <summary>
+    /// Total images processed.
+    /// </summary>
+    public int ImagesProcessed { get; set; }
+
+    /// <summary>
+    /// Images with LLM-generated captions.
+    /// </summary>
+    public int ImagesWithCaptions { get; set; }
 }
 
 /// <summary>

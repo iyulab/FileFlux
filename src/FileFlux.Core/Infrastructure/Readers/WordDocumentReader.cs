@@ -35,7 +35,135 @@ public partial class WordDocumentReader : IDocumentReader
         return extension == ".docx";
     }
 
-    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    // ========================================
+    // Stage 0: Read (Document Structure)
+    // ========================================
+
+    public async Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(filePath))
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"Word document not found: {filePath}");
+
+        if (!CanRead(filePath))
+            throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
+
+        var startTime = DateTime.UtcNow;
+        var fileInfo = new FileInfo(filePath);
+
+        try
+        {
+            var result = new ReadResult
+            {
+                File = new SourceFileInfo
+                {
+                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                    Extension = ".docx",
+                    Size = fileInfo.Length,
+                    CreatedAt = fileInfo.CreationTimeUtc,
+                    ModifiedAt = fileInfo.LastWriteTimeUtc
+                },
+                ReaderType = ReaderType
+            };
+
+            using var wordDocument = WordprocessingDocument.Open(filePath, false);
+            var coreProperties = wordDocument.PackageProperties;
+
+            if (!string.IsNullOrWhiteSpace(coreProperties?.Title))
+                result.DocumentProps["title"] = coreProperties.Title;
+            if (!string.IsNullOrWhiteSpace(coreProperties?.Creator))
+                result.DocumentProps["author"] = coreProperties.Creator;
+
+            var mainPart = wordDocument.MainDocumentPart;
+            if (mainPart?.Document?.Body != null)
+            {
+                result.DocumentProps["paragraph_count"] = mainPart.Document.Body.Elements<Paragraph>().Count();
+                result.DocumentProps["table_count"] = mainPart.Document.Body.Elements<Table>().Count();
+            }
+
+            // Word documents are single-page (logical) for this simplified model
+            result.Pages.Add(new PageInfo
+            {
+                Number = 1,
+                HasContent = fileInfo.Length > 0,
+                Props = { ["file_type"] = "word_document" }
+            });
+
+            result.Duration = DateTime.UtcNow - startTime;
+            return result;
+        }
+        catch (Exception ex) when (ex is not FileFluxException)
+        {
+            throw new DocumentProcessingException(filePath, $"Failed to read Word document: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<ReadResult> ReadAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        if (!CanRead(fileName))
+            throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
+
+        var startTime = DateTime.UtcNow;
+
+        try
+        {
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
+            memoryStream.Position = 0;
+
+            var result = new ReadResult
+            {
+                File = new SourceFileInfo
+                {
+                    Name = fileName,
+                    Extension = ".docx",
+                    Size = memoryStream.Length,
+                    CreatedAt = DateTime.UtcNow,
+                    ModifiedAt = DateTime.UtcNow
+                },
+                ReaderType = ReaderType
+            };
+
+            using var wordDocument = WordprocessingDocument.Open(memoryStream, false);
+            var coreProperties = wordDocument.PackageProperties;
+
+            if (!string.IsNullOrWhiteSpace(coreProperties?.Title))
+                result.DocumentProps["title"] = coreProperties.Title;
+            if (!string.IsNullOrWhiteSpace(coreProperties?.Creator))
+                result.DocumentProps["author"] = coreProperties.Creator;
+
+            var mainPart = wordDocument.MainDocumentPart;
+            if (mainPart?.Document?.Body != null)
+            {
+                result.DocumentProps["paragraph_count"] = mainPart.Document.Body.Elements<Paragraph>().Count();
+                result.DocumentProps["table_count"] = mainPart.Document.Body.Elements<Table>().Count();
+            }
+
+            result.Pages.Add(new PageInfo
+            {
+                Number = 1,
+                HasContent = memoryStream.Length > 0,
+                Props = { ["file_type"] = "word_document" }
+            });
+
+            result.Duration = DateTime.UtcNow - startTime;
+            return result;
+        }
+        catch (Exception ex) when (ex is not FileFluxException)
+        {
+            throw new DocumentProcessingException(fileName, $"Failed to read Word document from stream: {ex.Message}", ex);
+        }
+    }
+
+    // ========================================
+    // Stage 1: Extract (Raw Content)
+    // ========================================
+
+    public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(filePath))
             throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
@@ -56,7 +184,7 @@ public partial class WordDocumentReader : IDocumentReader
         }
     }
 
-    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 

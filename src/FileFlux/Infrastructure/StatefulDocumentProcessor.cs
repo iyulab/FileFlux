@@ -209,14 +209,14 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
     {
         var reader = _readerFactory.GetReader(FilePath)
             ?? throw new UnsupportedFileFormatException(FilePath, $"No reader found for: {FilePath}");
-        return await reader.ExtractAsync(FilePath, cancellationToken).ConfigureAwait(false);
+        return await reader.ExtractAsync(FilePath, null, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<RawContent> ExtractFromStreamAsync(CancellationToken cancellationToken)
     {
         var reader = _readerFactory.GetReader(_extension)
             ?? throw new UnsupportedFileFormatException(_extension, $"No reader found for extension: {_extension}");
-        return await reader.ExtractAsync(_stream!, _fileName ?? $"stream{_extension}", cancellationToken).ConfigureAwait(false);
+        return await reader.ExtractAsync(_stream!, _fileName ?? $"stream{_extension}", null, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<RawContent> ExtractFromBytesAsync(CancellationToken cancellationToken)
@@ -224,7 +224,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         using var stream = new MemoryStream(_content!);
         var reader = _readerFactory.GetReader(_extension)
             ?? throw new UnsupportedFileFormatException(_extension, $"No reader found for extension: {_extension}");
-        return await reader.ExtractAsync(stream, _fileName ?? $"content{_extension}", cancellationToken).ConfigureAwait(false);
+        return await reader.ExtractAsync(stream, _fileName ?? $"content{_extension}", null, cancellationToken).ConfigureAwait(false);
     }
 
     #endregion
@@ -299,7 +299,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         }
 
         // Step 2: Convert to markdown if converter available
-        if (options.ConvertToMarkdown && _markdownConverter != null)
+        if ((options.ConvertTablesToMarkdown || options.ConvertBlocksToMarkdown) && _markdownConverter != null)
         {
             var markdownResult = await _markdownConverter.ConvertAsync(raw, new MarkdownConversionOptions
             {

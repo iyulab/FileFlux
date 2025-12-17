@@ -86,7 +86,7 @@ public class DocumentReadersIntegrationTests
         var reader = _factory.GetReader("demo.docx");
         
         // Act
-        var result = await reader!.ExtractAsync(testFile, CancellationToken.None);
+        var result = await reader!.ExtractAsync(testFile, null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -137,7 +137,7 @@ public class DocumentReadersIntegrationTests
         var reader = _factory.GetReader("samplepptx.pptx");
         
         // Act
-        var result = await reader!.ExtractAsync(testFile, CancellationToken.None);
+        var result = await reader!.ExtractAsync(testFile, null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -187,7 +187,7 @@ public class DocumentReadersIntegrationTests
         var reader = _factory.GetReader("oai_gpt-oss_model_card.pdf");
         
         // Act
-        var result = await reader!.ExtractAsync(testFile, CancellationToken.None);
+        var result = await reader!.ExtractAsync(testFile, null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -231,7 +231,7 @@ public class DocumentReadersIntegrationTests
         var reader = _factory.GetReader("test.md");
         
         // Act
-        var result = await reader!.ExtractAsync(testFile, CancellationToken.None);
+        var result = await reader!.ExtractAsync(testFile, null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -287,7 +287,7 @@ public class DocumentReadersIntegrationTests
             
             Assert.NotNull(reader);
             
-            var result = await reader.ExtractAsync(filePath, CancellationToken.None);
+            var result = await reader.ExtractAsync(filePath, null, CancellationToken.None);
             results[type] = result;
             
             // 모든 결과가 유효한지 검증

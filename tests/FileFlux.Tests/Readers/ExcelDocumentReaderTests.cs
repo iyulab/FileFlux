@@ -66,7 +66,7 @@ public class ExcelDocumentReaderTests
     {
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync(null!, CancellationToken.None));
+            _reader.ExtractAsync(null!, null, CancellationToken.None));
         
         Assert.Contains("File path cannot be null or empty", exception.Message);
     }
@@ -76,7 +76,7 @@ public class ExcelDocumentReaderTests
     {
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync("", CancellationToken.None));
+            _reader.ExtractAsync("", null, CancellationToken.None));
         
         Assert.Contains("File path cannot be null or empty", exception.Message);
     }
@@ -89,7 +89,7 @@ public class ExcelDocumentReaderTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<FileNotFoundException>(() => 
-            _reader.ExtractAsync(nonExistentFile, CancellationToken.None));
+            _reader.ExtractAsync(nonExistentFile, null, CancellationToken.None));
         
         Assert.Contains("Excel document not found", exception.Message);
     }
@@ -106,7 +106,7 @@ public class ExcelDocumentReaderTests
         {
             // Act & Assert
             var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-                _reader.ExtractAsync(wrongExtFile, CancellationToken.None));
+                _reader.ExtractAsync(wrongExtFile, null, CancellationToken.None));
             
             Assert.Contains("File format not supported", exception.Message);
         }
@@ -143,7 +143,7 @@ public class ExcelDocumentReaderTests
         }
 
         // Act
-        var result = await _reader.ExtractAsync(fileToTest, CancellationToken.None);
+        var result = await _reader.ExtractAsync(fileToTest, null, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -199,7 +199,7 @@ public class ExcelDocumentReaderTests
         
         try
         {
-            var result = await _reader.ExtractAsync(stream, "test.xlsx", CancellationToken.None);
+            var result = await _reader.ExtractAsync(stream, "test.xlsx", null, CancellationToken.None);
             
             // If it doesn't throw an exception, verify the structure
             Assert.NotNull(result);
@@ -220,7 +220,7 @@ public class ExcelDocumentReaderTests
     {
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() => 
-            _reader.ExtractAsync((Stream)null!, "test.xlsx", CancellationToken.None));
+            _reader.ExtractAsync((Stream)null!, "test.xlsx", null, CancellationToken.None));
         
         Assert.Equal("stream", exception.ParamName);
     }
@@ -233,7 +233,7 @@ public class ExcelDocumentReaderTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync(memoryStream, "test.pdf", CancellationToken.None));
+            _reader.ExtractAsync(memoryStream, "test.pdf", null, CancellationToken.None));
         
         Assert.Contains("File format not supported", exception.Message);
     }

@@ -25,7 +25,134 @@ public class PowerPointDocumentReader : IDocumentReader
         return extension == ".pptx";
     }
 
-    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    // ========================================
+    // Stage 0: Read (Document Structure)
+    // ========================================
+
+    public async Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(filePath))
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException($"PowerPoint document not found: {filePath}");
+
+        if (!CanRead(filePath))
+            throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
+
+        var startTime = DateTime.UtcNow;
+        var fileInfo = new FileInfo(filePath);
+
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var result = new ReadResult
+                {
+                    File = new SourceFileInfo
+                    {
+                        Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                        Extension = ".pptx",
+                        Size = fileInfo.Length,
+                        CreatedAt = fileInfo.CreationTimeUtc,
+                        ModifiedAt = fileInfo.LastWriteTimeUtc
+                    },
+                    ReaderType = ReaderType
+                };
+
+                using var presentationDocument = PresentationDocument.Open(filePath, false);
+                var presentationPart = presentationDocument.PresentationPart;
+
+                var (documentTitle, documentAuthor) = ExtractDocumentMetadata(presentationDocument);
+                if (!string.IsNullOrEmpty(documentTitle))
+                    result.DocumentProps["title"] = documentTitle;
+                if (!string.IsNullOrEmpty(documentAuthor))
+                    result.DocumentProps["author"] = documentAuthor;
+
+                var slideIds = presentationPart?.Presentation?.SlideIdList?.Elements<SlideId>().ToList() ?? [];
+                result.DocumentProps["slide_count"] = slideIds.Count;
+
+                var pageNum = 1;
+                foreach (var slideId in slideIds)
+                {
+                    result.Pages.Add(new PageInfo
+                    {
+                        Number = pageNum++,
+                        HasContent = true,
+                        Props = { ["file_type"] = "powerpoint_slide" }
+                    });
+                }
+
+                result.Duration = DateTime.UtcNow - startTime;
+                return result;
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not FileFluxException)
+        {
+            throw new DocumentProcessingException(filePath, $"Failed to read PowerPoint document: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<ReadResult> ReadAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        if (!CanRead(fileName))
+            throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
+
+        var startTime = DateTime.UtcNow;
+
+        try
+        {
+            var result = new ReadResult
+            {
+                File = new SourceFileInfo
+                {
+                    Name = fileName,
+                    Extension = ".pptx",
+                    Size = stream.CanSeek ? stream.Length : 0,
+                    CreatedAt = DateTime.UtcNow
+                },
+                ReaderType = ReaderType
+            };
+
+            using var presentationDocument = PresentationDocument.Open(stream, false);
+            var presentationPart = presentationDocument.PresentationPart;
+
+            var (documentTitle, documentAuthor) = ExtractDocumentMetadata(presentationDocument);
+            if (!string.IsNullOrEmpty(documentTitle))
+                result.DocumentProps["title"] = documentTitle;
+            if (!string.IsNullOrEmpty(documentAuthor))
+                result.DocumentProps["author"] = documentAuthor;
+
+            var slideIds = presentationPart?.Presentation?.SlideIdList?.Elements<SlideId>().ToList() ?? [];
+            result.DocumentProps["slide_count"] = slideIds.Count;
+
+            var pageNum = 1;
+            foreach (var slideId in slideIds)
+            {
+                result.Pages.Add(new PageInfo
+                {
+                    Number = pageNum++,
+                    HasContent = true,
+                    Props = { ["file_type"] = "powerpoint_slide" }
+                });
+            }
+
+            result.Duration = DateTime.UtcNow - startTime;
+            return result;
+        }
+        catch (Exception ex) when (ex is not FileFluxException)
+        {
+            throw new DocumentProcessingException(fileName, $"Failed to read PowerPoint document from stream: {ex.Message}", ex);
+        }
+    }
+
+    // ========================================
+    // Stage 1: Extract (Raw Content)
+    // ========================================
+
+    public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(filePath))
             throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
@@ -46,7 +173,7 @@ public class PowerPointDocumentReader : IDocumentReader
         }
     }
 
-    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 

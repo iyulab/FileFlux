@@ -35,10 +35,28 @@ public class MultiModalWordDocumentReader : IDocumentReader
         return _baseWordReader.CanRead(fileName);
     }
 
-    public async Task<RawContent> ExtractAsync(string filePath, CancellationToken cancellationToken = default)
+    // ========================================
+    // Stage 0: Read (Document Structure)
+    // ========================================
+
+    public Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        return _baseWordReader.ReadAsync(filePath, cancellationToken);
+    }
+
+    public Task<ReadResult> ReadAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    {
+        return _baseWordReader.ReadAsync(stream, fileName, cancellationToken);
+    }
+
+    // ========================================
+    // Stage 1: Extract (Raw Content)
+    // ========================================
+
+    public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         // 기본 Word 텍스트 추출
-        var baseContent = await _baseWordReader.ExtractAsync(filePath, cancellationToken);
+        var baseContent = await _baseWordReader.ExtractAsync(filePath, options, cancellationToken);
 
         // 이미지 서비스가 없으면 기본 결과 반환
         if (_imageToTextService == null)
@@ -48,10 +66,10 @@ public class MultiModalWordDocumentReader : IDocumentReader
         return await ExtractWithImageProcessing(filePath, baseContent, cancellationToken);
     }
 
-    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         // 기본 Word 텍스트 추출
-        var baseContent = await _baseWordReader.ExtractAsync(stream, fileName, cancellationToken);
+        var baseContent = await _baseWordReader.ExtractAsync(stream, fileName, options, cancellationToken);
 
         // 이미지 서비스가 없으면 기본 결과 반환
         if (_imageToTextService == null)
