@@ -3,10 +3,26 @@ using FileFlux.Core;
 using FileFlux;
 using FileFlux.Infrastructure.Services.LMSupply;
 using FluxImprover;
+using LMSupply;
 using Microsoft.Extensions.DependencyInjection;
+using Spectre.Console;
 using FluxImproverService = FluxImprover.Services.ITextCompletionService;
 
 namespace FileFlux.CLI.Services;
+
+/// <summary>
+/// Model information for display purposes
+/// </summary>
+public sealed record ModelInfo
+{
+    public required string Provider { get; init; }
+    public required string TextModel { get; init; }
+    public string? VisionModel { get; init; }
+    public string? Endpoint { get; init; }
+    public bool IsLocal { get; init; }
+    public bool VisionEnabled { get; init; }
+    public Dictionary<string, string> AdditionalInfo { get; init; } = new();
+}
 
 /// <summary>
 /// Factory for creating AI provider services based on environment configuration
@@ -87,6 +103,135 @@ public class AIProviderFactory
             "ambiguous" => $"Ambiguous (set MODEL_PROVIDER: {string.Join(", ", _config.GetConfiguredProviders())})",
             _ => $"Unsupported: {provider}"
         };
+    }
+
+    /// <summary>
+    /// Get detailed model information for display
+    /// </summary>
+    public ModelInfo? GetDetailedModelInfo()
+    {
+        var provider = _config.DetectProvider();
+
+        return provider switch
+        {
+            "openai" => new ModelInfo
+            {
+                Provider = "OpenAI",
+                TextModel = _config.OpenAIModel ?? "gpt-5-nano",
+                VisionModel = _enableVision ? _config.OpenAIModel ?? "gpt-5-nano" : null,
+                VisionEnabled = _enableVision,
+                IsLocal = false,
+                AdditionalInfo = new()
+                {
+                    ["API"] = "https://api.openai.com/v1"
+                }
+            },
+            "anthropic" => new ModelInfo
+            {
+                Provider = "Anthropic",
+                TextModel = _config.AnthropicModel ?? "claude-3-haiku-20240307",
+                VisionModel = _enableVision ? _config.AnthropicModel ?? "claude-3-haiku-20240307" : null,
+                VisionEnabled = _enableVision,
+                IsLocal = false,
+                AdditionalInfo = new()
+                {
+                    ["API"] = "https://api.anthropic.com/v1"
+                }
+            },
+            "gpustack" => new ModelInfo
+            {
+                Provider = "GPU-Stack",
+                TextModel = _config.GpuStackModel ?? "default",
+                VisionModel = _enableVision ? _config.GpuStackModel : null,
+                Endpoint = _config.GpuStackEndpoint ?? "http://localhost:8080",
+                VisionEnabled = _enableVision,
+                IsLocal = false,
+                AdditionalInfo = new()
+                {
+                    ["API"] = _config.GpuStackEndpoint ?? "http://localhost:8080"
+                }
+            },
+            "google" => new ModelInfo
+            {
+                Provider = "Google Gemini",
+                TextModel = _config.GoogleModel ?? "gemini-2.0-flash",
+                VisionModel = _enableVision ? _config.GoogleModel ?? "gemini-2.0-flash" : null,
+                VisionEnabled = _enableVision,
+                IsLocal = false,
+                AdditionalInfo = new()
+                {
+                    ["API"] = "https://generativelanguage.googleapis.com/v1"
+                }
+            },
+            "local" => new ModelInfo
+            {
+                Provider = "LMSupply (Local)",
+                TextModel = _config.LMSupplyModel ?? "microsoft/Phi-4-mini-instruct-onnx",
+                VisionModel = _enableVision ? "Xenova/vit-gpt2-image-captioning" : null,
+                VisionEnabled = _enableVision,
+                IsLocal = true,
+                AdditionalInfo = new()
+                {
+                    ["Acceleration"] = _config.LMSupplyUseGpu ? "GPU" : "CPU",
+                    ["Cache"] = GetLMSupplyCacheDirectory()
+                }
+            },
+            _ => null
+        };
+    }
+
+    /// <summary>
+    /// Display model information to console
+    /// </summary>
+    public void DisplayModelInfo(bool quiet = false)
+    {
+        if (quiet) return;
+
+        var modelInfo = GetDetailedModelInfo();
+        if (modelInfo is null)
+        {
+            AnsiConsole.MarkupLine("[yellow]AI Provider:[/] Not configured");
+            return;
+        }
+
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .BorderColor(Color.Blue)
+            .AddColumn(new TableColumn("[bold]Property[/]").Width(20))
+            .AddColumn(new TableColumn("[bold]Value[/]"));
+
+        table.Title = new TableTitle($"[blue]AI Model Configuration[/]");
+
+        // Provider info
+        var providerIcon = modelInfo.IsLocal ? "🖥️" : "☁️";
+        table.AddRow("Provider", $"{providerIcon} {modelInfo.Provider}");
+        table.AddRow("Text Model", Markup.Escape(modelInfo.TextModel));
+
+        if (modelInfo.VisionEnabled && modelInfo.VisionModel is not null)
+        {
+            table.AddRow("Vision Model", Markup.Escape(modelInfo.VisionModel));
+        }
+
+        if (modelInfo.Endpoint is not null)
+        {
+            table.AddRow("Endpoint", Markup.Escape(modelInfo.Endpoint));
+        }
+
+        // Additional info
+        foreach (var (key, value) in modelInfo.AdditionalInfo)
+        {
+            table.AddRow(key, Markup.Escape(value));
+        }
+
+        AnsiConsole.Write(table);
+        AnsiConsole.WriteLine();
+    }
+
+    private static string GetLMSupplyCacheDirectory()
+    {
+        var cacheDir = Environment.GetEnvironmentVariable("LMSUPPLY_CACHE")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LMSupply");
+        return cacheDir;
     }
 
     /// <summary>
@@ -277,11 +422,14 @@ public class AIProviderFactory
         services.AddSingleton(options);
         services.AddSingleton<LMSupplyServiceFactory>();
 
+        // Create progress reporter for model downloads
+        var progress = new ConsoleDownloadProgress();
+
         // Register text completion service - lazy initialization
         services.AddScoped<ITextCompletionService>(sp =>
         {
             var factory = sp.GetRequiredService<LMSupplyServiceFactory>();
-            return factory.GetGeneratorAsync().GetAwaiter().GetResult();
+            return factory.GetGeneratorAsync(progress).GetAwaiter().GetResult();
         });
 
         // Register image-to-text service if vision is enabled
@@ -290,8 +438,51 @@ public class AIProviderFactory
             services.AddScoped<IImageToTextService>(sp =>
             {
                 var factory = sp.GetRequiredService<LMSupplyServiceFactory>();
-                return factory.GetCaptionerAsync().GetAwaiter().GetResult();
+                return factory.GetCaptionerAsync(progress).GetAwaiter().GetResult();
             });
+        }
+    }
+
+    /// <summary>
+    /// Progress reporter that displays download progress to the console
+    /// </summary>
+    private class ConsoleDownloadProgress : IProgress<DownloadProgress>
+    {
+        private string? _currentFile;
+        private ProgressTask? _progressTask;
+        private ProgressContext? _progressContext;
+        private readonly object _lock = new();
+
+        public void Report(DownloadProgress value)
+        {
+            lock (_lock)
+            {
+                // Check if we're starting a new file
+                if (_currentFile != value.FileName)
+                {
+                    _currentFile = value.FileName;
+
+                    // Print new file being downloaded
+                    var totalMb = value.TotalBytes > 0 ? $" ({value.TotalBytes / 1024.0 / 1024.0:F1} MB)" : "";
+                    AnsiConsole.MarkupLine($"[blue]Downloading:[/] {Markup.Escape(value.FileName)}{totalMb}");
+                }
+
+                // Show progress percentage if we know total size
+                if (value.TotalBytes > 0)
+                {
+                    var percent = (double)value.BytesDownloaded / value.TotalBytes * 100;
+                    var downloaded = value.BytesDownloaded / 1024.0 / 1024.0;
+                    var total = value.TotalBytes / 1024.0 / 1024.0;
+
+                    // Update progress on same line
+                    Console.Write($"\r  Progress: {percent:F1}% ({downloaded:F1}/{total:F1} MB)");
+
+                    if (value.BytesDownloaded >= value.TotalBytes)
+                    {
+                        Console.WriteLine(" [Done]");
+                    }
+                }
+            }
         }
     }
 }

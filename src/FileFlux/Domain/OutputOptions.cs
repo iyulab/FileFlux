@@ -90,6 +90,11 @@ public class OutputOptions
     public bool EnableAI { get; set; }
 
     /// <summary>
+    /// Show detailed processing information
+    /// </summary>
+    public bool Verbose { get; set; }
+
+    /// <summary>
     /// Generate default base output directory for a file (filename_output/)
     /// When no custom output is specified, creates folder next to input file.
     /// </summary>

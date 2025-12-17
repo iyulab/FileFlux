@@ -236,7 +236,6 @@ public class ProcessCommand : Command
                 $"[bold]Output:[/] {Markup.Escape(dirs.Base)}/\n" +
                 $"[bold]Pipeline:[/] {pipelineDesc}\n" +
                 $"[bold]Strategy:[/] {strategy} (max: {maxSize}, overlap: {overlap})\n" +
-                $"[bold]AI Provider:[/] {(enableAI ? aiProvider : "Disabled")}\n" +
                 $"[bold]Format:[/] {format}"))
             {
                 Header = new PanelHeader("[blue]FileFlux CLI - Process[/]"),
@@ -245,6 +244,17 @@ public class ProcessCommand : Command
 
             AnsiConsole.Write(panel);
             AnsiConsole.WriteLine();
+
+            // Display detailed model information if AI is enabled
+            if (enableAI && factory.HasAIProvider())
+            {
+                factory.DisplayModelInfo();
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]AI:[/] Disabled");
+                AnsiConsole.WriteLine();
+            }
         }
 
         try
@@ -255,6 +265,36 @@ public class ProcessCommand : Command
             DocumentChunk[] chunks = null!;
             var images = new List<Domain.ProcessedImage>();
             var skippedImageCount = 0;
+            var enrichSkippedCount = 0;
+            var enrichErrorMessages = new List<string>();
+
+            // Pre-load AI model if enrichment is enabled (shows loading progress)
+            if (enableEnrich && fluxImprover != null)
+            {
+                await AnsiConsole.Status()
+                    .Spinner(Spinner.Known.Dots)
+                    .SpinnerStyle(Style.Parse("blue"))
+                    .StartAsync("[blue]Loading AI model for enrichment...[/]", async ctx =>
+                    {
+                        // Warm up the model by making a small test call
+                        try
+                        {
+                            var warmupChunk = new FluxImprover.Models.Chunk
+                            {
+                                Id = "warmup",
+                                Content = "test",
+                                Metadata = new Dictionary<string, object>()
+                            };
+                            await fluxImprover.ChunkEnrichment.EnrichAsync(warmupChunk, null, cancellationToken);
+                        }
+                        catch
+                        {
+                            // Ignore warmup errors - actual errors will be caught during processing
+                        }
+                    });
+                AnsiConsole.MarkupLine("[green]✓[/] AI model loaded");
+                AnsiConsole.WriteLine();
+            }
 
             await AnsiConsole.Progress()
                 .AutoClear(false)
@@ -267,50 +307,84 @@ public class ProcessCommand : Command
                 })
                 .StartAsync(async ctx =>
                 {
-                    var totalStages = stages.Count;
                     var currentStage = 0;
 
-                    // Stage 1: Extract
-                    var extractTask = ctx.AddTask("[yellow]Stage 1: Extract[/]", maxValue: 100);
+                    // ── Stage 1: Read file ──
+                    var readTask = ctx.AddTask("[yellow]  Reading file...[/]", maxValue: 100);
                     rawContent = await processor.ExtractAsync(input, cancellationToken);
-                    extractTask.Value = 100;
-                    currentStage++;
+                    readTask.Value = 100;
+                    readTask.Description = "[green]  Reading file[/] ✓";
 
-                    // Stage 2: Parse
+                    // ── Stage 2: Parse content ──
+                    var parseTask = ctx.AddTask("[yellow]  Parsing content...[/]", maxValue: 100);
                     parsedContent = await processor.ParseAsync(rawContent, null, cancellationToken);
+                    parseTask.Value = 100;
+                    parseTask.Description = $"[green]  Parsing content[/] ✓ ({parsedContent.Text.Length:N0} chars)";
 
-                    // Process images if needed
+                    // ── Stage 3: Process images (if needed) ──
                     if (extractImages)
                     {
+                        var imageCount = rawContent.Images.Count;
+                        var imageTaskDesc = imageCount > 0
+                            ? $"[yellow]  Processing {imageCount} image(s)...[/]"
+                            : "[yellow]  Scanning for images...[/]";
+                        var imageTask = ctx.AddTask(imageTaskDesc, maxValue: 100);
+
                         var outputOptions = new OutputOptions
                         {
                             ExtractImages = true,
                             MinImageSize = minImageSize,
-                            MinImageDimension = minImageDimension
+                            MinImageDimension = minImageDimension,
+                            Verbose = verbose
                         };
                         var imageProcessor = new Infrastructure.Services.ImageProcessor(outputOptions);
-                        var imageResult = await imageProcessor.ProcessImagesAsync(
-                            parsedContent.Text, dirs.Images, imageToTextService, cancellationToken);
 
-                        parsedContent.Text = imageResult.ProcessedContent;
-                        images = imageResult.Images;
-                        skippedImageCount = imageResult.SkippedCount;
+                        // Check if images were pre-extracted by Reader (e.g., HTML with embedded base64)
+                        if (rawContent.Images.Count > 0 && rawContent.Images.Any(i => i.Data != null))
+                        {
+                            var imageResult = await imageProcessor.ProcessPreExtractedImagesAsync(
+                                parsedContent.Text, rawContent.Images, dirs.Images, imageToTextService, cancellationToken);
+
+                            parsedContent.Text = imageResult.ProcessedContent;
+                            images = imageResult.Images;
+                            skippedImageCount = imageResult.SkippedCount;
+                        }
+                        else
+                        {
+                            // Fallback to inline base64 processing (for other document types)
+                            var imageResult = await imageProcessor.ProcessImagesAsync(
+                                parsedContent.Text, dirs.Images, imageToTextService, cancellationToken);
+
+                            parsedContent.Text = imageResult.ProcessedContent;
+                            images = imageResult.Images;
+                            skippedImageCount = imageResult.SkippedCount;
+                        }
+
+                        imageTask.Value = 100;
+                        if (images.Count > 0)
+                            imageTask.Description = $"[green]  Processing images[/] ✓ ({images.Count} extracted)";
+                        else
+                            imageTask.Description = "[dim]  Processing images[/] (none found)";
                     }
                     else
                     {
                         parsedContent.Text = Infrastructure.Services.ImageProcessor.RemoveBase64Images(parsedContent.Text);
                     }
 
-                    // Save extract result
+                    // ── Stage 4: Save extract result ──
+                    var saveTask = ctx.AddTask("[yellow]  Saving extracted content...[/]", maxValue: 100);
                     await File.WriteAllTextAsync(
                         Path.Combine(dirs.Extract, "extracted.md"),
                         parsedContent.Text,
                         cancellationToken);
+                    saveTask.Value = 100;
+                    saveTask.Description = "[green]  Saving extracted content[/] ✓";
+                    currentStage++;
 
-                    // Stage 2.5: Refine (optional)
+                    // ── Stage 5: Refine (optional) ──
                     if (enableRefine)
                     {
-                        var refineTask = ctx.AddTask("[yellow]Stage 2: Refine[/]", maxValue: 100);
+                        var refineTask = ctx.AddTask("[yellow]  Refining content...[/]", maxValue: 100);
 
                         // Auto-select refining options based on document type and language
                         var refiningOptions = SelectRefiningOptions(input, parsedContent.Text);
@@ -319,7 +393,11 @@ public class ProcessCommand : Command
                         refiningOptions.Extra["_rawContent"] = rawContent;
 
                         refinedContent = await processor.RefineAsync(parsedContent, refiningOptions, cancellationToken);
+                        var reduction = parsedContent.Text.Length > 0
+                            ? (1 - (double)refinedContent.Text.Length / parsedContent.Text.Length) * 100
+                            : 0;
                         refineTask.Value = 100;
+                        refineTask.Description = $"[green]  Refining content[/] ✓ ({reduction:F0}% reduced)";
                         currentStage++;
 
                         // Save refine result
@@ -333,8 +411,8 @@ public class ProcessCommand : Command
                         refinedContent = parsedContent;
                     }
 
-                    // Stage 3: Chunk
-                    var chunkTask = ctx.AddTask($"[yellow]Stage {currentStage + 1}: Chunk[/]", maxValue: 100);
+                    // ── Stage 6: Chunk ──
+                    var chunkTask = ctx.AddTask($"[yellow]  Chunking content ({strategy})...[/]", maxValue: 100);
                     var chunkingOptions = new ChunkingOptions
                     {
                         Strategy = strategy,
@@ -343,15 +421,17 @@ public class ProcessCommand : Command
                     };
                     chunks = await processor.ChunkAsync(refinedContent, chunkingOptions, cancellationToken);
                     chunkTask.Value = 100;
-                    currentStage++;
+                    chunkTask.Description = $"[green]  Chunking content[/] ✓ ({chunks.Length} chunks)";
 
-                    // Stage 4: Enrich (optional)
+                    // ── Stage 7: Enrich (optional) ──
                     if (enableEnrich && fluxImprover != null && chunks.Length > 0)
                     {
-                        var enrichTask = ctx.AddTask($"[yellow]Stage {currentStage + 1}: Enrich[/]", maxValue: chunks.Length);
+                        var enrichTask = ctx.AddTask($"[yellow]  Enriching chunks...[/]", maxValue: chunks.Length);
 
                         for (int i = 0; i < chunks.Length; i++)
                         {
+                            enrichTask.Description = $"[yellow]  Enriching chunk {i + 1}/{chunks.Length}...[/]";
+
                             var chunk = chunks[i];
                             var fluxChunk = new FluxImprover.Models.Chunk
                             {
@@ -360,18 +440,74 @@ public class ProcessCommand : Command
                                 Metadata = chunk.Props
                             };
 
-                            var enriched = await fluxImprover.ChunkEnrichment.EnrichAsync(
-                                fluxChunk, null, cancellationToken);
+                            try
+                            {
+                                var enriched = await fluxImprover.ChunkEnrichment.EnrichAsync(
+                                    fluxChunk, null, cancellationToken);
 
-                            if (!string.IsNullOrEmpty(enriched.Summary))
-                                chunk.Props[ChunkPropsKeys.EnrichedSummary] = enriched.Summary;
-                            if (enriched.Keywords?.Any() == true)
-                                chunk.Props[ChunkPropsKeys.EnrichedKeywords] = enriched.Keywords;
+                                if (!string.IsNullOrEmpty(enriched.Summary))
+                                    chunk.Props[ChunkPropsKeys.EnrichedSummary] = enriched.Summary;
+                                if (enriched.Keywords?.Any() == true)
+                                    chunk.Props[ChunkPropsKeys.EnrichedKeywords] = enriched.Keywords;
+                            }
+                            catch (Exception ex) when (ex.Message.Contains("exceeds max length") ||
+                                                       ex.Message.Contains("token") ||
+                                                       ex.Message.Contains("input_ids"))
+                            {
+                                // Token length exceeded - skip this chunk
+                                enrichSkippedCount++;
+                                chunk.Props["enrichment_error"] = "Chunk too long for model context";
+
+                                if (verbose && enrichErrorMessages.Count < 3)
+                                {
+                                    enrichErrorMessages.Add($"Chunk {i + 1}: {ex.Message}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                // Other errors - log and continue
+                                enrichSkippedCount++;
+                                chunk.Props["enrichment_error"] = ex.Message;
+
+                                if (verbose && enrichErrorMessages.Count < 3)
+                                {
+                                    enrichErrorMessages.Add($"Chunk {i + 1}: {ex.Message}");
+                                }
+                            }
 
                             enrichTask.Increment(1);
                         }
+
+                        var enrichedCount = chunks.Length - enrichSkippedCount;
+                        if (enrichSkippedCount > 0)
+                        {
+                            enrichTask.Description = $"[yellow]  Enriching chunks[/] ⚠ ({enrichedCount}/{chunks.Length} succeeded)";
+                        }
+                        else
+                        {
+                            enrichTask.Description = $"[green]  Enriching chunks[/] ✓ (all {chunks.Length})";
+                        }
                     }
+
                 });
+
+            // Report enrichment errors after progress completes
+            if (enrichSkippedCount > 0 && !quiet)
+            {
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"[yellow]⚠ Warning:[/] {enrichSkippedCount} chunk(s) skipped during enrichment (content too long for model)");
+                if (enrichErrorMessages.Count > 0)
+                {
+                    foreach (var msg in enrichErrorMessages)
+                    {
+                        AnsiConsole.MarkupLine($"  [dim]• {Markup.Escape(msg)}[/]");
+                    }
+                    if (enrichSkippedCount > enrichErrorMessages.Count)
+                    {
+                        AnsiConsole.MarkupLine($"  [dim]• ... and {enrichSkippedCount - enrichErrorMessages.Count} more[/]");
+                    }
+                }
+            }
 
             // Write output
             var chunkingOptions = new ChunkingOptions

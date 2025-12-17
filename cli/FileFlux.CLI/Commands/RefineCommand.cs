@@ -58,6 +58,23 @@ public class RefineCommand : Command
             Description = "Enable AI for OCR correction and descriptions"
         };
 
+        var noExtractImagesOpt = new Option<bool>("--no-extract-images")
+        {
+            Description = "Keep base64 images in content instead of extracting to files"
+        };
+
+        var minImageSizeOpt = new Option<int>("--min-image-size")
+        {
+            Description = "Minimum image file size in bytes (default: 5000)",
+            DefaultValueFactory = _ => 5000
+        };
+
+        var minImageDimensionOpt = new Option<int>("--min-image-dimension")
+        {
+            Description = "Minimum image dimension in pixels (default: 100)",
+            DefaultValueFactory = _ => 100
+        };
+
         var quietOpt = new Option<bool>("--quiet", "-q")
         {
             Description = "Minimal output"
@@ -76,6 +93,9 @@ public class RefineCommand : Command
         Options.Add(noRemovePageNumbersOpt);
         Options.Add(noRestructureOpt);
         Options.Add(aiOpt);
+        Options.Add(noExtractImagesOpt);
+        Options.Add(minImageSizeOpt);
+        Options.Add(minImageDimensionOpt);
         Options.Add(quietOpt);
         Options.Add(verboseOpt);
 
@@ -89,13 +109,17 @@ public class RefineCommand : Command
             var noRemovePageNumbers = parseResult.GetValue(noRemovePageNumbersOpt);
             var noRestructure = parseResult.GetValue(noRestructureOpt);
             var enableAI = parseResult.GetValue(aiOpt);
+            var noExtractImages = parseResult.GetValue(noExtractImagesOpt);
+            var minImageSize = parseResult.GetValue(minImageSizeOpt);
+            var minImageDimension = parseResult.GetValue(minImageDimensionOpt);
             var quiet = parseResult.GetValue(quietOpt);
             var verbose = parseResult.GetValue(verboseOpt);
 
             if (input != null)
             {
                 await ExecuteAsync(input, output, format, !noCleanWhitespace, !noRemoveHeaders,
-                    !noRemovePageNumbers, !noRestructure, enableAI, quiet, verbose, cancellationToken);
+                    !noRemovePageNumbers, !noRestructure, enableAI, !noExtractImages,
+                    minImageSize, minImageDimension, quiet, verbose, cancellationToken);
             }
         });
     }
@@ -109,6 +133,9 @@ public class RefineCommand : Command
         bool removePageNumbers,
         bool restructure,
         bool enableAI,
+        bool extractImages,
+        int minImageSize,
+        int minImageDimension,
         bool quiet,
         bool verbose,
         CancellationToken cancellationToken)
@@ -122,11 +149,12 @@ public class RefineCommand : Command
         // Setup services
         var services = new ServiceCollection();
         var config = new CliEnvironmentConfig();
+        IImageToTextService? imageToTextService = null;
         string? aiProvider = null;
 
         if (enableAI && config.HasAnyProvider())
         {
-            var factory = new AIProviderFactory(config, verbose: verbose);
+            var factory = new AIProviderFactory(config, enableVision: true, verbose: verbose);
             factory.ConfigureServices(services);
             aiProvider = config.DetectProvider();
         }
@@ -143,13 +171,31 @@ public class RefineCommand : Command
         await using var provider = services.BuildServiceProvider();
         var processor = provider.GetRequiredService<FluxDocumentProcessor>();
 
+        if (enableAI)
+        {
+            imageToTextService = provider.GetService<IImageToTextService>();
+        }
+
         format ??= "md";
 
         // Get output directories
         var dirs = OutputOptions.GetOutputDirectories(input, output);
         var outputFile = Path.Combine(dirs.Refine, $"refined.{format}");
 
-        var options = new RefiningOptions
+        // Configure extract output options
+        var extractOptions = new OutputOptions
+        {
+            OutputDirectory = dirs.Extract,
+            ImagesDirectory = dirs.Images,
+            Format = format,
+            ExtractImages = extractImages,
+            MinImageSize = minImageSize,
+            MinImageDimension = minImageDimension,
+            EnableAI = enableAI,
+            Verbose = verbose
+        };
+
+        var refineOptions = new RefiningOptions
         {
             CleanWhitespace = cleanWhitespace,
             RemoveHeadersFooters = removeHeaders,
@@ -165,13 +211,27 @@ public class RefineCommand : Command
             AnsiConsole.MarkupLine($"  Input:      {Markup.Escape(input)}");
             AnsiConsole.MarkupLine($"  Output:     {Markup.Escape(dirs.Base)}/");
             AnsiConsole.MarkupLine($"  Format:     {format}");
-            AnsiConsole.MarkupLine($"  AI:         {(enableAI ? $"[green]Enabled[/] ({aiProvider})" : "Disabled")}");
+            if (extractImages)
+                AnsiConsole.MarkupLine($"  Images:     [green]Extracting[/]");
             AnsiConsole.MarkupLine($"  Options:    {(cleanWhitespace ? "clean" : "")} {(removeHeaders ? "headers" : "")} {(removePageNumbers ? "pages" : "")} {(restructure ? "restructure" : "")}".Trim());
             AnsiConsole.WriteLine();
+
+            // Display detailed model information if AI is enabled
+            if (enableAI)
+            {
+                var factory = new AIProviderFactory(config, enableVision: true, verbose: verbose);
+                factory.DisplayModelInfo();
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]AI:[/] Disabled");
+                AnsiConsole.WriteLine();
+            }
         }
 
         try
         {
+            ExtractionResult? extractionResult = null;
             ParsedContent parsedContent;
             int originalLength;
 
@@ -201,30 +261,27 @@ public class RefineCommand : Command
             }
             else
             {
-                // Extract and parse the document
-                var rawContent = await AnsiConsole.Status()
+                // Step 1: Extract document (implicitly performs extract stage)
+                extractionResult = await AnsiConsole.Status()
                     .Spinner(Spinner.Known.Dots)
                     .StartAsync("Extracting document...", async ctx =>
                     {
-                        return await processor.ExtractAsync(input, cancellationToken);
+                        return await processor.ExtractToDirectoryAsync(
+                            input, extractOptions, imageToTextService, cancellationToken);
                     });
 
-                parsedContent = await AnsiConsole.Status()
-                    .Spinner(Spinner.Known.Dots)
-                    .StartAsync("Parsing document...", async ctx =>
-                    {
-                        return await processor.ParseAsync(rawContent, null, cancellationToken);
-                    });
-
-                originalLength = parsedContent.Text.Length;
+                parsedContent = extractionResult.ParsedContent;
+                // Use processed text (with image placeholders replaced)
+                parsedContent.Text = extractionResult.ProcessedText;
+                originalLength = extractionResult.ProcessedText.Length;
             }
 
-            // Refine the content
+            // Step 2: Refine the content
             var refined = await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
                 .StartAsync("Refining content...", async ctx =>
                 {
-                    return await processor.RefineAsync(parsedContent, options, cancellationToken);
+                    return await processor.RefineAsync(parsedContent, refineOptions, cancellationToken);
                 });
 
             // Ensure output directory exists
@@ -262,6 +319,14 @@ public class RefineCommand : Command
                 table.AddRow("Original length", $"{originalLength:N0} chars");
                 table.AddRow("Refined length", $"{refined.Text.Length:N0} chars");
                 table.AddRow("Reduction", $"{reduction:F1}%");
+
+                if (extractionResult != null)
+                {
+                    if (extractionResult.Images.Count > 0)
+                        table.AddRow("Images extracted", extractionResult.Images.Count.ToString());
+                    if (extractionResult.SkippedImageCount > 0)
+                        table.AddRow("Images skipped", extractionResult.SkippedImageCount.ToString());
+                }
 
                 AnsiConsole.Write(table);
             }

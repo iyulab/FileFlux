@@ -151,7 +151,8 @@ public class ExtractCommand : Command
             ExtractImages = extractImages,
             MinImageSize = minImageSize,
             MinImageDimension = minImageDimension,
-            EnableAI = enableAI
+            EnableAI = enableAI,
+            Verbose = verbose
         };
 
         // Get output directories
@@ -163,10 +164,21 @@ public class ExtractCommand : Command
             AnsiConsole.MarkupLine($"  Input:  {Markup.Escape(input)}");
             AnsiConsole.MarkupLine($"  Output: {Markup.Escape(dirs.Base)}/");
             AnsiConsole.MarkupLine($"  Format: {format ?? "md"}");
-            AnsiConsole.MarkupLine($"  AI:     {(enableAI ? $"[green]Enabled[/] ({aiProvider})" : "Disabled")}");
             if (extractImages)
                 AnsiConsole.MarkupLine($"  Images: [green]Extracting[/]");
             AnsiConsole.WriteLine();
+
+            // Display detailed model information if AI is enabled
+            if (enableAI)
+            {
+                var factory = new AIProviderFactory(config, enableVision: true, verbose: verbose);
+                factory.DisplayModelInfo();
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]AI:[/] Disabled");
+                AnsiConsole.WriteLine();
+            }
         }
 
         // Override output options with new directory structure

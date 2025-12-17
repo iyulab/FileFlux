@@ -266,15 +266,31 @@ public class ChunkCommand : Command
                         {
                             ExtractImages = true,
                             MinImageSize = minImageSize,
-                            MinImageDimension = minImageDimension
+                            MinImageDimension = minImageDimension,
+                            Verbose = verbose
                         };
                         var imageProcessor = new Infrastructure.Services.ImageProcessor(outputOptions);
-                        var imageResult = await imageProcessor.ProcessImagesAsync(
-                            parsedContent.Text, dirs.Images, imageToTextService, cancellationToken);
 
-                        parsedContent.Text = imageResult.ProcessedContent;
-                        images = imageResult.Images;
-                        skippedImageCount = imageResult.SkippedCount;
+                        // Check if images were pre-extracted by Reader (e.g., HTML with embedded base64)
+                        if (rawContent.Images.Count > 0 && rawContent.Images.Any(i => i.Data != null))
+                        {
+                            var imageResult = await imageProcessor.ProcessPreExtractedImagesAsync(
+                                parsedContent.Text, rawContent.Images, dirs.Images, imageToTextService, cancellationToken);
+
+                            parsedContent.Text = imageResult.ProcessedContent;
+                            images = imageResult.Images;
+                            skippedImageCount = imageResult.SkippedCount;
+                        }
+                        else
+                        {
+                            // Fallback to inline base64 processing (for other document types)
+                            var imageResult = await imageProcessor.ProcessImagesAsync(
+                                parsedContent.Text, dirs.Images, imageToTextService, cancellationToken);
+
+                            parsedContent.Text = imageResult.ProcessedContent;
+                            images = imageResult.Images;
+                            skippedImageCount = imageResult.SkippedCount;
+                        }
                     }
                     else
                     {

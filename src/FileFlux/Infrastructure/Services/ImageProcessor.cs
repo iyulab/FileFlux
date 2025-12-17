@@ -13,10 +13,10 @@ public class ImageProcessor
     private readonly OutputOptions _options;
     private readonly bool _verbose;
 
-    public ImageProcessor(OutputOptions options, bool verbose = false)
+    public ImageProcessor(OutputOptions options)
     {
         _options = options;
-        _verbose = verbose;
+        _verbose = options.Verbose;
     }
 
     /// <summary>
@@ -65,9 +65,15 @@ public class ImageProcessor
                 continue;
             }
 
-            // Check dimensions
-            var format = GetFormatFromMimeType(imageInfo.MimeType);
+            // Check dimensions - detect actual format from magic bytes
+            var mimeFormat = GetFormatFromMimeType(imageInfo.MimeType);
+            var detectedFormat = DetectImageFormat(imageInfo.Data);
+            var format = detectedFormat ?? mimeFormat;
             var dimensions = GetImageDimensions(imageInfo.Data, format);
+            if (_verbose)
+            {
+                Console.WriteLine($"[Verbose] {imageInfo.Id}: mimeFormat={mimeFormat}, detectedFormat={detectedFormat ?? "unknown"}, size={imageInfo.Data.Length}bytes, dimensions={dimensions.Width}x{dimensions.Height}");
+            }
             if (dimensions.Width < _options.MinImageDimension || dimensions.Height < _options.MinImageDimension)
             {
                 skippedCount++;
@@ -340,7 +346,11 @@ public class ImageProcessor
     {
         try
         {
-            return format.ToLowerInvariant() switch
+            // First, detect actual format from magic bytes (more reliable than MIME type)
+            var detectedFormat = DetectImageFormat(imageBytes);
+            var formatToUse = detectedFormat ?? format.ToLowerInvariant();
+
+            return formatToUse switch
             {
                 "png" => GetPngDimensions(imageBytes),
                 "jpg" or "jpeg" => GetJpegDimensions(imageBytes),
@@ -356,11 +366,56 @@ public class ImageProcessor
         }
     }
 
+    /// <summary>
+    /// Detect image format from magic bytes
+    /// </summary>
+    private static string? DetectImageFormat(byte[] data)
+    {
+        if (data.Length < 8) return null;
+
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 &&
+            data[4] == 0x0D && data[5] == 0x0A && data[6] == 0x1A && data[7] == 0x0A)
+            return "png";
+
+        // JPEG: FF D8 FF
+        if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+            return "jpeg";
+
+        // GIF: GIF87a or GIF89a
+        if (data[0] == 'G' && data[1] == 'I' && data[2] == 'F' && data[3] == '8')
+            return "gif";
+
+        // BMP: BM
+        if (data[0] == 'B' && data[1] == 'M')
+            return "bmp";
+
+        // WebP: RIFF....WEBP
+        if (data.Length >= 12 &&
+            data[0] == 'R' && data[1] == 'I' && data[2] == 'F' && data[3] == 'F' &&
+            data[8] == 'W' && data[9] == 'E' && data[10] == 'B' && data[11] == 'P')
+            return "webp";
+
+        return null;
+    }
+
     private static (int Width, int Height) GetPngDimensions(byte[] data)
     {
+        // PNG header: 8 bytes signature + IHDR chunk
+        // IHDR: 4 bytes length + 4 bytes "IHDR" + 4 bytes width + 4 bytes height
         if (data.Length < 24) return (0, 0);
+
+        // Verify PNG signature
+        if (data[0] != 0x89 || data[1] != 0x50 || data[2] != 0x4E || data[3] != 0x47)
+            return (0, 0);
+
         var width = (data[16] << 24) | (data[17] << 16) | (data[18] << 8) | data[19];
         var height = (data[20] << 24) | (data[21] << 16) | (data[22] << 8) | data[23];
+
+        // Sanity check for valid dimensions
+        if (width <= 0 || width > 65535 || height <= 0 || height > 65535)
+            return (0, 0);
+
         return (width, height);
     }
 

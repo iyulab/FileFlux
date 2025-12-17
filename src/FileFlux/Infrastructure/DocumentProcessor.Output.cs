@@ -51,9 +51,21 @@ public sealed partial class FluxDocumentProcessor
         {
             var imageProcessor = new ImageProcessor(outputOptions);
 
+            if (outputOptions.Verbose)
+            {
+                Console.WriteLine($"[Verbose] RawContent.Images.Count = {rawContent.Images.Count}");
+                Console.WriteLine($"[Verbose] Images with Data: {rawContent.Images.Count(i => i.Data != null)}");
+                Console.WriteLine($"[Verbose] Images without Data (external URLs): {rawContent.Images.Count(i => i.Data == null)}");
+            }
+
             // Check if images were pre-extracted by Reader (e.g., HTML with embedded base64)
             if (rawContent.Images.Count > 0 && rawContent.Images.Any(i => i.Data != null))
             {
+                if (outputOptions.Verbose)
+                {
+                    Console.WriteLine($"[Verbose] Using ProcessPreExtractedImagesAsync for {rawContent.Images.Count(i => i.Data != null)} pre-extracted images");
+                }
+
                 var imageResult = await imageProcessor.ProcessPreExtractedImagesAsync(
                     parsedContent.Text, rawContent.Images, imagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
 
@@ -63,6 +75,11 @@ public sealed partial class FluxDocumentProcessor
             }
             else
             {
+                if (outputOptions.Verbose)
+                {
+                    Console.WriteLine($"[Verbose] Using ProcessImagesAsync (inline base64 fallback)");
+                }
+
                 // Fallback to inline base64 processing (for other document types)
                 var imageResult = await imageProcessor.ProcessImagesAsync(
                     parsedContent.Text, imagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
