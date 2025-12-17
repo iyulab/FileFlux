@@ -225,6 +225,9 @@ public class MultiModalExcelDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = baseContent.Text,
+                Blocks = baseContent.Blocks,  // Preserve extracted blocks
+                Tables = baseContent.Tables,  // Preserve extracted tables
+                Images = baseContent.Images,  // Preserve extracted images
                 File = baseContent.File,
                 Hints = baseContent.Hints ?? new Dictionary<string, object>(),
                 Warnings = warnings,
@@ -235,6 +238,9 @@ public class MultiModalExcelDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = enhancedText.ToString(),
+            Blocks = baseContent.Blocks,  // Preserve extracted blocks
+            Tables = baseContent.Tables,  // Preserve extracted tables
+            Images = baseContent.Images,  // Preserve extracted images
             File = baseContent.File,
             Hints = structuralHints,
             Warnings = baseContent.Warnings,

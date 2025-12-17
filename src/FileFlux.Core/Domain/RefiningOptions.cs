@@ -95,6 +95,7 @@ public class RefiningOptions
         RemovePageNumbers = true,
         CleanWhitespace = true,
         RestructureHeadings = true,
+        ConvertToMarkdown = true,
         TextRefinementPreset = "ForPdfContent"
     };
 

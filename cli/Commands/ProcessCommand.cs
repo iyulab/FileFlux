@@ -314,6 +314,10 @@ public class ProcessCommand : Command
 
                         // Auto-select refining options based on document type and language
                         var refiningOptions = SelectRefiningOptions(input, parsedContent.Text);
+
+                        // Pass RawContent via Extra for full table/structure conversion support
+                        refiningOptions.Extra["_rawContent"] = rawContent;
+
                         refinedContent = await processor.RefineAsync(parsedContent, refiningOptions, cancellationToken);
                         refineTask.Value = 100;
                         currentStage++;

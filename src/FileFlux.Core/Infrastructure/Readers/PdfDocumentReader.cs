@@ -754,6 +754,7 @@ public partial class PdfDocumentReader : IDocumentReader
             {
                 var tableRows = new List<List<Word>>();
                 var inTable = false;
+                var alignedRowCount = 0;
 
                 foreach (var row in rows)
                 {
@@ -761,6 +762,7 @@ public partial class PdfDocumentReader : IDocumentReader
 
                     if (alignsToColumns)
                     {
+                        alignedRowCount++;
                         if (!inTable)
                         {
                             tableRows = [];

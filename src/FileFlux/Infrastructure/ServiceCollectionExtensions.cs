@@ -9,6 +9,7 @@ using FileFlux.Infrastructure.Languages;
 using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure.Readers;
 using FileFlux.Infrastructure.Parsers;
+using FileFlux.Infrastructure.Conversion;
 using FileFlux.Infrastructure.Services;
 using FileFlux.Infrastructure.Services.LMSupply;
 using FluxCurator;
@@ -54,6 +55,10 @@ public static class ServiceCollectionExtensions
         // Basic parser
         services.AddTransient<IDocumentParser>(provider =>
             new BasicDocumentParser(provider.GetService<ITextCompletionService>()));
+
+        // === Markdown Converter ===
+        services.AddSingleton<IMarkdownConverter>(provider =>
+            new MarkdownConverter(provider.GetService<ITextCompletionService>()));
 
         // === Document Refiner ===
         services.AddScoped<IDocumentRefiner>(provider =>

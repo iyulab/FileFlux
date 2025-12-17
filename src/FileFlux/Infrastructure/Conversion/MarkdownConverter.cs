@@ -114,10 +114,27 @@ public class MarkdownConverter : IMarkdownConverter
 
         // RawContent.Hints에서 구조 정보 추출
         var hasHeadings = rawContent.Hints?.ContainsKey("HasHeadings") == true;
-        var hasTables = rawContent.Hints?.ContainsKey("HasTables") == true ||
+        var hasTables = rawContent.HasTables ||
+                        rawContent.Hints?.ContainsKey("HasTables") == true ||
                         rawContent.Hints?.ContainsKey("TableCount") == true;
         var hasLists = rawContent.Hints?.ContainsKey("HasLists") == true;
         var hasImages = rawContent.Hints?.ContainsKey("HasImages") == true;
+
+        // RawContent.Tables에서 추출된 테이블이 있으면 먼저 마크다운으로 변환하여 추가
+        if (options.ConvertTables && rawContent.HasTables)
+        {
+            foreach (var table in rawContent.Tables)
+            {
+                var tableMarkdown = ConvertTableDataToMarkdown(table);
+                if (!string.IsNullOrEmpty(tableMarkdown))
+                {
+                    sb.AppendLine(tableMarkdown);
+                    sb.AppendLine();
+                    stats.TableCount++;
+                }
+            }
+            sb.AppendLine();
+        }
 
         bool inCodeBlock = false;
         bool inTable = false;
@@ -522,6 +539,125 @@ public class MarkdownConverter : IMarkdownConverter
         normalized = Regex.Replace(normalized, @"(```)\n([^\n])", "$1\n\n$2");
 
         return normalized.Trim();
+    }
+
+    #endregion
+
+    #region TableData to Markdown Conversion
+
+    /// <summary>
+    /// Converts TableData (from PDF extraction) to Markdown table format.
+    /// </summary>
+    private static string ConvertTableDataToMarkdown(TableData table)
+    {
+        if (table.Cells == null || table.Cells.Length == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        var columnCount = table.Cells.Max(row => row?.Length ?? 0);
+
+        if (columnCount == 0)
+            return string.Empty;
+
+        // Determine headers
+        string[] headers;
+        int dataStartRow;
+
+        if (table.HasHeader && table.Headers != null && table.Headers.Length > 0)
+        {
+            headers = table.Headers;
+            dataStartRow = 0;
+        }
+        else if (table.HasHeader && table.Cells.Length > 0)
+        {
+            headers = table.Cells[0] ?? [];
+            dataStartRow = 1;
+        }
+        else
+        {
+            // Generate column headers (Col1, Col2, etc.)
+            headers = Enumerable.Range(1, columnCount).Select(i => $"Col{i}").ToArray();
+            dataStartRow = 0;
+        }
+
+        // Ensure headers match column count
+        if (headers.Length < columnCount)
+        {
+            var newHeaders = new string[columnCount];
+            Array.Copy(headers, newHeaders, headers.Length);
+            for (int i = headers.Length; i < columnCount; i++)
+            {
+                newHeaders[i] = $"Col{i + 1}";
+            }
+            headers = newHeaders;
+        }
+
+        // Header row
+        sb.Append('|');
+        foreach (var header in headers.Take(columnCount))
+        {
+            sb.Append($" {EscapeMarkdownTableCell(header ?? "")} |");
+        }
+        sb.AppendLine();
+
+        // Separator row with alignment
+        sb.Append('|');
+        for (int i = 0; i < columnCount; i++)
+        {
+            TextAlignment? alignment = table.ColumnAlignments != null && i < table.ColumnAlignments.Length
+                ? table.ColumnAlignments[i]
+                : null;
+
+            var separator = alignment switch
+            {
+                TextAlignment.Left => ":---",
+                TextAlignment.Right => "---:",
+                TextAlignment.Center => ":---:",
+                TextAlignment.Justify => ":---:",
+                _ => "---"
+            };
+            sb.Append($" {separator} |");
+        }
+        sb.AppendLine();
+
+        // Data rows
+        for (int rowIdx = dataStartRow; rowIdx < table.Cells.Length; rowIdx++)
+        {
+            var row = table.Cells[rowIdx];
+            if (row == null) continue;
+
+            sb.Append('|');
+            for (int colIdx = 0; colIdx < columnCount; colIdx++)
+            {
+                var cell = colIdx < row.Length ? row[colIdx] : "";
+                sb.Append($" {EscapeMarkdownTableCell(cell ?? "")} |");
+            }
+            sb.AppendLine();
+        }
+
+        // Add confidence warning comment if low confidence
+        if (table.NeedsLlmAssist)
+        {
+            sb.AppendLine($"<!-- Table confidence: {table.Confidence:F2} - may need verification -->");
+        }
+
+        return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Escapes special characters in markdown table cells.
+    /// </summary>
+    private static string EscapeMarkdownTableCell(string content)
+    {
+        if (string.IsNullOrEmpty(content))
+            return "";
+
+        // Replace pipe characters and newlines
+        return content
+            .Replace("|", "\\|")
+            .Replace("\n", " ")
+            .Replace("\r", "")
+            .Trim();
     }
 
     #endregion
