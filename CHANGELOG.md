@@ -5,6 +5,44 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2025-12-17
+
+### Added
+- **Stateful Document Processor**: 4-stage pipeline with explicit state management
+  - `IDocumentProcessor`: Stage-by-stage execution with auto-dependency resolution
+  - `StatefulDocumentProcessor`: Stateful implementation holding per-document state
+  - `IDocumentProcessorFactory`: Factory pattern for creating processors
+  - `ProcessorState`: State tracking (Created → Extracted → Refined → Chunked → Enriched)
+  - `ProcessingResult`: Accumulated results across all stages
+- **IDocumentRefiner (Stage 2)**: Content refinement and structure extraction
+  - `IDocumentRefiner`: Interface for text cleaning, normalization, structure analysis
+  - `DocumentRefiner`: Implementation with markdown conversion support
+  - `RefinedContent`: Structured output with sections, metadata, quality scores
+  - `StructuredElement`: Code blocks, tables, images with source locations
+  - `RefineOptions`: Configuration for cleaning, markdown conversion, structure extraction
+- **IDocumentEnricher (Stage 4)**: LLM-powered chunk enrichment
+  - `IDocumentEnricher`: Interface for chunk enrichment and graph building
+  - `DocumentEnricher`: FluxImprover integration for summaries, keywords, contextual text
+  - `EnrichedDocumentChunk`: Chunks with LLM-generated metadata
+  - `EnrichmentResult`: Enrichment output with stats and optional graph
+  - `DocumentGraph`: Inter-chunk relationship graph with nodes and edges
+  - `GraphBuildOptions`: Configuration for sequential, hierarchical, semantic edges
+- **Pipeline Tests**: Comprehensive test suite for new pipeline components
+  - `StatefulDocumentProcessorTests`: Full pipeline execution tests
+  - `DocumentRefinerTests`: Refinement and structure extraction tests
+  - `DocumentEnricherTests`: Enrichment and graph building tests
+
+### Changed
+- `DocumentProcessorFactory`: Updated to inject `IDocumentRefiner` and `IDocumentEnricher`
+- `ServiceCollectionExtensions`: Registered new interfaces with DI container
+- Test count increased from 302 to 343 (41 new tests)
+
+### Architecture
+- **4-Stage Pipeline**: Extract → Refine → Chunk → Enrich
+- **Delegation Pattern**: StatefulDocumentProcessor delegates to specialized interfaces
+- **Factory Pattern**: Processors created via factory for proper dependency injection
+- **Idempotent Stages**: Each stage checks and skips if already completed
+
 ## [0.8.7] - 2025-12-16
 
 ### Added
