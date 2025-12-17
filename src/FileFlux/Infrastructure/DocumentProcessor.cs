@@ -15,10 +15,13 @@ using TextRefineOptions = FluxCurator.Core.Domain.TextRefineOptions;
 namespace FileFlux.Infrastructure;
 
 /// <summary>
-/// Document processor that delegates chunking to FluxCurator and enhancement to FluxImprover.
-/// Provides a unified API for the complete document processing pipeline.
+/// Legacy document processor that delegates chunking to FluxCurator and enhancement to FluxImprover.
 /// </summary>
-public sealed partial class FluxDocumentProcessor : IDocumentProcessor
+/// <remarks>
+/// This is a legacy implementation kept for backward compatibility with CLI commands.
+/// For new code, use <see cref="IDocumentProcessor"/> via <see cref="DocumentProcessorFactory"/>.
+/// </remarks>
+public sealed partial class FluxDocumentProcessor
 {
     private readonly IDocumentReaderFactory _readerFactory;
     private readonly IDocumentParserFactory _parserFactory;

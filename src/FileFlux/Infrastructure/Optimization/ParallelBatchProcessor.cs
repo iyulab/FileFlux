@@ -18,15 +18,15 @@ namespace FileFlux.Infrastructure.Optimization;
 /// </summary>
 public class ParallelBatchProcessor : IParallelBatchProcessor
 {
-    private readonly IDocumentProcessor _baseProcessor;
+    private readonly IDocumentProcessorFactory _processorFactory;
     private readonly ParallelOptions _parallelOptions;
     private readonly int _maxDegreeOfParallelism;
 
     public ParallelBatchProcessor(
-        IDocumentProcessor baseProcessor,
+        IDocumentProcessorFactory processorFactory,
         int maxDegreeOfParallelism = 0)
     {
-        _baseProcessor = baseProcessor ?? throw new ArgumentNullException(nameof(baseProcessor));
+        _processorFactory = processorFactory ?? throw new ArgumentNullException(nameof(processorFactory));
         _maxDegreeOfParallelism = maxDegreeOfParallelism > 0
             ? maxDegreeOfParallelism
             : Environment.ProcessorCount;
@@ -211,13 +211,14 @@ public class ParallelBatchProcessor : IParallelBatchProcessor
     {
         try
         {
-            var chunks = await _baseProcessor.ProcessAsync(filePath, options, cancellationToken);
+            await using var processor = _processorFactory.Create(filePath);
+            await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, cancellationToken);
 
             return new DocumentProcessingResult
             {
                 FilePath = filePath,
                 Success = true,
-                Chunks = chunks.ToList(),
+                Chunks = processor.Result.Chunks?.ToList() ?? [],
                 ProcessingTime = DateTime.UtcNow
             };
         }

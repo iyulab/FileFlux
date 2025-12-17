@@ -12,17 +12,17 @@ namespace FileFlux.Infrastructure.Optimization;
 /// </summary>
 public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
 {
-    private readonly IDocumentProcessor _baseProcessor;
+    private readonly IDocumentProcessorFactory _processorFactory;
     private readonly IDocumentCache _cache;
     private readonly MemoryOptimizationOptions _options;
     private readonly SemaphoreSlim _semaphore;
 
     public MemoryEfficientProcessor(
-        IDocumentProcessor baseProcessor,
+        IDocumentProcessorFactory processorFactory,
         IDocumentCache? cache = null,
         MemoryOptimizationOptions? options = null)
     {
-        _baseProcessor = baseProcessor ?? throw new ArgumentNullException(nameof(baseProcessor));
+        _processorFactory = processorFactory ?? throw new ArgumentNullException(nameof(processorFactory));
         _cache = cache ?? new LruMemoryCache(maxSize: 1000);
         _options = options ?? new MemoryOptimizationOptions();
         _semaphore = new SemaphoreSlim(_options.MaxConcurrency);
@@ -171,9 +171,14 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
                 await File.WriteAllTextAsync(tempFile, content, cancellationToken);
 
                 var processedChunks = new List<DocumentChunk>();
-                var chunks = await _baseProcessor.ProcessAsync(tempFile, options, cancellationToken); foreach (var chunk in chunks)
+                await using var processor = _processorFactory.Create(tempFile);
+                await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, cancellationToken);
+                if (processor.Result.Chunks != null)
                 {
-                    processedChunks.Add(chunk);
+                    foreach (var chunk in processor.Result.Chunks)
+                    {
+                        processedChunks.Add(chunk);
+                    }
                 }
 
                 File.Delete(tempFile);
@@ -207,9 +212,14 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
             await File.WriteAllTextAsync(tempFile, contentBuilder.ToString(), cancellationToken);
 
             var remainingChunks = new List<DocumentChunk>();
-            var chunks = await _baseProcessor.ProcessAsync(tempFile, options, cancellationToken); foreach (var chunk in chunks)
+            await using var processor = _processorFactory.Create(tempFile);
+            await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, cancellationToken);
+            if (processor.Result.Chunks != null)
             {
-                remainingChunks.Add(chunk);
+                foreach (var chunk in processor.Result.Chunks)
+                {
+                    remainingChunks.Add(chunk);
+                }
             }
 
             File.Delete(tempFile);

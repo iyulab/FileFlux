@@ -1,8 +1,13 @@
 namespace FileFlux.Core;
 
 /// <summary>
-/// Stage 2 output: Structured document analysis result
+/// Stage 2 output: Structured document analysis result.
 /// </summary>
+/// <remarks>
+/// This class is being replaced by <see cref="RefinedContent"/> in v1.0.
+/// Use RefinedContent for new implementations.
+/// </remarks>
+[Obsolete("Use RefinedContent instead. ParsedContent will be removed in v1.0.")]
 public class ParsedContent
 {
     /// <summary>
@@ -67,8 +72,12 @@ public class ParsedContent
 }
 
 /// <summary>
-/// Document structure analysis
+/// Document structure analysis.
 /// </summary>
+/// <remarks>
+/// This class is being replaced by <see cref="Section"/> hierarchy in RefinedContent.
+/// </remarks>
+[Obsolete("Use RefinedContent.Sections instead. DocumentStructure will be removed in v1.0.")]
 public class DocumentStructure
 {
     public string Type { get; set; } = string.Empty;
@@ -105,8 +114,12 @@ public class Entity
 }
 
 /// <summary>
-/// Quality metrics for structured content
+/// Quality metrics for structured content.
 /// </summary>
+/// <remarks>
+/// This class is being replaced by <see cref="RefinementQuality"/> in RefinedContent.
+/// </remarks>
+[Obsolete("Use RefinementQuality instead. QualityMetrics will be removed in v1.0.")]
 public class QualityMetrics
 {
     public double StructureScore { get; set; }
@@ -119,8 +132,12 @@ public class QualityMetrics
 }
 
 /// <summary>
-/// Parsing process information
+/// Parsing process information.
 /// </summary>
+/// <remarks>
+/// This class is being replaced by <see cref="RefinementInfo"/> in RefinedContent.
+/// </remarks>
+[Obsolete("Use RefinementInfo instead. ParsingInfo will be removed in v1.0.")]
 public class ParsingInfo
 {
     public string ParserType { get; set; } = string.Empty;

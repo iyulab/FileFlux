@@ -1,5 +1,5 @@
 using FileFlux.Tests.TestHelpers;
-﻿using FileFlux;
+using FileFlux;
 using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Services;
@@ -18,7 +18,7 @@ namespace FileFlux.Tests.RAG;
 public class Context7BenchmarkTests : IDisposable
 {
     private readonly ServiceProvider _serviceProvider;
-    private readonly IDocumentProcessor _processor;
+    private readonly IDocumentProcessorFactory _processorFactory;
     private readonly string _technicalTestFile;
     private readonly string _businessTestFile;
     private readonly string _academicTestFile;
@@ -103,15 +103,15 @@ The results support our hypothesis that transformer architectures provide superi
         var services = new ServiceCollection();
         services.AddFileFlux();
         services.AddSingleton<ITextCompletionService, MockTextCompletionService>();
-        
+
         _serviceProvider = services.BuildServiceProvider();
-        _processor = _serviceProvider.GetRequiredService<IDocumentProcessor>();
+        _processorFactory = _serviceProvider.GetRequiredService<IDocumentProcessorFactory>();
 
         // Create test files for different domains
         _technicalTestFile = Path.Combine(Path.GetTempPath(), "technical_doc.md");
         _businessTestFile = Path.Combine(Path.GetTempPath(), "business_doc.md");
         _academicTestFile = Path.Combine(Path.GetTempPath(), "academic_doc.md");
-        
+
         File.WriteAllText(_technicalTestFile, TechnicalContent);
         File.WriteAllText(_businessTestFile, BusinessContent);
         File.WriteAllText(_academicTestFile, AcademicContent);
@@ -124,11 +124,9 @@ The results support our hypothesis that transformer architectures provide superi
         var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
 
         // Act
-        var chunks = new List<DocumentChunk>();
-        foreach (var chunk in await _processor.ProcessAsync(_technicalTestFile, options))
-        {
-            chunks.Add(chunk);
-        }
+        await using var processor = _processorFactory.Create(_technicalTestFile);
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        var chunks = processor.Result.Chunks ?? [];
 
         // Assert
         Assert.NotEmpty(chunks);
@@ -168,11 +166,9 @@ The results support our hypothesis that transformer architectures provide superi
         var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
 
         // Act
-        var chunks = new List<DocumentChunk>();
-        foreach (var chunk in await _processor.ProcessAsync(_businessTestFile, options))
-        {
-            chunks.Add(chunk);
-        }
+        await using var processor = _processorFactory.Create(_businessTestFile);
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        var chunks = processor.Result.Chunks ?? [];
 
         // Assert
         Assert.NotEmpty(chunks);
@@ -208,11 +204,9 @@ The results support our hypothesis that transformer architectures provide superi
         var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
 
         // Act
-        var chunks = new List<DocumentChunk>();
-        foreach (var chunk in await _processor.ProcessAsync(_academicTestFile, options))
-        {
-            chunks.Add(chunk);
-        }
+        await using var processor = _processorFactory.Create(_academicTestFile);
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        var chunks = processor.Result.Chunks ?? [];
 
         // Assert
         Assert.NotEmpty(chunks);
@@ -244,16 +238,13 @@ The results support our hypothesis that transformer architectures provide superi
         var basicOptions = new ChunkingOptions { Strategy = "FixedSize", MaxChunkSize = 512 };
 
         // Act
-        var smartChunks = new List<DocumentChunk>();
-        foreach (var chunk in await _processor.ProcessAsync(_technicalTestFile, smartOptions))
-        {
-            smartChunks.Add(chunk);
-        }
-        var basicChunks = new List<DocumentChunk>();
-        foreach (var chunk in await _processor.ProcessAsync(_technicalTestFile, basicOptions))
-        {
-            basicChunks.Add(chunk);
-        }
+        await using var smartProcessor = _processorFactory.Create(_technicalTestFile);
+        await smartProcessor.ProcessAsync(new ProcessingOptions { Chunking = smartOptions });
+        var smartChunks = smartProcessor.Result.Chunks ?? [];
+
+        await using var basicProcessor = _processorFactory.Create(_technicalTestFile);
+        await basicProcessor.ProcessAsync(new ProcessingOptions { Chunking = basicOptions });
+        var basicChunks = basicProcessor.Result.Chunks ?? [];
 
         // Assert - Smart chunks should have richer metadata
         var smartChunk = smartChunks.First();
@@ -284,15 +275,13 @@ The results support our hypothesis that transformer architectures provide superi
         var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
 
         // Act
-        var chunks = new List<DocumentChunk>();
-        foreach (var chunk in await _processor.ProcessAsync(_technicalTestFile, options))
-        {
-            chunks.Add(chunk);
-        }
+        await using var processor = _processorFactory.Create(_technicalTestFile);
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        var chunks = processor.Result.Chunks ?? [];
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         foreach (var chunk in chunks)
         {
             // All chunks should have quality grades
@@ -331,11 +320,9 @@ The results support our hypothesis that transformer architectures provide superi
         var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
 
         // Act
-        var chunks = new List<DocumentChunk>();
-        foreach (var chunk in await _processor.ProcessAsync(testFile, options))
-        {
-            chunks.Add(chunk);
-        }
+        await using var processor = _processorFactory.Create(testFile);
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        var chunks = processor.Result.Chunks ?? [];
 
         // Assert
         Assert.NotEmpty(chunks);
@@ -371,15 +358,13 @@ The results support our hypothesis that transformer architectures provide superi
         var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 256 };
 
         // Act
-        var chunks = new List<DocumentChunk>();
-        foreach (var chunk in await _processor.ProcessAsync(_technicalTestFile, options))
-        {
-            chunks.Add(chunk);
-        }
+        await using var processor = _processorFactory.Create(_technicalTestFile);
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        var chunks = processor.Result.Chunks ?? [];
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         foreach (var chunk in chunks)
         {
             // Information density should be calculated (now stored as chunk.Density)
@@ -400,16 +385,14 @@ The results support our hypothesis that transformer architectures provide superi
         // Arrange
         var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
 
-        // Act  
-        var chunks = new List<DocumentChunk>();
-        foreach (var chunk in await _processor.ProcessAsync(_technicalTestFile, options))
-        {
-            chunks.Add(chunk);
-        }
+        // Act
+        await using var processor = _processorFactory.Create(_technicalTestFile);
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        var chunks = processor.Result.Chunks ?? [];
 
         // Assert
         Assert.NotEmpty(chunks);
-        
+
         foreach (var chunk in chunks)
         {
             // Smart strategy should guarantee minimum 70% completeness

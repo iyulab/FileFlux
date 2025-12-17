@@ -1,4 +1,5 @@
 using FileFlux;
+using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.SampleApp.Data;
 using FileFlux.SampleApp.Services;
@@ -14,18 +15,18 @@ namespace FileFlux.SampleApp;
 /// </summary>
 public class FileFluxApp
 {
-    private readonly IDocumentProcessor _documentProcessor;
+    private readonly IDocumentProcessorFactory _processorFactory;
     private readonly IVectorStoreService _vectorStore;
     private readonly FileFluxDbContext _context;
     private readonly ILogger<FileFluxApp> _logger;
 
     public FileFluxApp(
-        IDocumentProcessor documentProcessor,
+        IDocumentProcessorFactory processorFactory,
         IVectorStoreService vectorStore,
         FileFluxDbContext context,
         ILogger<FileFluxApp> logger)
     {
-        _documentProcessor = documentProcessor ?? throw new ArgumentNullException(nameof(documentProcessor));
+        _processorFactory = processorFactory ?? throw new ArgumentNullException(nameof(processorFactory));
         _vectorStore = vectorStore ?? throw new ArgumentNullException(nameof(vectorStore));
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -68,13 +69,15 @@ public class FileFluxApp
                 OverlapSize = 50
             };
 
-            // 기본 문서 처리 - 새로운 스트리밍 API 사용
+            // 기본 문서 처리 - 새로운 스테이트풀 API 사용
             Console.WriteLine("📋 기본 문서 처리");
-            var chunks = await _documentProcessor.ProcessAsync(filePath, chunkingOptions);
-            Console.WriteLine($"✅ 청크 생성 완료: {chunks.Length}개 청크");
+            await using var processor = _processorFactory.Create(filePath);
+            await processor.ProcessAsync(new ProcessingOptions { Chunking = chunkingOptions });
+            var chunks = processor.Result.Chunks ?? [];
+            Console.WriteLine($"✅ 청크 생성 완료: {chunks.Count}개 청크");
 
             // 벡터 스토어에 저장
-            var document = await _vectorStore.StoreDocumentAsync(filePath, chunks, strategy);
+            var document = await _vectorStore.StoreDocumentAsync(filePath, chunks.ToArray(), strategy);
 
             stopwatch.Stop();
 
@@ -285,13 +288,15 @@ public class FileFluxApp
                         OverlapSize = 50
                     };
 
-                    var chunks = await _documentProcessor.ProcessAsync(filePath, chunkingOptions);
+                    await using var processor = _processorFactory.Create(filePath);
+                    await processor.ProcessAsync(new ProcessingOptions { Chunking = chunkingOptions });
+                    var chunks = processor.Result.Chunks ?? [];
                     stopwatch.Stop();
 
-                    Console.WriteLine($"   ✅ 성공: {chunks.Length}개 청크 생성 ({stopwatch.Elapsed:mm\\:ss\\.fff})");
+                    Console.WriteLine($"   ✅ 성공: {chunks.Count}개 청크 생성 ({stopwatch.Elapsed:mm\\:ss\\.fff})");
 
                     // 첫 번째 청크 미리보기 표시
-                    if (chunks.Length > 0)
+                    if (chunks.Count > 0)
                     {
                         var firstChunk = chunks[0];
                         var preview = firstChunk.Content.Length > 100
@@ -387,29 +392,31 @@ public class FileFluxApp
             Console.WriteLine("📊 청크 처리 중...");
 
             var stopwatch = Stopwatch.StartNew();
-            
+
             // 문서 처리
-            var chunks = await _documentProcessor.ProcessAsync(filePath, chunkingOptions);
-            chunkCount = chunks.Length;
+            await using var processor = _processorFactory.Create(filePath);
+            await processor.ProcessAsync(new ProcessingOptions { Chunking = chunkingOptions });
+            var chunks = processor.Result.Chunks ?? [];
+            chunkCount = chunks.Count;
 
             stopwatch.Stop();
             Console.WriteLine($"\r✅ 처리 완료! 총 {chunkCount}개 청크 생성");
             Console.WriteLine($"⏱️ 처리 시간: {stopwatch.Elapsed:mm\\:ss\\.fff}");
 
             // 벡터 스토어에 저장
-            var document = await _vectorStore.StoreDocumentAsync(filePath, chunks, strategy);
+            var document = await _vectorStore.StoreDocumentAsync(filePath, chunks.ToArray(), strategy);
 
             // 결과 요약 출력
             Console.WriteLine("\n📊 처리 결과 요약:");
             Console.WriteLine($"   📁 파일: {Path.GetFileName(filePath)}");
             Console.WriteLine($"   📏 파일 크기: {new FileInfo(filePath).Length:N0} bytes");
-            Console.WriteLine($"   🔢 총 청크: {chunks.Length}개");
+            Console.WriteLine($"   🔢 총 청크: {chunks.Count}개");
             Console.WriteLine($"   📝 총 문자: {chunks.Sum(c => c.Content.Length):N0}자");
             Console.WriteLine($"   📊 평균 청크 크기: {chunks.Average(c => c.Content.Length):N0}자");
             Console.WriteLine($"   🆔 문서 ID: {document.Id}");
 
             // 첫 번째 청크 미리보기
-            if (chunks.Length > 0)
+            if (chunks.Count > 0)
             {
                 var firstChunk = chunks[0];
                 var preview = firstChunk.Content.Length > 200
