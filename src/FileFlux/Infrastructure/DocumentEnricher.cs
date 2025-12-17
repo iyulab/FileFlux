@@ -233,7 +233,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
             {
                 _logger?.LogWarning(ex, "Failed to enrich chunk {Index}", index);
                 results[index] = new EnrichedDocumentChunk { Chunk = chunk };
-                Interlocked.Increment(ref stats._failedChunks);
+                Interlocked.Increment(ref stats.FailedChunks);
             }
             finally
             {
@@ -246,9 +246,9 @@ public sealed class DocumentEnricher : IDocumentEnricher
         // Count stats
         foreach (var r in results)
         {
-            if (r.Summary != null) Interlocked.Increment(ref stats._summariesGenerated);
-            if (r.Keywords != null) Interlocked.Increment(ref stats._keywordsExtracted);
-            if (r.ContextualText != null) Interlocked.Increment(ref stats._contextualTextsAdded);
+            if (r.Summary != null) Interlocked.Increment(ref stats.SummariesGenerated);
+            if (r.Keywords != null) Interlocked.Increment(ref stats.KeywordsExtracted);
+            if (r.ContextualText != null) Interlocked.Increment(ref stats.ContextualTextsAdded);
         }
 
         return results.ToList();
@@ -530,26 +530,26 @@ public sealed class DocumentEnricher : IDocumentEnricher
     private class EnrichmentStatsBuilder
     {
         public int EnrichedChunks;
-        public int _failedChunks;
-        public int _summariesGenerated;
-        public int _keywordsExtracted;
-        public int _contextualTextsAdded;
+        public int FailedChunks;
+        public int SummariesGenerated;
+        public int KeywordsExtracted;
+        public int ContextualTextsAdded;
         public int GraphNodes;
         public int GraphEdges;
-        public int _llmCalls;
-        public int _tokensUsed;
+        public int LlmCalls;
+        public int TokensUsed;
 
         public EnrichmentStats Build(TimeSpan duration) => new()
         {
             EnrichedChunks = EnrichedChunks,
-            FailedChunks = _failedChunks,
-            SummariesGenerated = _summariesGenerated,
-            KeywordsExtracted = _keywordsExtracted,
-            ContextualTextsAdded = _contextualTextsAdded,
+            FailedChunks = FailedChunks,
+            SummariesGenerated = SummariesGenerated,
+            KeywordsExtracted = KeywordsExtracted,
+            ContextualTextsAdded = ContextualTextsAdded,
             GraphNodes = GraphNodes,
             GraphEdges = GraphEdges,
-            LlmCalls = _llmCalls,
-            TokensUsed = _tokensUsed,
+            LlmCalls = LlmCalls,
+            TokensUsed = TokensUsed,
             Duration = duration
         };
     }
