@@ -55,6 +55,15 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentParser>(provider =>
             new BasicDocumentParser(provider.GetService<ITextCompletionService>()));
 
+        // === Document Refiner ===
+        services.AddScoped<IDocumentRefiner>(provider =>
+        {
+            var markdownConverter = provider.GetService<IMarkdownConverter>();
+            var loggerFactory = provider.GetService<ILoggerFactory>();
+            var logger = loggerFactory?.CreateLogger<DocumentRefiner>();
+            return new DocumentRefiner(markdownConverter, logger);
+        });
+
         // === FluxCurator: Chunking ===
         services.AddFluxCurator();
 
@@ -73,8 +82,30 @@ public static class ServiceCollectionExtensions
                 .Build();
         });
 
-        // === Main Document Processor ===
-        services.AddScoped<IDocumentProcessor, FluxDocumentProcessor>();
+        // === Main Document Processor Factory ===
+        // Stateful pattern: use factory to create per-document processors
+        services.AddScoped<IDocumentProcessorFactory>(provider =>
+        {
+            var readerFactory = provider.GetRequiredService<IDocumentReaderFactory>();
+            var chunkerFactory = provider.GetRequiredService<IChunkerFactory>();
+            var documentRefiner = provider.GetService<IDocumentRefiner>();
+            var improverServices = provider.GetService<FluxImproverServices>();
+            var markdownConverter = provider.GetService<IMarkdownConverter>();
+            var imageToTextService = provider.GetService<IImageToTextService>();
+            var loggerFactory = provider.GetService<ILoggerFactory>();
+
+            return new DocumentProcessorFactory(
+                readerFactory,
+                chunkerFactory,
+                documentRefiner,
+                improverServices,
+                markdownConverter,
+                imageToTextService,
+                loggerFactory);
+        });
+
+        // Legacy processor for backward compatibility (CLI commands)
+        services.AddScoped<FluxDocumentProcessor>();
 
         // === Optional Services ===
 
