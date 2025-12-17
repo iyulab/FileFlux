@@ -1,4 +1,4 @@
-using FileFlux.Core;
+﻿using FileFlux.Core;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.DocumentLayoutAnalysis;
@@ -1211,7 +1211,8 @@ public partial class PdfDocumentReader : IDocumentReader
         text = System.Text.RegularExpressions.Regex.Replace(text, @"(\w+)-\s*\n\s*(\w+)", "$1$2");
 
         // 7. 단락 내 줄바꿈 정리 (문장 중간의 줄바꿈을 공백으로)
-        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?<![.!?])\n(?![A-Z•\d])", " ");
+        // 마크다운 테이블 행(|로 시작하거나 끝나는 줄)은 보존
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?<![.!?|])\n(?![A-Z•\d#|\-])", " ");
 
         return text;
     }

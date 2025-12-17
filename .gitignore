@@ -386,3 +386,4 @@ output/
 local-docs/
 .serena/
 docs/issues/
+test-output/

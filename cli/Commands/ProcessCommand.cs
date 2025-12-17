@@ -63,10 +63,10 @@ public class ProcessCommand : Command
             DefaultValueFactory = _ => 64
         };
 
-        // AI options
-        var aiOpt = new Option<bool>("--ai", "-a")
+        // AI options (enabled by default via LMSupply)
+        var noAiOpt = new Option<bool>("--no-ai")
         {
-            Description = "Enable AI features (enrichment, image analysis)"
+            Description = "Disable AI features (enrichment, image analysis). AI is enabled by default."
         };
 
         // Image options
@@ -106,7 +106,7 @@ public class ProcessCommand : Command
         Options.Add(strategyOpt);
         Options.Add(maxSizeOpt);
         Options.Add(overlapOpt);
-        Options.Add(aiOpt);
+        Options.Add(noAiOpt);
         Options.Add(noExtractImagesOpt);
         Options.Add(minImageSizeOpt);
         Options.Add(minImageDimensionOpt);
@@ -123,12 +123,15 @@ public class ProcessCommand : Command
             var strategy = parseResult.GetValue(strategyOpt);
             var maxSize = parseResult.GetValue(maxSizeOpt);
             var overlap = parseResult.GetValue(overlapOpt);
-            var enableAI = parseResult.GetValue(aiOpt);
+            var noAi = parseResult.GetValue(noAiOpt);
             var noExtractImages = parseResult.GetValue(noExtractImagesOpt);
             var minImageSize = parseResult.GetValue(minImageSizeOpt);
             var minImageDimension = parseResult.GetValue(minImageDimensionOpt);
             var quiet = parseResult.GetValue(quietOpt);
             var verbose = parseResult.GetValue(verboseOpt);
+
+            // AI enabled by default (via LMSupply), disabled with --no-ai
+            var enableAI = !noAi;
 
             if (input != null)
             {
@@ -308,7 +311,10 @@ public class ProcessCommand : Command
                     if (enableRefine)
                     {
                         var refineTask = ctx.AddTask("[yellow]Stage 2: Refine[/]", maxValue: 100);
-                        refinedContent = await processor.RefineAsync(parsedContent, new RefiningOptions(), cancellationToken);
+
+                        // Auto-select refining options based on document type and language
+                        var refiningOptions = SelectRefiningOptions(input, parsedContent.Text);
+                        refinedContent = await processor.RefineAsync(parsedContent, refiningOptions, cancellationToken);
                         refineTask.Value = 100;
                         currentStage++;
 
@@ -457,5 +463,36 @@ public class ProcessCommand : Command
                 AnsiConsole.WriteException(ex);
             }
         }
+    }
+
+    /// <summary>
+    /// Auto-select refining options based on document type and detected language.
+    /// </summary>
+    private static RefiningOptions SelectRefiningOptions(string filePath, string content)
+    {
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+        // Detect language for Korean-specific processing
+        var (language, confidence) = Infrastructure.Services.LanguageDetector.Detect(content);
+        var isKorean = language == "ko" && confidence >= 0.5;
+
+        // Select preset based on document type and language
+        return extension switch
+        {
+            ".pdf" when isKorean => new RefiningOptions
+            {
+                TextRefinementPreset = "ForKorean",  // Korean takes priority
+                RemoveHeadersFooters = true,
+                RemovePageNumbers = true,
+                CleanWhitespace = true,
+                RestructureHeadings = true,
+                ConvertToMarkdown = true
+            },
+            ".pdf" => RefiningOptions.ForPdfDocument,
+            ".html" or ".htm" when isKorean => RefiningOptions.ForKoreanWebContent,
+            ".html" or ".htm" => RefiningOptions.ForWebContent,
+            _ when isKorean => RefiningOptions.ForKoreanWebContent,
+            _ => RefiningOptions.ForRAG  // Default: Standard preset for RAG
+        };
     }
 }

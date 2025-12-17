@@ -57,6 +57,11 @@ public static class LanguageDetector
         if (string.IsNullOrWhiteSpace(text))
             return ("unknown", 0.0);
 
+        // Try CJK detection first (NTextCat Core14 doesn't support Korean/Japanese/Chinese)
+        var cjkResult = DetectCJKLanguage(text);
+        if (cjkResult.Language != "unknown")
+            return cjkResult;
+
         try
         {
             if (_identifier.Value == null)
@@ -81,6 +86,80 @@ public static class LanguageDetector
         {
             return ("unknown", 0.0);
         }
+    }
+
+    /// <summary>
+    /// Detect CJK (Chinese, Japanese, Korean) languages using Unicode ranges.
+    /// NTextCat Core14 profile doesn't include these languages.
+    /// </summary>
+    private static (string Language, double Confidence) DetectCJKLanguage(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return ("unknown", 0.0);
+
+        var sampleText = text.Length > 10000 ? text.Substring(0, 10000) : text;
+
+        int koreanCount = 0;
+        int japaneseCount = 0;
+        int chineseCount = 0;
+        int totalChars = 0;
+
+        foreach (char c in sampleText)
+        {
+            if (char.IsWhiteSpace(c) || char.IsPunctuation(c) || char.IsDigit(c))
+                continue;
+
+            totalChars++;
+
+            // Korean Hangul: Syllables (U+AC00-U+D7AF), Jamo (U+1100-U+11FF), Compatibility (U+3130-U+318F)
+            if ((c >= 0xAC00 && c <= 0xD7AF) || (c >= 0x1100 && c <= 0x11FF) ||
+                (c >= 0x3130 && c <= 0x318F))
+            {
+                koreanCount++;
+            }
+            // Japanese Hiragana (U+3040-U+309F) and Katakana (U+30A0-U+30FF)
+            else if ((c >= 0x3040 && c <= 0x309F) || (c >= 0x30A0 && c <= 0x30FF))
+            {
+                japaneseCount++;
+            }
+            // CJK Unified Ideographs (U+4E00-U+9FFF) - shared by Chinese/Japanese/Korean
+            else if (c >= 0x4E00 && c <= 0x9FFF)
+            {
+                chineseCount++;
+            }
+        }
+
+        if (totalChars == 0)
+            return ("unknown", 0.0);
+
+        // Calculate percentages
+        double koreanRatio = (double)koreanCount / totalChars;
+        double japaneseRatio = (double)japaneseCount / totalChars;
+        double cjkIdeographRatio = (double)chineseCount / totalChars;
+
+        // Determine language based on character distribution
+        // Korean: Has Hangul characters
+        if (koreanRatio > 0.1)
+        {
+            var confidence = Math.Min(0.95, 0.6 + koreanRatio * 0.4);
+            return ("ko", Math.Round(confidence, 4));
+        }
+
+        // Japanese: Has Hiragana/Katakana (distinguishes from Chinese)
+        if (japaneseRatio > 0.05)
+        {
+            var confidence = Math.Min(0.95, 0.6 + (japaneseRatio + cjkIdeographRatio * 0.3) * 0.4);
+            return ("ja", Math.Round(confidence, 4));
+        }
+
+        // Chinese: Has CJK Ideographs but no Japanese kana or Korean Hangul
+        if (cjkIdeographRatio > 0.1)
+        {
+            var confidence = Math.Min(0.95, 0.6 + cjkIdeographRatio * 0.4);
+            return ("zh", Math.Round(confidence, 4));
+        }
+
+        return ("unknown", 0.0);
     }
 
     /// <summary>

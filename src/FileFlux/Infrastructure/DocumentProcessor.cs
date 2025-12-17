@@ -87,6 +87,11 @@ public sealed partial class FluxDocumentProcessor
         }
 
         // Stage 4: Chunk (FluxCurator)
+        // Pass PageRanges for page number calculation (from PDF extraction)
+        if (rawContent.Hints.TryGetValue("PageRanges", out var pageRangesObj) && pageRangesObj is Dictionary<int, (int Start, int End)> pageRanges)
+        {
+            options.CustomProperties["_pageRanges"] = pageRanges;
+        }
         var chunks = await ChunkAsync(parsedContent, options, cancellationToken).ConfigureAwait(false);
 
         // Stage 5: Enhance (FluxImprover) - if available and enabled
@@ -643,8 +648,14 @@ public sealed partial class FluxDocumentProcessor
             var rawId = Guid.NewGuid();
             var chunks = fcChunks.ToFileFluxChunks(parsedId, rawId);
 
-            // Enrich with document metadata
-            EnrichChunksWithMetadata(chunks, parsed);
+            // Enrich with document metadata and page numbers
+            // Extract PageRanges from options if available (passed from ProcessAsync)
+            Dictionary<int, (int Start, int End)>? pageRanges = null;
+            if (options.CustomProperties.TryGetValue("_pageRanges", out var prObj) && prObj is Dictionary<int, (int Start, int End)> pr)
+            {
+                pageRanges = pr;
+            }
+            EnrichChunksWithMetadata(chunks, parsed, pageRanges);
 
             _logger.LogDebug("Created {Count} chunks using {Strategy}", chunks.Count, chunker.StrategyName);
             return [.. chunks];
@@ -789,8 +800,14 @@ public sealed partial class FluxDocumentProcessor
         };
     }
 
-    private static void EnrichChunksWithMetadata(IReadOnlyList<DocumentChunk> chunks, ParsedContent parsed)
+    private static void EnrichChunksWithMetadata(
+        IReadOnlyList<DocumentChunk> chunks,
+        ParsedContent parsed,
+        Dictionary<int, (int Start, int End)>? pageRanges = null)
     {
+        // Build flattened section list for heading path calculation
+        var allSections = FlattenSections(parsed.Structure.Sections);
+
         foreach (var chunk in chunks)
         {
             chunk.SourceInfo.Title = parsed.Metadata.Title ?? parsed.Metadata.FileName;
@@ -803,7 +820,110 @@ public sealed partial class FluxDocumentProcessor
                 chunk.Props[ChunkPropsKeys.DocumentTopic] = parsed.Structure.Topic;
             if (parsed.Structure.Keywords.Count > 0)
                 chunk.Props[ChunkPropsKeys.DocumentKeywords] = parsed.Structure.Keywords;
+
+            // Calculate heading path based on chunk position
+            var headingPath = CalculateHeadingPath(allSections, chunk.Location.StartChar, chunk.Location.EndChar);
+            if (headingPath.Count > 0)
+            {
+                chunk.Location.HeadingPath = headingPath;
+                chunk.Props[ChunkPropsKeys.HierarchyPath] = string.Join(" > ", headingPath);
+            }
+
+            // Calculate page numbers based on PageRanges (for PDF documents)
+            if (pageRanges != null && pageRanges.Count > 0)
+            {
+                var (startPage, endPage) = CalculatePageNumbers(pageRanges, chunk.Location.StartChar, chunk.Location.EndChar);
+                if (startPage.HasValue)
+                {
+                    chunk.Location.StartPage = startPage;
+                    chunk.Location.EndPage = endPage ?? startPage;
+                }
+            }
         }
+    }
+
+    /// <summary>
+    /// Calculate page numbers for a chunk based on its character position and PageRanges.
+    /// </summary>
+    /// <param name="pageRanges">Dictionary mapping page number (1-based) to character range</param>
+    /// <param name="startChar">Chunk start character position</param>
+    /// <param name="endChar">Chunk end character position</param>
+    /// <returns>Tuple of (startPage, endPage), both 1-based</returns>
+    private static (int? StartPage, int? EndPage) CalculatePageNumbers(
+        Dictionary<int, (int Start, int End)> pageRanges,
+        int startChar,
+        int endChar)
+    {
+        int? startPage = null;
+        int? endPage = null;
+
+        // Find pages that contain the chunk's start and end positions
+        foreach (var (pageNum, range) in pageRanges)
+        {
+            // Check if this page contains the start position
+            if (startPage == null && startChar >= range.Start && startChar <= range.End)
+            {
+                startPage = pageNum;
+            }
+
+            // Check if this page contains the end position
+            if (endChar >= range.Start && endChar <= range.End)
+            {
+                endPage = pageNum;
+            }
+
+            // Early exit if both found
+            if (startPage.HasValue && endPage.HasValue)
+                break;
+        }
+
+        // Fallback: find closest page if exact match not found
+        if (startPage == null && pageRanges.Count > 0)
+        {
+            // Find the page whose range is closest to startChar
+            startPage = pageRanges
+                .OrderBy(p => Math.Min(Math.Abs(p.Value.Start - startChar), Math.Abs(p.Value.End - startChar)))
+                .First().Key;
+        }
+
+        if (endPage == null && startPage.HasValue)
+        {
+            endPage = startPage;
+        }
+
+        return (startPage, endPage);
+    }
+
+    /// <summary>
+    /// Flatten nested sections into a single list for efficient lookup
+    /// </summary>
+    private static List<Section> FlattenSections(List<Section> sections)
+    {
+        var result = new List<Section>();
+        foreach (var section in sections)
+        {
+            result.Add(section);
+            if (section.Children.Count > 0)
+            {
+                result.AddRange(FlattenSections(section.Children));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Calculate heading path for a chunk based on its character position
+    /// </summary>
+    private static List<string> CalculateHeadingPath(List<Section> sections, int startChar, int endChar)
+    {
+        // Find all sections that contain this chunk's start position
+        var containingSections = sections
+            .Where(s => s.Start <= startChar && s.End >= startChar && !string.IsNullOrEmpty(s.Title))
+            .OrderBy(s => s.Level)
+            .ThenBy(s => s.Start)
+            .ToList();
+
+        return containingSections.Select(s => s.Title).ToList();
     }
 
     private static bool ShouldEnhance(ChunkingOptions options)
