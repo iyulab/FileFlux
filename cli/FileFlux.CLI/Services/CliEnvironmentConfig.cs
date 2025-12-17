@@ -39,6 +39,15 @@ public class CliEnvironmentConfig
 
     public string? GoogleModel => GetValue("GOOGLE_MODEL") ?? GetValue("GEMINI_MODEL") ?? "gemini-2.0-flash";
 
+    // LMSupply configuration (local AI fallback)
+    public bool LMSupplyEnabled => GetValue("LMSUPPLY_ENABLED")?.ToLowerInvariant() != "false";
+
+    public bool LMSupplyAutoFallback => GetValue("LMSUPPLY_AUTO_FALLBACK")?.ToLowerInvariant() != "false";
+
+    public string LMSupplyModel => GetValue("LMSUPPLY_MODEL") ?? "microsoft/Phi-4-mini-instruct-onnx";
+
+    public bool LMSupplyUseGpu => GetValue("LMSUPPLY_USE_GPU")?.ToLowerInvariant() != "false";
+
     /// <summary>
     /// Get value with priority: Environment Variable > Config File
     /// </summary>
@@ -62,9 +71,11 @@ public class CliEnvironmentConfig
         if (!string.IsNullOrWhiteSpace(Provider))
         {
             var provider = Provider.ToLowerInvariant();
-            if (provider == "openai" || provider == "anthropic" || provider == "gpustack" || provider == "google" || provider == "gemini")
+            if (provider == "openai" || provider == "anthropic" || provider == "gpustack" || provider == "google" || provider == "gemini" || provider == "local" || provider == "lmsupply")
             {
-                return provider == "gemini" ? "google" : provider;
+                if (provider == "gemini") return "google";
+                if (provider == "lmsupply") return "local";
+                return provider;
             }
         }
 
@@ -81,6 +92,12 @@ public class CliEnvironmentConfig
         if (configuredProviders.Count == 1)
         {
             return configuredProviders[0];
+        }
+
+        // Fallback to LMSupply (local) if enabled and auto-fallback is on
+        if (LMSupplyEnabled && LMSupplyAutoFallback)
+        {
+            return "local";
         }
 
         return "none";

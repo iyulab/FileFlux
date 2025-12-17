@@ -44,16 +44,33 @@ public sealed partial class FluxDocumentProcessor
         var images = new List<ProcessedImage>();
         var skippedCount = 0;
 
+        // Use explicit ImagesDirectory if provided, otherwise default to outputDirectory/images
+        var imagesDir = outputOptions.ImagesDirectory ?? Path.Combine(outputDirectory, "images");
+
         if (outputOptions.ExtractImages)
         {
-            var imagesDir = Path.Combine(outputDirectory, "images");
             var imageProcessor = new ImageProcessor(outputOptions);
-            var imageResult = await imageProcessor.ProcessImagesAsync(
-                parsedContent.Text, imagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
 
-            processedText = imageResult.ProcessedContent;
-            images = imageResult.Images;
-            skippedCount = imageResult.SkippedCount;
+            // Check if images were pre-extracted by Reader (e.g., HTML with embedded base64)
+            if (rawContent.Images.Count > 0 && rawContent.Images.Any(i => i.Data != null))
+            {
+                var imageResult = await imageProcessor.ProcessPreExtractedImagesAsync(
+                    parsedContent.Text, rawContent.Images, imagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
+
+                processedText = imageResult.ProcessedContent;
+                images = imageResult.Images;
+                skippedCount = imageResult.SkippedCount;
+            }
+            else
+            {
+                // Fallback to inline base64 processing (for other document types)
+                var imageResult = await imageProcessor.ProcessImagesAsync(
+                    parsedContent.Text, imagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
+
+                processedText = imageResult.ProcessedContent;
+                images = imageResult.Images;
+                skippedCount = imageResult.SkippedCount;
+            }
         }
         else
         {
@@ -67,7 +84,7 @@ public sealed partial class FluxDocumentProcessor
             Images = images,
             SkippedImageCount = skippedCount,
             AIProvider = outputOptions.EnableAI ? "configured" : null,
-            ImagesDirectory = outputOptions.ExtractImages ? Path.Combine(outputDirectory, "images") : null,
+            ImagesDirectory = outputOptions.ExtractImages ? imagesDir : null,
             OutputDirectory = outputDirectory
         };
 
@@ -115,16 +132,33 @@ public sealed partial class FluxDocumentProcessor
         var images = new List<ProcessedImage>();
         var skippedCount = 0;
 
+        // Use explicit ImagesDirectory if provided, otherwise default to outputDirectory/images
+        var chunkImagesDir = outputOptions.ImagesDirectory ?? Path.Combine(outputDirectory, "images");
+
         if (outputOptions.ExtractImages)
         {
-            var imagesDir = Path.Combine(outputDirectory, "images");
             var imageProcessor = new ImageProcessor(outputOptions);
-            var imageResult = await imageProcessor.ProcessImagesAsync(
-                parsedContent.Text, imagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
 
-            processedText = imageResult.ProcessedContent;
-            images = imageResult.Images;
-            skippedCount = imageResult.SkippedCount;
+            // Check if images were pre-extracted by Reader (e.g., HTML with embedded base64)
+            if (rawContent.Images.Count > 0 && rawContent.Images.Any(i => i.Data != null))
+            {
+                var imageResult = await imageProcessor.ProcessPreExtractedImagesAsync(
+                    parsedContent.Text, rawContent.Images, chunkImagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
+
+                processedText = imageResult.ProcessedContent;
+                images = imageResult.Images;
+                skippedCount = imageResult.SkippedCount;
+            }
+            else
+            {
+                // Fallback to inline base64 processing (for other document types)
+                var imageResult = await imageProcessor.ProcessImagesAsync(
+                    parsedContent.Text, chunkImagesDir, imageToTextService, cancellationToken).ConfigureAwait(false);
+
+                processedText = imageResult.ProcessedContent;
+                images = imageResult.Images;
+                skippedCount = imageResult.SkippedCount;
+            }
         }
         else
         {
@@ -144,7 +178,7 @@ public sealed partial class FluxDocumentProcessor
             Images = images,
             SkippedImageCount = skippedCount,
             AIProvider = outputOptions.EnableAI ? "configured" : null,
-            ImagesDirectory = outputOptions.ExtractImages ? Path.Combine(outputDirectory, "images") : null,
+            ImagesDirectory = outputOptions.ExtractImages ? chunkImagesDir : null,
             OutputDirectory = outputDirectory
         };
 

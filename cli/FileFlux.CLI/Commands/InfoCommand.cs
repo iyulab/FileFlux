@@ -79,7 +79,7 @@ public class InfoCommand : Command
                     {
                         var services = new ServiceCollection();
                         services.AddFileFlux();
-                        using var provider = services.BuildServiceProvider();
+                        await using var provider = services.BuildServiceProvider();
                         var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
 
                         await using var processor = factory.Create(input);

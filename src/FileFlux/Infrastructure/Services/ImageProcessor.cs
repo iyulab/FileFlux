@@ -20,6 +20,160 @@ public class ImageProcessor
     }
 
     /// <summary>
+    /// Process pre-extracted images from RawContent.Images (e.g., HTML embedded images)
+    /// </summary>
+    public async Task<ImageProcessingResult> ProcessPreExtractedImagesAsync(
+        string content,
+        IReadOnlyList<ImageInfo> preExtractedImages,
+        string imagesDirectory,
+        IImageToTextService? imageToTextService,
+        CancellationToken cancellationToken = default)
+    {
+        var result = content;
+        var processedImages = new List<ProcessedImage>();
+        var skippedCount = 0;
+        var savedIndex = 0;
+
+        if (_verbose)
+        {
+            Console.WriteLine($"[Verbose] Processing {preExtractedImages.Count} pre-extracted images, filters: minSize={_options.MinImageSize}bytes, minDimension={_options.MinImageDimension}px");
+        }
+
+        foreach (var imageInfo in preExtractedImages)
+        {
+            // Skip images without binary data (external URLs)
+            if (imageInfo.Data == null || imageInfo.Data.Length == 0)
+            {
+                if (_verbose)
+                {
+                    Console.WriteLine($"[Verbose] Skipped {imageInfo.Id}: no binary data (external URL)");
+                }
+                continue;
+            }
+
+            // Check file size
+            if (imageInfo.Data.Length < _options.MinImageSize)
+            {
+                skippedCount++;
+                if (_verbose)
+                {
+                    Console.WriteLine($"[Verbose] Skipped {imageInfo.Id}: size={imageInfo.Data.Length}bytes < {_options.MinImageSize}bytes");
+                }
+                // Remove placeholder from content
+                result = result.Replace($"![{imageInfo.Caption}](embedded:{imageInfo.Id})", "");
+                result = result.Replace($"![]( embedded:{imageInfo.Id})", "");
+                continue;
+            }
+
+            // Check dimensions
+            var format = GetFormatFromMimeType(imageInfo.MimeType);
+            var dimensions = GetImageDimensions(imageInfo.Data, format);
+            if (dimensions.Width < _options.MinImageDimension || dimensions.Height < _options.MinImageDimension)
+            {
+                skippedCount++;
+                if (_verbose)
+                {
+                    Console.WriteLine($"[Verbose] Skipped {imageInfo.Id}: dimensions={dimensions.Width}x{dimensions.Height} < {_options.MinImageDimension}px");
+                }
+                result = result.Replace($"![{imageInfo.Caption}](embedded:{imageInfo.Id})", "");
+                result = result.Replace($"![](embedded:{imageInfo.Id})", "");
+                continue;
+            }
+
+            savedIndex++;
+            var fileName = $"image_{savedIndex}.{format}";
+            var filePath = Path.Combine(imagesDirectory, fileName);
+
+            try
+            {
+                // Create directory on first image
+                if (!Directory.Exists(imagesDirectory))
+                {
+                    Directory.CreateDirectory(imagesDirectory);
+                }
+
+                await File.WriteAllBytesAsync(filePath, imageInfo.Data, cancellationToken).ConfigureAwait(false);
+
+                var processedImage = new ProcessedImage
+                {
+                    FileName = fileName,
+                    FileSize = imageInfo.Data.Length,
+                    Width = dimensions.Width,
+                    Height = dimensions.Height
+                };
+
+                // AI image-to-text if enabled
+                if (imageToTextService != null && _options.EnableAI)
+                {
+                    try
+                    {
+                        if (_verbose)
+                        {
+                            Console.WriteLine($"[Verbose] Analyzing image {savedIndex} with AI...");
+                        }
+                        var aiResult = await imageToTextService.ExtractTextAsync(
+                            imageInfo.Data, null, cancellationToken).ConfigureAwait(false);
+                        processedImage.AIDescription = aiResult.ExtractedText;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (_verbose)
+                        {
+                            Console.WriteLine($"[Verbose] AI analysis failed: {ex.Message}");
+                        }
+                        processedImage.AIError = ex.Message;
+                    }
+                }
+
+                processedImages.Add(processedImage);
+
+                // Build replacement text
+                var relativePath = $"./images/{fileName}";
+                var replacement = BuildImageReplacement(processedImage, relativePath, imageInfo.Caption ?? "", savedIndex);
+
+                // Replace embedded placeholder with actual file path
+                result = result.Replace($"![{imageInfo.Caption}](embedded:{imageInfo.Id})", replacement);
+                result = result.Replace($"![](embedded:{imageInfo.Id})", replacement);
+
+                if (_verbose)
+                {
+                    Console.WriteLine($"[Verbose] Extracted: {fileName} ({dimensions.Width}x{dimensions.Height}, {imageInfo.Data.Length} bytes)");
+                }
+            }
+            catch (Exception ex)
+            {
+                result = result.Replace($"![{imageInfo.Caption}](embedded:{imageInfo.Id})", $"[Image {savedIndex}: {ex.Message}]");
+            }
+        }
+
+        if (_verbose && skippedCount > 0)
+        {
+            Console.WriteLine($"[Verbose] Skipped {skippedCount} small images (icons/decorations)");
+        }
+
+        return new ImageProcessingResult
+        {
+            ProcessedContent = result,
+            Images = processedImages,
+            SkippedCount = skippedCount
+        };
+    }
+
+    private static string GetFormatFromMimeType(string? mimeType)
+    {
+        return mimeType?.ToLowerInvariant() switch
+        {
+            "image/png" => "png",
+            "image/jpeg" => "jpg",
+            "image/jpg" => "jpg",
+            "image/gif" => "gif",
+            "image/webp" => "webp",
+            "image/bmp" => "bmp",
+            _ => "png"
+        };
+    }
+
+    /// <summary>
     /// Process images in content - extract to files and optionally analyze with AI
     /// </summary>
     public async Task<ImageProcessingResult> ProcessImagesAsync(

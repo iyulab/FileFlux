@@ -135,7 +135,7 @@ public class ExtractCommand : Command
         }
 
         services.AddFileFlux();
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var processor = provider.GetRequiredService<FluxDocumentProcessor>();
 
         if (enableAI)
@@ -171,6 +171,7 @@ public class ExtractCommand : Command
 
         // Override output options with new directory structure
         outputOptions.OutputDirectory = dirs.Extract;
+        outputOptions.ImagesDirectory = dirs.Images;
 
         try
         {

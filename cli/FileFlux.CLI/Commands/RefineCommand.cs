@@ -140,7 +140,7 @@ public class RefineCommand : Command
         }
 
         services.AddFileFlux();
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var processor = provider.GetRequiredService<FluxDocumentProcessor>();
 
         format ??= "md";

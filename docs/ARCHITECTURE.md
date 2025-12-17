@@ -223,6 +223,63 @@ Created → Extracted → Refined → Chunked → Enriched → Disposed
 - Optional IDocumentEnricher for enrichment stage
 - All optional dependencies use graceful fallback strategies
 
+#### Stage Responsibilities and RawContent Definition
+
+**RawContent Definition**:
+> `RawContent` is **not** the original file bytes. It is **"normalized text with semantic structure preserved, extracted without AI dependencies"**.
+
+This design decision optimizes for RAG pipeline quality:
+- HTML tags are noise for RAG → Extract converts to Markdown
+- PDF layout info is valuable → Extract preserves structure hints
+- Markdown is already structured → Extract preserves as-is
+
+**Extract vs Refine Role Separation**:
+
+| Stage | Primary Responsibility | Examples |
+|-------|----------------------|----------|
+| **Extract** | Format normalization | HTML→Markdown, metadata extraction, noise tag removal |
+| **Refine** | Quality enhancement | OCR correction, image→text, whitespace cleanup, header/footer removal |
+
+**Reader-specific Extract Output**:
+
+| Reader | Extract Output | Rationale |
+|--------|---------------|-----------|
+| `HtmlDocumentReader` | Markdown (headings, lists, links, code blocks) | HTML tags are RAG noise; preserve semantic structure only |
+| `MarkdownDocumentReader` | Original Markdown (parsed and validated) | Already structured; no conversion needed |
+| `PdfDocumentReader` | Text + structural hints (has_tables, page_count) | Layout info aids chunking decisions |
+| `TextDocumentReader` | Original text | No transformation required |
+| `JsonDocumentReader` | Flattened text with key paths | Preserve hierarchy context |
+| `CsvDocumentReader` | Text with row/column structure | Tabular context for RAG |
+
+**Example: HTML Extract Output**:
+```markdown
+# Document Title
+
+## Section 1
+This is paragraph content with [a link](https://example.com).
+
+- List item 1
+- List item 2
+  - Nested item
+
+--- TABLE: User Data ---
+Name | Age | Role
+John | 30 | Developer
+--- END TABLE ---
+
+![Image alt text](image.png)
+
+```javascript
+console.log("Code block preserved");
+```
+```
+
+**Why HTML Extract outputs Markdown**:
+1. **Single conversion point**: HTML→Markdown happens once in Extract, not twice
+2. **RAG optimization**: Chunking stage receives structured input for better segmentation
+3. **Consistency**: All Readers output text suitable for immediate chunking
+4. **Performance**: No intermediate format transformation overhead
+
 ### 3. IDocumentRefiner (Stage 2)
 
 **Role**: Content refinement and structure extraction
@@ -682,6 +739,42 @@ var chunks = await processor.ProcessAsync("document.pdf", options);
 services.AddScoped<ITextCompletionService, OpenAIService>();
 services.AddFileFlux();
 ```
+
+## FAQ
+
+### Why does HTML Extract output Markdown instead of raw HTML?
+
+**Short answer**: HTML tags are noise for RAG systems. Extract converts to Markdown to preserve semantic structure while removing presentation markup.
+
+**Detailed explanation**:
+
+1. **RAG Optimization**: Raw HTML contains `<div>`, `<span>`, CSS classes, and other tags that add no semantic value for retrieval. Markdown preserves meaning (headings, lists, links) without noise.
+
+2. **Chunking Quality**: The Chunk stage needs structured text input. If Extract outputs raw HTML, the Refine stage would need to parse and convert it, adding complexity and potential errors.
+
+3. **Single Conversion Point**: Converting HTML→Markdown once in Extract is more efficient than maintaining an intermediate format and converting again in Refine.
+
+4. **Consistency**: All Readers output text that can be immediately chunked. HTML Reader's Markdown output follows this pattern.
+
+**What if I need the original HTML?**
+- Read the file directly using `File.ReadAllText()` before calling FileFlux
+- FileFlux is designed for RAG preprocessing, not general-purpose HTML processing
+
+### What's the difference between Extract and Refine stages?
+
+| Stage | Focus | AI Required |
+|-------|-------|-------------|
+| **Extract** | Format normalization (HTML→Markdown, PDF→Text) | No |
+| **Refine** | Quality enhancement (OCR fix, image→text, cleanup) | Optional |
+
+Extract uses deterministic libraries (HtmlAgilityPack, PdfPig). Refine can optionally use AI services for advanced processing.
+
+### Why does `RefiningOptions.ConvertToMarkdown` exist if Extract already outputs Markdown?
+
+`ConvertToMarkdown` in Refine handles cases where:
+- Extract output is plain text (from TextReader, legacy sources)
+- Additional structure detection is needed (e.g., inferring headings from formatting)
+- If input is already Markdown, Refine performs cleanup only (no re-conversion)
 
 ## Related Documentation
 

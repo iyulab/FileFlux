@@ -1,6 +1,7 @@
 using FileFlux.CLI.Services.Providers;
 using FileFlux.Core;
 using FileFlux;
+using FileFlux.Infrastructure.Services.LMSupply;
 using FluxImprover;
 using Microsoft.Extensions.DependencyInjection;
 using FluxImproverService = FluxImprover.Services.ITextCompletionService;
@@ -48,6 +49,10 @@ public class AIProviderFactory
                 ConfigureGoogle(services);
                 break;
 
+            case "local":
+                ConfigureLMSupply(services);
+                break;
+
             case "none":
                 // No AI provider configured - FileFlux will work without AI features
                 break;
@@ -77,6 +82,7 @@ public class AIProviderFactory
             "anthropic" => $"Anthropic ({_config.AnthropicModel}){visionStatus}",
             "gpustack" => $"GPU-Stack ({_config.GpuStackModel ?? "default"}){visionStatus}",
             "google" => $"Google Gemini ({_config.GoogleModel}){visionStatus}",
+            "local" => $"LMSupply Local ({_config.LMSupplyModel}){visionStatus}",
             "none" => "No AI provider (basic processing only)",
             "ambiguous" => $"Ambiguous (set MODEL_PROVIDER: {string.Join(", ", _config.GetConfiguredProviders())})",
             _ => $"Unsupported: {provider}"
@@ -104,6 +110,7 @@ public class AIProviderFactory
             "anthropic" => CreateAnthropicFluxImproverService(),
             "gpustack" => CreateGpuStackFluxImproverService(),
             "google" => CreateGoogleFluxImproverService(),
+            "local" => CreateLMSupplyFluxImproverService(),
             _ => null
         };
 
@@ -144,6 +151,17 @@ public class AIProviderFactory
         var apiKey = _config.GoogleApiKey ?? throw new InvalidOperationException("Google API key not configured");
         var model = _config.GoogleModel ?? "gemini-2.0-flash";
         return new Providers.FluxImprover.GoogleCompletionService(apiKey, model);
+    }
+
+    private FluxImproverService CreateLMSupplyFluxImproverService()
+    {
+        var options = new LMSupplyOptions
+        {
+            GeneratorModel = _config.LMSupplyModel,
+            UseGpuAcceleration = _config.LMSupplyUseGpu,
+            MaxGenerationTokens = 2048
+        };
+        return new Providers.FluxImprover.LMSupplyCompletionService(options);
     }
 
     private void ConfigureOpenAI(IServiceCollection services)
@@ -242,6 +260,38 @@ public class AIProviderFactory
         {
             services.AddScoped<IImageToTextService>(sp =>
                 new GoogleImageToTextService(apiKey, model, _verbose));
+        }
+    }
+
+    private void ConfigureLMSupply(IServiceCollection services)
+    {
+        var options = new LMSupplyOptions
+        {
+            GeneratorModel = _config.LMSupplyModel,
+            UseGpuAcceleration = _config.LMSupplyUseGpu,
+            MaxGenerationTokens = 2048,
+            AutoSelectMultilingualModel = true
+        };
+
+        // Register LMSupply service factory as singleton for resource management
+        services.AddSingleton(options);
+        services.AddSingleton<LMSupplyServiceFactory>();
+
+        // Register text completion service - lazy initialization
+        services.AddScoped<ITextCompletionService>(sp =>
+        {
+            var factory = sp.GetRequiredService<LMSupplyServiceFactory>();
+            return factory.GetGeneratorAsync().GetAwaiter().GetResult();
+        });
+
+        // Register image-to-text service if vision is enabled
+        if (_enableVision)
+        {
+            services.AddScoped<IImageToTextService>(sp =>
+            {
+                var factory = sp.GetRequiredService<LMSupplyServiceFactory>();
+                return factory.GetCaptionerAsync().GetAwaiter().GetResult();
+            });
         }
     }
 }

@@ -60,6 +60,11 @@ public class OutputOptions
     public string? OutputDirectory { get; set; }
 
     /// <summary>
+    /// Images output directory path. If null, defaults to OutputDirectory/images
+    /// </summary>
+    public string? ImagesDirectory { get; set; }
+
+    /// <summary>
     /// Output format (md, json, jsonl)
     /// </summary>
     public string Format { get; set; } = "md";
