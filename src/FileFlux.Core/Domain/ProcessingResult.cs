@@ -18,24 +18,24 @@ public class ProcessingResult : IEnumerable<DocumentChunk>
     /// <summary>
     /// Stage 1: Raw extraction result.
     /// </summary>
-    public RawContent? Raw { get; internal set; }
+    public RawContent? Raw { get; set; }
 
     /// <summary>
     /// Stage 2: Refined content with structure analysis.
     /// </summary>
-    public RefinedContent? Refined { get; internal set; }
+    public RefinedContent? Refined { get; set; }
 
     /// <summary>
     /// Stage 3: Chunked document segments.
     /// </summary>
-    public IReadOnlyList<DocumentChunk>? Chunks { get; internal set; }
+    public IReadOnlyList<DocumentChunk>? Chunks { get; set; }
 
     // === Extended Results ===
 
     /// <summary>
     /// Inter-chunk relationship graph (built during Enrich stage).
     /// </summary>
-    public DocumentGraph? Graph { get; internal set; }
+    public DocumentGraph? Graph { get; set; }
 
     // === Processing Metrics ===
 
@@ -91,7 +91,7 @@ public class ProcessingResult : IEnumerable<DocumentChunk>
     /// <summary>
     /// Clears all results (used during disposal).
     /// </summary>
-    internal void Clear()
+    public void Clear()
     {
         Raw = null;
         Refined = null;

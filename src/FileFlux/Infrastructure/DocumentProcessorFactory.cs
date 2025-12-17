@@ -16,6 +16,7 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
     private readonly IDocumentReaderFactory _readerFactory;
     private readonly IChunkerFactory _chunkerFactory;
     private readonly IDocumentRefiner? _documentRefiner;
+    private readonly IDocumentEnricher? _documentEnricher;
     private readonly FluxImproverServices? _improverServices;
     private readonly IMarkdownConverter? _markdownConverter;
     private readonly IImageToTextService? _imageToTextService;
@@ -31,17 +32,18 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
         IMarkdownConverter? markdownConverter = null,
         IImageToTextService? imageToTextService = null,
         ILoggerFactory? loggerFactory = null)
-        : this(readerFactory, chunkerFactory, null, improverServices, markdownConverter, imageToTextService, loggerFactory)
+        : this(readerFactory, chunkerFactory, null, null, improverServices, markdownConverter, imageToTextService, loggerFactory)
     {
     }
 
     /// <summary>
-    /// Create factory with all dependencies including document refiner.
+    /// Create factory with all dependencies including document refiner and enricher.
     /// </summary>
     public DocumentProcessorFactory(
         IDocumentReaderFactory readerFactory,
         IChunkerFactory chunkerFactory,
         IDocumentRefiner? documentRefiner,
+        IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices = null,
         IMarkdownConverter? markdownConverter = null,
         IImageToTextService? imageToTextService = null,
@@ -50,6 +52,7 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
         _documentRefiner = documentRefiner;
+        _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
         _imageToTextService = imageToTextService;
@@ -64,6 +67,7 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
             _readerFactory,
             _chunkerFactory,
             _documentRefiner,
+            _documentEnricher,
             _improverServices,
             _markdownConverter,
             _imageToTextService,
@@ -79,6 +83,7 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
             _readerFactory,
             _chunkerFactory,
             _documentRefiner,
+            _documentEnricher,
             _improverServices,
             _markdownConverter,
             _imageToTextService,
@@ -95,6 +100,7 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
             _readerFactory,
             _chunkerFactory,
             _documentRefiner,
+            _documentEnricher,
             _improverServices,
             _markdownConverter,
             _imageToTextService,
@@ -110,6 +116,7 @@ public class DocumentProcessorFactoryBuilder
     private IDocumentReaderFactory? _readerFactory;
     private IChunkerFactory? _chunkerFactory;
     private IDocumentRefiner? _documentRefiner;
+    private IDocumentEnricher? _documentEnricher;
     private FluxImproverServices? _improverServices;
     private IMarkdownConverter? _markdownConverter;
     private IImageToTextService? _imageToTextService;
@@ -139,6 +146,15 @@ public class DocumentProcessorFactoryBuilder
     public DocumentProcessorFactoryBuilder WithDocumentRefiner(IDocumentRefiner refiner)
     {
         _documentRefiner = refiner;
+        return this;
+    }
+
+    /// <summary>
+    /// Set the document enricher.
+    /// </summary>
+    public DocumentProcessorFactoryBuilder WithDocumentEnricher(IDocumentEnricher enricher)
+    {
+        _documentEnricher = enricher;
         return this;
     }
 
@@ -192,6 +208,7 @@ public class DocumentProcessorFactoryBuilder
             _readerFactory,
             _chunkerFactory,
             _documentRefiner,
+            _documentEnricher,
             _improverServices,
             _markdownConverter,
             _imageToTextService,

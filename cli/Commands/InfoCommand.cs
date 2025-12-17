@@ -80,13 +80,18 @@ public class InfoCommand : Command
                         var services = new ServiceCollection();
                         services.AddFileFlux();
                         using var provider = services.BuildServiceProvider();
-                        var processor = provider.GetRequiredService<IDocumentProcessor>();
+                        var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
 
-                        var chunks = await processor.ProcessAsync(input, new ChunkingOptions
+                        await using var processor = factory.Create(input);
+                        await processor.ProcessAsync(new ProcessingOptions
                         {
-                            Strategy = ChunkingStrategies.Token,
-                            MaxChunkSize = 100000
+                            Chunking = new ChunkingOptions
+                            {
+                                Strategy = ChunkingStrategies.Token,
+                                MaxChunkSize = 100000
+                            }
                         }, cancellationToken);
+                        var chunks = processor.Result.Chunks ?? [];
 
                         var totalChars = chunks.Sum(c => c.Content.Length);
                         var estimatedWords = totalChars / 5; // rough estimate

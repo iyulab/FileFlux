@@ -23,6 +23,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
     private readonly IDocumentReaderFactory _readerFactory;
     private readonly IChunkerFactory _chunkerFactory;
     private readonly IDocumentRefiner? _documentRefiner;
+    private readonly IDocumentEnricher? _documentEnricher;
     private readonly FluxImproverServices? _improverServices;
     private readonly ITextRefiner _textRefiner;
     private readonly IMarkdownConverter? _markdownConverter;
@@ -56,6 +57,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentReaderFactory readerFactory,
         IChunkerFactory chunkerFactory,
         IDocumentRefiner? documentRefiner,
+        IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
         IImageToTextService? imageToTextService,
@@ -73,6 +75,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
         _documentRefiner = documentRefiner;
+        _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
         _imageToTextService = imageToTextService;
@@ -89,6 +92,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentReaderFactory readerFactory,
         IChunkerFactory chunkerFactory,
         IDocumentRefiner? documentRefiner,
+        IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
         IImageToTextService? imageToTextService,
@@ -106,6 +110,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
         _documentRefiner = documentRefiner;
+        _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
         _imageToTextService = imageToTextService;
@@ -123,6 +128,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentReaderFactory readerFactory,
         IChunkerFactory chunkerFactory,
         IDocumentRefiner? documentRefiner,
+        IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
         IImageToTextService? imageToTextService,
@@ -140,6 +146,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
         _documentRefiner = documentRefiner;
+        _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
         _imageToTextService = imageToTextService;
@@ -548,34 +555,94 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
                 return;
             }
 
-            // Step 1: LLM enrichment (if available)
-            if (_improverServices != null)
+            // Delegate to IDocumentEnricher if available
+            if (_documentEnricher != null)
             {
-                await EnrichWithLlmAsync(chunks, options, cancellationToken).ConfigureAwait(false);
+                var enrichResult = await _documentEnricher.EnrichAsync(
+                    chunks,
+                    Result.Refined!,
+                    options,
+                    cancellationToken).ConfigureAwait(false);
+
+                // Apply enrichment results back to chunks
+                ApplyEnrichmentResults(chunks, enrichResult);
+
+                // Set graph from enrichment result
+                Result.Graph = enrichResult.Graph ?? new DocumentGraph { DocumentId = Result.DocumentId };
+                Result.Metrics.GraphNodes = Result.Graph.NodeCount;
+                Result.Metrics.GraphEdges = Result.Graph.EdgeCount;
+                Result.Metrics.EnrichDuration = sw.Elapsed;
+
+                _state = ProcessorState.Enriched;
+                _logger.LogInformation("Enriched {ChunkCount} chunks via IDocumentEnricher, graph: {NodeCount} nodes, {EdgeCount} edges in {Duration:F2}s",
+                    chunks.Count, Result.Graph.NodeCount, Result.Graph.EdgeCount, sw.Elapsed.TotalSeconds);
+                return;
             }
 
-            // Step 2: Build graph
-            if (options.BuildGraph)
-            {
-                var graph = BuildDocumentGraph(chunks);
-                Result.Graph = graph;
-                Result.Metrics.GraphNodes = graph.NodeCount;
-                Result.Metrics.GraphEdges = graph.EdgeCount;
-            }
-            else
-            {
-                Result.Graph = new DocumentGraph { DocumentId = Result.DocumentId };
-            }
+            // Fallback to internal enrichment logic
+            await EnrichInternalAsync(chunks, options, cancellationToken).ConfigureAwait(false);
 
             Result.Metrics.EnrichDuration = sw.Elapsed;
             _state = ProcessorState.Enriched;
             _logger.LogInformation("Enriched {ChunkCount} chunks, graph: {NodeCount} nodes, {EdgeCount} edges in {Duration:F2}s",
-                chunks.Count, Result.Graph.NodeCount, Result.Graph.EdgeCount, sw.Elapsed.TotalSeconds);
+                chunks.Count, Result.Graph!.NodeCount, Result.Graph.EdgeCount, sw.Elapsed.TotalSeconds);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             _state = ProcessorState.Failed;
             throw new DocumentProcessingException(FilePath, $"Enrichment failed: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Internal enrichment logic used when no IDocumentEnricher is injected.
+    /// </summary>
+    private async Task EnrichInternalAsync(List<DocumentChunk> chunks, EnrichOptions options, CancellationToken cancellationToken)
+    {
+        // Step 1: LLM enrichment (if available)
+        if (_improverServices != null)
+        {
+            await EnrichWithLlmAsync(chunks, options, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Step 2: Build graph
+        if (options.BuildGraph)
+        {
+            var graph = BuildDocumentGraph(chunks);
+            Result.Graph = graph;
+            Result.Metrics.GraphNodes = graph.NodeCount;
+            Result.Metrics.GraphEdges = graph.EdgeCount;
+        }
+        else
+        {
+            Result.Graph = new DocumentGraph { DocumentId = Result.DocumentId };
+        }
+    }
+
+    /// <summary>
+    /// Apply enrichment results back to DocumentChunks.
+    /// </summary>
+    private static void ApplyEnrichmentResults(List<DocumentChunk> chunks, EnrichmentResult enrichResult)
+    {
+        foreach (var enrichedChunk in enrichResult.Chunks)
+        {
+            var chunk = chunks.FirstOrDefault(c => c.Id == enrichedChunk.Chunk.Id);
+            if (chunk == null) continue;
+
+            if (!string.IsNullOrEmpty(enrichedChunk.Summary))
+                chunk.Props[ChunkPropsKeys.EnrichedSummary] = enrichedChunk.Summary;
+
+            if (enrichedChunk.Keywords != null && enrichedChunk.Keywords.Count > 0)
+                chunk.Props[ChunkPropsKeys.EnrichedKeywords] = enrichedChunk.KeywordList;
+
+            if (!string.IsNullOrEmpty(enrichedChunk.ContextualText))
+                chunk.Props[ChunkPropsKeys.EnrichedContextualText] = enrichedChunk.ContextualText;
+
+            if (enrichedChunk.Entities != null && enrichedChunk.Entities.Count > 0)
+                chunk.Props["entities"] = enrichedChunk.Entities;
+
+            if (enrichedChunk.Topics != null && enrichedChunk.Topics.Count > 0)
+                chunk.Props["topics"] = enrichedChunk.Topics;
         }
     }
 

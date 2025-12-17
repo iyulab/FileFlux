@@ -198,7 +198,7 @@ public class ChunkCommand : Command
 
         services.AddFileFlux();
         using var provider = services.BuildServiceProvider();
-        var processor = (FluxDocumentProcessor)provider.GetRequiredService<IDocumentProcessor>();
+        var processor = provider.GetRequiredService<FluxDocumentProcessor>();
         var imageToTextService = enableAI ? provider.GetService<IImageToTextService>() : null;
 
         // Configure options

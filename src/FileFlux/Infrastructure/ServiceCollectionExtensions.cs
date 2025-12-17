@@ -82,6 +82,15 @@ public static class ServiceCollectionExtensions
                 .Build();
         });
 
+        // === Document Enricher ===
+        services.AddScoped<IDocumentEnricher>(provider =>
+        {
+            var improverServices = provider.GetService<FluxImproverServices>();
+            var loggerFactory = provider.GetService<ILoggerFactory>();
+            var logger = loggerFactory?.CreateLogger<DocumentEnricher>();
+            return new DocumentEnricher(improverServices, logger);
+        });
+
         // === Main Document Processor Factory ===
         // Stateful pattern: use factory to create per-document processors
         services.AddScoped<IDocumentProcessorFactory>(provider =>
@@ -89,6 +98,7 @@ public static class ServiceCollectionExtensions
             var readerFactory = provider.GetRequiredService<IDocumentReaderFactory>();
             var chunkerFactory = provider.GetRequiredService<IChunkerFactory>();
             var documentRefiner = provider.GetService<IDocumentRefiner>();
+            var documentEnricher = provider.GetService<IDocumentEnricher>();
             var improverServices = provider.GetService<FluxImproverServices>();
             var markdownConverter = provider.GetService<IMarkdownConverter>();
             var imageToTextService = provider.GetService<IImageToTextService>();
@@ -98,6 +108,7 @@ public static class ServiceCollectionExtensions
                 readerFactory,
                 chunkerFactory,
                 documentRefiner,
+                documentEnricher,
                 improverServices,
                 markdownConverter,
                 imageToTextService,
