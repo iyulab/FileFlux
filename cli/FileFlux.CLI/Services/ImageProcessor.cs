@@ -172,7 +172,7 @@ public class ImageProcessor
     {
         var sb = new StringBuilder();
 
-        // Image reference
+        // Image reference with descriptive alt text
         var altText = string.IsNullOrEmpty(image.AltText) ? $"Image {image.Index}" : image.AltText;
         sb.AppendLine($"![{altText}]({relativePath})");
 
@@ -182,8 +182,23 @@ public class ImageProcessor
             sb.AppendLine();
             sb.AppendLine($"> **AI 분석**: {image.AIDescription}");
         }
+        else
+        {
+            // Fallback: provide basic image metadata as caption
+            sb.AppendLine();
+            sb.AppendLine($"> *Image {image.Index}: {image.Width}x{image.Height}px, {FormatFileSize(image.FileSize)}*");
+        }
 
         return sb.ToString();
+    }
+
+    private static string FormatFileSize(int bytes)
+    {
+        if (bytes < 1024)
+            return $"{bytes} B";
+        if (bytes < 1024 * 1024)
+            return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 
     private static (int Width, int Height) GetImageDimensions(byte[] imageBytes, string format)

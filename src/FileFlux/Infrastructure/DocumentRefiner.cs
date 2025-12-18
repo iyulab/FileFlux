@@ -61,6 +61,13 @@ public sealed class DocumentRefiner : IDocumentRefiner
                 refinedText = CleanDocumentNoise(refinedText);
             }
 
+            // Step 1.5: Convert numbered section markers to Markdown headings
+            // This improves structure for technical documents with numbered sections
+            if (options.BuildSections)
+            {
+                refinedText = ConvertNumberedSectionsToHeadings(refinedText);
+            }
+
             // Step 2: Convert structured data to markdown
             // Priority: Use RawContent.Tables/Blocks if available, otherwise fallback to IMarkdownConverter
             var hasStructuredData = raw.HasTables || raw.HasBlocks;
@@ -191,6 +198,57 @@ public sealed class DocumentRefiner : IDocumentRefiner
         text = Regex.Replace(text, @"[ \t]+$", "", RegexOptions.Multiline);
 
         return text.Trim();
+    }
+
+    /// <summary>
+    /// Converts numbered section markers to Markdown headings.
+    /// Patterns: "1.", "2.", "3-1.", "4-2.", "(1)", "①", etc.
+    /// </summary>
+    private static string ConvertNumberedSectionsToHeadings(string text)
+    {
+        // Pattern 1: Top-level numbers like "1." or "2." at line start followed by content
+        // Convert to ## (H2)
+        text = Regex.Replace(
+            text,
+            @"^(\d+)\.\s+(.+)$",
+            m => $"## {m.Groups[1].Value}. {m.Groups[2].Value}",
+            RegexOptions.Multiline);
+
+        // Pattern 2: Sub-level numbers like "3-1." or "4-2." at line start
+        // Convert to ### (H3)
+        text = Regex.Replace(
+            text,
+            @"^(\d+-\d+)\.\s+(.+)$",
+            m => $"### {m.Groups[1].Value}. {m.Groups[2].Value}",
+            RegexOptions.Multiline);
+
+        // Pattern 3: Third-level like "3-1-1." or "4-2-3."
+        // Convert to #### (H4)
+        text = Regex.Replace(
+            text,
+            @"^(\d+-\d+-\d+)\.\s*(.*)$",
+            m => string.IsNullOrWhiteSpace(m.Groups[2].Value)
+                ? m.Value  // Keep as-is if no content
+                : $"#### {m.Groups[1].Value}. {m.Groups[2].Value}",
+            RegexOptions.Multiline);
+
+        // Pattern 4: Korean-style circled numbers like "①" or "②"
+        // Convert to ### (H3)
+        text = Regex.Replace(
+            text,
+            @"^([①②③④⑤⑥⑦⑧⑨⑩])\s+(.+)$",
+            m => $"### {m.Groups[1].Value} {m.Groups[2].Value}",
+            RegexOptions.Multiline);
+
+        // Pattern 5: Parenthesized numbers like "(1)" or "(2)"
+        // Convert to ### (H3)
+        text = Regex.Replace(
+            text,
+            @"^\((\d+)\)\s+(.+)$",
+            m => $"### ({m.Groups[1].Value}) {m.Groups[2].Value}",
+            RegexOptions.Multiline);
+
+        return text;
     }
 
     #endregion

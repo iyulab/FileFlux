@@ -301,6 +301,7 @@ public class ProcessCommand : Command
             var skippedImageCount = 0;
             var enrichSkippedCount = 0;
             var enrichErrorMessages = new List<string>();
+            var selectedStrategy = strategy!;  // Will be updated by auto-selection
 
             // Pre-load AI model if enrichment is enabled (shows loading progress)
             if (enableEnrich && fluxImprover != null)
@@ -411,6 +412,36 @@ public class ProcessCommand : Command
                         Path.Combine(dirs.Extract, "extracted.md"),
                         parsedContent.Text,
                         cancellationToken);
+
+                    // Save extract metadata JSON
+                    var extractInfo = new
+                    {
+                        stage = "extract",
+                        sourceFile = Path.GetFileName(input),
+                        sourceFormat = Path.GetExtension(input).TrimStart('.').ToUpperInvariant(),
+                        extractedAt = DateTime.UtcNow.ToString("o"),
+                        statistics = new
+                        {
+                            rawSize = rawContent.Text.Length,
+                            extractedSize = parsedContent.Text.Length,
+                            reductionPercent = rawContent.Text.Length > 0
+                                ? Math.Round((1 - (double)parsedContent.Text.Length / rawContent.Text.Length) * 100, 1)
+                                : 0,
+                            imagesFound = rawContent.Images.Count,
+                            imagesExtracted = images.Count,
+                            imagesSkipped = skippedImageCount
+                        }
+                    };
+                    var extractJson = System.Text.Json.JsonSerializer.Serialize(extractInfo, new System.Text.Json.JsonSerializerOptions
+                    {
+                        WriteIndented = true,
+                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                    });
+                    await File.WriteAllTextAsync(
+                        Path.Combine(dirs.Extract, "extracted.json"),
+                        extractJson,
+                        cancellationToken);
+
                     saveTask.Value = 100;
                     saveTask.Description = "[green]  Saving extracted content[/] ✓";
                     currentStage++;
@@ -438,6 +469,36 @@ public class ProcessCommand : Command
                         await File.WriteAllTextAsync(
                             Path.Combine(dirs.Refine, "refined.md"),
                             refinedContent.Text,
+                            cancellationToken);
+
+                        // Save refine metadata JSON
+                        var refineInfo = new
+                        {
+                            stage = "refine",
+                            refinedAt = DateTime.UtcNow.ToString("o"),
+                            statistics = new
+                            {
+                                originalSize = parsedContent.Text.Length,
+                                refinedSize = refinedContent.Text.Length,
+                                reductionPercent = Math.Round(reduction, 1),
+                                sectionsFound = refinedContent.Structure?.Sections?.Count ?? 0
+                            },
+                            quality = refinedContent.Quality != null ? new
+                            {
+                                structureScore = Math.Round(refinedContent.Quality.StructureScore, 3),
+                                consistencyScore = Math.Round(refinedContent.Quality.ConsistencyScore, 3),
+                                retentionScore = Math.Round(refinedContent.Quality.InformationRetentionScore, 3),
+                                overallScore = Math.Round(refinedContent.Quality.OverallScore, 3)
+                            } : null
+                        };
+                        var refineJson = System.Text.Json.JsonSerializer.Serialize(refineInfo, new System.Text.Json.JsonSerializerOptions
+                        {
+                            WriteIndented = true,
+                            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                        });
+                        await File.WriteAllTextAsync(
+                            Path.Combine(dirs.Refine, "refined.json"),
+                            refineJson,
                             cancellationToken);
                     }
                     else
@@ -475,20 +536,27 @@ public class ProcessCommand : Command
                     }
 
                     // ── Stage 6: Chunk ──
+                    // Auto-select optimal chunking strategy based on document structure
+                    var contentToChunk = refinedContent.Text.Length > 0 ? refinedContent.Text : parsedContent.Text;
+                    var (effectiveStrategy, wasAutoSelected) = SelectChunkingStrategy(contentToChunk, strategy!);
+                    selectedStrategy = effectiveStrategy;  // Store for output metadata
+
+                    var strategyDisplay = wasAutoSelected ? $"{effectiveStrategy} [dim](auto)[/]" : effectiveStrategy;
                     var chunkDesc = chunkSizeAdjusted
-                        ? $"[yellow]  Chunking content ({strategy}, max:{effectiveMaxSize})...[/]"
-                        : $"[yellow]  Chunking content ({strategy})...[/]";
+                        ? $"[yellow]  Chunking content ({strategyDisplay}, max:{effectiveMaxSize})...[/]"
+                        : $"[yellow]  Chunking content ({strategyDisplay})...[/]";
                     var chunkTask = ctx.AddTask(chunkDesc, maxValue: 100);
                     var chunkingOptions = new ChunkingOptions
                     {
-                        Strategy = strategy,
+                        Strategy = effectiveStrategy,  // Use auto-selected strategy
                         MaxChunkSize = effectiveMaxSize,  // Use model-aware effective size (with CJK adjustment)
                         OverlapSize = effectiveOverlap  // Adjusted overlap
                     };
                     chunks = await processor.ChunkAsync(refinedContent, chunkingOptions, cancellationToken);
                     chunkTask.Value = 100;
                     var chunkSuffix = chunkSizeAdjusted ? $", max:{effectiveMaxSize}" : "";
-                    chunkTask.Description = $"[green]  Chunking content[/] ✓ ({chunks.Length} chunks{chunkSuffix})";
+                    var autoSuffix = wasAutoSelected ? $", {effectiveStrategy}" : "";
+                    chunkTask.Description = $"[green]  Chunking content[/] ✓ ({chunks.Length} chunks{chunkSuffix}{autoSuffix})";
 
                     // ── Stage 7: Enrich (optional) ──
                     if (enableEnrich && fluxImprover != null && chunks.Length > 0)
@@ -559,6 +627,9 @@ public class ProcessCommand : Command
                         {
                             enrichTask.Description = $"[green]  Enriching chunks[/] ✓ (all {chunks.Length})";
                         }
+
+                        // ── Save enrichment results to enrich/ folder ──
+                        await SaveEnrichmentResultsAsync(chunks, dirs.Enrich, cancellationToken);
                     }
 
                 });
@@ -584,7 +655,7 @@ public class ProcessCommand : Command
             // Write output
             var chunkingOptions = new ChunkingOptions
             {
-                Strategy = strategy,
+                Strategy = selectedStrategy,  // Use the selected strategy (may be auto-detected)
                 MaxChunkSize = effectiveMaxSize,
                 OverlapSize = effectiveOverlap
             };
@@ -1001,6 +1072,156 @@ public class ProcessCommand : Command
 
     #endregion
 
+    #region Enrichment Output
+
+    /// <summary>
+    /// Save enrichment results to the enrich/ folder.
+    /// Creates individual enrichment files and an index.json summary.
+    /// </summary>
+    private static async Task SaveEnrichmentResultsAsync(
+        DocumentChunk[] chunks,
+        string enrichDir,
+        CancellationToken cancellationToken)
+    {
+        var enrichedChunks = chunks
+            .Select((c, i) => new { Chunk = c, Index = i })
+            .Where(x => x.Chunk.Props.ContainsKey(ChunkPropsKeys.EnrichedSummary) ||
+                        x.Chunk.Props.ContainsKey(ChunkPropsKeys.EnrichedKeywords))
+            .ToList();
+
+        if (enrichedChunks.Count == 0)
+            return;
+
+        var jsonOptions = new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+        };
+
+        // Save individual enrichment files
+        var enrichmentEntries = new List<object>();
+
+        foreach (var item in enrichedChunks)
+        {
+            var chunk = item.Chunk;
+            var index = item.Index;
+
+            var enrichmentData = new Dictionary<string, object?>
+            {
+                ["chunkIndex"] = index,
+                ["chunkId"] = chunk.Id.ToString()
+            };
+
+            // Extract enrichment properties
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.EnrichedSummary, out var summary))
+                enrichmentData["summary"] = summary;
+
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.EnrichedKeywords, out var keywords))
+                enrichmentData["keywords"] = keywords;
+
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.DocumentTopic, out var topic))
+                enrichmentData["topic"] = topic;
+
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.DocumentKeywords, out var docKeywords))
+                enrichmentData["documentKeywords"] = docKeywords;
+
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.HierarchyPath, out var hierarchy))
+                enrichmentData["hierarchyPath"] = hierarchy;
+
+            // Add content preview (first 200 chars)
+            var preview = chunk.Content.Length > 200
+                ? chunk.Content.Substring(0, 200) + "..."
+                : chunk.Content;
+            enrichmentData["contentPreview"] = preview;
+
+            // Save individual enrichment file
+            var fileName = $"{index:D3}.json";
+            var filePath = Path.Combine(enrichDir, fileName);
+            var json = System.Text.Json.JsonSerializer.Serialize(enrichmentData, jsonOptions);
+            await File.WriteAllTextAsync(filePath, json, cancellationToken);
+
+            // Collect for index
+            enrichmentEntries.Add(new
+            {
+                index,
+                chunkId = chunk.Id.ToString(),
+                file = fileName,
+                hasSummary = chunk.Props.ContainsKey(ChunkPropsKeys.EnrichedSummary),
+                hasKeywords = chunk.Props.ContainsKey(ChunkPropsKeys.EnrichedKeywords)
+            });
+        }
+
+        // Aggregate document-level analysis
+        var allKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var allTopics = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var summaries = new List<string>();
+
+        foreach (var item in enrichedChunks)
+        {
+            var chunk = item.Chunk;
+
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.EnrichedKeywords, out var kw) && kw is IEnumerable<string> kwList)
+            {
+                foreach (var k in kwList.Take(5))
+                    allKeywords.Add(k);
+            }
+
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.DocumentKeywords, out var dkw) && dkw is IEnumerable<string> dkwList)
+            {
+                foreach (var k in dkwList.Take(5))
+                    allKeywords.Add(k);
+            }
+
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.DocumentTopic, out var topic) && topic is string topicStr)
+                allTopics.Add(topicStr);
+
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.EnrichedSummary, out var summary) && summary is string sumStr)
+                summaries.Add(sumStr);
+        }
+
+        // Create document-level summary from chunk summaries
+        string? documentSummary = null;
+        if (summaries.Count > 0)
+        {
+            // Take first 3 summaries to create document overview
+            documentSummary = string.Join(" ", summaries.Take(3).Select(s =>
+            {
+                var trimmed = s.Trim();
+                if (trimmed.Length > 300)
+                    trimmed = trimmed.Substring(0, 297) + "...";
+                return trimmed;
+            }));
+        }
+
+        // Save index.json
+        var indexData = new
+        {
+            stage = "enrich",
+            enrichedAt = DateTime.UtcNow.ToString("o"),
+            statistics = new
+            {
+                totalChunks = chunks.Length,
+                enrichedChunks = enrichedChunks.Count,
+                enrichmentRate = chunks.Length > 0
+                    ? Math.Round((double)enrichedChunks.Count / chunks.Length * 100, 1)
+                    : 0
+            },
+            documentAnalysis = new
+            {
+                summary = documentSummary,
+                topics = allTopics.Take(10).ToList(),
+                keywords = allKeywords.Take(20).ToList()
+            },
+            chunks = enrichmentEntries
+        };
+
+        var indexPath = Path.Combine(enrichDir, "index.json");
+        var indexJson = System.Text.Json.JsonSerializer.Serialize(indexData, jsonOptions);
+        await File.WriteAllTextAsync(indexPath, indexJson, cancellationToken);
+    }
+
+    #endregion
+
     /// <summary>
     /// Auto-select refining options based on document type and detected language.
     /// </summary>
@@ -1031,4 +1252,104 @@ public class ProcessCommand : Command
             _ => RefiningOptions.ForRAG  // Default: Standard preset for RAG
         };
     }
+
+    #region Chunking Strategy Selection
+
+    /// <summary>
+    /// Auto-select optimal chunking strategy based on document structure analysis.
+    /// This improves upon FluxCurator's default Auto→Sentence fallback.
+    /// </summary>
+    /// <param name="content">Document content to analyze</param>
+    /// <param name="requestedStrategy">User-requested strategy (may be "Auto")</param>
+    /// <returns>Selected strategy name and whether it was auto-detected</returns>
+    private static (string Strategy, bool WasAutoSelected) SelectChunkingStrategy(string content, string requestedStrategy)
+    {
+        // If user specified a non-Auto strategy, use it directly
+        if (!string.Equals(requestedStrategy, "Auto", StringComparison.OrdinalIgnoreCase))
+        {
+            return (requestedStrategy, false);
+        }
+
+        // Analyze document structure to select optimal strategy
+        var analysis = AnalyzeDocumentStructure(content);
+
+        // Decision tree for strategy selection
+        if (analysis.HasMarkdownHeadings && analysis.HeadingCount >= 3)
+        {
+            // Documents with clear heading structure benefit from Hierarchical
+            return ("Hierarchical", true);
+        }
+
+        if (analysis.HasNumberedSections && analysis.NumberedSectionCount >= 5)
+        {
+            // Documents with numbered steps (1., 2., 3-1., etc.) work best with Paragraph
+            // This prevents breaking mid-step like "4-1." alone in a chunk
+            return ("Paragraph", true);
+        }
+
+        if (analysis.AverageParagraphLength > 300)
+        {
+            // Long paragraphs suggest narrative content - use Paragraph
+            return ("Paragraph", true);
+        }
+
+        // Default to Sentence for general content
+        return ("Sentence", true);
+    }
+
+    /// <summary>
+    /// Document structure analysis result.
+    /// </summary>
+    private record struct DocumentStructureAnalysis(
+        bool HasMarkdownHeadings,
+        int HeadingCount,
+        bool HasNumberedSections,
+        int NumberedSectionCount,
+        double AverageParagraphLength,
+        int ParagraphCount
+    );
+
+    /// <summary>
+    /// Analyze document structure to inform strategy selection.
+    /// </summary>
+    private static DocumentStructureAnalysis AnalyzeDocumentStructure(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return default;
+        }
+
+        // Sample first 10KB for analysis (performance optimization)
+        var sample = content.Length > 10000 ? content[..10000] : content;
+
+        // Count Markdown headings (## Heading, ### Heading, etc.)
+        var headingPattern = new System.Text.RegularExpressions.Regex(@"^#{1,6}\s+.+$", System.Text.RegularExpressions.RegexOptions.Multiline);
+        var headingMatches = headingPattern.Matches(sample);
+        var headingCount = headingMatches.Count;
+
+        // Count numbered sections (1., 2., 3-1., 4-2., etc.)
+        // Also match Korean-style markers: ①, ②, etc.
+        var numberedPattern = new System.Text.RegularExpressions.Regex(@"^(?:\d+(?:[.-]\d+)*\.|\([0-9]+\)|[①②③④⑤⑥⑦⑧⑨⑩])\s+", System.Text.RegularExpressions.RegexOptions.Multiline);
+        var numberedMatches = numberedPattern.Matches(sample);
+        var numberedSectionCount = numberedMatches.Count;
+
+        // Analyze paragraphs
+        var paragraphs = sample.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var validParagraphs = paragraphs.Where(p => p.Trim().Length > 20).ToArray();
+        var paragraphCount = validParagraphs.Length;
+        var avgParagraphLength = paragraphCount > 0
+            ? validParagraphs.Average(p => p.Length)
+            : 0;
+
+        return new DocumentStructureAnalysis(
+            HasMarkdownHeadings: headingCount >= 2,
+            HeadingCount: headingCount,
+            HasNumberedSections: numberedSectionCount >= 3,
+            NumberedSectionCount: numberedSectionCount,
+            AverageParagraphLength: avgParagraphLength,
+            ParagraphCount: paragraphCount
+        );
+    }
+
+    #endregion
 }

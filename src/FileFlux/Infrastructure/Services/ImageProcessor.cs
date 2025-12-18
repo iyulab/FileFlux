@@ -44,10 +44,14 @@ public class ImageProcessor
             // Skip images without binary data (external URLs)
             if (imageInfo.Data == null || imageInfo.Data.Length == 0)
             {
+                skippedCount++;
                 if (_verbose)
                 {
                     Console.WriteLine($"[Verbose] Skipped {imageInfo.Id}: no binary data (external URL)");
                 }
+                // Remove placeholder for external images without data
+                result = result.Replace($"![{imageInfo.Caption}](embedded:{imageInfo.Id})", $"[External image: {imageInfo.Caption ?? imageInfo.Id}]");
+                result = result.Replace($"![](embedded:{imageInfo.Id})", $"[External image: {imageInfo.Id}]");
                 continue;
             }
 
@@ -328,7 +332,7 @@ public class ImageProcessor
     {
         var sb = new StringBuilder();
 
-        // Image reference
+        // Image reference with descriptive alt text
         var displayAlt = string.IsNullOrEmpty(altText) ? $"Image {index}" : altText;
         sb.AppendLine($"![{displayAlt}]({relativePath})");
 
@@ -338,8 +342,23 @@ public class ImageProcessor
             sb.AppendLine();
             sb.AppendLine($"> **AI Analysis**: {image.AIDescription}");
         }
+        else
+        {
+            // Fallback: provide basic image metadata as caption
+            sb.AppendLine();
+            sb.AppendLine($"> *Image {index}: {image.Width}x{image.Height}px, {FormatFileSize(image.FileSize)}*");
+        }
 
         return sb.ToString();
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024)
+            return $"{bytes} B";
+        if (bytes < 1024 * 1024)
+            return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 
     private static (int Width, int Height) GetImageDimensions(byte[] imageBytes, string format)

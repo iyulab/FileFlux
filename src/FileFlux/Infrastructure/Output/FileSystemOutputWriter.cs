@@ -211,21 +211,9 @@ public class FileSystemOutputWriter : IOutputWriter
                 sb.AppendLine(chunk.Content);
                 await File.WriteAllTextAsync(mdPath, sb.ToString(), Encoding.UTF8, cancellationToken);
 
-                // Write JSON metadata (content is in .md file, JSON contains only metadata)
+                // Write JSON metadata (content is in .md file, JSON contains only chunk-specific metadata)
                 var jsonPath = Path.Combine(outputDirectory, $"{index}.json");
-                var chunkData = new
-                {
-                    index = i + 1,
-                    id = chunk.Id,
-                    length = chunk.Content.Length,
-                    location = new
-                    {
-                        startChar = chunk.Location.StartChar,
-                        endChar = chunk.Location.EndChar
-                    },
-                    metadata = chunk.Metadata,
-                    properties = chunk.Props
-                };
+                var chunkData = BuildChunkJsonData(chunk, i + 1);
                 var json = JsonSerializer.Serialize(chunkData, JsonOptions);
                 await File.WriteAllTextAsync(jsonPath, json, Encoding.UTF8, cancellationToken);
             }
@@ -283,11 +271,16 @@ public class FileSystemOutputWriter : IOutputWriter
         var chunks = result.Chunks;
         var totalChars = chunks.Sum(c => c.Content.Length);
 
+        // Aggregate document-level summary and keywords from enriched chunks
+        var documentAnalysis = AggregateDocumentAnalysis(chunks);
+
         var data = new
         {
             command = result.Options.Strategy == "Auto" ? "chunk" : "process",
             input = metadata.FileName,
             format = options.Format,
+            // Document-level analysis (aggregated from chunks)
+            document = documentAnalysis,
             chunkingOptions = new
             {
                 strategy = result.Options.Strategy,
@@ -323,6 +316,187 @@ public class FileSystemOutputWriter : IOutputWriter
         await File.WriteAllTextAsync(infoPath, json, Encoding.UTF8, cancellationToken);
     }
 
+    /// <summary>
+    /// Aggregates document-level analysis from enriched chunks.
+    /// Extracts topics, keywords, and generates a document summary.
+    /// </summary>
+    private static object? AggregateDocumentAnalysis(DocumentChunk[] chunks)
+    {
+        if (chunks.Length == 0) return null;
+
+        // Collect all keywords from enriched chunks
+        var allKeywords = new List<string>();
+        var allTopics = new List<string>();
+        var summaries = new List<string>();
+
+        foreach (var chunk in chunks)
+        {
+            // Extract keywords
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.EnrichedKeywords, out var keywordsObj))
+            {
+                if (keywordsObj is IEnumerable<object> keywordList)
+                {
+                    allKeywords.AddRange(keywordList.Select(k => k?.ToString() ?? "").Where(k => !string.IsNullOrEmpty(k)));
+                }
+                else if (keywordsObj is string keywordStr)
+                {
+                    allKeywords.AddRange(keywordStr.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(k => k.Trim()));
+                }
+            }
+
+            // Extract document keywords
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.DocumentKeywords, out var docKeywordsObj))
+            {
+                if (docKeywordsObj is IEnumerable<object> docKeywordList)
+                {
+                    allKeywords.AddRange(docKeywordList.Select(k => k?.ToString() ?? "").Where(k => !string.IsNullOrEmpty(k)));
+                }
+            }
+
+            // Extract topics
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.DocumentTopic, out var topicObj) && topicObj is string topic)
+            {
+                allTopics.Add(topic);
+            }
+
+            // Collect summaries for document-level synthesis
+            if (chunk.Props.TryGetValue(ChunkPropsKeys.EnrichedSummary, out var summaryObj) && summaryObj is string summary)
+            {
+                summaries.Add(summary);
+            }
+        }
+
+        // Deduplicate and rank keywords by frequency
+        var keywordCounts = allKeywords
+            .GroupBy(k => k.ToLowerInvariant())
+            .OrderByDescending(g => g.Count())
+            .Take(20)
+            .Select(g => g.First())
+            .ToList();
+
+        // Deduplicate topics
+        var uniqueTopics = allTopics
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(5)
+            .ToList();
+
+        // Create document summary from first chunk summary or title
+        var documentSummary = summaries.FirstOrDefault();
+        if (string.IsNullOrEmpty(documentSummary) && chunks.Length > 0)
+        {
+            // Fallback: use first 200 chars of first chunk content
+            var firstContent = chunks[0].Content;
+            documentSummary = firstContent.Length > 200
+                ? firstContent.Substring(0, 200) + "..."
+                : firstContent;
+        }
+
+        if (keywordCounts.Count == 0 && uniqueTopics.Count == 0 && string.IsNullOrEmpty(documentSummary))
+            return null;
+
+        return new
+        {
+            summary = documentSummary,
+            topics = uniqueTopics.Count > 0 ? uniqueTopics : null,
+            keywords = keywordCounts.Count > 0 ? keywordCounts : null
+        };
+    }
+
+
+    /// <summary>
+    /// Builds chunk JSON data with cleaned-up metadata structure.
+    /// Removes file-level metadata duplicates and organizes enrichment data.
+    /// </summary>
+    private static object BuildChunkJsonData(DocumentChunk chunk, int index)
+    {
+        // Extract enrichment data separately for cleaner structure
+        var enrichment = ExtractEnrichmentData(chunk.Props);
+
+        // Build location with optional heading path
+        var location = new Dictionary<string, object>
+        {
+            ["startChar"] = chunk.Location.StartChar,
+            ["endChar"] = chunk.Location.EndChar
+        };
+
+        if (chunk.Location.HeadingPath?.Count > 0)
+        {
+            location["headingPath"] = chunk.Location.HeadingPath;
+        }
+
+        if (!string.IsNullOrEmpty(chunk.Location.Section))
+        {
+            location["section"] = chunk.Location.Section;
+        }
+
+        // Build quality metrics if present
+        var quality = ExtractQualityMetrics(chunk);
+
+        // Build the clean chunk data structure
+        var result = new Dictionary<string, object?>
+        {
+            ["index"] = index,
+            ["id"] = chunk.Id,
+            ["length"] = chunk.Content.Length,
+            ["tokens"] = chunk.Tokens > 0 ? chunk.Tokens : null,
+            ["location"] = location,
+            ["quality"] = quality,
+            ["enrichment"] = enrichment
+        };
+
+        // Remove null values for cleaner JSON
+        return result.Where(kvp => kvp.Value != null).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+    }
+
+    /// <summary>
+    /// Extracts enrichment data from chunk properties into a structured object.
+    /// </summary>
+    private static object? ExtractEnrichmentData(IDictionary<string, object> props)
+    {
+        var enrichment = new Dictionary<string, object?>();
+
+        if (props.TryGetValue(ChunkPropsKeys.EnrichedSummary, out var summary))
+            enrichment["summary"] = summary;
+
+        if (props.TryGetValue(ChunkPropsKeys.EnrichedKeywords, out var keywords))
+            enrichment["keywords"] = keywords;
+
+        if (props.TryGetValue(ChunkPropsKeys.DocumentTopic, out var topic))
+            enrichment["topic"] = topic;
+
+        if (props.TryGetValue(ChunkPropsKeys.HierarchyPath, out var path))
+            enrichment["hierarchyPath"] = path;
+
+        if (props.TryGetValue(ChunkPropsKeys.EnrichedContextualText, out var contextual))
+            enrichment["contextualText"] = contextual;
+
+        return enrichment.Count > 0 ? enrichment : null;
+    }
+
+    /// <summary>
+    /// Extracts quality metrics from chunk into a structured object.
+    /// </summary>
+    private static object? ExtractQualityMetrics(DocumentChunk chunk)
+    {
+        var quality = new Dictionary<string, object?>();
+
+        if (chunk.Quality > 0)
+            quality["overall"] = Math.Round(chunk.Quality, 3);
+
+        if (chunk.Density > 0)
+            quality["density"] = Math.Round(chunk.Density, 3);
+
+        if (chunk.Importance > 0)
+            quality["importance"] = Math.Round(chunk.Importance, 3);
+
+        if (chunk.Props.TryGetValue(ChunkPropsKeys.QualitySemanticCompleteness, out var semantic))
+            quality["semanticCompleteness"] = semantic;
+
+        if (chunk.Props.TryGetValue(ChunkPropsKeys.QualityContextIndependence, out var independence))
+            quality["contextIndependence"] = independence;
+
+        return quality.Count > 0 ? quality : null;
+    }
 
     /// <summary>
     /// Calculate the variance ratio (max/min) for chunk sizes.
