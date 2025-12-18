@@ -33,7 +33,7 @@
     <PackageVersion Include="OpenAI" Version="2.8.0" />
   </ItemGroup>
   <ItemGroup Label="Flux Packages">
-    <PackageVersion Include="FluxCurator" Version="0.5.0" />
+    <PackageVersion Include="FluxCurator" Version="0.6.4" />
     <PackageVersion Include="FluxImprover" Version="0.5.1" />
   </ItemGroup>
   <ItemGroup Label="LMSupply (Release - NuGet packages)">

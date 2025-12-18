@@ -324,8 +324,8 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
             structures.AddRange(extractedStructures);
         }
 
-        // Step 4: Text-level refinement via FluxCurator
-        var textRefineOptions = FluxCurator.Core.Domain.TextRefineOptions.Light;
+        // Step 4: Text-level refinement via FluxCurator (Standard includes token optimization)
+        var textRefineOptions = FluxCurator.Core.Domain.TextRefineOptions.Standard;
         refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
 
         // Build sections from text

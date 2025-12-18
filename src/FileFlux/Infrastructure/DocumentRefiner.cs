@@ -104,8 +104,8 @@ public sealed class DocumentRefiner : IDocumentRefiner
                 structures.AddRange(ExtractStructuredElements(refinedText));
             }
 
-            // Step 4: Text-level refinement via FluxCurator TextRefiner
-            var textRefineOptions = FluxCuratorTextRefineOptions.Light;
+            // Step 4: Text-level refinement via FluxCurator TextRefiner (Standard includes token optimization)
+            var textRefineOptions = FluxCuratorTextRefineOptions.Standard;
             refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
 
             // Step 5: Normalize whitespace

@@ -512,7 +512,9 @@ public sealed partial class FluxDocumentProcessor
             "FORWEBCONTENT" => TextRefineOptions.ForWebContent,
             "FORKOREAN" => TextRefineOptions.ForKorean,
             "FORPDFCONTENT" => TextRefineOptions.ForPdfContent,
-            _ => TextRefineOptions.Light // Default fallback
+            "FORTOKENOPTIMIZATION" => TextRefineOptions.ForTokenOptimization,
+            "FORAGGRESSIVETOKENOPTIMIZATION" => TextRefineOptions.ForAggressiveTokenOptimization,
+            _ => TextRefineOptions.Standard // Default: token optimization included
         };
     }
 

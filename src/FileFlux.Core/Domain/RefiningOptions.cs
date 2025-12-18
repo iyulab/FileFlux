@@ -59,10 +59,11 @@ public class RefiningOptions
 
     /// <summary>
     /// Text-level refinement preset name for FluxCurator integration.
-    /// Valid values: "None", "Light", "Standard", "ForWebContent", "ForKorean", "ForPdfContent"
-    /// Default: "Light" (minimal cleanup preserving structure).
+    /// Valid values: "None", "Light", "Standard", "ForWebContent", "ForKorean", "ForPdfContent",
+    /// "ForTokenOptimization", "ForAggressiveTokenOptimization"
+    /// Default: "Standard" (token optimization included per minimum-config principle).
     /// </summary>
-    public string TextRefinementPreset { get; set; } = "Light";
+    public string TextRefinementPreset { get; set; } = "Standard";
 
     // ========================================
     // Factory Methods for Common Scenarios
@@ -125,7 +126,7 @@ public class RefiningOptions
 
     /// <summary>
     /// Options optimized for RAG pipelines with full content transformation.
-    /// Enables Markdown conversion for better structure preservation.
+    /// Enables Markdown conversion and token optimization for better quality.
     /// </summary>
     public static RefiningOptions ForRAG => new()
     {
@@ -135,12 +136,12 @@ public class RefiningOptions
         RestructureHeadings = true,
         ConvertToMarkdown = true,
         ProcessImagesToText = false,
-        TextRefinementPreset = "Standard"
+        TextRefinementPreset = "ForTokenOptimization"
     };
 
     /// <summary>
     /// Options optimized for RAG pipelines with image processing.
-    /// Enables both Markdown conversion and image-to-text extraction.
+    /// Enables Markdown conversion, image-to-text extraction, and token optimization.
     /// </summary>
     public static RefiningOptions ForRAGWithImages => new()
     {
@@ -150,6 +151,21 @@ public class RefiningOptions
         RestructureHeadings = true,
         ConvertToMarkdown = true,
         ProcessImagesToText = true,
-        TextRefinementPreset = "Standard"
+        TextRefinementPreset = "ForTokenOptimization"
+    };
+
+    /// <summary>
+    /// Options for aggressive token optimization (web scraping, PDF conversion).
+    /// Maximizes token reduction with ASCII art removal, Base64 data removal, etc.
+    /// </summary>
+    public static RefiningOptions ForAggressiveTokenOptimization => new()
+    {
+        RemoveHeadersFooters = true,
+        RemovePageNumbers = true,
+        CleanWhitespace = true,
+        RestructureHeadings = true,
+        ConvertToMarkdown = true,
+        ProcessImagesToText = false,
+        TextRefinementPreset = "ForAggressiveTokenOptimization"
     };
 }
