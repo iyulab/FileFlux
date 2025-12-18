@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Auto Chunking Strategy Selection**: Document structure-based strategy selection
+  - `SelectChunkingStrategy()`: Analyzes document for headings and numbered sections
+  - `AnalyzeDocumentStructure()`: Detects Markdown headings, numbered patterns
+  - Documents with 5+ numbered sections use Paragraph strategy (prevents mid-step breaks)
+  - Documents with 3+ Markdown headings use Hierarchical strategy
+- **Document-Level Analysis in info.json**: Aggregated metadata from all chunks
+  - `AggregateDocumentAnalysis()`: Collects keywords, topics, summary across chunks
+  - `documentAnalysis` field in info.json with document-wide insights
+- **Enhanced Image Processing**: Improved caption and placeholder handling
+  - Fallback captions with image dimensions when AI unavailable
+  - External image placeholder cleanup for embedded references
+- **Numbered Section to Heading Conversion**: Automatic Markdown structure improvement
+  - `ConvertNumberedSectionsToHeadings()`: Converts numbered markers to headings
+  - Patterns: `1.` → H2, `3-1.` → H3, `4-2-3.` → H4, `①` → H3, `(1)` → H3
+- **Metadata JSON Files**: Per-stage metadata output
+  - `extract.json`: Extraction stage metadata (file info, timing)
+  - `refine.json`: Refinement metrics (quality scores, structure info)
+- **Enrichment Output Files**: Dedicated enrich/ folder output
+  - Individual chunk enrichment JSONs
+  - `index.json` with document-level analysis summary
 - **CJK Text Detection**: Automatic detection and chunk size adjustment for Korean/Chinese/Japanese content
   - `GetCjkRatio()`: Calculates ratio of CJK characters in content
   - `GetCjkChunkSizeMultiplier()`: Calculates chunk size multiplier based on CJK ratio
