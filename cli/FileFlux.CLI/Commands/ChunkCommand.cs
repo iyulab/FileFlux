@@ -163,7 +163,7 @@ public class ChunkCommand : Command
         var config = new CliEnvironmentConfig();
         var factory = new AIProviderFactory(config, enableVision: extractImages && enableAI, verbose: verbose);
         string? aiProvider = null;
-        FluxImproverServices? fluxImprover = null;
+        FluxImproverResult? fluxImproverResult = null;
 
         if (enableAI && factory.HasAIProvider())
         {
@@ -174,7 +174,7 @@ public class ChunkCommand : Command
             {
                 try
                 {
-                    fluxImprover = factory.CreateFluxImproverServices();
+                    fluxImproverResult = factory.CreateFluxImproverServices();
                 }
                 catch (Exception ex)
                 {
@@ -196,6 +196,7 @@ public class ChunkCommand : Command
             enableEnrich = false;
         }
 
+        var fluxImprover = fluxImproverResult?.Services;
         services.AddFileFlux();
         await using var provider = services.BuildServiceProvider();
         var processor = provider.GetRequiredService<FluxDocumentProcessor>();
@@ -204,6 +205,68 @@ public class ChunkCommand : Command
         // Configure options
         format ??= "md";
         strategy ??= "Auto";
+
+        // Model-aware chunking: adjust chunk size if AI model has smaller context
+        var effectiveMaxSize = maxSize;
+        var effectiveOverlap = overlap;
+        var chunkSizeAdjusted = false;
+        string? chunkAdjustReason = null;
+
+        if (enableEnrich && fluxImproverResult != null && fluxImproverResult.IsLocalModel)
+        {
+            var modelMaxTokens = fluxImproverResult.MaxEnrichmentTokens;
+
+            // First, apply model limit
+            if (maxSize > modelMaxTokens)
+            {
+                effectiveMaxSize = modelMaxTokens;
+                chunkSizeAdjusted = true;
+                chunkAdjustReason = "local model limit";
+            }
+
+            // Read file sample to detect CJK content for token estimation
+            try
+            {
+                var sampleSize = Math.Min(10000, (int)new FileInfo(input).Length);
+                using var reader = new StreamReader(input);
+                var buffer = new char[sampleSize];
+                var readCount = await reader.ReadAsync(buffer, 0, sampleSize);
+                var sampleContent = new string(buffer, 0, readCount);
+
+                var cjkRatio = GetCjkRatio(sampleContent);
+
+                if (cjkRatio > 0.1)  // More than 10% CJK characters
+                {
+                    var cjkMultiplier = GetCjkChunkSizeMultiplier(cjkRatio);
+                    var cjkAdjustedSize = (int)(effectiveMaxSize * cjkMultiplier);
+
+                    // Ensure minimum chunk size of 50 tokens
+                    cjkAdjustedSize = Math.Max(50, cjkAdjustedSize);
+
+                    if (cjkAdjustedSize < effectiveMaxSize)
+                    {
+                        effectiveMaxSize = cjkAdjustedSize;
+                        chunkSizeAdjusted = true;
+                        chunkAdjustReason = $"CJK content {cjkRatio:P0}";
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore sample read errors - continue with model-based adjustment only
+            }
+
+            // Adjust overlap proportionally
+            if (chunkSizeAdjusted)
+            {
+                effectiveOverlap = Math.Min(overlap, effectiveMaxSize / 4);
+            }
+
+            if (chunkSizeAdjusted && !quiet)
+            {
+                AnsiConsole.MarkupLine($"[yellow]Note:[/] Chunk size adjusted: {maxSize} → {effectiveMaxSize} tokens ({chunkAdjustReason})");
+            }
+        }
 
         // Get output directories
         var dirs = OutputOptions.GetOutputDirectories(input, output);
@@ -217,13 +280,20 @@ public class ChunkCommand : Command
 
         if (!quiet)
         {
+            var maxSizeDisplay = chunkSizeAdjusted
+                ? $"{effectiveMaxSize} [dim](adjusted from {maxSize})[/]"
+                : maxSize.ToString();
+            var overlapDisplay = chunkSizeAdjusted
+                ? $"{effectiveOverlap} [dim](adjusted from {overlap})[/]"
+                : overlap.ToString();
+
             AnsiConsole.MarkupLine($"[blue]FileFlux CLI - Chunk[/]");
             AnsiConsole.MarkupLine($"  Input:    {Markup.Escape(input)}");
             AnsiConsole.MarkupLine($"  Output:   {Markup.Escape(dirs.Base)}/");
             AnsiConsole.MarkupLine($"  Pipeline: {pipelineDesc}");
             AnsiConsole.MarkupLine($"  Strategy: {strategy}");
-            AnsiConsole.MarkupLine($"  Max size: {maxSize} tokens");
-            AnsiConsole.MarkupLine($"  Overlap:  {overlap} tokens");
+            AnsiConsole.MarkupLine($"  Max size: {maxSizeDisplay} tokens");
+            AnsiConsole.MarkupLine($"  Overlap:  {overlapDisplay} tokens");
             AnsiConsole.MarkupLine($"  AI:       {(enableAI ? $"Enabled ({aiProvider})" : "Disabled")}");
             if (extractImages)
                 AnsiConsole.MarkupLine($"  Images:   [green]Extracting[/]");
@@ -320,13 +390,13 @@ public class ChunkCommand : Command
                         contentToChunk = parsedContent;
                     }
 
-                    // Stage 3: Chunk
+                    // Stage 3: Chunk (uses model-aware effective size)
                     ctx.Status("Chunking...");
                     var chunkingOptions = new ChunkingOptions
                     {
                         Strategy = strategy,
-                        MaxChunkSize = maxSize,
-                        OverlapSize = overlap
+                        MaxChunkSize = effectiveMaxSize,
+                        OverlapSize = effectiveOverlap
                     };
                     chunks = await processor.ChunkAsync(contentToChunk, chunkingOptions, cancellationToken);
 
@@ -359,8 +429,8 @@ public class ChunkCommand : Command
             var chunkingOptions = new ChunkingOptions
             {
                 Strategy = strategy,
-                MaxChunkSize = maxSize,
-                OverlapSize = overlap
+                MaxChunkSize = effectiveMaxSize,
+                OverlapSize = effectiveOverlap
             };
 
             var outputOptions = new OutputOptions
@@ -443,5 +513,80 @@ public class ChunkCommand : Command
                 AnsiConsole.WriteException(ex);
             }
         }
+        finally
+        {
+            // Dispose FluxImprover resources (including ONNX GenAI models)
+            if (fluxImproverResult != null)
+            {
+                await fluxImproverResult.DisposeAsync().ConfigureAwait(false);
+            }
+        }
     }
+
+    #region CJK Detection
+
+    /// <summary>
+    /// Calculate the ratio of CJK (Chinese, Japanese, Korean) characters in content.
+    /// CJK characters use ~2-3 tokens each vs English ~0.25 tokens/char.
+    /// </summary>
+    private static double GetCjkRatio(string content)
+    {
+        if (string.IsNullOrEmpty(content))
+            return 0;
+
+        int cjkCount = 0;
+        int totalChars = 0;
+
+        foreach (var c in content)
+        {
+            // Skip whitespace and control characters
+            if (char.IsWhiteSpace(c) || char.IsControl(c))
+                continue;
+
+            totalChars++;
+
+            // CJK Unified Ideographs and extensions
+            if (c >= 0x4E00 && c <= 0x9FFF)  // CJK Unified Ideographs
+                cjkCount++;
+            else if (c >= 0x3400 && c <= 0x4DBF)  // CJK Extension A
+                cjkCount++;
+            else if (c >= 0xAC00 && c <= 0xD7AF)  // Hangul Syllables (Korean)
+                cjkCount++;
+            else if (c >= 0x1100 && c <= 0x11FF)  // Hangul Jamo
+                cjkCount++;
+            else if (c >= 0x3130 && c <= 0x318F)  // Hangul Compatibility Jamo
+                cjkCount++;
+            else if (c >= 0x3040 && c <= 0x309F)  // Hiragana
+                cjkCount++;
+            else if (c >= 0x30A0 && c <= 0x30FF)  // Katakana
+                cjkCount++;
+        }
+
+        return totalChars > 0 ? (double)cjkCount / totalChars : 0;
+    }
+
+    /// <summary>
+    /// Calculate effective chunk size multiplier based on CJK content ratio.
+    /// CJK text uses ~2-3 tokens per character vs ~0.25 tokens per char for English.
+    /// </summary>
+    private static double GetCjkChunkSizeMultiplier(double cjkRatio)
+    {
+        // Token density: English ~0.25 tokens/char, CJK ~2.5 tokens/char
+        // Blended density = cjkRatio * 2.5 + (1-cjkRatio) * 0.25
+        // We need to scale down chunk size proportionally
+
+        if (cjkRatio < 0.1)
+            return 1.0;  // Mostly English, no adjustment needed
+
+        // For high CJK content, we need much smaller chunks
+        // cjkRatio=0.2 → multiplier ~0.6
+        // cjkRatio=0.5 → multiplier ~0.35
+        // cjkRatio=0.8 → multiplier ~0.2
+        var multiplier = 1.0 / (1.0 + cjkRatio * 4.0);
+
+        // Ensure minimum multiplier of 0.15 (don't create too tiny chunks)
+        return Math.Max(0.15, multiplier);
+    }
+
+    #endregion
 }

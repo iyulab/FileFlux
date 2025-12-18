@@ -5,6 +5,29 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **CJK Text Detection**: Automatic detection and chunk size adjustment for Korean/Chinese/Japanese content
+  - `GetCjkRatio()`: Calculates ratio of CJK characters in content
+  - `GetCjkChunkSizeMultiplier()`: Calculates chunk size multiplier based on CJK ratio
+  - Detects Hangul, CJK Unified Ideographs, Hiragana, Katakana
+  - Adjusts chunk size proportionally to CJK content ratio (up to 85% reduction for pure CJK)
+- **Model-Aware Chunking**: Automatic chunk size adjustment based on AI model context limits
+  - Detects local model constraints (e.g., Phi-4-mini: 512 tokens)
+  - Reduces chunk size from default 512 to model-appropriate size
+  - Displays adjustment notice in CLI output
+
+### Fixed
+- **OGA Memory Leak**: Proper disposal of ONNX GenAI resources
+  - `FluxImproverResult`: Wrapper with `IAsyncDisposable` for proper cleanup
+  - Ensures GPU/memory resources are released after processing
+
+### Known Issues
+- **LMSupply Integration Hang**: Process may hang when AI enrichment is enabled with local models
+  - Workaround: Use `--no-ai` or `--no-enrich` flags
+  - Issue occurs during model warmup or progress display interaction
+
 ## [0.9.0] - 2025-12-17
 
 ### Added

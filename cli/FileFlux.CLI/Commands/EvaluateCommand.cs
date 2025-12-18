@@ -124,11 +124,11 @@ public class EvaluateCommand : Command
             return;
         }
 
-        FluxImproverServices? fluxImprover;
+        FluxImproverResult? fluxImproverResult = null;
         try
         {
-            fluxImprover = factory.CreateFluxImproverServices();
-            if (fluxImprover is null)
+            fluxImproverResult = factory.CreateFluxImproverServices();
+            if (fluxImproverResult is null)
             {
                 AnsiConsole.MarkupLine("[red]Error:[/] Failed to initialize FluxImprover services.");
                 return;
@@ -140,6 +140,7 @@ public class EvaluateCommand : Command
             return;
         }
 
+        var fluxImprover = fluxImproverResult.Services;
         format ??= "json";
         output ??= Path.ChangeExtension(input, $".evaluated.{format}");
 
@@ -315,6 +316,14 @@ public class EvaluateCommand : Command
             if (verbose)
             {
                 AnsiConsole.WriteException(ex);
+            }
+        }
+        finally
+        {
+            // Dispose FluxImprover resources (including ONNX GenAI models)
+            if (fluxImproverResult != null)
+            {
+                await fluxImproverResult.DisposeAsync().ConfigureAwait(false);
             }
         }
     }

@@ -25,6 +25,46 @@ public sealed record ModelInfo
 }
 
 /// <summary>
+/// Result of creating FluxImprover services, including the disposable completion service
+/// </summary>
+public sealed class FluxImproverResult : IAsyncDisposable
+{
+    public FluxImproverServices Services { get; }
+
+    /// <summary>
+    /// Maximum tokens the model can handle for enrichment.
+    /// Use this to adjust chunk size during chunking stage when model limit is smaller than configured chunk size.
+    /// For local models (LMSupply), this is the actual model context length.
+    /// For cloud models, this is a conservative default (typically unlimited in practice).
+    /// </summary>
+    public int MaxEnrichmentTokens { get; }
+
+    /// <summary>
+    /// Whether this is a local model with known context limitations.
+    /// When true, MaxEnrichmentTokens should be respected during chunking.
+    /// </summary>
+    public bool IsLocalModel { get; }
+
+    private readonly IAsyncDisposable? _disposable;
+
+    public FluxImproverResult(FluxImproverServices services, IAsyncDisposable? disposable, int maxEnrichmentTokens = 4096, bool isLocalModel = false)
+    {
+        Services = services;
+        _disposable = disposable;
+        MaxEnrichmentTokens = maxEnrichmentTokens;
+        IsLocalModel = isLocalModel;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposable != null)
+        {
+            await _disposable.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+}
+
+/// <summary>
 /// Factory for creating AI provider services based on environment configuration
 /// </summary>
 public class AIProviderFactory
@@ -244,9 +284,11 @@ public class AIProviderFactory
     }
 
     /// <summary>
-    /// Create FluxImprover services for chunk enrichment and QA generation
+    /// Create FluxImprover services for chunk enrichment and QA generation.
+    /// The returned FluxImproverResult implements IAsyncDisposable to properly clean up
+    /// underlying AI resources (e.g., ONNX GenAI models).
     /// </summary>
-    public FluxImproverServices? CreateFluxImproverServices()
+    public FluxImproverResult? CreateFluxImproverServices()
     {
         var provider = _config.DetectProvider();
         FluxImproverService? completionService = provider switch
@@ -264,9 +306,48 @@ public class AIProviderFactory
             return null;
         }
 
-        return new FluxImproverBuilder()
+        var services = new FluxImproverBuilder()
             .WithCompletionService(completionService)
             .Build();
+
+        // Determine model's max enrichment tokens based on provider
+        // Local models (LMSupply) have limited context; cloud models have large context
+        var (maxEnrichmentTokens, isLocal) = provider switch
+        {
+            // Local models - small context (Phi-4-mini: 512 tokens typical)
+            // Use conservative estimate for enrichment prompt overhead
+            "local" => (GetLMSupplyMaxTokens(), true),
+
+            // Cloud models - large context windows
+            "openai" => (8192, false),      // GPT-4/5: 8K-128K
+            "anthropic" => (8192, false),   // Claude: 100K+
+            "google" => (8192, false),      // Gemini: 32K+
+            "gpustack" => (4096, false),    // Variable, use safe default
+
+            _ => (4096, false)
+        };
+
+        // Return wrapper that can dispose the completion service
+        var disposable = completionService as IAsyncDisposable;
+        return new FluxImproverResult(services, disposable, maxEnrichmentTokens, isLocal);
+    }
+
+    /// <summary>
+    /// Get the effective max tokens for LMSupply models.
+    /// Phi-4-mini has 512 token context, but we need room for the enrichment prompt.
+    /// </summary>
+    private int GetLMSupplyMaxTokens()
+    {
+        // Check for custom configuration via environment variable
+        var customLimit = Environment.GetEnvironmentVariable("LMSUPPLY_MAX_TOKENS");
+        if (!string.IsNullOrEmpty(customLimit) && int.TryParse(customLimit, out var custom))
+        {
+            return custom;
+        }
+
+        // Default: Phi-4-mini has ~512 context, leave room for prompt
+        // Enrichment prompt is ~100-150 tokens, so effective content limit is ~350-400
+        return 400;
     }
 
     private FluxImproverService CreateOpenAIFluxImproverService()

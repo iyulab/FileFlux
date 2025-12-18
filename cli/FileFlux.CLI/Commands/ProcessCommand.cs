@@ -170,7 +170,7 @@ public class ProcessCommand : Command
         var config = new CliEnvironmentConfig();
         var factory = new AIProviderFactory(config, enableVision: extractImages && enableAI, verbose: verbose);
         string? aiProvider = null;
-        FluxImproverServices? fluxImprover = null;
+        FluxImproverResult? fluxImproverResult = null;
 
         if (enableAI && factory.HasAIProvider())
         {
@@ -181,7 +181,7 @@ public class ProcessCommand : Command
             {
                 try
                 {
-                    fluxImprover = factory.CreateFluxImproverServices();
+                    fluxImproverResult = factory.CreateFluxImproverServices();
                 }
                 catch (Exception ex)
                 {
@@ -204,6 +204,9 @@ public class ProcessCommand : Command
             enableEnrich = false;
         }
 
+        // Get FluxImprover services (if available)
+        var fluxImprover = fluxImproverResult?.Services;
+
         services.AddFileFlux();
         await using var provider = services.BuildServiceProvider();
         var processor = provider.GetRequiredService<FluxDocumentProcessor>();
@@ -212,6 +215,33 @@ public class ProcessCommand : Command
         // Configure options
         format ??= "md";
         strategy ??= "Auto";
+
+        // Model-aware chunking: adjust chunk size if AI model has smaller context
+        // Initial adjustment based on model limit (CJK detection happens after parsing)
+        var effectiveMaxSize = maxSize;
+        var effectiveOverlap = overlap;
+        var chunkSizeAdjusted = false;
+        string? chunkAdjustReason = null;
+        var isLocalModel = enableEnrich && fluxImproverResult != null && fluxImproverResult.IsLocalModel;
+
+        if (isLocalModel)
+        {
+            var modelMaxTokens = fluxImproverResult!.MaxEnrichmentTokens;
+
+            // Apply model limit
+            if (maxSize > modelMaxTokens)
+            {
+                effectiveMaxSize = modelMaxTokens;
+                chunkSizeAdjusted = true;
+                chunkAdjustReason = "local model limit";
+                effectiveOverlap = Math.Min(overlap, effectiveMaxSize / 4);
+
+                if (!quiet)
+                {
+                    AnsiConsole.MarkupLine($"[yellow]Note:[/] Chunk size adjusted: {maxSize} → {effectiveMaxSize} tokens ({chunkAdjustReason})");
+                }
+            }
+        }
 
         // Get output directories
         var dirs = OutputOptions.GetOutputDirectories(input, output);
@@ -231,11 +261,15 @@ public class ProcessCommand : Command
 
         if (!quiet)
         {
+            var strategyInfo = chunkSizeAdjusted
+                ? $"{strategy} (max: {effectiveMaxSize} [dim]←{maxSize}[/], overlap: {effectiveOverlap})"
+                : $"{strategy} (max: {maxSize}, overlap: {overlap})";
+
             var panel = new Panel(new Markup(
                 $"[bold]Input:[/] {Markup.Escape(input)}\n" +
                 $"[bold]Output:[/] {Markup.Escape(dirs.Base)}/\n" +
                 $"[bold]Pipeline:[/] {pipelineDesc}\n" +
-                $"[bold]Strategy:[/] {strategy} (max: {maxSize}, overlap: {overlap})\n" +
+                $"[bold]Strategy:[/] {strategyInfo}\n" +
                 $"[bold]Format:[/] {format}"))
             {
                 Header = new PanelHeader("[blue]FileFlux CLI - Process[/]"),
@@ -411,22 +445,56 @@ public class ProcessCommand : Command
                         refinedContent = parsedContent;
                     }
 
+                    // ── CJK Detection (after parsing, before chunking) ──
+                    // Detect CJK in parsed content (not raw file) for accurate token estimation
+                    if (isLocalModel)
+                    {
+                        var contentToAnalyze = refinedContent.Text.Length > 0 ? refinedContent.Text : parsedContent.Text;
+                        var sampleForCjk = contentToAnalyze.Length > 5000
+                            ? contentToAnalyze.Substring(0, 5000)
+                            : contentToAnalyze;
+
+                        var cjkRatio = GetCjkRatio(sampleForCjk);
+
+                        if (cjkRatio > 0.1)  // More than 10% CJK characters
+                        {
+                            var cjkMultiplier = GetCjkChunkSizeMultiplier(cjkRatio);
+                            var cjkAdjustedSize = (int)(effectiveMaxSize * cjkMultiplier);
+
+                            // Ensure minimum chunk size of 50 tokens
+                            cjkAdjustedSize = Math.Max(50, cjkAdjustedSize);
+
+                            if (cjkAdjustedSize < effectiveMaxSize)
+                            {
+                                effectiveMaxSize = cjkAdjustedSize;
+                                effectiveOverlap = Math.Min(overlap, effectiveMaxSize / 4);
+                                chunkSizeAdjusted = true;
+                                chunkAdjustReason = $"CJK {cjkRatio:P0}";
+                            }
+                        }
+                    }
+
                     // ── Stage 6: Chunk ──
-                    var chunkTask = ctx.AddTask($"[yellow]  Chunking content ({strategy})...[/]", maxValue: 100);
+                    var chunkDesc = chunkSizeAdjusted
+                        ? $"[yellow]  Chunking content ({strategy}, max:{effectiveMaxSize})...[/]"
+                        : $"[yellow]  Chunking content ({strategy})...[/]";
+                    var chunkTask = ctx.AddTask(chunkDesc, maxValue: 100);
                     var chunkingOptions = new ChunkingOptions
                     {
                         Strategy = strategy,
-                        MaxChunkSize = maxSize,
-                        OverlapSize = overlap
+                        MaxChunkSize = effectiveMaxSize,  // Use model-aware effective size (with CJK adjustment)
+                        OverlapSize = effectiveOverlap  // Adjusted overlap
                     };
                     chunks = await processor.ChunkAsync(refinedContent, chunkingOptions, cancellationToken);
                     chunkTask.Value = 100;
-                    chunkTask.Description = $"[green]  Chunking content[/] ✓ ({chunks.Length} chunks)";
+                    var chunkSuffix = chunkSizeAdjusted ? $", max:{effectiveMaxSize}" : "";
+                    chunkTask.Description = $"[green]  Chunking content[/] ✓ ({chunks.Length} chunks{chunkSuffix})";
 
                     // ── Stage 7: Enrich (optional) ──
                     if (enableEnrich && fluxImprover != null && chunks.Length > 0)
                     {
                         var enrichTask = ctx.AddTask($"[yellow]  Enriching chunks...[/]", maxValue: chunks.Length);
+                        int adaptiveCount = 0; // Count of chunks processed adaptively (split)
 
                         for (int i = 0; i < chunks.Length; i++)
                         {
@@ -442,25 +510,25 @@ public class ProcessCommand : Command
 
                             try
                             {
-                                var enriched = await fluxImprover.ChunkEnrichment.EnrichAsync(
-                                    fluxChunk, null, cancellationToken);
+                                // Use adaptive enrichment that handles long chunks
+                                var (summary, keywords, success) = await AdaptiveEnrichChunkAsync(
+                                    fluxImprover, fluxChunk, DefaultMaxEnrichmentChars, cancellationToken);
 
-                                if (!string.IsNullOrEmpty(enriched.Summary))
-                                    chunk.Props[ChunkPropsKeys.EnrichedSummary] = enriched.Summary;
-                                if (enriched.Keywords?.Any() == true)
-                                    chunk.Props[ChunkPropsKeys.EnrichedKeywords] = enriched.Keywords;
-                            }
-                            catch (Exception ex) when (ex.Message.Contains("exceeds max length") ||
-                                                       ex.Message.Contains("token") ||
-                                                       ex.Message.Contains("input_ids"))
-                            {
-                                // Token length exceeded - skip this chunk
-                                enrichSkippedCount++;
-                                chunk.Props["enrichment_error"] = "Chunk too long for model context";
-
-                                if (verbose && enrichErrorMessages.Count < 3)
+                                if (success)
                                 {
-                                    enrichErrorMessages.Add($"Chunk {i + 1}: {ex.Message}");
+                                    if (!string.IsNullOrEmpty(summary))
+                                        chunk.Props[ChunkPropsKeys.EnrichedSummary] = summary;
+                                    if (keywords?.Any() == true)
+                                        chunk.Props[ChunkPropsKeys.EnrichedKeywords] = keywords;
+
+                                    // Check if this was processed adaptively (content was longer than threshold)
+                                    if (chunk.Content.Length > DefaultMaxEnrichmentChars)
+                                        adaptiveCount++;
+                                }
+                                else
+                                {
+                                    enrichSkippedCount++;
+                                    chunk.Props["enrichment_error"] = "Failed to enrich even with adaptive splitting";
                                 }
                             }
                             catch (Exception ex)
@@ -482,6 +550,10 @@ public class ProcessCommand : Command
                         if (enrichSkippedCount > 0)
                         {
                             enrichTask.Description = $"[yellow]  Enriching chunks[/] ⚠ ({enrichedCount}/{chunks.Length} succeeded)";
+                        }
+                        else if (adaptiveCount > 0)
+                        {
+                            enrichTask.Description = $"[green]  Enriching chunks[/] ✓ (all {chunks.Length}, {adaptiveCount} split)";
                         }
                         else
                         {
@@ -513,8 +585,8 @@ public class ProcessCommand : Command
             var chunkingOptions = new ChunkingOptions
             {
                 Strategy = strategy,
-                MaxChunkSize = maxSize,
-                OverlapSize = overlap
+                MaxChunkSize = effectiveMaxSize,
+                OverlapSize = effectiveOverlap
             };
 
             var outputOptions = new OutputOptions
@@ -603,7 +675,331 @@ public class ProcessCommand : Command
                 AnsiConsole.WriteException(ex);
             }
         }
+        finally
+        {
+            // Dispose FluxImprover resources (including ONNX GenAI models)
+            if (fluxImproverResult != null)
+            {
+                await fluxImproverResult.DisposeAsync().ConfigureAwait(false);
+            }
+        }
     }
+
+    #region CJK Detection
+
+    /// <summary>
+    /// Calculate the ratio of CJK (Chinese, Japanese, Korean) characters in content.
+    /// CJK characters use ~2-3 tokens each vs English ~0.25 tokens/char.
+    /// </summary>
+    private static double GetCjkRatio(string content)
+    {
+        if (string.IsNullOrEmpty(content))
+            return 0;
+
+        int cjkCount = 0;
+        int totalChars = 0;
+
+        foreach (var c in content)
+        {
+            // Skip whitespace and control characters
+            if (char.IsWhiteSpace(c) || char.IsControl(c))
+                continue;
+
+            totalChars++;
+
+            // CJK Unified Ideographs and extensions
+            if (c >= 0x4E00 && c <= 0x9FFF)  // CJK Unified Ideographs
+                cjkCount++;
+            else if (c >= 0x3400 && c <= 0x4DBF)  // CJK Extension A
+                cjkCount++;
+            else if (c >= 0xAC00 && c <= 0xD7AF)  // Hangul Syllables (Korean)
+                cjkCount++;
+            else if (c >= 0x1100 && c <= 0x11FF)  // Hangul Jamo
+                cjkCount++;
+            else if (c >= 0x3130 && c <= 0x318F)  // Hangul Compatibility Jamo
+                cjkCount++;
+            else if (c >= 0x3040 && c <= 0x309F)  // Hiragana
+                cjkCount++;
+            else if (c >= 0x30A0 && c <= 0x30FF)  // Katakana
+                cjkCount++;
+        }
+
+        return totalChars > 0 ? (double)cjkCount / totalChars : 0;
+    }
+
+    /// <summary>
+    /// Calculate effective chunk size multiplier based on CJK content ratio.
+    /// CJK text uses ~2-3 tokens per character vs ~0.25 tokens per char for English.
+    /// </summary>
+    private static double GetCjkChunkSizeMultiplier(double cjkRatio)
+    {
+        // Token density: English ~0.25 tokens/char, CJK ~2.5 tokens/char
+        // Blended density = cjkRatio * 2.5 + (1-cjkRatio) * 0.25
+        // We need to scale down chunk size proportionally
+
+        if (cjkRatio < 0.1)
+            return 1.0;  // Mostly English, no adjustment needed
+
+        // For high CJK content, we need much smaller chunks
+        // cjkRatio=0.2 → multiplier ~0.6
+        // cjkRatio=0.5 → multiplier ~0.35
+        // cjkRatio=0.8 → multiplier ~0.2
+        var multiplier = 1.0 / (1.0 + cjkRatio * 4.0);
+
+        // Ensure minimum multiplier of 0.15 (don't create too tiny chunks)
+        return Math.Max(0.15, multiplier);
+    }
+
+    #endregion
+
+    #region Adaptive Enrichment
+
+    /// <summary>
+    /// Default maximum characters for enrichment (conservative estimate: ~400 tokens)
+    /// Models vary: Phi-4-mini=512, GPT-4=8K+, etc.
+    /// </summary>
+    private const int DefaultMaxEnrichmentChars = 1600;
+
+    /// <summary>
+    /// Adaptively enrich a chunk by splitting if too long for the model.
+    /// </summary>
+    private static async Task<(string? Summary, IEnumerable<string>? Keywords, bool Success)> AdaptiveEnrichChunkAsync(
+        FluxImproverServices fluxImprover,
+        FluxImprover.Models.Chunk chunk,
+        int maxChars,
+        CancellationToken cancellationToken)
+    {
+        // First, try direct enrichment
+        try
+        {
+            var enriched = await fluxImprover.ChunkEnrichment.EnrichAsync(chunk, null, cancellationToken);
+            return (enriched.Summary, enriched.Keywords, true);
+        }
+        catch (Exception ex) when (IsTokenLengthError(ex))
+        {
+            // Content too long - split and process adaptively
+        }
+
+        // Split content into smaller segments
+        var segments = SplitContentForEnrichment(chunk.Content, maxChars);
+        if (segments.Count == 0)
+            return (null, null, false);
+
+        var summaries = new List<string>();
+        var allKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (segment, index) in segments.Select((s, i) => (s, i)))
+        {
+            var subChunk = new FluxImprover.Models.Chunk
+            {
+                Id = $"{chunk.Id}_part{index + 1}",
+                Content = segment,
+                Metadata = chunk.Metadata
+            };
+
+            try
+            {
+                var enriched = await fluxImprover.ChunkEnrichment.EnrichAsync(subChunk, null, cancellationToken);
+
+                if (!string.IsNullOrWhiteSpace(enriched.Summary))
+                    summaries.Add(enriched.Summary);
+
+                if (enriched.Keywords != null)
+                {
+                    foreach (var kw in enriched.Keywords)
+                        allKeywords.Add(kw);
+                }
+            }
+            catch (Exception subEx) when (IsTokenLengthError(subEx))
+            {
+                // Even sub-segment is too long - skip this part
+                continue;
+            }
+        }
+
+        // Merge results
+        var mergedSummary = MergeSummaries(summaries);
+        var mergedKeywords = allKeywords.Take(10).ToList(); // Limit keywords
+
+        return (mergedSummary, mergedKeywords.Count > 0 ? mergedKeywords : null, summaries.Count > 0);
+    }
+
+    /// <summary>
+    /// Check if exception is related to token length limits.
+    /// </summary>
+    private static bool IsTokenLengthError(Exception ex)
+    {
+        var message = ex.Message.ToLowerInvariant();
+        return message.Contains("exceeds max length") ||
+               message.Contains("input_ids") ||
+               message.Contains("token") ||
+               message.Contains("context length") ||
+               message.Contains("maximum context");
+    }
+
+    /// <summary>
+    /// Split content into segments suitable for enrichment.
+    /// Tries to split at natural boundaries (sentences, paragraphs).
+    /// </summary>
+    private static List<string> SplitContentForEnrichment(string content, int maxChars)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return new List<string>();
+
+        if (content.Length <= maxChars)
+            return new List<string> { content };
+
+        var segments = new List<string>();
+        var paragraphs = content.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+        var currentSegment = new System.Text.StringBuilder();
+
+        foreach (var para in paragraphs)
+        {
+            // If single paragraph exceeds max, split by sentences
+            if (para.Length > maxChars)
+            {
+                // Flush current segment first
+                if (currentSegment.Length > 0)
+                {
+                    segments.Add(currentSegment.ToString().Trim());
+                    currentSegment.Clear();
+                }
+
+                // Split long paragraph by sentences
+                var sentences = SplitIntoSentences(para);
+                var sentenceSegment = new System.Text.StringBuilder();
+
+                foreach (var sentence in sentences)
+                {
+                    if (sentenceSegment.Length + sentence.Length > maxChars)
+                    {
+                        if (sentenceSegment.Length > 0)
+                        {
+                            segments.Add(sentenceSegment.ToString().Trim());
+                            sentenceSegment.Clear();
+                        }
+
+                        // If single sentence is still too long, truncate
+                        if (sentence.Length > maxChars)
+                        {
+                            segments.Add(sentence.Substring(0, maxChars - 50) + "...");
+                        }
+                        else
+                        {
+                            sentenceSegment.Append(sentence);
+                        }
+                    }
+                    else
+                    {
+                        sentenceSegment.Append(sentence);
+                    }
+                }
+
+                if (sentenceSegment.Length > 0)
+                    segments.Add(sentenceSegment.ToString().Trim());
+            }
+            else if (currentSegment.Length + para.Length + 2 > maxChars)
+            {
+                // Current segment would exceed max - flush it
+                if (currentSegment.Length > 0)
+                {
+                    segments.Add(currentSegment.ToString().Trim());
+                    currentSegment.Clear();
+                }
+                currentSegment.Append(para);
+            }
+            else
+            {
+                if (currentSegment.Length > 0)
+                    currentSegment.Append("\n\n");
+                currentSegment.Append(para);
+            }
+        }
+
+        if (currentSegment.Length > 0)
+            segments.Add(currentSegment.ToString().Trim());
+
+        return segments.Where(s => s.Length > 50).ToList(); // Filter very short segments
+    }
+
+    /// <summary>
+    /// Split text into sentences (simple heuristic).
+    /// </summary>
+    private static IEnumerable<string> SplitIntoSentences(string text)
+    {
+        // Simple sentence splitting - handles Korean and English
+        var sentenceEnders = new[] { ".", "!", "?", "。", "！", "？" };
+        var result = new List<string>();
+        var current = new System.Text.StringBuilder();
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            current.Append(text[i]);
+
+            // Check for sentence enders
+            if (sentenceEnders.Any(e => text[i].ToString() == e))
+            {
+                // Look ahead - don't split if followed by digit or lowercase (e.g., "3.14" or abbreviations)
+                if (i + 1 < text.Length)
+                {
+                    var nextChar = text[i + 1];
+                    if (char.IsDigit(nextChar) || (char.IsLetter(nextChar) && char.IsLower(nextChar)))
+                        continue;
+                }
+
+                result.Add(current.ToString());
+                current.Clear();
+            }
+        }
+
+        if (current.Length > 0)
+            result.Add(current.ToString());
+
+        return result;
+    }
+
+    /// <summary>
+    /// Merge multiple summaries into one coherent summary.
+    /// </summary>
+    private static string? MergeSummaries(List<string> summaries)
+    {
+        if (summaries.Count == 0)
+            return null;
+
+        if (summaries.Count == 1)
+            return summaries[0];
+
+        // Join summaries with transition
+        var merged = string.Join(" ", summaries.Select((s, i) =>
+        {
+            var trimmed = s.Trim();
+            // Remove redundant starting phrases from subsequent summaries
+            if (i > 0)
+            {
+                var prefixesToRemove = new[] { "This text", "This section", "The text", "The document" };
+                foreach (var prefix in prefixesToRemove)
+                {
+                    if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var afterPrefix = trimmed.Substring(prefix.Length).TrimStart();
+                        if (afterPrefix.Length > 0)
+                            trimmed = char.ToUpper(afterPrefix[0]) + afterPrefix.Substring(1);
+                        break;
+                    }
+                }
+            }
+            return trimmed;
+        }));
+
+        // Truncate if too long
+        if (merged.Length > 1000)
+            merged = merged.Substring(0, 997) + "...";
+
+        return merged;
+    }
+
+    #endregion
 
     /// <summary>
     /// Auto-select refining options based on document type and detected language.
