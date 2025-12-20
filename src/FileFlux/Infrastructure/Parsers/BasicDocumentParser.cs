@@ -99,9 +99,11 @@ public partial class BasicDocumentParser : IDocumentParser
         // 간단한 요약 (첫 번째 문단 또는 제목)
         var summary = GenerateBasicSummary(text, sections);
 
+        var formattedText = FormatStructuredText(sections);
+
         return new ParsedContent
         {
-            Text = FormatStructuredText(sections),
+            Text = formattedText,
             Metadata = metadata,
             Structure = new DocumentStructure
             {
@@ -492,27 +494,46 @@ public partial class BasicDocumentParser : IDocumentParser
 
     private static string FormatStructuredText(List<Section> sections)
     {
-        return string.Join("\n\n", sections.Select(s =>
+        var sb = new System.Text.StringBuilder();
+        FormatSectionsRecursively(sections, sb);
+        return sb.ToString().Trim();
+    }
+
+    /// <summary>
+    /// Recursively formats sections including all children in hierarchical order.
+    /// </summary>
+    private static void FormatSectionsRecursively(List<Section> sections, System.Text.StringBuilder sb)
+    {
+        foreach (var s in sections)
         {
+            if (sb.Length > 0)
+                sb.Append("\n\n");
+
             // Content that already has markdown headers - use as-is
             var contentLines = s.Content.Split('\n');
             var firstLine = contentLines.FirstOrDefault()?.TrimStart() ?? "";
 
             if (firstLine.StartsWith('#'))
             {
-                return s.Content;
+                sb.Append(s.Content);
             }
-
-            // For paragraph sections without real titles, just return content without adding artificial headers
-            // "Paragraph N" titles are auto-generated and add noise to the output
-            if (s.Type == "Paragraph" && s.Title.StartsWith("Paragraph ", StringComparison.OrdinalIgnoreCase))
+            else if (s.Type == "Paragraph" && s.Title.StartsWith("Paragraph ", StringComparison.OrdinalIgnoreCase))
             {
-                return s.Content;
+                // For paragraph sections without real titles, just return content without adding artificial headers
+                sb.Append(s.Content);
+            }
+            else
+            {
+                // Only add headers for sections with meaningful titles
+                sb.Append($"{new string('#', s.Level)} {s.Title}\n{s.Content}");
             }
 
-            // Only add headers for sections with meaningful titles
-            return $"{new string('#', s.Level)} {s.Title}\n{s.Content}";
-        }));
+            // Recursively process children
+            if (s.Children.Count > 0)
+            {
+                FormatSectionsRecursively(s.Children, sb);
+            }
+        }
     }
 
     private static QualityMetrics CalculateQualityMetrics(string originalText, List<Section> sections, bool usedLlm)
