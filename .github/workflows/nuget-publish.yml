@@ -194,99 +194,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # 릴리즈 노트 생성
-  create-release:
-    name: 📝 Create GitHub Release
-    runs-on: ubuntu-latest
-    needs: [detect-version, publish-nuget]
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 📦 Download Core Package
-        uses: actions/download-artifact@v4
-        with:
-          name: fileflux-core
-          path: nupkg/
-
-      - name: 📦 Download SDK Package
-        uses: actions/download-artifact@v4
-        with:
-          name: fileflux-sdk
-          path: nupkg/
-
-      - name: 📝 Generate Release Notes
-        id: release-notes
-        run: |
-          cat > release-notes.md << 'EOF'
-          ## 🚀 FileFlux v${{ needs.detect-version.outputs.version }}
-
-          ### 📦 FileFlux.Core (Extraction Only)
-          ```bash
-          dotnet add package FileFlux.Core --version ${{ needs.detect-version.outputs.version }}
-          ```
-
-          ### 📦 FileFlux SDK (Full RAG Pipeline)
-          ```bash
-          dotnet add package FileFlux --version ${{ needs.detect-version.outputs.version }}
-          ```
-
-          ### 🔗 Links
-          - [FileFlux.Core on NuGet](https://www.nuget.org/packages/FileFlux.Core/${{ needs.detect-version.outputs.version }})
-          - [FileFlux SDK on NuGet](https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }})
-          - [Documentation](https://github.com/iyulab/FileFlux#readme)
-
-          ### 📊 Benchmarks
-          All document formats achieve **A+ performance grade** with excellent memory efficiency.
-
-          ### 🛠️ What's Included
-
-          **FileFlux.Core:**
-          - Document extraction SDK with zero AI dependencies
-          - All document readers (PDF, DOCX, Excel, PowerPoint, Markdown, HTML, etc.)
-          - Core interfaces and domain models
-          - Use when you want extraction only and will implement your own chunking logic
-
-          **FileFlux SDK:**
-          - Complete RAG-optimized document processing SDK
-          - Intelligent chunking strategies with semantic boundary detection
-          - Advanced metadata extraction and performance optimization
-          - LMSupply integration for Locally running AI features
-          - Includes FluxCurator and FluxImprover
-
-          ---
-
-          🤖 *This release was automatically generated and published by GitHub Actions*
-          EOF
-
-      - name: 🎉 Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.detect-version.outputs.version }}
-          name: FileFlux v${{ needs.detect-version.outputs.version }}
-          body_path: release-notes.md
-          files: nupkg/*.nupkg
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   # 알림
   notify-completion:
     name: 📢 Notify Completion
     runs-on: ubuntu-latest
-    needs: [detect-version, create-release]
+    needs: [detect-version, publish-nuget]
     if: always()
     steps:
       - name: 🎉 Success Notification
-        if: needs.create-release.result == 'success'
+        if: needs.publish-nuget.result == 'success'
         run: |
           echo "🎉 Successfully published FileFlux v${{ needs.detect-version.outputs.version }} to NuGet.org!"
           echo "📦 Core: https://www.nuget.org/packages/FileFlux.Core/${{ needs.detect-version.outputs.version }}"
           echo "📦 SDK: https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }}"
 
       - name: ❌ Failure Notification
-        if: needs.create-release.result != 'success'
+        if: needs.publish-nuget.result != 'success'
         run: |
           echo "❌ Failed to publish FileFlux v${{ needs.detect-version.outputs.version }}"
           exit 1
