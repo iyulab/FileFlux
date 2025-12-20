@@ -261,6 +261,13 @@ public class RefineOptions
     public bool NormalizeWhitespace { get; set; } = true;
 
     /// <summary>
+    /// Normalize markdown structure (heading hierarchy, lists, annotations).
+    /// Fixes issues like H1 → H5 jumps, demotes annotation-like headings to plain text.
+    /// This is a format-agnostic post-processing step applied after markdown conversion.
+    /// </summary>
+    public bool NormalizeMarkdownStructure { get; set; } = true;
+
+    /// <summary>
     /// Process images (generate captions with LLM if available).
     /// </summary>
     public bool ProcessImages { get; set; } = false;

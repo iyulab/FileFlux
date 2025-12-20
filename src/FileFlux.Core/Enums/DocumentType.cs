@@ -53,7 +53,12 @@ public enum DocumentType
     /// <summary>
     /// CSV file (.csv).
     /// </summary>
-    Csv
+    Csv,
+
+    /// <summary>
+    /// HWP document (.hwp, .hwpx) - Korean word processor format.
+    /// </summary>
+    Hwp
 }
 
 /// <summary>
@@ -75,6 +80,7 @@ public static class DocumentTypeExtensions
         DocumentType.Text => [".txt"],
         DocumentType.Json => [".json"],
         DocumentType.Csv => [".csv"],
+        DocumentType.Hwp => [".hwp", ".hwpx"],
         _ => []
     };
 
@@ -98,6 +104,7 @@ public static class DocumentTypeExtensions
             ".txt" => DocumentType.Text,
             ".json" => DocumentType.Json,
             ".csv" => DocumentType.Csv,
+            ".hwp" or ".hwpx" => DocumentType.Hwp,
             _ => DocumentType.Unknown
         };
     }

@@ -169,30 +169,20 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
             return BoundaryType.List;
         }
 
-        // Very low similarity indicates major topic change (highest priority for semantic boundaries)
-        if (similarity < 0.3)
-        {
-            return BoundaryType.TopicChange;
-        }
-
-        // Medium-low similarity with sentence boundary patterns
+        // Low similarity indicates topic change - semantic difference takes priority
         if (similarity < 0.5)
         {
-            // Check if it's a clear paragraph boundary
-            if (segment1.EndsWith(".", StringComparison.Ordinal) && char.IsUpper(segment2.FirstOrDefault()))
-            {
-                return BoundaryType.Paragraph;
-            }
             return BoundaryType.TopicChange;
         }
 
-        // High similarity - check for sentence boundaries
+        // High similarity - check for sentence/paragraph boundaries based on structure
         if (segment1.EndsWith(".", StringComparison.Ordinal) && char.IsUpper(segment2.FirstOrDefault()))
         {
-            return BoundaryType.Sentence;
+            // Very high similarity suggests sentence boundary, medium-high suggests paragraph
+            return similarity >= 0.7 ? BoundaryType.Sentence : BoundaryType.Paragraph;
         }
 
-        // Default for high similarity content
+        // Default for high similarity content without clear sentence structure
         return BoundaryType.Paragraph;
     }
 

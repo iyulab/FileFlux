@@ -325,6 +325,14 @@ public partial class PdfDocumentReader : IDocumentReader
             // Build page ranges
             var pageRanges = BuildPageRanges(pageContents, extractedText);
 
+            // Extract bookmarks and apply to blocks for enhanced heading detection
+            var bookmarks = ExtractBookmarks(document, warnings);
+            if (bookmarks.Count > 0)
+            {
+                ApplyBookmarkHints(allBlocks, bookmarks);
+                hints["BookmarksExtracted"] = bookmarks.Count;
+            }
+
             // Extraction statistics
             hints["ProcessedPages"] = processedPages;
             hints["TotalCharacters"] = extractedText.Length;
@@ -423,6 +431,14 @@ public partial class PdfDocumentReader : IDocumentReader
             }
 
             var extractedText = MergePageTexts(pageContents);
+
+            // Extract bookmarks and apply to blocks for enhanced heading detection
+            var bookmarks = ExtractBookmarks(document, warnings);
+            if (bookmarks.Count > 0)
+            {
+                ApplyBookmarkHints(allBlocks, bookmarks);
+                hints["BookmarksExtracted"] = bookmarks.Count;
+            }
 
             hints["ProcessedPages"] = processedPages;
             hints["TotalCharacters"] = extractedText.Length;
@@ -639,10 +655,16 @@ public partial class PdfDocumentReader : IDocumentReader
         var firstLetter = firstWord.Letters.FirstOrDefault();
         if (firstLetter != null)
         {
+            var fontName = firstLetter.FontName ?? string.Empty;
             block.Style = new TextStyle
             {
-                FontFamily = firstLetter.FontName,
-                FontSize = firstLetter.PointSize
+                FontFamily = fontName,
+                FontSize = firstLetter.PointSize,
+                IsBold = fontName.Contains("Bold", StringComparison.OrdinalIgnoreCase) ||
+                         fontName.Contains("Black", StringComparison.OrdinalIgnoreCase) ||
+                         fontName.Contains("Heavy", StringComparison.OrdinalIgnoreCase),
+                IsItalic = fontName.Contains("Italic", StringComparison.OrdinalIgnoreCase) ||
+                           fontName.Contains("Oblique", StringComparison.OrdinalIgnoreCase)
             };
         }
 
@@ -650,18 +672,69 @@ public partial class PdfDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// Detect block types (headings, lists, etc.) based on content patterns.
+    /// Detect block types (headings, lists, etc.) based on font analysis and content patterns.
     /// </summary>
     private static void DetectBlockTypes(List<TextBlock> blocks)
     {
+        // Calculate median font size for heading detection (median avoids outliers from headings)
+        var medianFontSize = CalculateMedianFontSize(blocks);
+
         foreach (var block in blocks)
         {
             var content = block.Content.Trim();
+            var fontSize = block.Style?.FontSize ?? 0;
+            var isBold = block.Style?.IsBold ?? false;
 
-            // Heading detection: short text with larger font or specific patterns
+            // === FONT-BASED HEADING DETECTION (Primary method for --no-ai) ===
+            if (medianFontSize > 0 && fontSize > 0 && content.Length < 150 && !content.Contains('\n'))
+            {
+                var sizeRatio = fontSize / medianFontSize;
+
+                // Large font + Bold = Strong heading signal
+                if (sizeRatio >= 1.5 && isBold)
+                {
+                    block.Type = BlockType.Heading;
+                    block.HeadingLevel = 1;
+                    continue;
+                }
+                if (sizeRatio >= 1.3 && isBold)
+                {
+                    block.Type = BlockType.Heading;
+                    block.HeadingLevel = 2;
+                    continue;
+                }
+                if (sizeRatio >= 1.2 && isBold)
+                {
+                    block.Type = BlockType.Heading;
+                    block.HeadingLevel = 3;
+                    continue;
+                }
+                if (sizeRatio >= 1.1 && isBold)
+                {
+                    block.Type = BlockType.Heading;
+                    block.HeadingLevel = 4;
+                    continue;
+                }
+                // Bold only (normal size) = Minor heading
+                if (isBold && content.Length < 80 && !content.EndsWith('.'))
+                {
+                    block.Type = BlockType.Heading;
+                    block.HeadingLevel = 5;
+                    continue;
+                }
+                // Large font without bold = Still likely heading
+                if (sizeRatio >= 1.4 && content.Length < 80 && !content.EndsWith('.'))
+                {
+                    block.Type = BlockType.Heading;
+                    block.HeadingLevel = 2;
+                    continue;
+                }
+            }
+
+            // === PATTERN-BASED HEADING DETECTION (Fallback/Enhancement) ===
             if (content.Length < 100 && !content.Contains('\n'))
             {
-                // Check for numbered heading patterns
+                // Check for numbered heading patterns (1.2.3, Chapter, 제1장)
                 if (Regex.IsMatch(content, @"^(?:\d+\.)+\s+\S") ||
                     Regex.IsMatch(content, @"^(?:Chapter|Section|Part)\s+\d+", RegexOptions.IgnoreCase) ||
                     Regex.IsMatch(content, @"^제\s*\d+\s*[장절]"))
@@ -671,7 +744,7 @@ public partial class PdfDocumentReader : IDocumentReader
                     continue;
                 }
 
-                // Check for all-caps headings
+                // All-caps headings
                 if (content.Length > 3 && content.ToUpper() == content && content.Any(char.IsLetter))
                 {
                     block.Type = BlockType.Heading;
@@ -680,7 +753,7 @@ public partial class PdfDocumentReader : IDocumentReader
                 }
             }
 
-            // List item detection
+            // === LIST DETECTION ===
             if (Regex.IsMatch(content, @"^[\u2022\u2023\u25E6\u2043\u2219•\-\*]\s+"))
             {
                 block.Type = BlockType.ListItem;
@@ -695,20 +768,40 @@ public partial class PdfDocumentReader : IDocumentReader
                 continue;
             }
 
-            // Code block detection (monospace indicators)
-            if (content.Contains("```") || content.Contains("    ") && content.Contains("();"))
+            // === CODE BLOCK DETECTION ===
+            if (content.Contains("```") || (content.Contains("    ") && content.Contains("();")))
             {
                 block.Type = BlockType.CodeBlock;
                 continue;
             }
 
-            // Quote detection
-            if (content.StartsWith('"') && content.EndsWith('"') ||
-                content.StartsWith("\"") && content.EndsWith("\""))
+            // === QUOTE DETECTION ===
+            if ((content.StartsWith('"') && content.EndsWith('"')) ||
+                (content.StartsWith("\"") && content.EndsWith("\"")))
             {
                 block.Type = BlockType.Quote;
             }
         }
+    }
+
+    /// <summary>
+    /// Calculate median font size from blocks (median avoids outliers from headings).
+    /// </summary>
+    private static double CalculateMedianFontSize(List<TextBlock> blocks)
+    {
+        var fontSizes = blocks
+            .Where(b => b.Style?.FontSize is > 0)
+            .Select(b => b.Style!.FontSize!.Value)
+            .OrderBy(s => s)
+            .ToList();
+
+        if (fontSizes.Count == 0) return 0;
+
+        // Return median
+        var mid = fontSizes.Count / 2;
+        return fontSizes.Count % 2 == 0
+            ? (fontSizes[mid - 1] + fontSizes[mid]) / 2.0
+            : fontSizes[mid];
     }
 
     private static int DetectHeadingLevel(string content)
@@ -1529,6 +1622,198 @@ public partial class PdfDocumentReader : IDocumentReader
 
     [GeneratedRegex(@"^\s*(?:-\s*)?\d{1,4}(?:\s*-)?$|^(?:page|p\.?)\s*\d{1,4}(?:\s*(?:of|/)\s*\d{1,4})?\s*$|^(?:페이지|쪽)\s*\d{1,4}$|^\d{1,4}\s*/\s*\d{1,4}$|^[ivxlc]{1,4}$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex PageNumberRegex();
+
+    #endregion
+
+    #region Bookmark Extraction
+
+    /// <summary>
+    /// Bookmark entry from PDF document outline/TOC.
+    /// </summary>
+    private sealed class BookmarkEntry
+    {
+        public string Title { get; init; } = string.Empty;
+        public int PageNumber { get; init; }
+        public int Level { get; init; } = 1;
+    }
+
+    /// <summary>
+    /// Extracts bookmarks (outline/TOC) from PDF document.
+    /// Bookmarks provide reliable heading information for enhanced heading detection.
+    /// </summary>
+    private static List<BookmarkEntry> ExtractBookmarks(PdfDocument document, List<string> warnings)
+    {
+        var bookmarks = new List<BookmarkEntry>();
+
+        try
+        {
+            // Try to get bookmarks from document
+            if (!document.TryGetBookmarks(out var pdfBookmarks) || pdfBookmarks == null)
+            {
+                return bookmarks;
+            }
+
+            // Recursively extract all bookmark entries
+            ExtractBookmarkNodes(pdfBookmarks.GetNodes(), bookmarks, 1);
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"Bookmark extraction warning: {ex.Message}");
+        }
+
+        return bookmarks;
+    }
+
+    /// <summary>
+    /// Recursively extracts bookmark nodes from PDF outline.
+    /// </summary>
+    private static void ExtractBookmarkNodes(
+        IEnumerable<UglyToad.PdfPig.Outline.BookmarkNode> nodes,
+        List<BookmarkEntry> bookmarks,
+        int level)
+    {
+        foreach (var node in nodes)
+        {
+            // Get page number (0 if not available)
+            var pageNumber = 0;
+            if (node is UglyToad.PdfPig.Outline.DocumentBookmarkNode docNode)
+            {
+                pageNumber = docNode.PageNumber;
+            }
+
+            bookmarks.Add(new BookmarkEntry
+            {
+                Title = node.Title?.Trim() ?? string.Empty,
+                PageNumber = pageNumber,
+                Level = Math.Min(level, 6)
+            });
+
+            // Recursively process children
+            if (node.Children.Any())
+            {
+                ExtractBookmarkNodes(node.Children, bookmarks, level + 1);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Applies bookmark hints to text blocks for enhanced heading detection.
+    /// Matches bookmark titles to block content and sets heading type.
+    /// </summary>
+    private static void ApplyBookmarkHints(List<TextBlock> blocks, List<BookmarkEntry> bookmarks)
+    {
+        if (bookmarks.Count == 0 || blocks.Count == 0)
+            return;
+
+        // Create lookup by page for efficiency
+        var bookmarksByPage = bookmarks
+            .Where(b => b.PageNumber > 0)
+            .GroupBy(b => b.PageNumber)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var block in blocks)
+        {
+            // Skip if already marked as heading
+            if (block.Type == BlockType.Heading)
+                continue;
+
+            // Look for bookmark match on this page or adjacent pages
+            var pagesToCheck = new[] { block.PageNumber, block.PageNumber - 1, block.PageNumber + 1 };
+
+            foreach (var pageNum in pagesToCheck)
+            {
+                if (!bookmarksByPage.TryGetValue(pageNum, out var pageBookmarks))
+                    continue;
+
+                foreach (var bookmark in pageBookmarks)
+                {
+                    if (IsBookmarkMatch(block.Content, bookmark.Title))
+                    {
+                        block.Type = BlockType.Heading;
+                        block.HeadingLevel = bookmark.Level;
+                        break;
+                    }
+                }
+
+                if (block.Type == BlockType.Heading)
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if block content matches a bookmark title.
+    /// Uses fuzzy matching to handle minor formatting differences.
+    /// </summary>
+    private static bool IsBookmarkMatch(string blockContent, string bookmarkTitle)
+    {
+        if (string.IsNullOrWhiteSpace(blockContent) || string.IsNullOrWhiteSpace(bookmarkTitle))
+            return false;
+
+        // Normalize both strings
+        var normalizedBlock = NormalizeForComparison(blockContent);
+        var normalizedBookmark = NormalizeForComparison(bookmarkTitle);
+
+        // Exact match
+        if (normalizedBlock.Equals(normalizedBookmark, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Block starts with bookmark (common: "1. Introduction" vs "Introduction")
+        if (normalizedBlock.StartsWith(normalizedBookmark, StringComparison.OrdinalIgnoreCase) ||
+            normalizedBlock.EndsWith(normalizedBookmark, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Bookmark starts with block (common: bookmark "Chapter 1: Introduction", block "Introduction")
+        if (normalizedBookmark.StartsWith(normalizedBlock, StringComparison.OrdinalIgnoreCase) ||
+            normalizedBookmark.EndsWith(normalizedBlock, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Levenshtein-like similarity for short titles (handles OCR errors, minor typos)
+        if (normalizedBlock.Length < 50 && normalizedBookmark.Length < 50)
+        {
+            var similarity = CalculateSimilarity(normalizedBlock, normalizedBookmark);
+            if (similarity > 0.85)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Normalizes text for comparison by removing extra whitespace and common prefixes.
+    /// </summary>
+    private static string NormalizeForComparison(string text)
+    {
+        // Remove leading numbers and punctuation (e.g., "1.", "1.1", "Chapter 1:")
+        var normalized = Regex.Replace(text.Trim(), @"^[\d.]+\s*", "");
+        normalized = Regex.Replace(normalized, @"^(chapter|section|part)\s*[\d.:]+\s*", "", RegexOptions.IgnoreCase);
+
+        // Collapse whitespace
+        normalized = Regex.Replace(normalized, @"\s+", " ").Trim();
+
+        return normalized;
+    }
+
+    /// <summary>
+    /// Calculates similarity ratio between two strings (0 to 1).
+    /// Uses simple character-based similarity for efficiency.
+    /// </summary>
+    private static double CalculateSimilarity(string a, string b)
+    {
+        if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
+            return 0;
+
+        var longer = a.Length > b.Length ? a.ToLowerInvariant() : b.ToLowerInvariant();
+        var shorter = a.Length > b.Length ? b.ToLowerInvariant() : a.ToLowerInvariant();
+
+        // Simple containment check
+        if (longer.Contains(shorter))
+            return (double)shorter.Length / longer.Length;
+
+        // Character overlap
+        var overlap = shorter.Count(c => longer.Contains(c));
+        return (double)overlap / longer.Length;
+    }
 
     #endregion
 

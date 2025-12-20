@@ -40,6 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentReader, MultiModalPowerPointDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalWordDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalExcelDocumentReader>();
+        services.AddTransient<IDocumentReader, HwpDocumentReader>();
 
         // Language profile for multilingual support
         services.AddSingleton<ILanguageProfileProvider, DefaultLanguageProfileProvider>();
@@ -60,13 +61,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMarkdownConverter>(provider =>
             new MarkdownConverter(provider.GetService<ITextCompletionService>()));
 
+        // === Markdown Normalizer ===
+        services.AddSingleton<IMarkdownNormalizer, MarkdownNormalizer>();
+
         // === Document Refiner ===
         services.AddScoped<IDocumentRefiner>(provider =>
         {
             var markdownConverter = provider.GetService<IMarkdownConverter>();
+            var markdownNormalizer = provider.GetService<IMarkdownNormalizer>();
             var loggerFactory = provider.GetService<ILoggerFactory>();
             var logger = loggerFactory?.CreateLogger<DocumentRefiner>();
-            return new DocumentRefiner(markdownConverter, logger);
+            return new DocumentRefiner(markdownConverter, markdownNormalizer, logger);
         });
 
         // === FluxCurator: Chunking ===

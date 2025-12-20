@@ -18,6 +18,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
 {
     private readonly ITextRefiner _textRefiner;
     private readonly IMarkdownConverter? _markdownConverter;
+    private readonly IMarkdownNormalizer _markdownNormalizer;
     private readonly ILogger<DocumentRefiner> _logger;
 
     /// <inheritdoc/>
@@ -31,10 +32,12 @@ public sealed class DocumentRefiner : IDocumentRefiner
     /// </summary>
     public DocumentRefiner(
         IMarkdownConverter? markdownConverter = null,
+        IMarkdownNormalizer? markdownNormalizer = null,
         ILogger<DocumentRefiner>? logger = null)
     {
         _textRefiner = TextRefiner.Instance;
         _markdownConverter = markdownConverter;
+        _markdownNormalizer = markdownNormalizer ?? new MarkdownNormalizer();
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<DocumentRefiner>.Instance;
     }
 
@@ -95,6 +98,30 @@ public sealed class DocumentRefiner : IDocumentRefiner
                 if (markdownResult.IsSuccess)
                 {
                     refinedText = markdownResult.Markdown;
+                }
+            }
+
+            // Step 2.5: Normalize markdown structure (heading hierarchy, lists, whitespace)
+            // This is a format-agnostic normalization applied to all markdown outputs
+            if (options.NormalizeMarkdownStructure)
+            {
+                var normalizationResult = _markdownNormalizer.Normalize(refinedText, new NormalizationOptions
+                {
+                    NormalizeHeadings = true,
+                    RemoveEmptyHeadings = true,
+                    NormalizeLists = true,
+                    NormalizeWhitespace = true,
+                    DemoteAnnotationHeadings = true,
+                    NormalizeTables = true,
+                    MaxHeadingLevelJump = 1,
+                    MaxColumnVariance = 0
+                });
+
+                if (normalizationResult.HasChanges)
+                {
+                    refinedText = normalizationResult.Markdown;
+                    _logger.LogDebug("Markdown normalized: {ActionCount} corrections applied",
+                        normalizationResult.Actions.Count);
                 }
             }
 
@@ -404,33 +431,47 @@ public sealed class DocumentRefiner : IDocumentRefiner
     /// <summary>
     /// Converts structured data (Tables and Blocks) from RawContent to markdown text.
     /// This is the core conversion logic moved from Extract stage to Refine stage.
+    /// Supports image-text interleaving based on Y-coordinate positioning.
     /// </summary>
     private string ConvertStructuredToMarkdown(RawContent raw, RefineOptions options)
     {
         var sb = new StringBuilder();
-
-        // Process blocks in order, inserting tables at appropriate positions
-        var tableIndex = 0;
         var tables = raw.Tables;
 
-        foreach (var block in raw.Blocks)
+        // Create unified list of content items with position info for interleaving
+        var contentItems = CreateOrderedContentItems(raw);
+
+        // Process all items in order (blocks with images interleaved)
+        foreach (var item in contentItems)
         {
-            // Insert any tables that should appear before this block
-            // (For now, we append tables at the end if no position info)
-            var markdown = ConvertBlockToMarkdown(block);
-            if (!string.IsNullOrEmpty(markdown))
+            switch (item.Type)
             {
-                sb.AppendLine(markdown);
-                sb.AppendLine();
+                case ContentItemType.Block:
+                    var markdown = ConvertBlockToMarkdown(item.Block!);
+                    if (!string.IsNullOrEmpty(markdown))
+                    {
+                        sb.AppendLine(markdown);
+                        sb.AppendLine();
+                    }
+                    break;
+
+                case ContentItemType.Image:
+                    var imageMarkdown = ConvertImageToMarkdown(item.Image!);
+                    if (!string.IsNullOrEmpty(imageMarkdown))
+                    {
+                        sb.AppendLine(imageMarkdown);
+                        sb.AppendLine();
+                    }
+                    break;
             }
         }
 
-        // Append remaining tables
+        // Append tables (usually at the end or specific positions)
         if (options.ConvertTablesToMarkdown)
         {
-            for (int i = tableIndex; i < tables.Count; i++)
+            foreach (var table in tables)
             {
-                var tableMarkdown = ConvertTableToMarkdown(tables[i]);
+                var tableMarkdown = ConvertTableToMarkdown(table);
                 if (!string.IsNullOrEmpty(tableMarkdown))
                 {
                     sb.AppendLine(tableMarkdown);
@@ -456,6 +497,104 @@ public sealed class DocumentRefiner : IDocumentRefiner
         // If still empty, fall back to raw text
         var result = sb.ToString().Trim();
         return string.IsNullOrEmpty(result) ? raw.Text : result;
+    }
+
+    /// <summary>
+    /// Creates ordered list of content items (blocks and images) for interleaving.
+    /// Items are sorted by page number, then by Y coordinate (top to bottom).
+    /// </summary>
+    private static List<ContentItem> CreateOrderedContentItems(RawContent raw)
+    {
+        var items = new List<ContentItem>();
+
+        // Add blocks with position info
+        foreach (var block in raw.Blocks)
+        {
+            items.Add(new ContentItem
+            {
+                Type = ContentItemType.Block,
+                Block = block,
+                PageNumber = block.PageNumber,
+                YPosition = block.Location?.Top ?? block.Order * 100.0 // Fallback to order-based position
+            });
+        }
+
+        // Add images with position info
+        foreach (var image in raw.Images)
+        {
+            var pageNum = image.Properties.TryGetValue("PageNumber", out var pn) ? Convert.ToInt32(pn) : image.Position;
+            var boundsBottom = image.Properties.TryGetValue("BoundsBottom", out var bb) ? Convert.ToDouble(bb) : 0.0;
+
+            items.Add(new ContentItem
+            {
+                Type = ContentItemType.Image,
+                Image = image,
+                PageNumber = pageNum,
+                YPosition = boundsBottom // PDF Y coordinate (higher = more towards top in page)
+            });
+        }
+
+        // Sort by page number, then by Y position (descending for PDF coordinate system)
+        // PDF coordinates: Y=0 at bottom, so higher Y = higher on page = should come first
+        return items
+            .OrderBy(i => i.PageNumber)
+            .ThenByDescending(i => i.YPosition)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Converts an image to markdown format: ![caption](images/{id}.{ext})
+    /// </summary>
+    private static string ConvertImageToMarkdown(ImageInfo image)
+    {
+        // Determine file extension from MIME type
+        var ext = image.MimeType?.ToLowerInvariant() switch
+        {
+            "image/png" => "png",
+            "image/jpeg" or "image/jpg" => "jpg",
+            "image/gif" => "gif",
+            "image/webp" => "webp",
+            "image/svg+xml" => "svg",
+            _ => "png"
+        };
+
+        // Use caption if available, otherwise generate descriptive alt text
+        var altText = !string.IsNullOrEmpty(image.Caption)
+            ? image.Caption
+            : GenerateImageAltText(image);
+
+        // Generate markdown image reference
+        var imagePath = $"images/{image.Id}.{ext}";
+        return $"![{altText}]({imagePath})";
+    }
+
+    /// <summary>
+    /// Generates alt text for image based on available metadata.
+    /// </summary>
+    private static string GenerateImageAltText(ImageInfo image)
+    {
+        var width = image.Properties.TryGetValue("Width", out var w) ? Convert.ToInt32(w) : 0;
+        var height = image.Properties.TryGetValue("Height", out var h) ? Convert.ToInt32(h) : 0;
+        var pageNum = image.Properties.TryGetValue("PageNumber", out var p) ? Convert.ToInt32(p) : image.Position;
+
+        if (width > 0 && height > 0)
+        {
+            return $"Image on page {pageNum} ({width}x{height})";
+        }
+
+        return $"Image {image.Id}";
+    }
+
+    // Helper types for content interleaving
+    private enum ContentItemType { Block, Image }
+
+    private class ContentItem
+    {
+        public ContentItemType Type { get; init; }
+        public TextBlock? Block { get; init; }
+        public ImageInfo? Image { get; init; }
+        public int PageNumber { get; init; }
+        public double YPosition { get; init; }
     }
 
     /// <summary>
