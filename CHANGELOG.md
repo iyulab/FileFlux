@@ -42,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OGA Memory Leak**: Proper disposal of ONNX GenAI resources
   - `FluxImproverResult`: Wrapper with `IAsyncDisposable` for proper cleanup
   - Ensures GPU/memory resources are released after processing
+- **BasicDocumentParser Hierarchical Section Truncation**: Fixed 98.7% content loss in HWP files
+  - `FormatStructuredText()` now recursively processes `Children` sections
+  - Added `FormatSectionsRecursively()` helper method
+  - HWP output increased from 445 to 33,737 chars after fix
+- **SemanticBoundaryDetector TopicChange Detection**: Fixed incorrect boundary type classification
+  - Low similarity (< 0.5) now correctly returns `TopicChange` regardless of punctuation
+  - Sentence/Paragraph distinction only applies when similarity ≥ 0.5
 
 ### Known Issues
 - **LMSupply Integration Hang**: Process may hang when AI enrichment is enabled with local models
