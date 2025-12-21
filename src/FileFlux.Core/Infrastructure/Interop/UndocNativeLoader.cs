@@ -7,29 +7,30 @@ using System.Text.Json;
 namespace FileFlux.Core.Infrastructure.Interop;
 
 /// <summary>
-/// Lazy loader for unhwp native library.
+/// Lazy loader for undoc native library.
 /// Downloads platform-specific binary from GitHub releases on first use.
+/// Supports DOCX, XLSX, PPTX document processing.
 /// </summary>
 /// <remarks>
 /// Cache structure:
 /// <code>
-/// %LOCALAPPDATA%/FileFlux/unhwp/
-/// ├── lib/     - Native library only (unhwp.dll, libunhwp.so, libunhwp.dylib)
-/// └── bin/     - CLI executable (unhwp.exe, unhwp)
+/// %LOCALAPPDATA%/FileFlux/undoc/
+/// ├── lib/     - Native library only (undoc.dll, libundoc.so, libundoc.dylib)
+/// └── bin/     - CLI executable (undoc.exe, undoc)
 /// </code>
 /// </remarks>
-public sealed class UnhwpNativeLoader : IDisposable
+public sealed class UndocNativeLoader : IDisposable
 {
-    private const string GitHubRepo = "iyulab/unhwp";
+    private const string GitHubRepo = "iyulab/undoc";
     private const string LatestReleaseApi = $"https://api.github.com/repos/{GitHubRepo}/releases/latest";
-    private const string CacheFolder = "unhwp";
+    private const string CacheFolder = "undoc";
     private const string LibSubfolder = "lib";
     private const string BinSubfolder = "bin";
     private const string VersionFile = "version.txt";
-    private const string AssetPrefix = "unhwp-lib-"; // Use library, not CLI
+    private const string AssetPrefix = "undoc-lib-"; // Use library, not CLI
 
-    private static readonly Lazy<UnhwpNativeLoader> _instance = new(() => new UnhwpNativeLoader());
-    public static UnhwpNativeLoader Instance => _instance.Value;
+    private static readonly Lazy<UndocNativeLoader> _instance = new(() => new UndocNativeLoader());
+    public static UndocNativeLoader Instance => _instance.Value;
 
     private IntPtr _libraryHandle = IntPtr.Zero;
     private readonly SemaphoreSlim _loadLock = new(1, 1);
@@ -41,121 +42,98 @@ public sealed class UnhwpNativeLoader : IDisposable
     private const string PendingFolder = "pending";
 
     // ========================================
-    // Structures
+    // Delegate types for native functions
     // ========================================
 
-    /// <summary>
-    /// Represents image data returned from the native library.
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    public struct ImageData
-    {
-        public IntPtr Name;      // Null-terminated UTF-8 string
-        public IntPtr Data;      // Binary data pointer
-        public nuint DataLen;    // Length in bytes
-    }
-
-    // ========================================
-    // Delegate types for native functions - Simple API
-    // ========================================
-
-    // int unhwp_to_markdown(const char* path, char** out_markdown, char** out_error)
-    public delegate int ToMarkdownDelegate(
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
-        out IntPtr outMarkdown,
-        out IntPtr outError);
-
-    // int unhwp_to_markdown_with_cleanup(const char* path, char** out_markdown, char** out_error)
-    public delegate int ToMarkdownWithCleanupDelegate(
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
-        out IntPtr outMarkdown,
-        out IntPtr outError);
-
-    // int unhwp_bytes_to_markdown(const uint8_t* data, size_t data_len, char** out_markdown, char** out_error)
-    public delegate int BytesToMarkdownDelegate(
-        IntPtr data,
-        nuint dataLen,
-        out IntPtr outMarkdown,
-        out IntPtr outError);
-
-    // void unhwp_free_string(char* ptr)
-    public delegate void FreeStringDelegate(IntPtr ptr);
-
-    // int unhwp_detect_format(const char* path)
-    public delegate int DetectFormatDelegate(
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
-
-    // const char* unhwp_version()
+    /// <summary>const char* undoc_version()</summary>
     public delegate IntPtr VersionDelegate();
 
-    // ========================================
-    // Structured Result API Delegates
-    // ========================================
+    /// <summary>const char* undoc_last_error()</summary>
+    public delegate IntPtr LastErrorDelegate();
 
-    // IntPtr unhwp_parse(const char* path, RenderOptions* renderOptions, CleanupOptions* cleanupOptions)
-    public delegate IntPtr ParseDelegate(
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
-        IntPtr renderOptions,
-        IntPtr cleanupOptions);
+    /// <summary>void* undoc_parse_file(const char* path)</summary>
+    public delegate IntPtr ParseFileDelegate(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
 
-    // IntPtr unhwp_parse_bytes(const uint8_t* data, size_t data_len, RenderOptions* renderOptions, CleanupOptions* cleanupOptions)
+    /// <summary>void* undoc_parse_bytes(const uint8_t* data, size_t len)</summary>
     public delegate IntPtr ParseBytesDelegate(
         IntPtr data,
-        nuint dataLen,
-        IntPtr renderOptions,
-        IntPtr cleanupOptions);
+        nuint len);
 
-    // IntPtr unhwp_result_get_markdown(IntPtr result)
-    public delegate IntPtr ResultGetMarkdownDelegate(IntPtr result);
+    /// <summary>void undoc_free_document(void* doc)</summary>
+    public delegate void FreeDocumentDelegate(IntPtr doc);
 
-    // IntPtr unhwp_result_get_text(IntPtr result)
-    public delegate IntPtr ResultGetTextDelegate(IntPtr result);
+    /// <summary>char* undoc_to_markdown(void* doc, int flags)</summary>
+    public delegate IntPtr ToMarkdownDelegate(IntPtr doc, int flags);
 
-    // int unhwp_result_get_image_count(IntPtr result)
-    public delegate int ResultGetImageCountDelegate(IntPtr result);
+    /// <summary>char* undoc_to_text(void* doc)</summary>
+    public delegate IntPtr ToTextDelegate(IntPtr doc);
 
-    // int unhwp_result_get_image(IntPtr result, int index, ImageData* outImage)
-    public delegate int ResultGetImageDelegate(IntPtr result, int index, out ImageData outImage);
+    /// <summary>char* undoc_to_json(void* doc, int format)</summary>
+    public delegate IntPtr ToJsonDelegate(IntPtr doc, int format);
 
-    // int unhwp_result_get_section_count(IntPtr result)
-    public delegate int ResultGetSectionCountDelegate(IntPtr result);
+    /// <summary>char* undoc_plain_text(void* doc)</summary>
+    public delegate IntPtr PlainTextDelegate(IntPtr doc);
 
-    // int unhwp_result_get_paragraph_count(IntPtr result)
-    public delegate int ResultGetParagraphCountDelegate(IntPtr result);
+    /// <summary>int undoc_section_count(void* doc)</summary>
+    public delegate int SectionCountDelegate(IntPtr doc);
 
-    // IntPtr unhwp_result_get_raw_content(IntPtr result)
-    public delegate IntPtr ResultGetRawContentDelegate(IntPtr result);
+    /// <summary>int undoc_resource_count(void* doc)</summary>
+    public delegate int ResourceCountDelegate(IntPtr doc);
 
-    // IntPtr unhwp_result_get_error(IntPtr result)
-    public delegate IntPtr ResultGetErrorDelegate(IntPtr result);
+    /// <summary>char* undoc_get_title(void* doc)</summary>
+    public delegate IntPtr GetTitleDelegate(IntPtr doc);
 
-    // void unhwp_result_free(IntPtr result)
-    public delegate void ResultFreeDelegate(IntPtr result);
+    /// <summary>char* undoc_get_author(void* doc)</summary>
+    public delegate IntPtr GetAuthorDelegate(IntPtr doc);
+
+    /// <summary>void undoc_free_string(char* str)</summary>
+    public delegate void FreeStringDelegate(IntPtr str);
 
     // ========================================
-    // Function pointers - Simple API
+    // Resource Access API Delegates (v0.1.8+)
     // ========================================
-    public ToMarkdownDelegate? ToMarkdown { get; private set; }
-    public ToMarkdownWithCleanupDelegate? ToMarkdownWithCleanup { get; private set; }
-    public BytesToMarkdownDelegate? BytesToMarkdown { get; private set; }
-    public FreeStringDelegate? FreeString { get; private set; }
-    public DetectFormatDelegate? DetectFormat { get; private set; }
+
+    /// <summary>char* undoc_get_resource_ids(void* doc) - Returns JSON array of resource IDs</summary>
+    public delegate IntPtr GetResourceIdsDelegate(IntPtr doc);
+
+    /// <summary>char* undoc_get_resource_info(void* doc, const char* resource_id) - Returns JSON resource metadata</summary>
+    public delegate IntPtr GetResourceInfoDelegate(
+        IntPtr doc,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string resourceId);
+
+    /// <summary>uint8_t* undoc_get_resource_data(void* doc, const char* resource_id, size_t* out_len) - Returns binary data</summary>
+    public delegate IntPtr GetResourceDataDelegate(
+        IntPtr doc,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string resourceId,
+        out nuint outLen);
+
+    /// <summary>void undoc_free_bytes(uint8_t* data, size_t len) - Frees binary data</summary>
+    public delegate void FreeBytesDelegate(IntPtr data, nuint len);
+
+    // ========================================
+    // Function pointers
+    // ========================================
     public VersionDelegate? Version { get; private set; }
-
-    // ========================================
-    // Function pointers - Structured Result API
-    // ========================================
-    public ParseDelegate? Parse { get; private set; }
+    public LastErrorDelegate? LastError { get; private set; }
+    public ParseFileDelegate? ParseFile { get; private set; }
     public ParseBytesDelegate? ParseBytes { get; private set; }
-    public ResultGetMarkdownDelegate? ResultGetMarkdown { get; private set; }
-    public ResultGetTextDelegate? ResultGetText { get; private set; }
-    public ResultGetImageCountDelegate? ResultGetImageCount { get; private set; }
-    public ResultGetImageDelegate? ResultGetImage { get; private set; }
-    public ResultGetSectionCountDelegate? ResultGetSectionCount { get; private set; }
-    public ResultGetParagraphCountDelegate? ResultGetParagraphCount { get; private set; }
-    public ResultGetRawContentDelegate? ResultGetRawContent { get; private set; }
-    public ResultGetErrorDelegate? ResultGetError { get; private set; }
-    public ResultFreeDelegate? ResultFree { get; private set; }
+    public FreeDocumentDelegate? FreeDocument { get; private set; }
+    public ToMarkdownDelegate? ToMarkdown { get; private set; }
+    public ToTextDelegate? ToText { get; private set; }
+    public ToJsonDelegate? ToJson { get; private set; }
+    public PlainTextDelegate? PlainText { get; private set; }
+    public SectionCountDelegate? SectionCount { get; private set; }
+    public ResourceCountDelegate? ResourceCount { get; private set; }
+    public GetTitleDelegate? GetTitle { get; private set; }
+    public GetAuthorDelegate? GetAuthor { get; private set; }
+    public FreeStringDelegate? FreeString { get; private set; }
+
+    // Resource Access API (v0.1.8+)
+    public GetResourceIdsDelegate? GetResourceIds { get; private set; }
+    public GetResourceInfoDelegate? GetResourceInfo { get; private set; }
+    public GetResourceDataDelegate? GetResourceData { get; private set; }
+    public FreeBytesDelegate? FreeBytes { get; private set; }
 
     /// <summary>
     /// Gets whether the native library is loaded.
@@ -168,11 +146,11 @@ public sealed class UnhwpNativeLoader : IDisposable
     public string? LibraryPath => _libraryPath;
 
     /// <summary>
-    /// Gets the loaded library version (e.g., "0.1.6").
+    /// Gets the loaded library version (e.g., "0.1.0").
     /// </summary>
     public string? LoadedVersion => _loadedVersion;
 
-    private UnhwpNativeLoader() { }
+    private UndocNativeLoader() { }
 
     /// <summary>
     /// Ensures the native library is loaded, downloading if necessary.
@@ -303,7 +281,7 @@ public sealed class UnhwpNativeLoader : IDisposable
 
         if (libraryFile == null)
         {
-            libraryFile = Directory.GetFiles(extractDir, "*unhwp*", SearchOption.AllDirectories)
+            libraryFile = Directory.GetFiles(extractDir, "*undoc*", SearchOption.AllDirectories)
                 .FirstOrDefault(f => f.EndsWith(".dll") || f.EndsWith(".so") || f.EndsWith(".dylib"));
         }
 
@@ -518,7 +496,7 @@ public sealed class UnhwpNativeLoader : IDisposable
         var (platformSuffix, archiveExt) = GetPlatformAssetInfo()
             ?? throw new PlatformNotSupportedException($"Unsupported platform: {RuntimeInformation.OSDescription}");
 
-        // Build expected asset name: unhwp-lib-{platform}.{ext}
+        // Build expected asset name: undoc-lib-{platform}.{ext}
         var expectedAssetName = $"{AssetPrefix}{platformSuffix}";
 
         using var httpClient = CreateHttpClient();
@@ -534,7 +512,7 @@ public sealed class UnhwpNativeLoader : IDisposable
         foreach (var asset in release.RootElement.GetProperty("assets").EnumerateArray())
         {
             var name = asset.GetProperty("name").GetString();
-            // Match exactly: unhwp-lib-{platform}.{ext}
+            // Match exactly: undoc-lib-{platform}.{ext}
             if (name != null && name.StartsWith(expectedAssetName, StringComparison.OrdinalIgnoreCase))
             {
                 downloadUrl = asset.GetProperty("browser_download_url").GetString();
@@ -545,7 +523,7 @@ public sealed class UnhwpNativeLoader : IDisposable
         if (downloadUrl == null)
         {
             throw new FileNotFoundException($"Could not find library asset '{expectedAssetName}' in latest release. " +
-                                           $"Make sure the release contains unhwp-lib-* archives (not unhwp-cli-*).");
+                                           $"Make sure the release contains undoc-lib-* archives (not undoc-cli-*).");
         }
 
         // Download the archive
@@ -581,7 +559,7 @@ public sealed class UnhwpNativeLoader : IDisposable
         if (libraryFile == null)
         {
             // Try alternative: library might be directly in the archive
-            libraryFile = Directory.GetFiles(extractDir, "*unhwp*", SearchOption.AllDirectories)
+            libraryFile = Directory.GetFiles(extractDir, "*undoc*", SearchOption.AllDirectories)
                 .FirstOrDefault(f => f.EndsWith(".dll") || f.EndsWith(".so") || f.EndsWith(".dylib"));
         }
 
@@ -623,62 +601,63 @@ public sealed class UnhwpNativeLoader : IDisposable
     {
         _libraryHandle = NativeLibrary.Load(libraryPath);
 
-        // ========================================
-        // Bind Simple API function pointers
-        // ========================================
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_to_markdown", out var toMarkdownPtr))
-            ToMarkdown = Marshal.GetDelegateForFunctionPointer<ToMarkdownDelegate>(toMarkdownPtr);
-
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_to_markdown_with_cleanup", out var toMarkdownWithCleanupPtr))
-            ToMarkdownWithCleanup = Marshal.GetDelegateForFunctionPointer<ToMarkdownWithCleanupDelegate>(toMarkdownWithCleanupPtr);
-
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_bytes_to_markdown", out var bytesToMarkdownPtr))
-            BytesToMarkdown = Marshal.GetDelegateForFunctionPointer<BytesToMarkdownDelegate>(bytesToMarkdownPtr);
-
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_free_string", out var freeStringPtr))
-            FreeString = Marshal.GetDelegateForFunctionPointer<FreeStringDelegate>(freeStringPtr);
-
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_detect_format", out var detectFormatPtr))
-            DetectFormat = Marshal.GetDelegateForFunctionPointer<DetectFormatDelegate>(detectFormatPtr);
-
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_version", out var versionPtr))
+        // Bind function pointers
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_version", out var versionPtr))
             Version = Marshal.GetDelegateForFunctionPointer<VersionDelegate>(versionPtr);
 
-        // ========================================
-        // Bind Structured Result API function pointers
-        // ========================================
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_parse", out var parsePtr))
-            Parse = Marshal.GetDelegateForFunctionPointer<ParseDelegate>(parsePtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_last_error", out var lastErrorPtr))
+            LastError = Marshal.GetDelegateForFunctionPointer<LastErrorDelegate>(lastErrorPtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_parse_bytes", out var parseBytesPtr))
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_parse_file", out var parseFilePtr))
+            ParseFile = Marshal.GetDelegateForFunctionPointer<ParseFileDelegate>(parseFilePtr);
+
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_parse_bytes", out var parseBytesPtr))
             ParseBytes = Marshal.GetDelegateForFunctionPointer<ParseBytesDelegate>(parseBytesPtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_markdown", out var resultGetMarkdownPtr))
-            ResultGetMarkdown = Marshal.GetDelegateForFunctionPointer<ResultGetMarkdownDelegate>(resultGetMarkdownPtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_free_document", out var freeDocumentPtr))
+            FreeDocument = Marshal.GetDelegateForFunctionPointer<FreeDocumentDelegate>(freeDocumentPtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_text", out var resultGetTextPtr))
-            ResultGetText = Marshal.GetDelegateForFunctionPointer<ResultGetTextDelegate>(resultGetTextPtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_to_markdown", out var toMarkdownPtr))
+            ToMarkdown = Marshal.GetDelegateForFunctionPointer<ToMarkdownDelegate>(toMarkdownPtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_image_count", out var resultGetImageCountPtr))
-            ResultGetImageCount = Marshal.GetDelegateForFunctionPointer<ResultGetImageCountDelegate>(resultGetImageCountPtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_to_text", out var toTextPtr))
+            ToText = Marshal.GetDelegateForFunctionPointer<ToTextDelegate>(toTextPtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_image", out var resultGetImagePtr))
-            ResultGetImage = Marshal.GetDelegateForFunctionPointer<ResultGetImageDelegate>(resultGetImagePtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_to_json", out var toJsonPtr))
+            ToJson = Marshal.GetDelegateForFunctionPointer<ToJsonDelegate>(toJsonPtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_section_count", out var resultGetSectionCountPtr))
-            ResultGetSectionCount = Marshal.GetDelegateForFunctionPointer<ResultGetSectionCountDelegate>(resultGetSectionCountPtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_plain_text", out var plainTextPtr))
+            PlainText = Marshal.GetDelegateForFunctionPointer<PlainTextDelegate>(plainTextPtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_paragraph_count", out var resultGetParagraphCountPtr))
-            ResultGetParagraphCount = Marshal.GetDelegateForFunctionPointer<ResultGetParagraphCountDelegate>(resultGetParagraphCountPtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_section_count", out var sectionCountPtr))
+            SectionCount = Marshal.GetDelegateForFunctionPointer<SectionCountDelegate>(sectionCountPtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_raw_content", out var resultGetRawContentPtr))
-            ResultGetRawContent = Marshal.GetDelegateForFunctionPointer<ResultGetRawContentDelegate>(resultGetRawContentPtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_resource_count", out var resourceCountPtr))
+            ResourceCount = Marshal.GetDelegateForFunctionPointer<ResourceCountDelegate>(resourceCountPtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_error", out var resultGetErrorPtr))
-            ResultGetError = Marshal.GetDelegateForFunctionPointer<ResultGetErrorDelegate>(resultGetErrorPtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_title", out var getTitlePtr))
+            GetTitle = Marshal.GetDelegateForFunctionPointer<GetTitleDelegate>(getTitlePtr);
 
-        if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_free", out var resultFreePtr))
-            ResultFree = Marshal.GetDelegateForFunctionPointer<ResultFreeDelegate>(resultFreePtr);
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_author", out var getAuthorPtr))
+            GetAuthor = Marshal.GetDelegateForFunctionPointer<GetAuthorDelegate>(getAuthorPtr);
+
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_free_string", out var freeStringPtr))
+            FreeString = Marshal.GetDelegateForFunctionPointer<FreeStringDelegate>(freeStringPtr);
+
+        // ========================================
+        // Bind Resource Access API (v0.1.8+)
+        // ========================================
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_resource_ids", out var getResourceIdsPtr))
+            GetResourceIds = Marshal.GetDelegateForFunctionPointer<GetResourceIdsDelegate>(getResourceIdsPtr);
+
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_resource_info", out var getResourceInfoPtr))
+            GetResourceInfo = Marshal.GetDelegateForFunctionPointer<GetResourceInfoDelegate>(getResourceInfoPtr);
+
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_resource_data", out var getResourceDataPtr))
+            GetResourceData = Marshal.GetDelegateForFunctionPointer<GetResourceDataDelegate>(getResourceDataPtr);
+
+        if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_free_bytes", out var freeBytesPtr))
+            FreeBytes = Marshal.GetDelegateForFunctionPointer<FreeBytesDelegate>(freeBytesPtr);
     }
 
     private static string GetCacheDirectory()
@@ -690,11 +669,11 @@ public sealed class UnhwpNativeLoader : IDisposable
     private static string? GetPlatformLibraryName()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            return "unhwp.dll";
+            return "undoc.dll";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            return "libunhwp.so";
+            return "libundoc.so";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            return "libunhwp.dylib";
+            return "libundoc.dylib";
         return null;
     }
 
@@ -725,6 +704,19 @@ public sealed class UnhwpNativeLoader : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Gets the last error message from the native library.
+    /// </summary>
+    public string GetLastError()
+    {
+        if (LastError == null) return "Library not loaded";
+
+        var errorPtr = LastError();
+        if (errorPtr == IntPtr.Zero) return "Unknown error";
+
+        return Marshal.PtrToStringAnsi(errorPtr) ?? "Unknown error";
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -741,23 +733,28 @@ public sealed class UnhwpNativeLoader : IDisposable
 }
 
 /// <summary>
-/// Error codes from unhwp native library.
+/// Markdown rendering flags for undoc.
 /// </summary>
-public static class UnhwpErrorCodes
+[Flags]
+public enum UndocMarkdownFlags
 {
-    public const int Ok = 0;
-    public const int FileNotFound = -1;
-    public const int ParseError = -2;
-    public const int RenderError = -3;
-    public const int InvalidFormat = -4;
+    /// <summary>No flags.</summary>
+    None = 0,
+    /// <summary>Include YAML frontmatter with metadata.</summary>
+    Frontmatter = 1,
+    /// <summary>Escape special Markdown characters.</summary>
+    EscapeSpecial = 2,
+    /// <summary>Add blank lines between paragraphs.</summary>
+    ParagraphSpacing = 4
 }
 
 /// <summary>
-/// HWP document format types.
+/// JSON format options for undoc.
 /// </summary>
-public enum HwpFormat
+public enum UndocJsonFormat
 {
-    Unknown = 0,
-    Hwp5 = 1,    // HWP 5.0 (OLE compound)
-    Hwpx = 2     // HWPX (XML/ZIP based)
+    /// <summary>Pretty-printed JSON with indentation.</summary>
+    Pretty = 0,
+    /// <summary>Compact JSON without whitespace.</summary>
+    Compact = 1
 }

@@ -179,6 +179,46 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Adds OfficeNativeDocumentReader for high-performance DOCX, XLSX, PPTX processing.
+    /// Uses undoc native library (Rust-based) which is downloaded on-demand from GitHub releases.
+    /// </summary>
+    /// <remarks>
+    /// The native reader provides:
+    /// - Faster processing compared to managed libraries
+    /// - Better CJK text handling
+    /// - Parallel section processing
+    /// - Self-update capability
+    ///
+    /// Call this BEFORE AddFileFlux() to use native readers as primary:
+    /// <code>
+    /// services.AddNativeOfficeReader();
+    /// services.AddFileFlux();
+    /// </code>
+    /// </remarks>
+    public static IServiceCollection AddNativeOfficeReader(this IServiceCollection services)
+    {
+        // Register native reader (will be selected by DocumentReaderFactory based on extension)
+        services.AddTransient<IDocumentReader, OfficeNativeDocumentReader>();
+        return services;
+    }
+
+    /// <summary>
+    /// Adds FileFlux with native Office reader as the primary handler for DOCX, XLSX, PPTX.
+    /// </summary>
+    /// <remarks>
+    /// This is equivalent to:
+    /// <code>
+    /// services.AddNativeOfficeReader();
+    /// services.AddFileFlux();
+    /// </code>
+    /// </remarks>
+    public static IServiceCollection AddFileFluxWithNativeOffice(this IServiceCollection services)
+    {
+        services.AddNativeOfficeReader();
+        return AddFileFlux(services);
+    }
+
+    /// <summary>
     /// Adds a custom document parser.
     /// </summary>
     public static IServiceCollection AddDocumentParser<T>(this IServiceCollection services)

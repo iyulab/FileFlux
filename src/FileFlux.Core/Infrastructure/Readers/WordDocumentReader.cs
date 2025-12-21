@@ -490,16 +490,82 @@ public partial class WordDocumentReader : IDocumentReader
         // Remove null bytes (invalid in UTF-8 text)
         markdown = TextSanitizer.RemoveNullBytes(markdown);
 
+        // Convert HTML lists to markdown
+        markdown = ConvertHtmlListsToMarkdown(markdown);
+
+        // Decode common HTML entities
+        markdown = DecodeHtmlEntities(markdown);
+
         // Replace <br> and <br/> tags with proper markdown line breaks
         markdown = BrTagRegex().Replace(markdown, "  \n");
 
         // Remove other common HTML tags that might slip through
         markdown = CommonHtmlTagsRegex().Replace(markdown, "");
 
+        // Remove any remaining HTML tags
+        markdown = RemainingHtmlTagsRegex().Replace(markdown, "");
+
         // Normalize multiple consecutive newlines to max 2
         markdown = MultipleNewlinesRegex().Replace(markdown, "\n\n");
 
         return markdown.Trim();
+    }
+
+    /// <summary>
+    /// Converts HTML ordered and unordered lists to markdown format.
+    /// </summary>
+    private static string ConvertHtmlListsToMarkdown(string text)
+    {
+        // Remove the opening/closing list tags
+        text = Regex.Replace(text, @"<ol[^>]*>", "", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"</ol>", "", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"<ul[^>]*>", "", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"</ul>", "", RegexOptions.IgnoreCase);
+
+        // Convert all <li>...</li> to markdown list items
+        text = Regex.Replace(text, @"<li[^>]*>(.*?)</li>", match =>
+        {
+            var content = match.Groups[1].Value.Trim();
+            // Remove any nested HTML tags
+            content = Regex.Replace(content, @"<[^>]+>", "");
+            // Decode HTML entities in the content
+            content = DecodeHtmlEntities(content);
+            return $"\n- {content}";
+        }, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+        // Handle standalone <li> tags without closing tag
+        text = Regex.Replace(text, @"<li[^>]*>([^<]+)(?=<|$)", match =>
+        {
+            var content = match.Groups[1].Value.Trim();
+            return $"\n- {content}";
+        }, RegexOptions.IgnoreCase);
+
+        return text;
+    }
+
+    /// <summary>
+    /// Decodes common HTML entities to their character equivalents.
+    /// </summary>
+    private static string DecodeHtmlEntities(string text)
+    {
+        // Common HTML entities
+        text = text.Replace("&gt;", ">");
+        text = text.Replace("&lt;", "<");
+        text = text.Replace("&amp;", "&");
+        text = text.Replace("&quot;", "\"");
+        text = text.Replace("&apos;", "'");
+        text = text.Replace("&nbsp;", " ");
+        text = text.Replace("&#39;", "'");
+        text = text.Replace("&#x27;", "'");
+        text = text.Replace("&mdash;", "—");
+        text = text.Replace("&ndash;", "–");
+        text = text.Replace("&bull;", "•");
+        text = text.Replace("&hellip;", "…");
+        text = text.Replace("&copy;", "©");
+        text = text.Replace("&reg;", "®");
+        text = text.Replace("&trade;", "™");
+
+        return text;
     }
 
     [GeneratedRegex(@"<br\s*/?>", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
@@ -510,6 +576,9 @@ public partial class WordDocumentReader : IDocumentReader
 
     [GeneratedRegex(@"\n{3,}", RegexOptions.Compiled)]
     private static partial Regex MultipleNewlinesRegex();
+
+    [GeneratedRegex(@"<[^>]+>")]
+    private static partial Regex RemainingHtmlTagsRegex();
 
     private static int CountWords(string text)
     {

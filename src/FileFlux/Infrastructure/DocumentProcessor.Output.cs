@@ -2,6 +2,7 @@ using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Output;
 using FileFlux.Infrastructure.Services;
+using System.Text;
 
 namespace FileFlux.Infrastructure;
 
@@ -41,6 +42,17 @@ public sealed partial class FluxDocumentProcessor
 
         // Process images
         var processedText = parsedContent.Text;
+
+        // Convert tables to markdown and append if present
+        if (rawContent.HasTables)
+        {
+            var tableMarkdown = ConvertTablesToMarkdown(rawContent.Tables);
+            if (!string.IsNullOrEmpty(tableMarkdown))
+            {
+                processedText = processedText + "\n\n## Tables\n\n" + tableMarkdown;
+            }
+        }
+
         var images = new List<ProcessedImage>();
         var skippedCount = 0;
 
@@ -239,5 +251,132 @@ public sealed partial class FluxDocumentProcessor
         }
 
         return await ChunkToDirectoryAsync(filePath, chunkingOptions, outputOptions, imageToTextService, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Converts a list of TableData to markdown format.
+    /// </summary>
+    private static string ConvertTablesToMarkdown(IEnumerable<TableData> tables)
+    {
+        var sb = new StringBuilder();
+        int tableNum = 1;
+
+        foreach (var table in tables)
+        {
+            var tableMarkdown = ConvertTableToMarkdown(table);
+            if (!string.IsNullOrEmpty(tableMarkdown))
+            {
+                if (sb.Length > 0)
+                    sb.AppendLine();
+                sb.AppendLine($"### Table {tableNum} (Page {table.PageNumber})");
+                sb.AppendLine();
+                sb.AppendLine(tableMarkdown);
+                tableNum++;
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Converts a single TableData to markdown table format.
+    /// </summary>
+    private static string ConvertTableToMarkdown(TableData table)
+    {
+        if (table.Cells == null || table.Cells.Length == 0)
+        {
+            // Use plain text fallback if available
+            if (!string.IsNullOrEmpty(table.PlainTextFallback))
+                return table.PlainTextFallback;
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        var columnCount = table.Cells.Max(row => row?.Length ?? 0);
+
+        if (columnCount == 0)
+            return string.Empty;
+
+        // Determine headers
+        string[] headers;
+        int dataStartRow;
+
+        if (table.HasHeader && table.Headers != null && table.Headers.Length > 0)
+        {
+            headers = table.Headers;
+            dataStartRow = 0;
+        }
+        else if (table.HasHeader && table.Cells.Length > 0)
+        {
+            headers = table.Cells[0] ?? [];
+            dataStartRow = 1;
+        }
+        else
+        {
+            // Use first row as header
+            headers = table.Cells[0] ?? [];
+            dataStartRow = 1;
+        }
+
+        // Ensure headers match column count
+        if (headers.Length < columnCount)
+        {
+            var newHeaders = new string[columnCount];
+            Array.Copy(headers, newHeaders, headers.Length);
+            for (int i = headers.Length; i < columnCount; i++)
+            {
+                newHeaders[i] = "";
+            }
+            headers = newHeaders;
+        }
+
+        // Header row
+        sb.Append('|');
+        foreach (var header in headers.Take(columnCount))
+        {
+            sb.Append($" {EscapeMarkdownCell(header ?? "")} |");
+        }
+        sb.AppendLine();
+
+        // Separator row
+        sb.Append('|');
+        for (int i = 0; i < columnCount; i++)
+        {
+            sb.Append(" --- |");
+        }
+        sb.AppendLine();
+
+        // Data rows
+        for (int rowIdx = dataStartRow; rowIdx < table.Cells.Length; rowIdx++)
+        {
+            var row = table.Cells[rowIdx];
+            if (row == null) continue;
+
+            sb.Append('|');
+            for (int colIdx = 0; colIdx < columnCount; colIdx++)
+            {
+                var cell = colIdx < row.Length ? row[colIdx] : "";
+                sb.Append($" {EscapeMarkdownCell(cell ?? "")} |");
+            }
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Escapes characters that have special meaning in markdown table cells.
+    /// </summary>
+    private static string EscapeMarkdownCell(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return "";
+
+        // Replace pipe characters and newlines
+        return text
+            .Replace("|", "\\|")
+            .Replace("\n", " ")
+            .Replace("\r", "")
+            .Trim();
     }
 }

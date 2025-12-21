@@ -319,6 +319,14 @@ public partial class PdfDocumentReader : IDocumentReader
                 }
             }
 
+            // Get page height for header/footer detection
+            var firstPageHeight = document.NumberOfPages > 0
+                ? document.GetPage(1).Height
+                : 792.0; // Default letter size
+
+            // Remove repeated headers/footers before merging
+            RemoveRepeatedHeadersFooters(pageContents, firstPageHeight);
+
             // Merge page texts
             var extractedText = MergePageTexts(pageContents);
 
@@ -429,6 +437,14 @@ public partial class PdfDocumentReader : IDocumentReader
                     warnings.Add($"Page {pageNum} processing error: {ex.Message}");
                 }
             }
+
+            // Get page height for header/footer detection
+            var streamPageHeight = document.NumberOfPages > 0
+                ? document.GetPage(1).Height
+                : 792.0; // Default letter size
+
+            // Remove repeated headers/footers before merging
+            RemoveRepeatedHeadersFooters(pageContents, streamPageHeight);
 
             var extractedText = MergePageTexts(pageContents);
 
@@ -1318,6 +1334,106 @@ public partial class PdfDocumentReader : IDocumentReader
     #endregion
 
     #region Text Processing
+
+    /// <summary>
+    /// Detects and removes repeated headers/footers that appear at consistent Y positions across pages.
+    /// </summary>
+    private static void RemoveRepeatedHeadersFooters(List<PageContentData> pageContents, double pageHeight)
+    {
+        if (pageContents.Count < 3) return; // Need at least 3 pages to detect patterns
+
+        // Collect text blocks with their Y positions across all pages
+        var blocksByYPosition = new Dictionary<int, List<(int PageNum, string Content)>>();
+        var yTolerance = 5.0; // Tolerance for Y position matching
+
+        foreach (var page in pageContents)
+        {
+            foreach (var block in page.Blocks)
+            {
+                if (block.Location == null || string.IsNullOrWhiteSpace(block.Content)) continue;
+                if (block.Content.Length > 200) continue; // Headers/footers are typically short
+
+                // Use top Y position, rounded to bucket
+                var yBucket = (int)(block.Location.Top / yTolerance);
+
+                if (!blocksByYPosition.TryGetValue(yBucket, out var list))
+                {
+                    list = [];
+                    blocksByYPosition[yBucket] = list;
+                }
+                list.Add((page.PageNumber, block.Content.Trim()));
+            }
+        }
+
+        // Find patterns: text that appears on more than 50% of pages at the same Y position
+        var threshold = pageContents.Count * 0.5;
+        var repeatedPatterns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (yBucket, blocks) in blocksByYPosition)
+        {
+            // Group by similar content
+            var contentGroups = blocks
+                .GroupBy(b => NormalizeForPatternMatch(b.Content))
+                .Where(g => g.Count() >= threshold)
+                .ToList();
+
+            foreach (var group in contentGroups)
+            {
+                // Check if this appears on different pages
+                var uniquePages = group.Select(b => b.PageNum).Distinct().Count();
+                if (uniquePages >= threshold)
+                {
+                    // This is a repeated header/footer
+                    foreach (var item in group)
+                    {
+                        repeatedPatterns.Add(NormalizeForPatternMatch(item.Content));
+                    }
+                }
+            }
+        }
+
+        if (repeatedPatterns.Count == 0) return;
+
+        // Remove the repeated patterns from all pages
+        foreach (var page in pageContents)
+        {
+            page.Blocks.RemoveAll(block =>
+                !string.IsNullOrWhiteSpace(block.Content) &&
+                repeatedPatterns.Contains(NormalizeForPatternMatch(block.Content)));
+
+            // Rebuild page text without repeated headers/footers
+            if (page.Blocks.Count > 0)
+            {
+                var textBuilder = new StringBuilder();
+                foreach (var block in page.Blocks.OrderBy(b => b.Order))
+                {
+                    if (block.HasContent)
+                    {
+                        textBuilder.AppendLine(block.Content);
+                    }
+                }
+                page.Text = FilterPageNumbers(textBuilder.ToString().Trim());
+            }
+        }
+    }
+
+    /// <summary>
+    /// Normalizes text for pattern matching (removes numbers that may vary per page).
+    /// </summary>
+    private static string NormalizeForPatternMatch(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+        // Remove leading/trailing whitespace
+        var normalized = text.Trim();
+
+        // Remove page numbers and dates that may vary
+        normalized = Regex.Replace(normalized, @"\b\d{1,4}\b", ""); // Remove standalone numbers
+        normalized = Regex.Replace(normalized, @"\d{4}[-/]\d{2}[-/]\d{2}", ""); // Remove dates
+        normalized = Regex.Replace(normalized, @"\s+", " "); // Normalize whitespace
+
+        return normalized.Trim();
+    }
 
     /// <summary>
     /// Merge page texts with intelligent sentence boundary handling.
