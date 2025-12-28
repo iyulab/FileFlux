@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **PDF Header/Footer Filter**: Repetitive line pattern detection and removal
+  - `PdfHeaderFooterFilter`: Detects lines appearing on multiple pages (configurable threshold)
+  - `RefineOptions.FilterPdfHeaderFooter`: Opt-in feature for PDF noise reduction
+  - `RefineOptions.PdfHeaderFooterThreshold`: Configurable ratio (default 0.5 = 50% of pages)
+- **DOCX Table Complexity Analyzer**: Phase 1 of complex table handling roadmap
+  - `DocxTableComplexityAnalyzer`: Detects merged cells, nested tables, irregular rows
+  - `TableAnalysisResult`: Comprehensive metrics with complexity scoring (0.0-1.0)
+  - `TableComplexityLevel`: Simple, Low, Medium, High, VeryHigh classification
+  - Generates warnings for Markdown-incompatible table structures
+- **PPTX Slide Title Extraction**: Enhanced title detection in presentations
+  - Improved title placeholder detection using shape type analysis
+  - Better handling of slides without explicit title shapes
+- **XLSX Markdown Table Output**: Enhanced spreadsheet to Markdown conversion
+  - Proper column alignment detection and formatting
+  - Improved cell content handling for complex data
 - **Auto Chunking Strategy Selection**: Document structure-based strategy selection
   - `SelectChunkingStrategy()`: Analyzes document for headings and numbered sections
   - `AnalyzeDocumentStructure()`: Detects Markdown headings, numbered patterns

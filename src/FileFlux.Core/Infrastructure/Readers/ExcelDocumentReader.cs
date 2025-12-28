@@ -427,7 +427,10 @@ public class ExcelDocumentReader : IDocumentReader
         try
         {
             var rows = worksheetPart.Worksheet.Descendants<Row>().ToList();
+            var processedRows = new List<List<string>>();
+            var maxColumns = 0;
 
+            // First pass: collect all rows and determine max columns
             foreach (var row in rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -439,7 +442,9 @@ public class ExcelDocumentReader : IDocumentReader
                 foreach (var cell in cells)
                 {
                     var cellValue = GetCellValue(cell, sharedStringTable);
-                    cellValues.Add(cellValue);
+                    // Escape pipe characters for Markdown table compatibility
+                    var escapedValue = cellValue.Replace("|", "\\|").Replace("\n", " ").Replace("\r", "");
+                    cellValues.Add(escapedValue);
 
                     if (!string.IsNullOrWhiteSpace(cellValue))
                     {
@@ -450,13 +455,33 @@ public class ExcelDocumentReader : IDocumentReader
 
                 if (hasContent)
                 {
-                    // 테이블 형식으로 셀 값들을 연결 (파이프 구분자 사용)
-                    var rowText = string.Join(" | ", cellValues.Where(v => !string.IsNullOrWhiteSpace(v)));
-                    if (!string.IsNullOrWhiteSpace(rowText))
-                    {
-                        contentBuilder.AppendLine(rowText);
-                        rowCount++;
-                    }
+                    processedRows.Add(cellValues);
+                    maxColumns = Math.Max(maxColumns, cellValues.Count);
+                    rowCount++;
+                }
+            }
+
+            // Generate Markdown table
+            if (processedRows.Count > 0 && maxColumns > 0)
+            {
+                // Normalize all rows to have same column count
+                foreach (var row in processedRows)
+                {
+                    while (row.Count < maxColumns)
+                        row.Add(string.Empty);
+                }
+
+                // Header row (first row)
+                var headerRow = processedRows[0];
+                contentBuilder.AppendLine("| " + string.Join(" | ", headerRow) + " |");
+
+                // Separator row
+                contentBuilder.AppendLine("| " + string.Join(" | ", headerRow.Select(_ => "---")) + " |");
+
+                // Data rows (skip header)
+                for (int i = 1; i < processedRows.Count; i++)
+                {
+                    contentBuilder.AppendLine("| " + string.Join(" | ", processedRows[i]) + " |");
                 }
             }
         }

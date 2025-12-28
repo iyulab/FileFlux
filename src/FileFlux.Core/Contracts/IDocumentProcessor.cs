@@ -283,6 +283,19 @@ public class RefineOptions
     public int? MaxLlmTokens { get; set; }
 
     /// <summary>
+    /// Enable PDF header/footer pattern detection and removal.
+    /// When enabled, repetitive lines appearing on multiple pages are identified and filtered.
+    /// Default: false (opt-in feature).
+    /// </summary>
+    public bool FilterPdfHeaderFooter { get; set; } = false;
+
+    /// <summary>
+    /// Minimum ratio of pages a line must appear on to be considered header/footer.
+    /// Range: 0.0-1.0. Default: 0.5 (50% of pages).
+    /// </summary>
+    public double PdfHeaderFooterThreshold { get; set; } = 0.5;
+
+    /// <summary>
     /// Default refinement options.
     /// </summary>
     public static RefineOptions Default => new();

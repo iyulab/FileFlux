@@ -404,6 +404,58 @@ public class PowerPointDocumentReader : IDocumentReader
         }
     }
 
+    /// <summary>
+    /// Extracts the slide title from title placeholder shapes.
+    /// Falls back to first text content or slide number if no title found.
+    /// </summary>
+    private static string ExtractSlideTitle(Slide slide, int slideNumber)
+    {
+        var shapeTree = slide.CommonSlideData?.ShapeTree;
+        if (shapeTree == null)
+            return $"Slide {slideNumber}";
+
+        // 1. Try to find title placeholder (Title or CenteredTitle)
+        foreach (var shape in shapeTree.Elements<Shape>())
+        {
+            var placeholder = shape.NonVisualShapeProperties?
+                .ApplicationNonVisualDrawingProperties?
+                .GetFirstChild<PlaceholderShape>();
+
+            if (placeholder?.Type != null && placeholder.Type.HasValue)
+            {
+                var placeholderType = placeholder.Type.Value;
+                if (placeholderType == PlaceholderValues.Title ||
+                    placeholderType == PlaceholderValues.CenteredTitle)
+                {
+                    var titleText = ExtractTextFromShape(shape);
+                    if (!string.IsNullOrWhiteSpace(titleText))
+                    {
+                        // Clean up: remove newlines and trim
+                        return titleText.Replace("\r\n", " ").Replace("\n", " ").Trim();
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback: try first text block if it looks like a title (short text)
+        foreach (var shape in shapeTree.Elements<Shape>())
+        {
+            var text = ExtractTextFromShape(shape);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                var cleanText = text.Replace("\r\n", " ").Replace("\n", " ").Trim();
+                // Use as title only if reasonably short (under 100 chars)
+                if (cleanText.Length > 0 && cleanText.Length < 100)
+                {
+                    return cleanText;
+                }
+            }
+        }
+
+        // 3. Final fallback
+        return $"Slide {slideNumber}";
+    }
+
     private static (string Content, int ShapeCount) ExtractSlideContent(Slide slide, SlidePart slidePart, int slideNumber, List<string> warnings, CancellationToken cancellationToken)
     {
         var contentBuilder = new StringBuilder();
@@ -411,7 +463,9 @@ public class PowerPointDocumentReader : IDocumentReader
 
         try
         {
-            contentBuilder.AppendLine($"## Slide {slideNumber}");
+            // Extract actual slide title from title placeholder
+            var slideTitle = ExtractSlideTitle(slide, slideNumber);
+            contentBuilder.AppendLine($"## {slideTitle}");
             contentBuilder.AppendLine();
 
             var shapeTree = slide.CommonSlideData?.ShapeTree;

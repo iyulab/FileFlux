@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using FileFlux.Core;
+using FileFlux.Infrastructure.Filters;
 using FluxCurator.Core;
 using FluxCurator.Core.Infrastructure.Refining;
 using Microsoft.Extensions.Logging;
@@ -62,6 +63,20 @@ public sealed class DocumentRefiner : IDocumentRefiner
             if (options.CleanNoise)
             {
                 refinedText = CleanDocumentNoise(refinedText);
+
+                // Apply PDF-specific header/footer filtering if enabled
+                if (options.FilterPdfHeaderFooter && IsPdfDocument(raw))
+                {
+                    var pageCount = CalculatePageCount(raw);
+                    var pdfFilter = new PdfHeaderFooterFilter(new PdfHeaderFooterFilter.Options
+                    {
+                        Enabled = true,
+                        RepetitionThreshold = options.PdfHeaderFooterThreshold,
+                        MinPageCount = 3
+                    });
+                    refinedText = pdfFilter.Filter(refinedText, pageCount);
+                    _logger.LogDebug("Applied PDF header/footer filter: {PageCount} pages", pageCount);
+                }
             }
 
             // Step 1.5: Convert numbered section markers to Markdown headings
@@ -189,6 +204,37 @@ public sealed class DocumentRefiner : IDocumentRefiner
             throw new DocumentProcessingException($"stream://{raw.File.Name}", $"Refinement failed: {ex.Message}", ex);
         }
     }
+
+    #region PDF Header/Footer Filtering
+
+    /// <summary>
+    /// Determines if the document is a PDF based on file extension.
+    /// </summary>
+    private static bool IsPdfDocument(RawContent raw)
+    {
+        var extension = raw.File.Extension.TrimStart('.').ToUpperInvariant();
+        return extension == "PDF";
+    }
+
+    /// <summary>
+    /// Calculates the page count from TextBlocks or estimates from text content.
+    /// </summary>
+    private static int CalculatePageCount(RawContent raw)
+    {
+        // First, try to get page count from blocks
+        if (raw.Blocks.Count > 0)
+        {
+            var maxPageNumber = raw.Blocks.Max(b => b.PageNumber);
+            if (maxPageNumber > 0)
+                return maxPageNumber;
+        }
+
+        // Fallback: estimate from text length (average 3000 chars per page)
+        var estimatedPages = Math.Max(1, raw.Text.Length / 3000);
+        return estimatedPages;
+    }
+
+    #endregion
 
     #region Content Cleaning
 
