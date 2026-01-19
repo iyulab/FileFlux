@@ -11,10 +11,10 @@ FileFlux follows clean architecture principles with a **two-package structure**:
 - **FileFlux.Core**: Pure document extraction with zero AI dependencies
   - Standard document readers (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML)
   - Core interfaces and domain models
-  - No AI service dependencies
-- **FileFlux**: Full RAG pipeline with LMSupply integration
+  - AI service interface definitions (no implementations)
+- **FileFlux**: Full RAG pipeline (interface-driven)
   - MultiModal document readers (AI-enhanced)
-  - AI service interfaces and LMSupply implementations
+  - AI service interfaces for consumer implementation
   - Chunking strategies (FluxCurator)
   - Content enhancement (FluxImprover)
   - Processing orchestration
@@ -128,13 +128,6 @@ FileFlux/                         # Full RAG Pipeline Package
 │   ├── Languages/                # Language Profiles
 │   │   └── LanguageProfiles.cs
 │   ├── Services/                 # Processing Services
-│   │   ├── LMSupply/              # LMSupply Implementations
-│   │   │   ├── LMSupplyEmbedderService
-│   │   │   ├── LMSupplyGeneratorService
-│   │   │   ├── LMSupplyCaptionerService
-│   │   │   ├── LMSupplyOcrService
-│   │   │   ├── LMSupplyServiceFactory
-│   │   │   └── LMSupplyOptions
 │   │   ├── AIMetadataEnricher
 │   │   ├── FluxCurator
 │   │   └── FluxImprover
@@ -501,34 +494,31 @@ var options = new ChunkingOptions
 services.AddFileFlux();  // Pure extraction + chunking
 ```
 
-**With LMSupply** (Locally running AI processing):
-```csharp
-// Full LMSupply integration
-services.AddFileFluxWithLMSupply();
-
-// With custom configuration
-services.AddFileFluxWithLMSupply(options =>
-{
-    options.UseGpuAcceleration = true;
-    options.EmbeddingModel = "default";
-    options.GeneratorModel = "microsoft/Phi-4-mini-instruct-onnx";
-    options.WarmupOnInit = true;
-});
-```
-
-**Selective LMSupply Services**:
-```csharp
-services.AddLMSupplyEmbedder();    // IEmbeddingService only
-services.AddLMSupplyGenerator();   // ITextCompletionService only
-services.AddLMSupplyCaptioner();   // IImageToTextService (captions)
-services.AddLMSupplyOcr();         // IImageToTextService (OCR)
-```
-
-**With External AI Services**:
+**With AI Services** (Consumer-provided implementations):
 ```csharp
 // Use your own AI service implementations
 services.AddScoped<ITextCompletionService, YourLLMService>();
 services.AddScoped<IImageToTextService, YourVisionService>();
+services.AddScoped<IEmbeddingService, YourEmbeddingService>();
+services.AddFileFlux();
+```
+
+**With LMSupply** (CLI example - local AI processing):
+```csharp
+// LMSupply is NOT a dependency of FileFlux
+// Consumer applications reference LMSupply directly
+// See cli/FileFlux.CLI/Services/LMSupply for implementation examples
+
+var lmSupplyOptions = new LMSupplyOptions
+{
+    UseGpuAcceleration = true,
+    EmbeddingModel = "default",
+    GeneratorModel = "microsoft/Phi-4-mini-instruct-onnx"
+};
+
+// Create and register LMSupply services
+var embedder = await LMSupplyEmbedderService.CreateAsync(lmSupplyOptions);
+services.AddSingleton<IEmbeddingService>(embedder);
 services.AddFileFlux();
 ```
 
@@ -708,19 +698,22 @@ FileFlux focuses on transforming documents into structured chunks optimized for 
 - **FileFlux.Core**: Pure extraction, zero AI dependencies
   - Standard document readers
   - Core interfaces and models
+  - AI service interface definitions
   - For users implementing custom pipelines
-- **FileFlux**: Full RAG pipeline with LMSupply integration
+- **FileFlux**: Full RAG pipeline (interface-driven)
   - MultiModal readers (AI-enhanced)
-  - LMSupply services (embedding, generation, captioning, OCR)
   - FluxCurator and FluxImprover
+  - No direct AI service implementations
 
-**LMSupply Integration**: Built-in Locally running AI processing without external API dependencies:
-- Embedding generation (LMSupply.Embedder)
-- Text generation (LMSupply.Generator)
-- Image captioning (LMSupply.Captioner)
-- OCR text extraction (LMSupply.Ocr)
+**Interface-Driven AI**: FileFlux defines AI service interfaces without implementations:
+- `ITextCompletionService`: Text generation for intelligent chunking
+- `IImageToTextService`: Image captioning and OCR
+- `IEmbeddingService`: Embedding generation for semantic search
 
-**Interface Provider Pattern**: FileFlux defines interfaces while providing both local implementations and allowing custom providers.
+**Consumer Responsibility**: Applications provide AI service implementations:
+- Use OpenAI, Anthropic, Azure OpenAI, or other cloud providers
+- Use LMSupply for local AI processing (see CLI for examples)
+- Implement custom providers as needed
 
 **Package Selection Guide**:
 ```csharp
@@ -729,15 +722,13 @@ using FileFlux.Core;
 var reader = new PdfDocumentReader();
 var rawContent = await reader.ReadAsync("document.pdf");
 
-// Full RAG pipeline with LMSupply
+// Full RAG pipeline with custom AI providers
 using FileFlux;
-services.AddFileFluxWithLMSupply();
+services.AddScoped<ITextCompletionService, OpenAIService>();
+services.AddScoped<IEmbeddingService, OpenAIEmbeddingService>();
+services.AddFileFlux();
 var processor = serviceProvider.GetRequiredService<IDocumentProcessor>();
 var chunks = await processor.ProcessAsync("document.pdf", options);
-
-// Custom AI providers
-services.AddScoped<ITextCompletionService, OpenAIService>();
-services.AddFileFlux();
 ```
 
 ## FAQ

@@ -1,4 +1,4 @@
-namespace FileFlux.Infrastructure.Services.LMSupply;
+namespace FileFlux.CLI.Services.LMSupply;
 
 /// <summary>
 /// Configuration options for LMSupply services.

@@ -1,6 +1,6 @@
 using LMSupply;
 
-namespace FileFlux.Infrastructure.Services.LMSupply;
+namespace FileFlux.CLI.Services.LMSupply;
 
 /// <summary>
 /// Factory for creating and caching LMSupply service instances.

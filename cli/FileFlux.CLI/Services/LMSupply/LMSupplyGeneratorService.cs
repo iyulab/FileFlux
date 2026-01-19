@@ -1,10 +1,11 @@
+using FileFlux.Core;
 using FileFlux.Domain;
 using LMSupply;
 using LMSupply.Generator;
 using LMSupply.Generator.Abstractions;
 using LMSupply.Generator.Models;
 
-namespace FileFlux.Infrastructure.Services.LMSupply;
+namespace FileFlux.CLI.Services.LMSupply;
 
 /// <summary>
 /// ITextCompletionService implementation using LMSupply.Generator.

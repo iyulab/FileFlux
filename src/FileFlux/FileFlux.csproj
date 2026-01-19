@@ -36,28 +36,10 @@
     <ProjectReference Include="..\..\..\FluxImprover\src\FluxImprover\FluxImprover.csproj" />
   </ItemGroup>
 
-  <!-- DEBUG: LMSupply project references for local development -->
-  <ItemGroup Label="LMSupply" Condition="'$(Configuration)' == 'Debug'">
-    <ProjectReference Include="..\..\..\lm-supply\src\LMSupply.Core\LMSupply.Core.csproj" />
-    <ProjectReference Include="..\..\..\lm-supply\src\LMSupply.Embedder\LMSupply.Embedder.csproj" />
-    <ProjectReference Include="..\..\..\lm-supply\src\LMSupply.Generator\LMSupply.Generator.csproj" />
-    <ProjectReference Include="..\..\..\lm-supply\src\LMSupply.Captioner\LMSupply.Captioner.csproj" />
-    <ProjectReference Include="..\..\..\lm-supply\src\LMSupply.Ocr\LMSupply.Ocr.csproj" />
-  </ItemGroup>
-
   <!-- RELEASE: NuGet package references for distribution -->
   <ItemGroup Label="Text Processing" Condition="'$(Configuration)' == 'Release'">
     <PackageReference Include="FluxCurator" />
     <PackageReference Include="FluxImprover" />
-  </ItemGroup>
-
-  <!-- RELEASE: LMSupply NuGet packages for distribution -->
-  <ItemGroup Label="LMSupply" Condition="'$(Configuration)' == 'Release'">
-    <PackageReference Include="LMSupply.Core" />
-    <PackageReference Include="LMSupply.Embedder" />
-    <PackageReference Include="LMSupply.Generator" />
-    <PackageReference Include="LMSupply.Captioner" />
-    <PackageReference Include="LMSupply.Ocr" />
   </ItemGroup>
 
 </Project>

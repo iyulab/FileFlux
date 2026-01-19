@@ -16,7 +16,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 - **4-Stage Stateful Pipeline**: Extract → Refine → Chunk → Enrich with explicit state management
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, Markdown, HTML, TXT, JSON, CSV
 - **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel
-- **Local AI Processing**: Built-in LMSupply support for embeddings, text generation, captioning, and OCR
+- **Interface-Driven AI**: Define AI service interfaces, implement with your preferred provider
 - **Document Graph**: Inter-chunk relationship tracking with sequential, hierarchical, and semantic edges
 - **Structural Metadata**: HeadingPath, page numbers, ContextDependency scores for enhanced RAG
 - **Language Detection**: Automatic language detection using NTextCat
@@ -42,9 +42,9 @@ dotnet add package FileFlux.Core
 |---------|---------------|----------|
 | Document Readers (PDF, DOCX, etc.) | ✅ | ✅ |
 | Core Interfaces & Models | ✅ | ✅ |
+| AI Service Interfaces | ✅ | ✅ |
 | Chunking Strategies | ❌ | ✅ |
 | FluxCurator & FluxImprover | ❌ | ✅ |
-| LMSupply Integration | ❌ | ✅ |
 | DocumentProcessor | ❌ | ✅ |
 | Use Case | Custom chunking | Full RAG pipeline |
 
@@ -177,11 +177,19 @@ foreach (var chunk in chunks)
 }
 ```
 
-### Local AI Processing
+### AI Service Interfaces
 
-FileFlux includes **built-in Local AI capabilities** via [LMSupply](https://github.com/iyulab/lm-supply), providing embeddings, text generation, image captioning, and OCR without external API calls.
+FileFlux defines AI service interfaces - consumer applications provide implementations.
 
-#### Full LMSupply Integration
+#### Available Interfaces
+
+| Interface | Purpose | Example Implementations |
+|-----------|---------|------------------------|
+| `ITextCompletionService` | Text generation, intelligent chunking | OpenAI, Anthropic, LMSupply |
+| `IImageToTextService` | Image captioning, OCR | OpenAI Vision, LMSupply Captioner/OCR |
+| `IEmbeddingService` | Embedding generation | OpenAI, LMSupply Embedder |
+
+#### Example: Custom AI Provider
 
 ```csharp
 using FileFlux;
@@ -189,66 +197,42 @@ using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-// Register FileFlux with all LMSupply services
-services.AddFileFluxWithLMSupply();
+// Implement your own AI service
+services.AddScoped<ITextCompletionService, YourOpenAIService>();
+services.AddScoped<IImageToTextService, YourVisionService>();
+services.AddScoped<IEmbeddingService, YourEmbeddingService>();
 
-// Or with custom configuration
-services.AddFileFluxWithLMSupply(options =>
-{
-    options.UseGpuAcceleration = true;           // DirectML, CUDA, CoreML
-    options.EmbeddingModel = "default";          // all-MiniLM-L6-v2
-    options.GeneratorModel = "microsoft/Phi-4-mini-instruct-onnx";
-    options.WarmupOnInit = true;                 // Preload models
-});
+// Register FileFlux
+services.AddFileFlux();
 
 var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 ```
 
-#### Selective Service Registration
+#### Local AI with LMSupply (CLI Example)
+
+For local AI processing without external API calls, see [LMSupply](https://github.com/iyulab/lm-supply). The FileFlux CLI demonstrates LMSupply integration:
 
 ```csharp
-// Register only the services you need
-services.AddLMSupplyEmbedder();    // IEmbeddingService
-services.AddLMSupplyGenerator();   // ITextCompletionService
-services.AddLMSupplyCaptioner();   // IImageToTextService (captions)
-services.AddLMSupplyOcr();         // IImageToTextService (OCR)
+// Example from FileFlux.CLI - local AI processing
+var lmSupplyOptions = new LMSupplyOptions
+{
+    UseGpuAcceleration = true,
+    EmbeddingModel = "default",
+    GeneratorModel = "microsoft/Phi-4-mini-instruct-onnx"
+};
+
+// Create LMSupply service implementations
+var embedder = await LMSupplyEmbedderService.CreateAsync(lmSupplyOptions);
+var generator = await LMSupplyGeneratorService.CreateAsync(lmSupplyOptions);
+
+// Register as AI service implementations
+services.AddSingleton<IEmbeddingService>(embedder);
+services.AddSingleton<ITextCompletionService>(generator);
+services.AddFileFlux();
 ```
 
-#### Semantic Similarity
-
-```csharp
-var embeddingService = provider.GetRequiredService<IEmbeddingService>();
-
-// Generate embeddings for semantic search
-var queryEmb = await embeddingService.GenerateEmbeddingAsync(
-    "machine learning algorithms",
-    EmbeddingPurpose.SemanticSearch);
-
-var docEmb = await embeddingService.GenerateEmbeddingAsync(
-    "AI models learn patterns from data",
-    EmbeddingPurpose.SemanticSearch);
-
-// Calculate cosine similarity
-var similarity = embeddingService.CalculateSimilarity(queryEmb, docEmb);
-// Returns ~0.7 for related content
-```
-
-#### LMSupply Services
-
-| Service | Interface | Description |
-|---------|-----------|-------------|
-| Embedder | `IEmbeddingService` | Local embedding generation (384/768 dimensions) |
-| Generator | `ITextCompletionService` | Local text generation with Phi models |
-| Captioner | `IImageToTextService` | Image captioning for visual content |
-| OCR | `IImageToTextService` | Text extraction from images |
-
-**Features:**
-- **Auto-download**: Models downloaded automatically on first use
-- **GPU Support**: CUDA, DirectML (Windows), CoreML (macOS)
-- **Thread-Safe**: Concurrent access with lazy initialization
-- **Multi-language OCR**: Support for English, Korean, Chinese, Japanese
-- **Zero API Costs**: All processing runs locally
+**Note**: LMSupply is not a direct dependency of FileFlux. Consumer applications that need local AI should reference LMSupply packages directly.
 
 ## Supported Document Formats
 
@@ -389,9 +373,11 @@ FileFlux/
 │   │   ├── Contracts/               # IDocumentProcessor, ProcessingResult
 │   │   ├── Core/                    # IDocumentRefiner, IDocumentEnricher
 │   │   └── Domain/                  # DocumentGraph, RefinedContent, StructuredElement
-│   └── FileFlux/                    # Full RAG pipeline with LMSupply
+│   └── FileFlux/                    # Full RAG pipeline (interface-driven)
 │       └── Infrastructure/          # StatefulDocumentProcessor, DocumentRefiner, DocumentEnricher
-├── cli/                             # CLI for local testing (not published)
+├── cli/                             # CLI with LMSupply integration (not published)
+│   └── FileFlux.CLI/
+│       └── Services/LMSupply/       # LMSupply service implementations
 ├── tests/
 │   └── FileFlux.Tests/              # Test suite (343+ tests)
 └── samples/

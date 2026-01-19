@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using FileFlux.Core;
+using FileFlux.Infrastructure.Services;
 using LMSupply;
 using LMSupply.Ocr;
 
-namespace FileFlux.Infrastructure.Services.LMSupply;
+namespace FileFlux.CLI.Services.LMSupply;
 
 /// <summary>
 /// IImageToTextService implementation using LMSupply.Ocr.
@@ -205,10 +207,10 @@ public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable
             Content = region.Text,
             BoundingBox = new FileFlux.BoundingBox
             {
-                X = region.BoundingBox.X,
-                Y = region.BoundingBox.Y,
-                Width = region.BoundingBox.Width,
-                Height = region.BoundingBox.Height
+                X = (int)region.BoundingBox.X,
+                Y = (int)region.BoundingBox.Y,
+                Width = (int)region.BoundingBox.Width,
+                Height = (int)region.BoundingBox.Height
             },
             Confidence = region.Confidence
         }).ToList();

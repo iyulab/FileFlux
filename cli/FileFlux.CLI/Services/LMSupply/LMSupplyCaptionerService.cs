@@ -1,8 +1,9 @@
 using System.Diagnostics;
+using FileFlux.Core;
 using LMSupply;
 using LMSupply.Captioner;
 
-namespace FileFlux.Infrastructure.Services.LMSupply;
+namespace FileFlux.CLI.Services.LMSupply;
 
 /// <summary>
 /// IImageToTextService implementation using LMSupply.Captioner.
