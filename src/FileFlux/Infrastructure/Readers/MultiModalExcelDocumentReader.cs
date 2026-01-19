@@ -381,6 +381,11 @@ public class MultiModalExcelDocumentReader : IDocumentReader
 
         try
         {
+            if (worksheetPart.Worksheet is null)
+            {
+                return string.Empty;
+            }
+
             var rows = worksheetPart.Worksheet.Descendants<Row>().Take(10); // 처음 10행만 (컨텍스트용)
 
             foreach (var row in rows)

@@ -125,7 +125,7 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                 documentContext.PageNumber = slideIndex + 1;
 
                 // 슬라이드 텍스트 추출 (컨텍스트용)
-                var slideText = ExtractSlideText(slidePart.Slide);
+                var slideText = slidePart.Slide is not null ? ExtractSlideText(slidePart.Slide) : string.Empty;
                 if (!string.IsNullOrEmpty(slideText))
                 {
                     documentContext.SurroundingText = TruncateText(slideText, 500);
