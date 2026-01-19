@@ -3,7 +3,7 @@ namespace FileFlux.Core;
 /// <summary>
 /// Options for document refining/cleaning stage.
 /// Controls document-level refinement (headers, footers, page numbers, structure).
-/// Text-level refinement preset can be specified via TextRefinementPreset.
+/// Default settings are optimized for RAG pipelines with token optimization.
 /// </summary>
 public class RefiningOptions
 {
@@ -59,44 +59,27 @@ public class RefiningOptions
 
     /// <summary>
     /// Text-level refinement preset name for FluxCurator integration.
-    /// Valid values: "None", "Light", "Standard", "ForWebContent", "ForKorean", "ForPdfContent",
+    /// Valid values: "None", "Light", "Standard", "ForWebContent", "ForPdfContent",
     /// "ForTokenOptimization", "ForAggressiveTokenOptimization"
-    /// Default: "Standard" (token optimization included per minimum-config principle).
+    /// Default: "ForTokenOptimization" (RAG-optimized with token reduction).
     /// </summary>
-    public string TextRefinementPreset { get; set; } = "Standard";
+    public string TextRefinementPreset { get; set; } = "ForTokenOptimization";
 
     // ========================================
     // Factory Methods for Common Scenarios
     // ========================================
 
     /// <summary>
-    /// Default options for general document processing.
+    /// Default options optimized for RAG pipelines.
+    /// Includes token optimization, Markdown conversion, and structure preservation.
     /// </summary>
     public static RefiningOptions Default => new();
-
-    /// <summary>
-    /// Options optimized for Korean web content (bulletin boards, blogs).
-    /// Uses FluxCurator's ForKorean preset with Korean-specific patterns.
-    /// </summary>
-    public static RefiningOptions ForKoreanWebContent => new()
-    {
-        RemoveHeadersFooters = true,
-        RemovePageNumbers = true,
-        CleanWhitespace = true,
-        RestructureHeadings = true,
-        TextRefinementPreset = "ForKorean"
-    };
 
     /// <summary>
     /// Options optimized for PDF documents.
     /// </summary>
     public static RefiningOptions ForPdfDocument => new()
     {
-        RemoveHeadersFooters = true,
-        RemovePageNumbers = true,
-        CleanWhitespace = true,
-        RestructureHeadings = true,
-        ConvertToMarkdown = true,
         TextRefinementPreset = "ForPdfContent"
     };
 
@@ -105,9 +88,7 @@ public class RefiningOptions
     /// </summary>
     public static RefiningOptions ForWebContent => new()
     {
-        RemoveHeadersFooters = true,
         RemovePageNumbers = false,
-        CleanWhitespace = true,
         RestructureHeadings = false,
         TextRefinementPreset = "ForWebContent"
     };
@@ -119,53 +100,25 @@ public class RefiningOptions
     {
         RemoveHeadersFooters = false,
         RemovePageNumbers = false,
-        CleanWhitespace = true,
         RestructureHeadings = false,
         TextRefinementPreset = "None"
     };
 
     /// <summary>
-    /// Options optimized for RAG pipelines with full content transformation.
-    /// Enables Markdown conversion and token optimization for better quality.
+    /// Options with image processing enabled.
+    /// Extracts text from embedded images using IImageToTextService.
     /// </summary>
-    public static RefiningOptions ForRAG => new()
+    public static RefiningOptions WithImageProcessing => new()
     {
-        RemoveHeadersFooters = true,
-        RemovePageNumbers = true,
-        CleanWhitespace = true,
-        RestructureHeadings = true,
-        ConvertToMarkdown = true,
-        ProcessImagesToText = false,
-        TextRefinementPreset = "ForTokenOptimization"
+        ProcessImagesToText = true
     };
 
     /// <summary>
-    /// Options optimized for RAG pipelines with image processing.
-    /// Enables Markdown conversion, image-to-text extraction, and token optimization.
-    /// </summary>
-    public static RefiningOptions ForRAGWithImages => new()
-    {
-        RemoveHeadersFooters = true,
-        RemovePageNumbers = true,
-        CleanWhitespace = true,
-        RestructureHeadings = true,
-        ConvertToMarkdown = true,
-        ProcessImagesToText = true,
-        TextRefinementPreset = "ForTokenOptimization"
-    };
-
-    /// <summary>
-    /// Options for aggressive token optimization (web scraping, PDF conversion).
+    /// Options for aggressive token optimization.
     /// Maximizes token reduction with ASCII art removal, Base64 data removal, etc.
     /// </summary>
-    public static RefiningOptions ForAggressiveTokenOptimization => new()
+    public static RefiningOptions Aggressive => new()
     {
-        RemoveHeadersFooters = true,
-        RemovePageNumbers = true,
-        CleanWhitespace = true,
-        RestructureHeadings = true,
-        ConvertToMarkdown = true,
-        ProcessImagesToText = false,
         TextRefinementPreset = "ForAggressiveTokenOptimization"
     };
 }

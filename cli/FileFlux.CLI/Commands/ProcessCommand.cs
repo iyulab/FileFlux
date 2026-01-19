@@ -1229,27 +1229,13 @@ public class ProcessCommand : Command
     {
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
 
-        // Detect language for Korean-specific processing
-        var (language, confidence) = Infrastructure.Services.LanguageDetector.Detect(content);
-        var isKorean = language == "ko" && confidence >= 0.5;
-
-        // Select preset based on document type and language
+        // Select preset based on document type
+        // Language-specific processing is handled internally by FluxCurator via auto-detection
         return extension switch
         {
-            ".pdf" when isKorean => new RefiningOptions
-            {
-                TextRefinementPreset = "ForKorean",  // Korean takes priority
-                RemoveHeadersFooters = true,
-                RemovePageNumbers = true,
-                CleanWhitespace = true,
-                RestructureHeadings = true,
-                ConvertToMarkdown = true
-            },
             ".pdf" => RefiningOptions.ForPdfDocument,
-            ".html" or ".htm" when isKorean => RefiningOptions.ForKoreanWebContent,
             ".html" or ".htm" => RefiningOptions.ForWebContent,
-            _ when isKorean => RefiningOptions.ForKoreanWebContent,
-            _ => RefiningOptions.ForRAG  // Default: Standard preset for RAG
+            _ => RefiningOptions.Default  // RAG-optimized by default
         };
     }
 

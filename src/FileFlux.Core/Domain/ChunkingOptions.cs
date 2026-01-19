@@ -113,7 +113,7 @@ public class ChunkingOptions
     /// <summary>
     /// Refining options to apply before chunking (default: enabled with Markdown conversion).
     /// The Refine stage is executed between Parse and Chunk stages.
-    /// Set to null to disable refining, or use RefiningOptions.ForRAGWithImages for image processing.
+    /// Set to null to disable refining, or use RefiningOptions.WithImageProcessing for image processing.
     /// </summary>
     public RefiningOptions? RefiningOptions { get; set; } = new();
 }

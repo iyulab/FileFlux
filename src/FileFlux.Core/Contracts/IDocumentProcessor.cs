@@ -296,9 +296,17 @@ public class RefineOptions
     public double PdfHeaderFooterThreshold { get; set; } = 0.5;
 
     /// <summary>
-    /// Default refinement options.
+    /// Default refinement options (RAG-optimized).
     /// </summary>
-    public static RefineOptions Default => new();
+    public static RefineOptions Default => new()
+    {
+        ExtractStructures = true,
+        CleanNoise = true,
+        ConvertTablesToMarkdown = true,
+        ConvertBlocksToMarkdown = true,
+        BuildSections = true,
+        NormalizeWhitespace = true
+    };
 
     /// <summary>
     /// Minimal refinement (fast, rule-based only).
@@ -311,7 +319,7 @@ public class RefineOptions
     };
 
     /// <summary>
-    /// Full refinement with all features.
+    /// Full refinement with all features including image processing.
     /// </summary>
     public static RefineOptions Full => new()
     {
@@ -325,21 +333,7 @@ public class RefineOptions
     };
 
     /// <summary>
-    /// RAG-optimized refinement.
-    /// </summary>
-    public static RefineOptions ForRAG => new()
-    {
-        UseLlm = false,
-        ExtractStructures = true,
-        CleanNoise = true,
-        ConvertTablesToMarkdown = true,
-        ConvertBlocksToMarkdown = true,
-        BuildSections = true,
-        NormalizeWhitespace = true
-    };
-
-    /// <summary>
-    /// Full LLM-enhanced refinement.
+    /// LLM-enhanced refinement.
     /// </summary>
     public static RefineOptions WithLlm => new()
     {
