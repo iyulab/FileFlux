@@ -426,6 +426,12 @@ public class ExcelDocumentReader : IDocumentReader
 
         try
         {
+            if (worksheetPart.Worksheet is null)
+            {
+                warnings.Add($"Worksheet '{sheetName}' has no content.");
+                return (string.Empty, 0, 0);
+            }
+
             var rows = worksheetPart.Worksheet.Descendants<Row>().ToList();
             var processedRows = new List<List<string>>();
             var maxColumns = 0;
