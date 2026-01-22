@@ -46,6 +46,53 @@ var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 ```
 
+### Service Lifetime Configuration
+
+FileFlux services are registered with `Scoped` lifetime by default, which is suitable for web applications with per-request scope. However, when integrating with Singleton services (e.g., background services, hosted services), you can configure the service lifetime explicitly:
+
+```csharp
+// Default: Scoped lifetime (for web applications)
+services.AddFileFlux();
+
+// Singleton lifetime (for background services, IHostedService, etc.)
+services.AddFileFlux(ServiceLifetime.Singleton);
+```
+
+**When to use Singleton lifetime:**
+- Background processing services that run outside HTTP request scope
+- `IHostedService` implementations
+- Services registered as Singleton that depend on FileFlux
+- File processing workers in message queue consumers
+
+```csharp
+// Example: FileFlux with a Singleton background service
+services.AddFileFlux(ServiceLifetime.Singleton);
+services.AddHostedService<DocumentProcessingWorker>();
+
+public class DocumentProcessingWorker : BackgroundService
+{
+    private readonly IDocumentProcessorFactory _factory;
+
+    // Works because FileFlux is also Singleton
+    public DocumentProcessingWorker(IDocumentProcessorFactory factory)
+    {
+        _factory = factory;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            using var processor = _factory.Create("document.pdf");
+            await processor.ProcessAsync();
+            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+        }
+    }
+}
+```
+
+**Note:** Document readers are always registered as Transient (stateless), and converters/normalizers are always Singleton (thread-safe). Only the factory and processor services respect the lifetime parameter.
+
 ### Simple Document Processing
 
 ```csharp

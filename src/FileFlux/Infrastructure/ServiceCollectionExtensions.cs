@@ -26,12 +26,34 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Adds FileFlux services with FluxCurator integration for chunking.
+    /// Uses Scoped lifetime by default (suitable for web applications with per-request scope).
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddFileFlux(this IServiceCollection services)
+        => AddFileFlux(services, ServiceLifetime.Scoped);
+
+    /// <summary>
+    /// Adds FileFlux services with specified service lifetime.
+    /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <param name="lifetime">
+    /// Service lifetime for FileFlux services.
+    /// Use <see cref="ServiceLifetime.Scoped"/> (default) for web applications.
+    /// Use <see cref="ServiceLifetime.Singleton"/> when consumed by Singleton services
+    /// (e.g., background services, hosted services) that resolve from root provider.
+    /// </param>
+    /// <returns>Service collection for chaining</returns>
+    /// <remarks>
+    /// Document readers are always registered as Transient (stateless).
+    /// Converters and normalizers are always registered as Singleton (thread-safe, stateless).
+    /// Only factory and processor services respect the lifetime parameter.
+    /// </remarks>
+    public static IServiceCollection AddFileFlux(
+        this IServiceCollection services,
+        ServiceLifetime lifetime)
     {
-        // === FileFlux.Core: Document Readers ===
+        // === FileFlux.Core: Document Readers (always Transient - stateless) ===
         services.AddTransient<IDocumentReader, TextDocumentReader>();
         services.AddTransient<IDocumentReader, MarkdownDocumentReader>();
         services.AddTransient<IDocumentReader, HtmlDocumentReader>();
@@ -41,91 +63,105 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentReader, MultiModalExcelDocumentReader>();
         services.AddTransient<IDocumentReader, HwpDocumentReader>();
 
-        // Language profile for multilingual support
+        // Language profile for multilingual support (always Singleton - thread-safe)
         services.AddSingleton<ILanguageProfileProvider, DefaultLanguageProfileProvider>();
 
-        // Reader factory
-        services.AddScoped<IDocumentReaderFactory>(provider =>
-            new DocumentReaderFactory(provider.GetServices<IDocumentReader>()));
+        // Reader factory (configurable lifetime)
+        services.Add(new ServiceDescriptor(
+            typeof(IDocumentReaderFactory),
+            provider => new DocumentReaderFactory(provider.GetServices<IDocumentReader>()),
+            lifetime));
 
-        // Parser factory
+        // Parser factory (always Singleton - thread-safe, stateless)
         services.AddSingleton<IDocumentParserFactory>(provider =>
             new DocumentParserFactory(provider.GetService<ITextCompletionService>()));
 
-        // Basic parser
+        // Basic parser (always Transient - may hold state)
         services.AddTransient<IDocumentParser>(provider =>
             new BasicDocumentParser(provider.GetService<ITextCompletionService>()));
 
-        // === Markdown Converter ===
+        // === Markdown Converter (always Singleton - thread-safe) ===
         services.AddSingleton<IMarkdownConverter>(provider =>
             new MarkdownConverter(provider.GetService<ITextCompletionService>()));
 
-        // === Markdown Normalizer ===
+        // === Markdown Normalizer (always Singleton - thread-safe) ===
         services.AddSingleton<IMarkdownNormalizer, MarkdownNormalizer>();
 
-        // === Document Refiner ===
-        services.AddScoped<IDocumentRefiner>(provider =>
-        {
-            var markdownConverter = provider.GetService<IMarkdownConverter>();
-            var markdownNormalizer = provider.GetService<IMarkdownNormalizer>();
-            var loggerFactory = provider.GetService<ILoggerFactory>();
-            var logger = loggerFactory?.CreateLogger<DocumentRefiner>();
-            return new DocumentRefiner(markdownConverter, markdownNormalizer, logger);
-        });
+        // === Document Refiner (configurable lifetime) ===
+        services.Add(new ServiceDescriptor(
+            typeof(IDocumentRefiner),
+            provider =>
+            {
+                var markdownConverter = provider.GetService<IMarkdownConverter>();
+                var markdownNormalizer = provider.GetService<IMarkdownNormalizer>();
+                var loggerFactory = provider.GetService<ILoggerFactory>();
+                var logger = loggerFactory?.CreateLogger<DocumentRefiner>();
+                return new DocumentRefiner(markdownConverter, markdownNormalizer, logger);
+            },
+            lifetime));
 
         // === FluxCurator: Chunking ===
         services.AddFluxCurator();
 
-        // === FluxImprover: Enhancement (optional) ===
+        // === FluxImprover: Enhancement (optional, configurable lifetime) ===
         // FluxImproverServices is registered if ITextCompletionService is available
-        services.AddScoped<FluxImproverServices?>(provider =>
-        {
-            var completionService = provider.GetService<ITextCompletionService>();
-            if (completionService == null)
-                return null;
+        services.Add(new ServiceDescriptor(
+            typeof(FluxImproverServices),
+            provider =>
+            {
+                var completionService = provider.GetService<ITextCompletionService>();
+                if (completionService == null)
+                    return null!;
 
-            // Adapt FileFlux's ITextCompletionService to FluxImprover's interface
-            var adapter = new FluxImproverTextCompletionAdapter(completionService);
-            return new FluxImproverBuilder()
-                .WithCompletionService(adapter)
-                .Build();
-        });
+                // Adapt FileFlux's ITextCompletionService to FluxImprover's interface
+                var adapter = new FluxImproverTextCompletionAdapter(completionService);
+                return new FluxImproverBuilder()
+                    .WithCompletionService(adapter)
+                    .Build();
+            },
+            lifetime));
 
-        // === Document Enricher ===
-        services.AddScoped<IDocumentEnricher>(provider =>
-        {
-            var improverServices = provider.GetService<FluxImproverServices>();
-            var loggerFactory = provider.GetService<ILoggerFactory>();
-            var logger = loggerFactory?.CreateLogger<DocumentEnricher>();
-            return new DocumentEnricher(improverServices, logger);
-        });
+        // === Document Enricher (configurable lifetime) ===
+        services.Add(new ServiceDescriptor(
+            typeof(IDocumentEnricher),
+            provider =>
+            {
+                var improverServices = provider.GetService<FluxImproverServices>();
+                var loggerFactory = provider.GetService<ILoggerFactory>();
+                var logger = loggerFactory?.CreateLogger<DocumentEnricher>();
+                return new DocumentEnricher(improverServices, logger);
+            },
+            lifetime));
 
-        // === Main Document Processor Factory ===
+        // === Main Document Processor Factory (configurable lifetime) ===
         // Stateful pattern: use factory to create per-document processors
-        services.AddScoped<IDocumentProcessorFactory>(provider =>
-        {
-            var readerFactory = provider.GetRequiredService<IDocumentReaderFactory>();
-            var chunkerFactory = provider.GetRequiredService<IChunkerFactory>();
-            var documentRefiner = provider.GetService<IDocumentRefiner>();
-            var documentEnricher = provider.GetService<IDocumentEnricher>();
-            var improverServices = provider.GetService<FluxImproverServices>();
-            var markdownConverter = provider.GetService<IMarkdownConverter>();
-            var imageToTextService = provider.GetService<IImageToTextService>();
-            var loggerFactory = provider.GetService<ILoggerFactory>();
+        services.Add(new ServiceDescriptor(
+            typeof(IDocumentProcessorFactory),
+            provider =>
+            {
+                var readerFactory = provider.GetRequiredService<IDocumentReaderFactory>();
+                var chunkerFactory = provider.GetRequiredService<IChunkerFactory>();
+                var documentRefiner = provider.GetService<IDocumentRefiner>();
+                var documentEnricher = provider.GetService<IDocumentEnricher>();
+                var improverServices = provider.GetService<FluxImproverServices>();
+                var markdownConverter = provider.GetService<IMarkdownConverter>();
+                var imageToTextService = provider.GetService<IImageToTextService>();
+                var loggerFactory = provider.GetService<ILoggerFactory>();
 
-            return new DocumentProcessorFactory(
-                readerFactory,
-                chunkerFactory,
-                documentRefiner,
-                documentEnricher,
-                improverServices,
-                markdownConverter,
-                imageToTextService,
-                loggerFactory);
-        });
+                return new DocumentProcessorFactory(
+                    readerFactory,
+                    chunkerFactory,
+                    documentRefiner,
+                    documentEnricher,
+                    improverServices,
+                    markdownConverter,
+                    imageToTextService,
+                    loggerFactory);
+            },
+            lifetime));
 
-        // Legacy processor for backward compatibility (CLI commands)
-        services.AddScoped<FluxDocumentProcessor>();
+        // Legacy processor for backward compatibility (CLI commands, configurable lifetime)
+        services.Add(new ServiceDescriptor(typeof(FluxDocumentProcessor), typeof(FluxDocumentProcessor), lifetime));
 
         // === Optional Services ===
 
@@ -141,22 +177,33 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Adds FileFlux with a specific text completion service for AI features.
     /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <param name="textCompletionService">Text completion service for AI-powered features</param>
+    /// <param name="lifetime">Service lifetime (default: Scoped)</param>
+    /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddFileFlux(
         this IServiceCollection services,
-        ITextCompletionService textCompletionService)
+        ITextCompletionService textCompletionService,
+        ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         ArgumentNullException.ThrowIfNull(textCompletionService);
         services.AddSingleton(textCompletionService);
-        return AddFileFlux(services);
+        return AddFileFlux(services, lifetime);
     }
 
     /// <summary>
     /// Adds FileFlux with text completion and image-to-text services.
     /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <param name="textCompletionService">Text completion service for AI-powered features</param>
+    /// <param name="imageToTextService">Image-to-text service for vision features (optional)</param>
+    /// <param name="lifetime">Service lifetime (default: Scoped)</param>
+    /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddFileFlux(
         this IServiceCollection services,
         ITextCompletionService textCompletionService,
-        IImageToTextService? imageToTextService)
+        IImageToTextService? imageToTextService,
+        ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         ArgumentNullException.ThrowIfNull(textCompletionService);
         services.AddSingleton(textCompletionService);
@@ -164,7 +211,7 @@ public static class ServiceCollectionExtensions
         if (imageToTextService != null)
             services.AddSingleton(imageToTextService);
 
-        return AddFileFlux(services);
+        return AddFileFlux(services, lifetime);
     }
 
     /// <summary>
@@ -204,17 +251,22 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Adds FileFlux with native Office reader as the primary handler for DOCX, XLSX, PPTX.
     /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <param name="lifetime">Service lifetime (default: Scoped)</param>
+    /// <returns>Service collection for chaining</returns>
     /// <remarks>
     /// This is equivalent to:
     /// <code>
     /// services.AddNativeOfficeReader();
-    /// services.AddFileFlux();
+    /// services.AddFileFlux(lifetime);
     /// </code>
     /// </remarks>
-    public static IServiceCollection AddFileFluxWithNativeOffice(this IServiceCollection services)
+    public static IServiceCollection AddFileFluxWithNativeOffice(
+        this IServiceCollection services,
+        ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         services.AddNativeOfficeReader();
-        return AddFileFlux(services);
+        return AddFileFlux(services, lifetime);
     }
 
     /// <summary>
@@ -231,16 +283,21 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Adds FileFlux with mock services for testing (DEBUG only).
     /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <param name="useMockServices">Whether to register mock AI services</param>
+    /// <param name="lifetime">Service lifetime (default: Scoped)</param>
+    /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddFileFluxWithMocks(
         this IServiceCollection services,
-        bool useMockServices = true)
+        bool useMockServices = true,
+        ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         if (useMockServices)
         {
             services.AddSingleton<IImageToTextService, MockImageToTextService>();
             services.AddSingleton<IEmbeddingService, MockEmbeddingService>();
         }
-        return AddFileFlux(services);
+        return AddFileFlux(services, lifetime);
     }
 #endif
 }
