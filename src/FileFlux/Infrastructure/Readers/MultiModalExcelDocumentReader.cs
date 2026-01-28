@@ -1,9 +1,8 @@
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Spreadsheet;
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
+using Undoc;
 
 namespace FileFlux.Infrastructure.Readers;
 
@@ -98,106 +97,82 @@ public class MultiModalExcelDocumentReader : IDocumentReader
 
         try
         {
-            using var spreadsheetDocument = SpreadsheetDocument.Open(filePath, false);
-            var workbookPart = spreadsheetDocument.WorkbookPart;
+            using var doc = UndocDocument.ParseFile(filePath);
 
-            if (workbookPart?.Workbook?.Sheets == null)
-            {
-                return baseContent;
-            }
-
-            var sheets = workbookPart.Workbook.Sheets.Cast<Sheet>().ToList();
             var imageCount = 0;
             var includedImageCount = 0;
             var excludedImageCount = 0;
 
-            for (int sheetIndex = 0; sheetIndex < sheets.Count; sheetIndex++)
+            documentContext.SurroundingText = TruncateText(baseContent.Text, 500);
+
+            var documentImages = await ExtractDocumentImages(doc, cancellationToken);
+
+            if (documentImages.Any())
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var sheet = sheets[sheetIndex];
-                if (sheet.Id?.Value == null) continue;
-
-                var worksheetPart = (WorksheetPart)workbookPart.GetPartById(sheet.Id.Value);
-                var sheetName = sheet.Name?.Value ?? $"Sheet{sheetIndex + 1}";
-                documentContext.PageNumber = sheetIndex + 1;
-
-                // 워크시트 텍스트 추출 (컨텍스트용)
-                var sheetText = ExtractSheetText(worksheetPart);
-                if (!string.IsNullOrEmpty(sheetText))
+                // 관련성 평가가 활성화된 경우 배치 평가 수행
+                List<ImageRelevanceResult>? relevanceResults = null;
+                if (_relevanceEvaluator != null)
                 {
-                    documentContext.SurroundingText = TruncateText(sheetText, 500);
+                    var imageTexts = documentImages.Select(img => img.ExtractedText).ToList();
+                    relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
+                        imageTexts, documentContext, cancellationToken)).ToList();
                 }
 
-                var sheetImages = await ExtractWorksheetImages(worksheetPart, sheetName, cancellationToken);
+                // 문서 이미지 섹션 시작
+                var hasRelevantImages = false;
+                var documentImageTexts = new StringBuilder();
 
-                if (sheetImages.Any())
+                for (int i = 0; i < documentImages.Count; i++)
                 {
-                    // 관련성 평가가 활성화된 경우 배치 평가 수행
-                    List<ImageRelevanceResult>? relevanceResults = null;
-                    if (_relevanceEvaluator != null)
+                    var imageResult = documentImages[i];
+                    imageCount++;
+
+                    // 관련성 평가 결과 확인
+                    bool shouldInclude = true;
+                    string? processedText = imageResult.ExtractedText;
+                    string inclusionReason = "No relevance evaluation";
+
+                    if (relevanceResults != null && i < relevanceResults.Count)
                     {
-                        var imageTexts = sheetImages.Select(img => img.ExtractedText).ToList();
-                        relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
-                            imageTexts, documentContext, cancellationToken)).ToList();
-                    }
+                        var relevance = relevanceResults[i];
+                        shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
+                                      relevance.Recommendation != InclusionRecommendation.ShouldExclude;
 
-                    // 워크시트 이미지 섹션 시작
-                    var hasRelevantImages = false;
-                    var sheetImageTexts = new StringBuilder();
-
-                    for (int i = 0; i < sheetImages.Count; i++)
-                    {
-                        var imageResult = sheetImages[i];
-                        imageCount++;
-
-                        // 관련성 평가 결과 확인
-                        bool shouldInclude = true;
-                        string? processedText = imageResult.ExtractedText;
-                        string inclusionReason = "No relevance evaluation";
-
-                        if (relevanceResults != null && i < relevanceResults.Count)
+                        if (!string.IsNullOrEmpty(relevance.ProcessedText))
                         {
-                            var relevance = relevanceResults[i];
-                            shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
-                                          relevance.Recommendation != InclusionRecommendation.ShouldExclude;
-
-                            if (!string.IsNullOrEmpty(relevance.ProcessedText))
-                            {
-                                processedText = relevance.ProcessedText;
-                            }
-
-                            inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
+                            processedText = relevance.ProcessedText;
                         }
 
-                        if (shouldInclude)
-                        {
-                            if (!hasRelevantImages)
-                            {
-                                sheetImageTexts.AppendLine($"<!-- SHEET_{sheetName}_IMAGES_START -->");
-                                hasRelevantImages = true;
-                            }
-
-                            sheetImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
-                            sheetImageTexts.AppendLine($"Sheet '{sheetName}' - Image {imageCount}:");
-                            sheetImageTexts.AppendLine(processedText);
-                            sheetImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
-
-                            includedImageCount++;
-                            imageProcessingResults.Add($"Sheet '{sheetName}': {imageResult.ImageType} image INCLUDED - {inclusionReason}");
-                        }
-                        else
-                        {
-                            excludedImageCount++;
-                            imageProcessingResults.Add($"Sheet '{sheetName}': {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
-                        }
+                        inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
                     }
 
-                    if (hasRelevantImages)
+                    if (shouldInclude)
                     {
-                        sheetImageTexts.AppendLine($"<!-- SHEET_{sheetName}_IMAGES_END -->");
-                        enhancedText.AppendLine(sheetImageTexts.ToString());
+                        if (!hasRelevantImages)
+                        {
+                            documentImageTexts.AppendLine($"<!-- SPREADSHEET_IMAGES_START -->");
+                            hasRelevantImages = true;
+                        }
+
+                        documentImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
+                        documentImageTexts.AppendLine($"Spreadsheet Image {imageCount}:");
+                        documentImageTexts.AppendLine(processedText);
+                        documentImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
+
+                        includedImageCount++;
+                        imageProcessingResults.Add($"Spreadsheet: {imageResult.ImageType} image INCLUDED - {inclusionReason}");
                     }
+                    else
+                    {
+                        excludedImageCount++;
+                        imageProcessingResults.Add($"Spreadsheet: {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
+                    }
+                }
+
+                if (hasRelevantImages)
+                {
+                    documentImageTexts.AppendLine($"<!-- SPREADSHEET_IMAGES_END -->");
+                    enhancedText.AppendLine(documentImageTexts.ToString());
                 }
             }
 
@@ -225,9 +200,9 @@ public class MultiModalExcelDocumentReader : IDocumentReader
             return new RawContent
             {
                 Text = baseContent.Text,
-                Blocks = baseContent.Blocks,  // Preserve extracted blocks
-                Tables = baseContent.Tables,  // Preserve extracted tables
-                Images = baseContent.Images,  // Preserve extracted images
+                Blocks = baseContent.Blocks,
+                Tables = baseContent.Tables,
+                Images = baseContent.Images,
                 File = baseContent.File,
                 Hints = baseContent.Hints ?? new Dictionary<string, object>(),
                 Warnings = warnings,
@@ -238,9 +213,9 @@ public class MultiModalExcelDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = enhancedText.ToString(),
-            Blocks = baseContent.Blocks,  // Preserve extracted blocks
-            Tables = baseContent.Tables,  // Preserve extracted tables
-            Images = baseContent.Images,  // Preserve extracted images
+            Blocks = baseContent.Blocks,
+            Tables = baseContent.Tables,
+            Images = baseContent.Images,
             File = baseContent.File,
             Hints = structuralHints,
             Warnings = baseContent.Warnings,
@@ -249,11 +224,10 @@ public class MultiModalExcelDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// 워크시트에서 이미지를 추출하고 텍스트 변환 처리
+    /// 문서에서 이미지를 추출하고 텍스트 변환 처리 (Undoc 사용)
     /// </summary>
-    private async Task<List<ImageToTextResult>> ExtractWorksheetImages(
-        WorksheetPart worksheetPart,
-        string sheetName,
+    private async Task<List<ImageToTextResult>> ExtractDocumentImages(
+        UndocDocument doc,
         CancellationToken cancellationToken)
     {
         var results = new List<ImageToTextResult>();
@@ -263,20 +237,16 @@ public class MultiModalExcelDocumentReader : IDocumentReader
 
         try
         {
-            // OpenXml의 DrawingsPart에서 이미지 추출
-            var drawingsPart = worksheetPart.DrawingsPart;
-            if (drawingsPart == null) return results;
+            // Undoc의 GetResourceIds()를 사용하여 이미지 추출
+            var resourceIds = doc.GetResourceIds();
 
-            var imageParts = drawingsPart.ImageParts;
-
-            foreach (var imagePart in imageParts)
+            foreach (var resourceId in resourceIds)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 try
                 {
-                    // 이미지 데이터 추출
-                    var imageBytes = await ExtractImageBytes(imagePart);
+                    var imageBytes = doc.GetResourceData(resourceId);
                     if (imageBytes == null || imageBytes.Length == 0)
                         continue;
 
@@ -311,29 +281,10 @@ public class MultiModalExcelDocumentReader : IDocumentReader
         }
         catch
         {
-            // 워크시트 전체 이미지 처리 실패
+            // 문서 전체 이미지 처리 실패
         }
 
         return results;
-    }
-
-    /// <summary>
-    /// ImagePart에서 바이트 배열 추출
-    /// </summary>
-    private static async Task<byte[]?> ExtractImageBytes(ImagePart imagePart)
-    {
-        try
-        {
-            using var stream = imagePart.GetStream();
-            using var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-            return memoryStream.ToArray();
-        }
-        catch (Exception)
-        {
-            // 이미지 추출 실패
-            return null;
-        }
     }
 
     /// <summary>
@@ -358,55 +309,15 @@ public class MultiModalExcelDocumentReader : IDocumentReader
             // JPEG signature
             if (imageBytes.Length > 2 && imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
             {
-                // JPEG 크기 파싱은 복잡하므로 기본값 반환 (충분히 큰 값)
                 return (1000, 1000);
             }
 
-            // 기타 포맷은 처리하도록 기본값 반환
             return (1000, 1000);
         }
         catch
         {
-            // 파싱 실패 시 기본값
             return (1000, 1000);
         }
-    }
-
-    /// <summary>
-    /// 워크시트에서 텍스트만 추출 (컨텍스트용)
-    /// </summary>
-    private static string ExtractSheetText(WorksheetPart worksheetPart)
-    {
-        var textBuilder = new StringBuilder();
-
-        try
-        {
-            if (worksheetPart.Worksheet is null)
-            {
-                return string.Empty;
-            }
-
-            var rows = worksheetPart.Worksheet.Descendants<Row>().Take(10); // 처음 10행만 (컨텍스트용)
-
-            foreach (var row in rows)
-            {
-                var cells = row.Elements<Cell>();
-                foreach (var cell in cells)
-                {
-                    if (cell.CellValue != null)
-                    {
-                        textBuilder.Append(cell.CellValue.Text);
-                        textBuilder.Append(" ");
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // 텍스트 추출 실패는 무시
-        }
-
-        return textBuilder.ToString().Trim();
     }
 
     /// <summary>

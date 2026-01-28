@@ -1,8 +1,8 @@
-using DocumentFormat.OpenXml.Packaging;
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
+using Undoc;
 
 namespace FileFlux.Infrastructure.Readers;
 
@@ -97,13 +97,7 @@ public class MultiModalWordDocumentReader : IDocumentReader
 
         try
         {
-            using var wordDocument = WordprocessingDocument.Open(filePath, false);
-            var mainPart = wordDocument.MainDocumentPart;
-
-            if (mainPart == null)
-            {
-                return baseContent;
-            }
+            using var doc = UndocDocument.ParseFile(filePath);
 
             var imageCount = 0;
             var includedImageCount = 0;
@@ -113,7 +107,7 @@ public class MultiModalWordDocumentReader : IDocumentReader
             documentContext.SurroundingText = TruncateText(baseContent.Text, 500);
             documentContext.PageNumber = 1; // Word는 페이지 개념이 약함
 
-            var documentImages = await ExtractDocumentImages(wordDocument, cancellationToken);
+            var documentImages = await ExtractDocumentImages(doc, cancellationToken);
 
             if (documentImages.Any())
             {
@@ -232,10 +226,10 @@ public class MultiModalWordDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// 문서에서 이미지를 추출하고 텍스트 변환 처리
+    /// 문서에서 이미지를 추출하고 텍스트 변환 처리 (Undoc 사용)
     /// </summary>
     private async Task<List<ImageToTextResult>> ExtractDocumentImages(
-        WordprocessingDocument wordDocument,
+        UndocDocument doc,
         CancellationToken cancellationToken)
     {
         var results = new List<ImageToTextResult>();
@@ -245,20 +239,16 @@ public class MultiModalWordDocumentReader : IDocumentReader
 
         try
         {
-            var mainPart = wordDocument.MainDocumentPart;
-            if (mainPart == null) return results;
+            // Undoc의 GetResourceIds()를 사용하여 이미지 추출
+            var resourceIds = doc.GetResourceIds();
 
-            // OpenXml의 ImagePart에서 이미지 추출
-            var imageParts = mainPart.ImageParts;
-
-            foreach (var imagePart in imageParts)
+            foreach (var resourceId in resourceIds)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 try
                 {
-                    // 이미지 데이터 추출
-                    var imageBytes = await ExtractImageBytes(imagePart);
+                    var imageBytes = doc.GetResourceData(resourceId);
                     if (imageBytes == null || imageBytes.Length == 0)
                         continue;
 
@@ -297,25 +287,6 @@ public class MultiModalWordDocumentReader : IDocumentReader
         }
 
         return results;
-    }
-
-    /// <summary>
-    /// ImagePart에서 바이트 배열 추출
-    /// </summary>
-    private static async Task<byte[]?> ExtractImageBytes(ImagePart imagePart)
-    {
-        try
-        {
-            using var stream = imagePart.GetStream();
-            using var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-            return memoryStream.ToArray();
-        }
-        catch (Exception)
-        {
-            // 이미지 추출 실패
-            return null;
-        }
     }
 
     /// <summary>

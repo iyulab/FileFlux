@@ -1,10 +1,8 @@
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Presentation;
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
-using A = DocumentFormat.OpenXml.Drawing;
+using Undoc;
 
 namespace FileFlux.Infrastructure.Readers;
 
@@ -99,107 +97,82 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
 
         try
         {
-            using var presentationDocument = PresentationDocument.Open(filePath, false);
-            var presentationPart = presentationDocument.PresentationPart;
-
-            if (presentationPart?.Presentation == null)
-            {
-                return baseContent;
-            }
-
-            var slideIds = presentationPart.Presentation.SlideIdList?.Elements<SlideId>().ToList()
-                          ?? new List<SlideId>();
+            using var doc = UndocDocument.ParseFile(filePath);
 
             var imageCount = 0;
             var includedImageCount = 0;
             var excludedImageCount = 0;
 
-            for (int slideIndex = 0; slideIndex < slideIds.Count; slideIndex++)
+            documentContext.SurroundingText = TruncateText(baseContent.Text, 500);
+
+            var documentImages = await ExtractDocumentImages(doc, cancellationToken);
+
+            if (documentImages.Any())
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var slideId = slideIds[slideIndex];
-                if (slideId.RelationshipId?.Value == null) continue;
-
-                var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId.Value);
-                documentContext.PageNumber = slideIndex + 1;
-
-                // 슬라이드 텍스트 추출 (컨텍스트용)
-                var slideText = slidePart.Slide is not null ? ExtractSlideText(slidePart.Slide) : string.Empty;
-                if (!string.IsNullOrEmpty(slideText))
+                // 관련성 평가가 활성화된 경우 배치 평가 수행
+                List<ImageRelevanceResult>? relevanceResults = null;
+                if (_relevanceEvaluator != null)
                 {
-                    documentContext.SurroundingText = TruncateText(slideText, 500);
+                    var imageTexts = documentImages.Select(img => img.ExtractedText).ToList();
+                    relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
+                        imageTexts, documentContext, cancellationToken)).ToList();
                 }
 
-                var slideImages = await ExtractSlideImages(slidePart, slideIndex + 1, cancellationToken);
+                // 프레젠테이션 이미지 섹션 시작
+                var hasRelevantImages = false;
+                var documentImageTexts = new StringBuilder();
 
-                if (slideImages.Any())
+                for (int i = 0; i < documentImages.Count; i++)
                 {
-                    // 관련성 평가가 활성화된 경우 배치 평가 수행
-                    List<ImageRelevanceResult>? relevanceResults = null;
-                    if (_relevanceEvaluator != null)
+                    var imageResult = documentImages[i];
+                    imageCount++;
+
+                    // 관련성 평가 결과 확인
+                    bool shouldInclude = true;
+                    string? processedText = imageResult.ExtractedText;
+                    string inclusionReason = "No relevance evaluation";
+
+                    if (relevanceResults != null && i < relevanceResults.Count)
                     {
-                        var imageTexts = slideImages.Select(img => img.ExtractedText).ToList();
-                        relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
-                            imageTexts, documentContext, cancellationToken)).ToList();
-                    }
+                        var relevance = relevanceResults[i];
+                        shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
+                                      relevance.Recommendation != InclusionRecommendation.ShouldExclude;
 
-                    // 슬라이드 이미지 섹션 시작
-                    var hasRelevantImages = false;
-                    var slideImageTexts = new StringBuilder();
-
-                    for (int i = 0; i < slideImages.Count; i++)
-                    {
-                        var imageResult = slideImages[i];
-                        imageCount++;
-
-                        // 관련성 평가 결과 확인
-                        bool shouldInclude = true;
-                        string? processedText = imageResult.ExtractedText;
-                        string inclusionReason = "No relevance evaluation";
-
-                        if (relevanceResults != null && i < relevanceResults.Count)
+                        if (!string.IsNullOrEmpty(relevance.ProcessedText))
                         {
-                            var relevance = relevanceResults[i];
-                            shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
-                                          relevance.Recommendation != InclusionRecommendation.ShouldExclude;
-
-                            if (!string.IsNullOrEmpty(relevance.ProcessedText))
-                            {
-                                processedText = relevance.ProcessedText;
-                            }
-
-                            inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
+                            processedText = relevance.ProcessedText;
                         }
 
-                        if (shouldInclude)
-                        {
-                            if (!hasRelevantImages)
-                            {
-                                slideImageTexts.AppendLine($"<!-- SLIDE_{slideIndex + 1}_IMAGES_START -->");
-                                hasRelevantImages = true;
-                            }
-
-                            slideImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
-                            slideImageTexts.AppendLine($"Slide {slideIndex + 1} - Image {imageCount}:");
-                            slideImageTexts.AppendLine(processedText);
-                            slideImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
-
-                            includedImageCount++;
-                            imageProcessingResults.Add($"Slide {slideIndex + 1}: {imageResult.ImageType} image INCLUDED - {inclusionReason}");
-                        }
-                        else
-                        {
-                            excludedImageCount++;
-                            imageProcessingResults.Add($"Slide {slideIndex + 1}: {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
-                        }
+                        inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
                     }
 
-                    if (hasRelevantImages)
+                    if (shouldInclude)
                     {
-                        slideImageTexts.AppendLine($"<!-- SLIDE_{slideIndex + 1}_IMAGES_END -->");
-                        enhancedText.AppendLine(slideImageTexts.ToString());
+                        if (!hasRelevantImages)
+                        {
+                            documentImageTexts.AppendLine($"<!-- PRESENTATION_IMAGES_START -->");
+                            hasRelevantImages = true;
+                        }
+
+                        documentImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
+                        documentImageTexts.AppendLine($"Presentation Image {imageCount}:");
+                        documentImageTexts.AppendLine(processedText);
+                        documentImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
+
+                        includedImageCount++;
+                        imageProcessingResults.Add($"Presentation: {imageResult.ImageType} image INCLUDED - {inclusionReason}");
                     }
+                    else
+                    {
+                        excludedImageCount++;
+                        imageProcessingResults.Add($"Presentation: {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
+                    }
+                }
+
+                if (hasRelevantImages)
+                {
+                    documentImageTexts.AppendLine($"<!-- PRESENTATION_IMAGES_END -->");
+                    enhancedText.AppendLine(documentImageTexts.ToString());
                 }
             }
 
@@ -217,21 +190,19 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                     structuralHints["ImageRelevanceEvaluationEnabled"] = true;
                 }
             }
-
         }
         catch (Exception ex)
         {
             // 이미지 처리 실패 시 기본 결과 사용하되 경고 추가
-
             var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
             warnings.Add($"Image processing failed: {ex.Message}");
 
             return new RawContent
             {
                 Text = baseContent.Text,
-                Blocks = baseContent.Blocks,  // Preserve extracted blocks
-                Tables = baseContent.Tables,  // Preserve extracted tables
-                Images = baseContent.Images,  // Preserve extracted images
+                Blocks = baseContent.Blocks,
+                Tables = baseContent.Tables,
+                Images = baseContent.Images,
                 File = baseContent.File,
                 Hints = baseContent.Hints ?? new Dictionary<string, object>(),
                 Warnings = warnings,
@@ -242,9 +213,9 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
         return new RawContent
         {
             Text = enhancedText.ToString(),
-            Blocks = baseContent.Blocks,  // Preserve extracted blocks
-            Tables = baseContent.Tables,  // Preserve extracted tables
-            Images = baseContent.Images,  // Preserve extracted images
+            Blocks = baseContent.Blocks,
+            Tables = baseContent.Tables,
+            Images = baseContent.Images,
             File = baseContent.File,
             Hints = structuralHints,
             Warnings = baseContent.Warnings,
@@ -253,34 +224,29 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// 슬라이드에서 이미지를 추출하고 텍스트 변환 처리
+    /// 문서에서 이미지를 추출하고 텍스트 변환 처리 (Undoc 사용)
     /// </summary>
-    private async Task<List<ImageToTextResult>> ExtractSlideImages(
-        SlidePart slidePart,
-        int slideNumber,
+    private async Task<List<ImageToTextResult>> ExtractDocumentImages(
+        UndocDocument doc,
         CancellationToken cancellationToken)
     {
         var results = new List<ImageToTextResult>();
 
         if (_imageToTextService == null)
-        {
             return results;
-        }
 
         try
         {
-            // OpenXml의 ImagePart에서 이미지 추출
-            var imageParts = slidePart.ImageParts;
-            var imagePartsList = imageParts.ToList();
+            // Undoc의 GetResourceIds()를 사용하여 이미지 추출
+            var resourceIds = doc.GetResourceIds();
 
-            foreach (var imagePart in imagePartsList)
+            foreach (var resourceId in resourceIds)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 try
                 {
-                    // 이미지 데이터 추출
-                    var imageBytes = await ExtractImageBytes(imagePart);
+                    var imageBytes = doc.GetResourceData(resourceId);
                     if (imageBytes == null || imageBytes.Length == 0)
                         continue;
 
@@ -296,13 +262,12 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                     // 이미지 타입 힌트 결정
                     var options = new ImageToTextOptions
                     {
-                        ImageTypeHint = "presentation", // PowerPoint 이미지는 주로 프레젠테이션/차트
+                        ImageTypeHint = "slide", // PowerPoint 이미지는 주로 슬라이드/다이어그램
                         Quality = "medium",
                         ExtractStructure = true
                     };
 
                     var result = await _imageToTextService.ExtractTextAsync(imageBytes, options, cancellationToken);
-
                     if (!string.IsNullOrWhiteSpace(result.ExtractedText))
                     {
                         results.Add(result);
@@ -316,29 +281,10 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
         }
         catch
         {
-            // 슬라이드 전체 이미지 처리 실패
+            // 문서 전체 이미지 처리 실패
         }
 
         return results;
-    }
-
-    /// <summary>
-    /// ImagePart에서 바이트 배열 추출
-    /// </summary>
-    private static async Task<byte[]?> ExtractImageBytes(ImagePart imagePart)
-    {
-        try
-        {
-            using var stream = imagePart.GetStream();
-            using var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-            return memoryStream.ToArray();
-        }
-        catch (Exception)
-        {
-            // 이미지 추출 실패
-            return null;
-        }
     }
 
     /// <summary>
@@ -363,57 +309,15 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
             // JPEG signature
             if (imageBytes.Length > 2 && imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
             {
-                // JPEG 크기 파싱은 복잡하므로 기본값 반환 (충분히 큰 값)
                 return (1000, 1000);
             }
 
-            // 기타 포맷은 처리하도록 기본값 반환
             return (1000, 1000);
         }
         catch
         {
-            // 파싱 실패 시 기본값
             return (1000, 1000);
         }
-    }
-
-    /// <summary>
-    /// 슬라이드에서 텍스트만 추출 (컨텍스트용)
-    /// </summary>
-    private static string ExtractSlideText(Slide slide)
-    {
-        var textBuilder = new StringBuilder();
-
-        try
-        {
-            var shapes = slide.CommonSlideData?.ShapeTree?.Elements<Shape>().ToList()
-                        ?? new List<Shape>();
-
-            foreach (var shape in shapes)
-            {
-                var textBody = shape.TextBody;
-                if (textBody == null) continue;
-
-                foreach (var paragraph in textBody.Elements<A.Paragraph>())
-                {
-                    foreach (var run in paragraph.Elements<A.Run>())
-                    {
-                        var text = run.Elements<A.Text>().FirstOrDefault();
-                        if (text?.Text != null)
-                        {
-                            textBuilder.Append(text.Text);
-                            textBuilder.Append(" ");
-                        }
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // 텍스트 추출 실패는 무시
-        }
-
-        return textBuilder.ToString().Trim();
     }
 
     /// <summary>

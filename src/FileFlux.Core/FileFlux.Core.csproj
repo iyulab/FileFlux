@@ -13,14 +13,15 @@
 
   <ItemGroup>
     <!-- Document Processing Libraries -->
-    <PackageReference Include="PdfPig" />
-    <PackageReference Include="DocumentFormat.OpenXml" />
-    <PackageReference Include="Mammoth" />
-    <PackageReference Include="ReverseMarkdown" />
     <PackageReference Include="Markdig" />
     <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="CsvHelper" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+
+    <!-- Native Document Readers (Rust FFI) -->
+    <PackageReference Include="Undoc" />
+    <PackageReference Include="Unhwp" />
+    <PackageReference Include="Unpdf" />
   </ItemGroup>
 
 </Project>

@@ -20,14 +20,15 @@
     <PackageVersion Include="NTextCat" Version="0.3.65" />
   </ItemGroup>
   <ItemGroup Label="Document Processing">
-    <PackageVersion Include="DocumentFormat.OpenXml" Version="3.4.1" />
-    <PackageVersion Include="PdfPig" Version="0.1.13" />
     <PackageVersion Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
     <PackageVersion Include="Markdig" Version="0.44.0" />
-    <!-- Two-hop DOCX conversion: Mammoth (DOCX→HTML) + ReverseMarkdown (HTML→MD) -->
-    <PackageVersion Include="Mammoth" Version="1.11.0" />
-    <PackageVersion Include="ReverseMarkdown" Version="5.0.0" />
+    <!-- Native Document Readers (Rust FFI) -->
+    <PackageVersion Include="Undoc" Version="0.1.12" />
+    <PackageVersion Include="Unhwp" Version="0.1.13" />
+    <PackageVersion Include="Unpdf" Version="0.1.5" />
+    <!-- Test-only: Used for programmatic test file generation -->
+    <PackageVersion Include="DocumentFormat.OpenXml" Version="3.4.1" />
   </ItemGroup>
   <ItemGroup Label="AI Providers">
     <PackageVersion Include="OpenAI" Version="2.8.0" />

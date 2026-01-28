@@ -24,6 +24,9 @@
 
     <!-- FileFlux-specific packages (not in Core) -->
     <PackageReference Include="NTextCat" />
+
+    <!-- Native document processing -->
+    <PackageReference Include="Undoc" />
   </ItemGroup>
 
   <ItemGroup Label="Core">

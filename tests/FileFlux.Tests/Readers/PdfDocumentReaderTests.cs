@@ -251,8 +251,12 @@ public class PdfDocumentReaderTests
         cts.Cancel(); // Cancel immediately
 
         // Act & Assert
-        await Assert.ThrowsAsync<TaskCanceledException>(() => 
+        // Unpdf-based reader wraps cancellation in DocumentProcessingException
+        var exception = await Assert.ThrowsAsync<DocumentProcessingException>(() =>
             _reader.ExtractAsync(testFile, null, cts.Token));
+
+        // Verify the inner exception is a cancellation
+        Assert.IsType<TaskCanceledException>(exception.InnerException);
     }
 
     [Fact]

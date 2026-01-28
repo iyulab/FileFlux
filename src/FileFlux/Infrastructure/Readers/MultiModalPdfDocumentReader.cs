@@ -1,17 +1,15 @@
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
-using UglyToad.PdfPig;
-using UglyToad.PdfPig.Content;
-using UglyToad.PdfPig.Core;
+using Unpdf;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FileFlux.Infrastructure.Readers;
 
 /// <summary>
-/// 이미지 처리 기능이 통합된 멀티모달 PDF 문서 리더
-/// IImageToTextService가 제공된 경우 이미지에서 텍스트를 추출하여 enrichment
-/// IImageRelevanceEvaluator가 제공된 경우 관련성 평가 후 선택적 포함
+/// Multimodal PDF document reader with integrated image processing.
+/// When IImageToTextService is provided, extracts text from images for enrichment.
+/// When IImageRelevanceEvaluator is provided, selectively includes relevant images.
 /// </summary>
 public class MultiModalPdfDocumentReader : IDocumentReader
 {
@@ -25,9 +23,9 @@ public class MultiModalPdfDocumentReader : IDocumentReader
 
     public MultiModalPdfDocumentReader(IServiceProvider serviceProvider)
     {
-        // IImageToTextService는 선택적 의존성
+        // IImageToTextService is an optional dependency
         _imageToTextService = serviceProvider.GetService<IImageToTextService>();
-        // IImageRelevanceEvaluator는 선택적 의존성
+        // IImageRelevanceEvaluator is an optional dependency
         _relevanceEvaluator = serviceProvider.GetService<IImageRelevanceEvaluator>();
         _basePdfReader = new PdfDocumentReader();
     }
@@ -57,32 +55,32 @@ public class MultiModalPdfDocumentReader : IDocumentReader
 
     public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
-        // 기본 PDF 텍스트 추출
+        // Base PDF text extraction
         var baseContent = await _basePdfReader.ExtractAsync(filePath, options, cancellationToken);
 
-        // 이미지 서비스가 없으면 기본 결과 반환
+        // If no image service, return base result
         if (_imageToTextService == null)
             return baseContent;
 
-        // 이미지 처리가 가능한 경우 향상된 추출 수행
+        // If image service available, perform enhanced extraction
         return await ExtractWithImageProcessing(filePath, baseContent, cancellationToken);
     }
 
     public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
-        // 기본 PDF 텍스트 추출
+        // Base PDF text extraction
         var baseContent = await _basePdfReader.ExtractAsync(stream, fileName, options, cancellationToken);
 
-        // 이미지 서비스가 없으면 기본 결과 반환
+        // If no image service, return base result
         if (_imageToTextService == null)
             return baseContent;
 
-        // 스트림 기반 이미지 처리는 복잡하므로 기본 결과 반환 (향후 확장 가능)
+        // Stream-based image processing is complex, return base result (future extension)
         return baseContent;
     }
 
     /// <summary>
-    /// 이미지 처리를 포함한 향상된 PDF 텍스트 추출
+    /// Enhanced PDF text extraction with image processing.
     /// </summary>
     private async Task<RawContent> ExtractWithImageProcessing(
         string filePath,
@@ -94,105 +92,129 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         var structuralHints = baseContent.Hints?.ToDictionary(kv => kv.Key, kv => kv.Value)
                              ?? new Dictionary<string, object>();
 
-        // 문서 컨텍스트 준비 (관련성 평가용)
+        // Prepare document context (for relevance evaluation)
         var documentContext = PrepareDocumentContext(baseContent, filePath);
+
+        // Create temp directory for image extraction
+        var tempDir = Path.Combine(Path.GetTempPath(), $"fileflux_pdf_images_{Guid.NewGuid():N}");
 
         try
         {
-            using var document = PdfDocument.Open(filePath);
+            Directory.CreateDirectory(tempDir);
 
-            var totalPages = document.NumberOfPages;
+            // Extract images using Unpdf
+            var extractedImages = Pdf.ExtractImages(filePath, tempDir);
+
             var imageCount = 0;
             var includedImageCount = 0;
             var excludedImageCount = 0;
 
-            for (int pageNum = 1; pageNum <= totalPages; pageNum++)
+            // Process extracted images
+            var imagesToProcess = new List<(ExtractedImage Image, byte[] Bytes)>();
+
+            foreach (var image in extractedImages)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var page = document.GetPage(pageNum);
-                documentContext.PageNumber = pageNum;
+                // Filter decorative images by size
+                var width = image.Width ?? 0;
+                var height = image.Height ?? 0;
 
-                // 페이지 주변 텍스트 추출
-                var pageText = page.Text;
-                if (!string.IsNullOrEmpty(pageText))
+                if (ImageProcessingConstants.IsDecorativeImage(width, height))
                 {
-                    documentContext.SurroundingText = TruncateText(pageText, 500);
+                    continue;
                 }
 
-                var pageImages = await ExtractPageImages(page, pageNum, cancellationToken);
-
-                if (pageImages.Any())
+                // Read image bytes from file
+                if (File.Exists(image.Path))
                 {
-                    // 관련성 평가가 활성화된 경우 배치 평가 수행
-                    List<ImageRelevanceResult>? relevanceResults = null;
-                    if (_relevanceEvaluator != null)
+                    var imageBytes = await File.ReadAllBytesAsync(image.Path, cancellationToken);
+                    if (imageBytes.Length > 100)
                     {
-                        var imageTexts = pageImages.Select(img => img.ExtractedText).ToList();
-                        relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
-                            imageTexts, documentContext, cancellationToken)).ToList();
-                    }
-
-                    // 페이지 이미지 섹션 시작
-                    var hasRelevantImages = false;
-                    var pageImageTexts = new StringBuilder();
-
-                    for (int i = 0; i < pageImages.Count; i++)
-                    {
-                        var imageResult = pageImages[i];
-                        imageCount++;
-
-                        // 관련성 평가 결과 확인
-                        bool shouldInclude = true;
-                        string? processedText = imageResult.ExtractedText;
-                        string inclusionReason = "No relevance evaluation";
-
-                        if (relevanceResults != null && i < relevanceResults.Count)
-                        {
-                            var relevance = relevanceResults[i];
-                            shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
-                                          relevance.Recommendation != InclusionRecommendation.ShouldExclude;
-
-                            if (!string.IsNullOrEmpty(relevance.ProcessedText))
-                            {
-                                processedText = relevance.ProcessedText;
-                            }
-
-                            inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
-                        }
-
-                        if (shouldInclude)
-                        {
-                            if (!hasRelevantImages)
-                            {
-                                pageImageTexts.AppendLine($"<!-- PAGE_{pageNum}_IMAGES_START -->");
-                                hasRelevantImages = true;
-                            }
-
-                            pageImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
-                            pageImageTexts.AppendLine($"Page {pageNum} - Image {imageCount}:");
-                            pageImageTexts.AppendLine(processedText);
-                            pageImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
-
-                            includedImageCount++;
-                            imageProcessingResults.Add($"Page {pageNum}: {imageResult.ImageType} image INCLUDED - {inclusionReason}");
-                        }
-                        else
-                        {
-                            excludedImageCount++;
-                            imageProcessingResults.Add($"Page {pageNum}: {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
-                        }
-                    }
-
-                    if (hasRelevantImages)
-                    {
-                        pageImageTexts.AppendLine($"<!-- PAGE_{pageNum}_IMAGES_END -->");
-                        enhancedText.AppendLine(pageImageTexts.ToString());
+                        imagesToProcess.Add((image, imageBytes));
                     }
                 }
             }
 
-            // 구조적 힌트에 이미지 처리 정보 추가
+            // Process images through IImageToTextService
+            var imageTextResults = new List<ImageToTextResult>();
+            foreach (var (image, bytes) in imagesToProcess)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    var options = new ImageToTextOptions
+                    {
+                        ImageTypeHint = "document", // PDF images are typically document/chart
+                        Quality = "medium",
+                        ExtractStructure = true
+                    };
+
+                    var result = await _imageToTextService!.ExtractTextAsync(bytes, options, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(result.ExtractedText))
+                    {
+                        imageTextResults.Add(result);
+                    }
+                }
+                catch
+                {
+                    // Individual image processing failure is ignored
+                }
+            }
+
+            // Batch relevance evaluation if evaluator is available
+            List<ImageRelevanceResult>? relevanceResults = null;
+            if (_relevanceEvaluator != null && imageTextResults.Any())
+            {
+                var imageTexts = imageTextResults.Select(r => r.ExtractedText).ToList();
+                relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
+                    imageTexts, documentContext, cancellationToken)).ToList();
+            }
+
+            // Build enhanced content
+            for (int i = 0; i < imageTextResults.Count; i++)
+            {
+                var imageResult = imageTextResults[i];
+                imageCount++;
+
+                // Check relevance evaluation result
+                bool shouldInclude = true;
+                string? processedText = imageResult.ExtractedText;
+                string inclusionReason = "No relevance evaluation";
+
+                if (relevanceResults != null && i < relevanceResults.Count)
+                {
+                    var relevance = relevanceResults[i];
+                    shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
+                                  relevance.Recommendation != InclusionRecommendation.ShouldExclude;
+
+                    if (!string.IsNullOrEmpty(relevance.ProcessedText))
+                    {
+                        processedText = relevance.ProcessedText;
+                    }
+
+                    inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
+                }
+
+                if (shouldInclude)
+                {
+                    enhancedText.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
+                    enhancedText.AppendLine($"Image {imageCount}:");
+                    enhancedText.AppendLine(processedText);
+                    enhancedText.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
+
+                    includedImageCount++;
+                    imageProcessingResults.Add($"Image {imageCount}: {imageResult.ImageType} INCLUDED - {inclusionReason}");
+                }
+                else
+                {
+                    excludedImageCount++;
+                    imageProcessingResults.Add($"Image {imageCount}: {imageResult.ImageType} EXCLUDED - {inclusionReason}");
+                }
+            }
+
+            // Add image processing info to structural hints
             if (imageCount > 0)
             {
                 structuralHints["HasImages"] = true;
@@ -209,29 +231,44 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         }
         catch (Exception ex)
         {
-            // 이미지 처리 실패 시 기본 결과 사용하되 경고 추가
+            // On image processing failure, use base result with warning
             var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
             warnings.Add($"Image processing failed: {ex.Message}");
 
             return new RawContent
             {
                 Text = baseContent.Text,
-                Blocks = baseContent.Blocks,  // Preserve extracted blocks
-                Tables = baseContent.Tables,  // Preserve extracted tables
-                Images = baseContent.Images,  // Preserve extracted images
+                Blocks = baseContent.Blocks,
+                Tables = baseContent.Tables,
+                Images = baseContent.Images,
                 File = baseContent.File,
                 Hints = baseContent.Hints ?? new Dictionary<string, object>(),
                 Warnings = warnings,
                 ReaderType = ReaderType
             };
         }
+        finally
+        {
+            // Cleanup temp directory
+            try
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, recursive: true);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+        }
 
         return new RawContent
         {
             Text = enhancedText.ToString(),
-            Blocks = baseContent.Blocks,  // Preserve extracted blocks
-            Tables = baseContent.Tables,  // Preserve extracted tables
-            Images = baseContent.Images,  // Preserve extracted images
+            Blocks = baseContent.Blocks,
+            Tables = baseContent.Tables,
+            Images = baseContent.Images,
             File = baseContent.File,
             Hints = structuralHints,
             Warnings = baseContent.Warnings,
@@ -240,105 +277,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// 페이지에서 이미지를 추출하고 텍스트 변환 처리
-    /// </summary>
-    private async Task<List<ImageToTextResult>> ExtractPageImages(
-        Page page,
-        int pageNum,
-        CancellationToken cancellationToken)
-    {
-        var results = new List<ImageToTextResult>();
-
-        if (_imageToTextService == null)
-            return results;
-
-        try
-        {
-            // PdfPig을 통한 이미지 추출
-            var images = page.GetImages();
-
-            foreach (var image in images)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    // 이미지 크기 확인 - 너무 작은 이미지는 장식용으로 간주하고 제외
-                    var width = (int)(image.Bounds.Width);
-                    var height = (int)(image.Bounds.Height);
-
-                    if (ImageProcessingConstants.IsDecorativeImage(width, height))
-                    {
-                        // 작은 이미지(아이콘, 로고, 장식) 제외
-                        continue;
-                    }
-
-                    // 이미지 데이터 추출
-                    var imageBytes = await ExtractImageBytes(image);
-                    if (imageBytes != null && imageBytes.Length > 0)
-                    {
-                        // 이미지 타입 힌트 결정
-                        var options = new ImageToTextOptions
-                        {
-                            ImageTypeHint = "document", // PDF 내 이미지는 주로 문서/차트
-                            Quality = "medium",
-                            ExtractStructure = true
-                        };
-
-                        var result = await _imageToTextService.ExtractTextAsync(imageBytes, options, cancellationToken);
-                        if (!string.IsNullOrWhiteSpace(result.ExtractedText))
-                        {
-                            results.Add(result);
-                        }
-                    }
-                }
-                catch
-                {
-                    // 개별 이미지 처리 실패는 무시하고 계속 진행
-                }
-            }
-        }
-        catch
-        {
-            // 페이지 전체 이미지 처리 실패
-        }
-
-        return results;
-    }
-
-    /// <summary>
-    /// PdfPig 이미지 객체에서 바이트 배열 추출
-    /// PdfPig는 TryGetPng, TryGetBytes, RawBytes를 통해 이미지 데이터를 제공
-    /// </summary>
-    private static Task<byte[]?> ExtractImageBytes(IPdfImage image)
-    {
-        try
-        {
-            // 1. PNG 변환 시도 (가장 호환성 좋음)
-            if (image.TryGetPng(out var pngBytes) && pngBytes != null && pngBytes.Length > 100)
-            {
-                return Task.FromResult<byte[]?>(pngBytes);
-            }
-
-            // 2. Raw 바이트 (JPEG 등) 시도 - RawBytes는 ReadOnlySpan<byte> 타입
-            var rawBytes = image.RawBytes;
-            if (rawBytes.Length > 100)
-            {
-                return Task.FromResult<byte[]?>(rawBytes.ToArray());
-            }
-
-            // 유효한 이미지 데이터를 추출할 수 없음
-            return Task.FromResult<byte[]?>(null);
-        }
-        catch (Exception)
-        {
-            // 이미지 추출 실패
-            return Task.FromResult<byte[]?>(null);
-        }
-    }
-
-    /// <summary>
-    /// 문서 컨텍스트 준비 (관련성 평가용)
+    /// Prepare document context for relevance evaluation.
     /// </summary>
     private DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
     {
@@ -348,10 +287,10 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             DocumentText = TruncateText(baseContent.Text, 1000)
         };
 
-        // 파일명에서 제목 추출
-        context.Title = System.IO.Path.GetFileNameWithoutExtension(filePath);
+        // Extract title from filename
+        context.Title = Path.GetFileNameWithoutExtension(filePath);
 
-        // 구조적 힌트에서 메타데이터 추출
+        // Extract metadata from structural hints
         if (baseContent.Hints != null)
         {
             foreach (var hint in baseContent.Hints)
@@ -360,7 +299,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             }
         }
 
-        // 간단한 키워드 추출 (공백으로 분리된 단어 중 길이가 5 이상인 것들)
+        // Simple keyword extraction (words with length >= 5)
         var words = baseContent.Text.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
         context.Keywords = words
             .Where(w => w.Length >= 5)
@@ -372,7 +311,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// 텍스트 자르기 헬퍼
+    /// Text truncation helper.
     /// </summary>
     private string TruncateText(string text, int maxLength)
     {

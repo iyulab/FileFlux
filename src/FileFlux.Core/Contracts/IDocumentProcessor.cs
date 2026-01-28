@@ -1,21 +1,23 @@
 namespace FileFlux.Core;
 
 /// <summary>
-/// Stateful document processor for 4-stage pipeline.
+/// Stateful document processor for 5-stage pipeline.
 /// Each instance processes a single document.
 /// </summary>
 /// <remarks>
 /// Pipeline stages:
 /// 1. Extract: File → RawContent
-/// 2. Refine: RawContent → RefinedContent (with StructuredElements)
-/// 3. Chunk: RefinedContent → DocumentChunks
-/// 4. Enrich: Chunks → Graph (LLM-powered, optional)
+/// 2. Refine: RawContent → RefinedContent (rule-based, with StructuredElements)
+/// 3. LlmRefine: RefinedContent → LlmRefinedContent (LLM-powered, optional)
+/// 4. Chunk: LlmRefinedContent/RefinedContent → DocumentChunks
+/// 5. Enrich: Chunks → Graph (LLM-powered, optional)
 ///
 /// Usage:
 /// <code>
 /// await using var processor = factory.Create(filePath);
 /// await processor.ExtractAsync();
 /// await processor.RefineAsync();
+/// await processor.LlmRefineAsync(); // optional, skipped if LLM unavailable
 /// await processor.ChunkAsync();
 /// await processor.EnrichAsync(); // optional
 /// var result = processor.Result;
@@ -63,11 +65,34 @@ public interface IDocumentProcessor : IAsyncDisposable, IDisposable
         CancellationToken cancellationToken = default);
 
     // ========================================
-    // Stage 3: Chunk (RefinedContent → Chunks)
+    // Stage 2.5: LLM Refine (RefinedContent → LlmRefinedContent)
+    // ========================================
+
+    /// <summary>
+    /// Refine content using LLM for enhanced quality.
+    /// This stage is optional and will be gracefully skipped if LLM is unavailable.
+    /// Requires Refine to be completed first (auto-runs if needed).
+    /// Populates Result.LlmRefined.
+    /// </summary>
+    /// <remarks>
+    /// LLM refinement includes:
+    /// - Noise removal (ads, legal notices)
+    /// - Sentence restoration (broken PDF lines)
+    /// - Section restructuring
+    /// - OCR error correction
+    /// - Duplicate merging
+    /// </remarks>
+    Task LlmRefineAsync(
+        LlmRefineOptions? options = null,
+        CancellationToken cancellationToken = default);
+
+    // ========================================
+    // Stage 3: Chunk (LlmRefinedContent/RefinedContent → Chunks)
     // ========================================
 
     /// <summary>
     /// Create document chunks from refined content.
+    /// Uses LlmRefinedContent if available, otherwise RefinedContent.
     /// Requires Refine to be completed first (auto-runs if needed).
     /// Populates Result.Chunks.
     /// </summary>
@@ -138,9 +163,14 @@ public enum ProcessorState
     Extracted,
 
     /// <summary>
-    /// Refine stage completed.
+    /// Refine stage (rule-based) completed.
     /// </summary>
     Refined,
+
+    /// <summary>
+    /// LLM Refine stage completed (or skipped).
+    /// </summary>
+    LlmRefined,
 
     /// <summary>
     /// Chunk stage completed.
@@ -190,9 +220,20 @@ public interface IDocumentProcessorFactory
 public class ProcessingOptions
 {
     /// <summary>
-    /// Options for Refine stage.
+    /// Options for Refine stage (rule-based).
     /// </summary>
     public RefineOptions? Refine { get; init; }
+
+    /// <summary>
+    /// Whether to include LLM Refine stage in processing.
+    /// Default is true (LLM refine is included, but skipped if LLM unavailable).
+    /// </summary>
+    public bool IncludeLlmRefine { get; init; } = true;
+
+    /// <summary>
+    /// Options for LLM Refine stage.
+    /// </summary>
+    public LlmRefineOptions? LlmRefine { get; init; }
 
     /// <summary>
     /// Options for Chunk stage.
@@ -214,6 +255,20 @@ public class ProcessingOptions
     /// Default processing options.
     /// </summary>
     public static ProcessingOptions Default { get; } = new();
+
+    /// <summary>
+    /// Processing options without LLM refinement.
+    /// </summary>
+    public static ProcessingOptions WithoutLlmRefine { get; } = new() { IncludeLlmRefine = false };
+
+    /// <summary>
+    /// Full processing options including all stages.
+    /// </summary>
+    public static ProcessingOptions Full { get; } = new()
+    {
+        IncludeLlmRefine = true,
+        IncludeEnrich = true
+    };
 }
 
 /// <summary>

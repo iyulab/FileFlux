@@ -21,9 +21,15 @@ public class ProcessingResult : IEnumerable<DocumentChunk>
     public RawContent? Raw { get; set; }
 
     /// <summary>
-    /// Stage 2: Refined content with structure analysis.
+    /// Stage 2: Refined content with structure analysis (rule-based).
     /// </summary>
     public RefinedContent? Refined { get; set; }
+
+    /// <summary>
+    /// Stage 2.5: LLM-refined content with enhanced quality.
+    /// May be null if LLM refinement was skipped or unavailable.
+    /// </summary>
+    public LlmRefinedContent? LlmRefined { get; set; }
 
     /// <summary>
     /// Stage 3: Chunked document segments.
@@ -52,9 +58,19 @@ public class ProcessingResult : IEnumerable<DocumentChunk>
     public bool IsExtracted => Raw != null;
 
     /// <summary>
-    /// True if refine stage completed.
+    /// True if rule-based refine stage completed.
     /// </summary>
     public bool IsRefined => Refined != null;
+
+    /// <summary>
+    /// True if LLM refine stage completed (or was skipped).
+    /// </summary>
+    public bool IsLlmRefined => LlmRefined != null;
+
+    /// <summary>
+    /// True if LLM was actually used for refinement.
+    /// </summary>
+    public bool LlmWasUsed => LlmRefined?.LlmWasUsed ?? false;
 
     /// <summary>
     /// True if chunking stage completed.
@@ -76,6 +92,11 @@ public class ProcessingResult : IEnumerable<DocumentChunk>
     /// </summary>
     public bool IsFullyProcessed => IsChunked && HasGraph;
 
+    /// <summary>
+    /// Gets the best available refined content (LLM if available, otherwise rule-based).
+    /// </summary>
+    public string? BestRefinedText => LlmRefined?.Text ?? Refined?.Text;
+
     // === IEnumerable Implementation (for backward compatibility) ===
 
     /// <summary>
@@ -95,6 +116,7 @@ public class ProcessingResult : IEnumerable<DocumentChunk>
     {
         Raw = null;
         Refined = null;
+        LlmRefined = null;
         Chunks = null;
         Graph = null;
         Metrics.Reset();
@@ -112,9 +134,14 @@ public class ProcessingMetrics
     public TimeSpan ExtractDuration { get; set; }
 
     /// <summary>
-    /// Time spent in refine stage.
+    /// Time spent in rule-based refine stage.
     /// </summary>
     public TimeSpan RefineDuration { get; set; }
+
+    /// <summary>
+    /// Time spent in LLM refine stage.
+    /// </summary>
+    public TimeSpan LlmRefineDuration { get; set; }
 
     /// <summary>
     /// Time spent in chunking stage.
@@ -129,7 +156,12 @@ public class ProcessingMetrics
     /// <summary>
     /// Total processing time across all stages.
     /// </summary>
-    public TimeSpan TotalDuration => ExtractDuration + RefineDuration + ChunkDuration + EnrichDuration;
+    public TimeSpan TotalDuration => ExtractDuration + RefineDuration + LlmRefineDuration + ChunkDuration + EnrichDuration;
+
+    /// <summary>
+    /// LLM tokens used during LLM refine stage.
+    /// </summary>
+    public int LlmRefineTokens { get; set; }
 
     /// <summary>
     /// Total number of chunks generated.
@@ -178,10 +210,12 @@ public class ProcessingMetrics
     {
         ExtractDuration = TimeSpan.Zero;
         RefineDuration = TimeSpan.Zero;
+        LlmRefineDuration = TimeSpan.Zero;
         ChunkDuration = TimeSpan.Zero;
         EnrichDuration = TimeSpan.Zero;
         TotalChunks = 0;
         TotalTokens = 0;
+        LlmRefineTokens = 0;
         StructuresExtracted = 0;
         GraphEdges = 0;
         GraphNodes = 0;

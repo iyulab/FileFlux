@@ -7,16 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2025-01-28
+
 ### Added
+- **5-Stage Pipeline**: Extract → Rule-Refine → LLM-Refine → Chunk → Enrich
+  - `ILlmRefiner`: Interface for LLM-based text refinement
+  - `LlmRefiner`: Implementation using ITextCompletionService
+  - `LlmRefinedContent`: Output type for LLM refinement stage
+  - `LlmRefineOptions`: Options for LLM refinement (temperature, instructions)
+  - `ProcessorState.LlmRefined`: New state for LLM refinement
+- **Undoc Integration**: High-performance Rust FFI for Office documents
+  - `WordDocumentReader`: Migrated to Undoc for DOCX processing
+  - `ExcelDocumentReader`: Migrated to Undoc for XLSX processing
+  - `PowerPointDocumentReader`: Migrated to Undoc for PPTX processing
+  - `MultiModalWordDocumentReader`: Migrated to Undoc
+  - `MultiModalExcelDocumentReader`: Migrated to Undoc
+  - `MultiModalPowerPointDocumentReader`: Migrated to Undoc
+- **Unhwp Integration**: Native HWP document processing via NuGet
+  - `HwpDocumentReader`: Migrated to Unhwp NuGet package
+  - Supports both .hwp and .hwpx formats
+- **Unpdf Integration**: High-performance Rust FFI for PDF documents
+  - `PdfDocumentReader`: Migrated to Unpdf for PDF to Markdown conversion
+  - `MultiModalPdfDocumentReader`: Migrated to Unpdf 0.1.5 for image extraction
+  - Simplified implementation: ~300 lines vs ~2000 lines with PdfPig
+  - Complete PdfPig removal - all PDF processing now uses Unpdf
+- **DI Enhancements**:
+  - `ILlmRefiner` registration in ServiceCollectionExtensions
+  - `DocumentProcessorFactory` support for ILlmRefiner
+  - `WithLlmRefiner()` method in DocumentProcessorFactoryBuilder
+
+### Changed
+- **Document Processing**: Undoc provides 2-5x faster Office document parsing
+- **Memory Usage**: Lower memory footprint with Rust FFI implementation
+- **Korean Text Handling**: Optimized processing via Undoc/Unhwp
+
+### Removed
+- **PdfPig**: Completely replaced by Unpdf for all PDF processing including image extraction
+- **DocumentFormat.OpenXml**: Replaced by Undoc for all Office formats
+- **Mammoth**: Replaced by Undoc for Word to Markdown conversion
+- **ReverseMarkdown**: Replaced by Undoc's native Markdown output
+- **DocxTableComplexityAnalyzer**: Removed (incompatible with Undoc architecture)
+- **Native Interop folder**: Replaced by Unhwp NuGet package
+
+### Fixed
 - **PDF Header/Footer Filter**: Repetitive line pattern detection and removal
   - `PdfHeaderFooterFilter`: Detects lines appearing on multiple pages (configurable threshold)
   - `RefineOptions.FilterPdfHeaderFooter`: Opt-in feature for PDF noise reduction
   - `RefineOptions.PdfHeaderFooterThreshold`: Configurable ratio (default 0.5 = 50% of pages)
-- **DOCX Table Complexity Analyzer**: Phase 1 of complex table handling roadmap
-  - `DocxTableComplexityAnalyzer`: Detects merged cells, nested tables, irregular rows
-  - `TableAnalysisResult`: Comprehensive metrics with complexity scoring (0.0-1.0)
-  - `TableComplexityLevel`: Simple, Low, Medium, High, VeryHigh classification
-  - Generates warnings for Markdown-incompatible table structures
 - **PPTX Slide Title Extraction**: Enhanced title detection in presentations
   - Improved title placeholder detection using shape type analysis
   - Better handling of slides without explicit title shapes

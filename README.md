@@ -9,12 +9,13 @@
 
 ## Overview
 
-FileFlux is a .NET library that transforms various document formats into optimized chunks for RAG (Retrieval-Augmented Generation) systems.
+FileFlux is a .NET library that transforms various document formats into optimized chunks for RAG (Retrieval-Augmented Generation) systems. Built on high-performance Rust FFI libraries for document parsing.
 
 ### Key Features
 
-- **4-Stage Stateful Pipeline**: Extract → Refine → Chunk → Enrich with explicit state management
-- **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, Markdown, HTML, TXT, JSON, CSV
+- **5-Stage Stateful Pipeline**: Extract → Rule-Refine → LLM-Refine → Chunk → Enrich
+- **Native Document Readers**: Rust FFI-based readers (Unpdf, Undoc, Unhwp) for 2-5x faster processing
+- **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, HWP, HWPX, Markdown, HTML, TXT, JSON, CSV
 - **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel
 - **Interface-Driven AI**: Define AI service interfaces, implement with your preferred provider
 - **Document Graph**: Inter-chunk relationship tracking with sequential, hierarchical, and semantic edges
@@ -117,10 +118,11 @@ var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
 using var processor = factory.Create("document.pdf");
 
 // Execute stages explicitly
-await processor.ExtractAsync();   // Stage 1: Raw content extraction
-await processor.RefineAsync();    // Stage 2: Text cleaning, structure analysis
-await processor.ChunkAsync();     // Stage 3: Content chunking
-await processor.EnrichAsync();    // Stage 4: LLM-powered enrichment (optional)
+await processor.ExtractAsync();     // Stage 1: Raw content extraction
+await processor.RefineAsync();      // Stage 2: Rule-based text cleaning
+await processor.LlmRefineAsync();   // Stage 3: LLM-powered refinement (optional)
+await processor.ChunkAsync();       // Stage 4: Content chunking
+await processor.EnrichAsync();      // Stage 5: LLM-powered enrichment (optional)
 
 // Access results at each stage
 Console.WriteLine($"State: {processor.State}");
@@ -144,12 +146,13 @@ if (processor.Result.Graph != null)
 ```
 
 **Pipeline Stages**:
-| Stage | Interface | Description |
-|-------|-----------|-------------|
-| Extract | `IDocumentReader` | Raw content extraction from files |
-| Refine | `IDocumentRefiner` | Text cleaning, normalization, structure analysis |
-| Chunk | `IChunkerFactory` | Content segmentation with various strategies |
-| Enrich | `IDocumentEnricher` | LLM-powered summaries, keywords, contextual text |
+| Stage | Interface | AI | Description |
+|-------|-----------|:--:|-------------|
+| Extract | `IDocumentReader` | ❌ | Raw content extraction from files |
+| Rule-Refine | `IDocumentRefiner` | ❌ | Text cleaning, normalization, structure analysis |
+| LLM-Refine | `ILlmRefiner` | ✅ | AI-powered noise removal, sentence restoration |
+| Chunk | `IChunkerFactory` | Optional | Content segmentation with various strategies |
+| Enrich | `IDocumentEnricher` | ✅ | LLM-powered summaries, keywords, contextual text |
 
 ### Metadata Enrichment
 
@@ -236,15 +239,16 @@ services.AddFileFlux();
 
 ## Supported Document Formats
 
-| Format | Extension | Features |
-|--------|-----------|----------|
-| PDF | .pdf | Text and image extraction |
-| Word | .docx | Style and structure preservation |
-| Excel | .xlsx | Multi-sheet and table structure |
-| PowerPoint | .pptx | Slide and notes extraction |
-| Markdown | .md | Structure preservation |
-| HTML | .html, .htm | Web content extraction |
-| Text | .txt, .json, .csv | Basic text processing |
+| Format | Extension | Reader | Features |
+|--------|-----------|--------|----------|
+| PDF | .pdf | Unpdf (Rust FFI) | Text, tables, image extraction |
+| Word | .docx | Undoc (Rust FFI) | Style and structure preservation |
+| Excel | .xlsx | Undoc (Rust FFI) | Multi-sheet and table structure |
+| PowerPoint | .pptx | Undoc (Rust FFI) | Slide and notes extraction |
+| HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
+| Markdown | .md | Built-in | Structure preservation |
+| HTML | .html, .htm | Built-in | Web content extraction |
+| Text | .txt, .json, .csv | Built-in | Basic text processing |
 
 ## Known Limitations
 

@@ -28,7 +28,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="OpenAI" />
     <PackageReference Include="DocumentFormat.OpenXml" />
-    <PackageReference Include="PdfPig" />
     <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="CsvHelper" />
     <PackageReference Include="Markdig" />

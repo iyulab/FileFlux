@@ -100,6 +100,18 @@ public static class ServiceCollectionExtensions
             },
             lifetime));
 
+        // === LLM Refiner (configurable lifetime) ===
+        services.Add(new ServiceDescriptor(
+            typeof(ILlmRefiner),
+            provider =>
+            {
+                var textCompletionService = provider.GetService<ITextCompletionService>();
+                var loggerFactory = provider.GetService<ILoggerFactory>();
+                var logger = loggerFactory?.CreateLogger<LlmRefiner>();
+                return new LlmRefiner(textCompletionService, logger);
+            },
+            lifetime));
+
         // === FluxCurator: Chunking ===
         services.AddFluxCurator();
 
@@ -142,6 +154,7 @@ public static class ServiceCollectionExtensions
                 var readerFactory = provider.GetRequiredService<IDocumentReaderFactory>();
                 var chunkerFactory = provider.GetRequiredService<IChunkerFactory>();
                 var documentRefiner = provider.GetService<IDocumentRefiner>();
+                var llmRefiner = provider.GetService<ILlmRefiner>();
                 var documentEnricher = provider.GetService<IDocumentEnricher>();
                 var improverServices = provider.GetService<FluxImproverServices>();
                 var markdownConverter = provider.GetService<IMarkdownConverter>();
@@ -152,6 +165,7 @@ public static class ServiceCollectionExtensions
                     readerFactory,
                     chunkerFactory,
                     documentRefiner,
+                    llmRefiner,
                     documentEnricher,
                     improverServices,
                     markdownConverter,

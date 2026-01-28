@@ -12,17 +12,19 @@ using FluxCuratorChunkOptions = FluxCurator.Core.Domain.ChunkOptions;
 namespace FileFlux.Infrastructure;
 
 /// <summary>
-/// Stateful document processor implementing the 4-stage pipeline.
+/// Stateful document processor implementing the 5-stage pipeline.
 /// Each instance processes a single document and maintains state.
 /// </summary>
 /// <remarks>
-/// Pipeline: Extract → Refine → Chunk → Enrich
+/// Pipeline: Extract → Refine → LLM-Refine → Chunk → Enrich
+/// LLM-Refine stage is optional and gracefully skips if no LLM service is available.
 /// </remarks>
 public sealed class StatefulDocumentProcessor : IDocumentProcessor
 {
     private readonly IDocumentReaderFactory _readerFactory;
     private readonly IChunkerFactory _chunkerFactory;
     private readonly IDocumentRefiner? _documentRefiner;
+    private readonly ILlmRefiner? _llmRefiner;
     private readonly IDocumentEnricher? _documentEnricher;
     private readonly FluxImproverServices? _improverServices;
     private readonly ITextRefiner _textRefiner;
@@ -57,6 +59,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentReaderFactory readerFactory,
         IChunkerFactory chunkerFactory,
         IDocumentRefiner? documentRefiner,
+        ILlmRefiner? llmRefiner,
         IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
@@ -75,6 +78,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
         _documentRefiner = documentRefiner;
+        _llmRefiner = llmRefiner;
         _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
@@ -92,6 +96,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentReaderFactory readerFactory,
         IChunkerFactory chunkerFactory,
         IDocumentRefiner? documentRefiner,
+        ILlmRefiner? llmRefiner,
         IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
@@ -110,6 +115,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
         _documentRefiner = documentRefiner;
+        _llmRefiner = llmRefiner;
         _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
@@ -128,6 +134,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentReaderFactory readerFactory,
         IChunkerFactory chunkerFactory,
         IDocumentRefiner? documentRefiner,
+        ILlmRefiner? llmRefiner,
         IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
@@ -146,6 +153,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
         _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
         _documentRefiner = documentRefiner;
+        _llmRefiner = llmRefiner;
         _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
@@ -354,6 +362,76 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
                 Duration = TimeSpan.Zero
             }
         };
+    }
+
+    #endregion
+
+    #region Stage 2.5: LLM Refine
+
+    /// <inheritdoc/>
+    public async Task LlmRefineAsync(LlmRefineOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+
+        if (_state >= ProcessorState.LlmRefined)
+        {
+            _logger.LogDebug("LLM Refine already completed, skipping");
+            return;
+        }
+
+        // Auto-run previous stage if needed
+        if (_state < ProcessorState.Refined)
+        {
+            await RefineAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+
+        options ??= LlmRefineOptions.Default;
+        var sw = Stopwatch.StartNew();
+        _logger.LogDebug("Starting LLM refinement: {FilePath}", FilePath);
+
+        try
+        {
+            // If no improvements are enabled, skip LLM refinement
+            if (!options.HasAnyImprovementEnabled)
+            {
+                _logger.LogDebug("LLM refinement disabled via options, skipping");
+                Result.LlmRefined = LlmRefinedContent.FromRefinedContent(Result.Refined!);
+                _state = ProcessorState.LlmRefined;
+                return;
+            }
+
+            // Use ILlmRefiner if available
+            if (_llmRefiner != null && _llmRefiner.IsAvailable)
+            {
+                Result.LlmRefined = await _llmRefiner.RefineAsync(Result.Refined!, options, cancellationToken).ConfigureAwait(false);
+                Result.Metrics.LlmRefineDuration = sw.Elapsed;
+                Result.Metrics.LlmRefineTokens = Result.LlmRefined.Info.InputTokens + Result.LlmRefined.Info.OutputTokens;
+
+                _state = ProcessorState.LlmRefined;
+                _logger.LogInformation("LLM Refined {OriginalChars} → {RefinedChars} chars, {Improvements} improvements in {Duration:F2}s",
+                    Result.Refined!.Text.Length,
+                    Result.LlmRefined.Text.Length,
+                    Result.LlmRefined.Info.Improvements.Count,
+                    sw.Elapsed.TotalSeconds);
+                return;
+            }
+
+            // Fallback to passthrough if LLM service not available
+            _logger.LogDebug("LLM refiner not available, creating passthrough result");
+            Result.LlmRefined = LlmRefinedContent.FromRefinedContent(Result.Refined!);
+            Result.Metrics.LlmRefineDuration = sw.Elapsed;
+
+            _state = ProcessorState.LlmRefined;
+            _logger.LogInformation("LLM Refine stage completed (passthrough) in {Duration:F2}s", sw.Elapsed.TotalSeconds);
+        }
+        catch (Exception ex) when (ex is not FileFluxException)
+        {
+            // On LLM failure, create passthrough result instead of failing the whole pipeline
+            _logger.LogWarning(ex, "LLM refinement failed, creating passthrough result");
+            Result.LlmRefined = LlmRefinedContent.FromRefinedContent(Result.Refined!);
+            Result.Metrics.LlmRefineDuration = sw.Elapsed;
+            _state = ProcessorState.LlmRefined;
+        }
     }
 
     #endregion
@@ -699,6 +777,12 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         await ExtractAsync(cancellationToken).ConfigureAwait(false);
         await RefineAsync(options.Refine, cancellationToken).ConfigureAwait(false);
+
+        if (options.IncludeLlmRefine)
+        {
+            await LlmRefineAsync(options.LlmRefine, cancellationToken).ConfigureAwait(false);
+        }
+
         await ChunkAsync(options.Chunking, cancellationToken).ConfigureAwait(false);
 
         if (options.IncludeEnrich)
@@ -716,6 +800,11 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         await ExtractAsync(cancellationToken).ConfigureAwait(false);
         await RefineAsync(options.Refine, cancellationToken).ConfigureAwait(false);
+
+        if (options.IncludeLlmRefine)
+        {
+            await LlmRefineAsync(options.LlmRefine, cancellationToken).ConfigureAwait(false);
+        }
 
         await foreach (var chunk in ChunkStreamAsync(options.Chunking, cancellationToken))
         {

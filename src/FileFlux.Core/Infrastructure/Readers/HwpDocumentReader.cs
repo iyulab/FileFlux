@@ -1,12 +1,12 @@
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-using FileFlux.Core.Infrastructure.Interop;
+using FileFlux.Core;
+using Unhwp;
 
 namespace FileFlux.Core.Infrastructure.Readers;
 
 /// <summary>
-/// HWP/HWPX document reader using unhwp native library.
-/// Downloads native library lazily from GitHub releases on first use.
+/// HWP/HWPX document reader using Unhwp (Rust FFI).
+/// High-performance native library for Korean word processor document extraction.
 /// </summary>
 public sealed partial class HwpDocumentReader : IDocumentReader
 {
@@ -17,7 +17,6 @@ public sealed partial class HwpDocumentReader : IDocumentReader
     public bool CanRead(string fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;
-
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
         return extension is ".hwp" or ".hwpx";
     }
@@ -56,36 +55,42 @@ public sealed partial class HwpDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
-            // Detect format using native library (if available)
-            var loader = UnhwpNativeLoader.Instance;
-            if (loader.TryLoadSync() && loader.DetectFormat != null)
+            // Detect format using Unhwp native library
+            var format = UnhwpConverter.DetectFormat(filePath);
+            result.DocumentProps["hwp_format"] = format switch
             {
-                var format = loader.DetectFormat(filePath);
-                result.DocumentProps["hwp_format"] = format switch
-                {
-                    1 => "HWP5",
-                    2 => "HWPX",
-                    _ => "Unknown"
-                };
-            }
-            else
-            {
-                // Fallback: detect by extension
-                result.DocumentProps["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
-            }
+                DocumentFormat.Hwp5 => "HWP5",
+                DocumentFormat.Hwpx => "HWPX",
+                DocumentFormat.Hwp3 => "HWP3",
+                _ => "Unknown"
+            };
 
             result.DocumentProps["file_type"] = "hwp_document";
+
+            // Get document info using Parse
+            using var parseResult = UnhwpConverter.Parse(filePath);
+            result.DocumentProps["section_count"] = parseResult.SectionCount;
+            result.DocumentProps["paragraph_count"] = parseResult.ParagraphCount;
+            result.DocumentProps["image_count"] = parseResult.ImageCount;
 
             // HWP documents are treated as single logical page
             result.Pages.Add(new PageInfo
             {
                 Number = 1,
                 HasContent = fileInfo.Length > 0,
-                Props = { ["file_type"] = "hwp_document" }
+                Props =
+                {
+                    ["file_type"] = "hwp_document",
+                    ["format"] = format.ToString()
+                }
             });
 
             result.Duration = DateTime.UtcNow - startTime;
-            return result;
+            return await Task.FromResult(result).ConfigureAwait(false);
+        }
+        catch (UnhwpException ex)
+        {
+            throw new DocumentProcessingException(filePath, $"Failed to read HWP document: {ex.Message}", ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -107,6 +112,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         {
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
+            var bytes = memoryStream.ToArray();
 
             var result = new ReadResult
             {
@@ -114,25 +120,35 @@ public sealed partial class HwpDocumentReader : IDocumentReader
                 {
                     Name = fileName,
                     Extension = extension,
-                    Size = memoryStream.Length,
+                    Size = bytes.Length,
                     CreatedAt = DateTime.UtcNow,
                     ModifiedAt = DateTime.UtcNow
                 },
                 ReaderType = ReaderType
             };
 
+            // Detect format by extension for stream
             result.DocumentProps["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
             result.DocumentProps["file_type"] = "hwp_document";
+
+            using var parseResult = UnhwpConverter.ParseBytes(bytes);
+            result.DocumentProps["section_count"] = parseResult.SectionCount;
+            result.DocumentProps["paragraph_count"] = parseResult.ParagraphCount;
+            result.DocumentProps["image_count"] = parseResult.ImageCount;
 
             result.Pages.Add(new PageInfo
             {
                 Number = 1,
-                HasContent = memoryStream.Length > 0,
+                HasContent = bytes.Length > 0,
                 Props = { ["file_type"] = "hwp_document" }
             });
 
             result.Duration = DateTime.UtcNow - startTime;
             return result;
+        }
+        catch (UnhwpException ex)
+        {
+            throw new DocumentProcessingException(fileName, $"Failed to read HWP document from stream: {ex.Message}", ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -157,16 +173,15 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
         try
         {
-            // Ensure native library is loaded
-            var loader = UnhwpNativeLoader.Instance;
-            await loader.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
-
-            return await Task.Run(() => ExtractHwpContent(filePath, loader, cancellationToken), cancellationToken)
-                .ConfigureAwait(false);
+            return await Task.Run(() => ExtractHwpContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false);
+        }
+        catch (UnhwpException ex)
+        {
+            throw new DocumentProcessingException(filePath, $"Failed to extract HWP document: {ex.Message}", ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to process HWP document: {ex.Message}", ex);
+            throw new DocumentProcessingException(filePath, $"Failed to extract HWP document: {ex.Message}", ex);
         }
     }
 
@@ -179,484 +194,212 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
         try
         {
-            // Ensure native library is loaded
-            var loader = UnhwpNativeLoader.Instance;
-            await loader.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
-
-            // Read stream to byte array
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
-            var data = memoryStream.ToArray();
+            var bytes = memoryStream.ToArray();
 
-            return await Task.Run(() => ExtractHwpContentFromBytes(data, fileName, loader, cancellationToken), cancellationToken)
-                .ConfigureAwait(false);
+            return await Task.Run(() => ExtractHwpContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false);
+        }
+        catch (UnhwpException ex)
+        {
+            throw new DocumentProcessingException(fileName, $"Failed to extract HWP document from stream: {ex.Message}", ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
-            throw new DocumentProcessingException(fileName, $"Failed to process HWP document from stream: {ex.Message}", ex);
+            throw new DocumentProcessingException(fileName, $"Failed to extract HWP document from stream: {ex.Message}", ex);
         }
     }
 
-    private static RawContent ExtractHwpContent(string filePath, UnhwpNativeLoader loader, CancellationToken cancellationToken)
+    private static RawContent ExtractHwpContent(string filePath, CancellationToken cancellationToken)
     {
         var fileInfo = new FileInfo(filePath);
-        var warnings = new List<string>();
-        var structuralHints = new Dictionary<string, object>();
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        var images = new List<ImageInfo>();
-
-        try
-        {
-            string markdown;
-            int imageCount = 0;
-            int sectionCount = 0;
-            int paragraphCount = 0;
-
-            // HYBRID APPROACH: Use Structured API for images + Simple API for text
-            // Reason: Structured API's unhwp_result_get_markdown returns truncated content
-            // See: claudedocs/issues/unhwp-structured-api-incomplete-markdown.md
-
-            // Step 1: Extract images using Structured API (works correctly)
-            if (loader.Parse != null && loader.ResultGetImageCount != null && loader.ResultGetImage != null && loader.ResultFree != null)
-            {
-                var resultHandle = loader.Parse(filePath, IntPtr.Zero, IntPtr.Zero);
-
-                if (resultHandle != IntPtr.Zero)
-                {
-                    try
-                    {
-                        // Check for errors
-                        bool hasError = false;
-                        if (loader.ResultGetError != null)
-                        {
-                            var errorPtr = loader.ResultGetError(resultHandle);
-                            if (errorPtr != IntPtr.Zero)
-                            {
-                                var errorMsg = Marshal.PtrToStringUTF8(errorPtr) ?? "Unknown error";
-                                warnings.Add($"HWP parse warning (images): {errorMsg}");
-                                hasError = true;
-                            }
-                        }
-
-                        if (!hasError)
-                        {
-                            // Extract images
-                            imageCount = loader.ResultGetImageCount(resultHandle);
-                            for (int i = 0; i < imageCount; i++)
-                            {
-                                if (loader.ResultGetImage(resultHandle, i, out var imageData) == 0)
-                                {
-                                    var imageName = imageData.Name != IntPtr.Zero
-                                        ? Marshal.PtrToStringUTF8(imageData.Name) ?? $"image_{i}"
-                                        : $"image_{i}";
-
-                                    var dataLen = (int)imageData.DataLen;
-                                    if (dataLen > 0 && imageData.Data != IntPtr.Zero)
-                                    {
-                                        var data = new byte[dataLen];
-                                        Marshal.Copy(imageData.Data, data, 0, dataLen);
-                                        images.Add(new ImageInfo
-                                        {
-                                            Id = $"hwp_img_{i}",
-                                            Caption = imageName,
-                                            Data = data,
-                                            MimeType = DetectImageMimeType(data),
-                                            OriginalSize = dataLen,
-                                            SourceUrl = $"embedded:hwp_img_{i}"
-                                        });
-                                    }
-                                }
-                            }
-
-                            // Get section and paragraph counts
-                            if (loader.ResultGetSectionCount != null)
-                                sectionCount = loader.ResultGetSectionCount(resultHandle);
-                            if (loader.ResultGetParagraphCount != null)
-                                paragraphCount = loader.ResultGetParagraphCount(resultHandle);
-                        }
-                    }
-                    finally
-                    {
-                        loader.ResultFree(resultHandle);
-                    }
-                }
-            }
-
-            // Step 2: Get full text using Simple API (Structured API returns truncated text)
-            if (loader.ToMarkdownWithCleanup != null || loader.ToMarkdown != null)
-            {
-                int result;
-                IntPtr markdownPtr, errorPtr;
-
-                if (loader.ToMarkdownWithCleanup != null)
-                {
-                    result = loader.ToMarkdownWithCleanup(filePath, out markdownPtr, out errorPtr);
-                }
-                else
-                {
-                    result = loader.ToMarkdown!(filePath, out markdownPtr, out errorPtr);
-                }
-
-                if (result != 0 || errorPtr != IntPtr.Zero)
-                {
-                    var errorMsg = errorPtr != IntPtr.Zero
-                        ? Marshal.PtrToStringUTF8(errorPtr) ?? "Unknown error"
-                        : $"Conversion failed with code {result}";
-
-                    if (errorPtr != IntPtr.Zero)
-                        loader.FreeString?.Invoke(errorPtr);
-
-                    warnings.Add($"HWP conversion error: {errorMsg}");
-                    return CreateEmptyResult(fileInfo, warnings, structuralHints);
-                }
-
-                if (markdownPtr == IntPtr.Zero)
-                {
-                    warnings.Add("Native library returned null result");
-                    return CreateEmptyResult(fileInfo, warnings, structuralHints);
-                }
-
-                markdown = Marshal.PtrToStringUTF8(markdownPtr) ?? string.Empty;
-                loader.FreeString?.Invoke(markdownPtr);
-            }
-            else
-            {
-                throw new InvalidOperationException("Native library not properly loaded - ToMarkdown not available");
-            }
-
-            // Post-process markdown
-            markdown = PostProcessMarkdown(markdown);
-
-            // Extract structural hints
-            structuralHints["file_type"] = "hwp_document";
-            structuralHints["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
-            structuralHints["character_count"] = markdown.Length;
-            structuralHints["word_count"] = CountWords(markdown);
-            structuralHints["conversion_method"] = "unhwp";
-            structuralHints["image_count"] = imageCount;
-            if (sectionCount > 0) structuralHints["section_count"] = sectionCount;
-            if (paragraphCount > 0) structuralHints["paragraph_count"] = paragraphCount;
-
-            // Detect structural elements
-            var hasHeaders = HeaderRegex().IsMatch(markdown);
-            var hasTables = markdown.Contains("|---", StringComparison.Ordinal) ||
-                           markdown.Contains("| ---", StringComparison.Ordinal);
-            var hasLists = ListRegex().IsMatch(markdown);
-            var hasLinks = LinkRegex().IsMatch(markdown);
-            var hasImages = ImageRegex().IsMatch(markdown) || imageCount > 0;
-
-            if (hasHeaders) structuralHints["has_headers"] = true;
-            if (hasTables) structuralHints["has_tables"] = true;
-            if (hasLists) structuralHints["has_lists"] = true;
-            if (hasLinks) structuralHints["has_links"] = true;
-            if (hasImages) structuralHints["has_images"] = true;
-
-            return new RawContent
-            {
-                Text = markdown.Trim(),
-                File = new SourceFileInfo
-                {
-                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    Extension = extension,
-                    Size = fileInfo.Length,
-                    CreatedAt = fileInfo.CreationTimeUtc,
-                    ModifiedAt = fileInfo.LastWriteTimeUtc
-                },
-                Images = images,
-                Hints = structuralHints,
-                Warnings = warnings,
-                ReaderType = "HwpReader"
-            };
-        }
-        catch (Exception ex)
-        {
-            warnings.Add($"Error processing HWP document: {ex.Message}");
-            return CreateEmptyResult(fileInfo, warnings, structuralHints);
-        }
-    }
-
-    private static string DetectImageMimeType(byte[] data)
-    {
-        if (data.Length < 4) return "application/octet-stream";
-
-        // Check magic bytes
-        if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
-            return "image/jpeg";
-        if (data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47)
-            return "image/png";
-        if (data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46)
-            return "image/gif";
-        if (data[0] == 0x42 && data[1] == 0x4D)
-            return "image/bmp";
-        if (data.Length >= 12 && data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46
-            && data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50)
-            return "image/webp";
-
-        return "application/octet-stream";
-    }
-
-    private static RawContent ExtractHwpContentFromBytes(byte[] data, string fileName, UnhwpNativeLoader loader, CancellationToken cancellationToken)
-    {
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var images = new List<ImageInfo>();
+        var extractedImages = new List<ImageInfo>();
 
-        try
+        // Convert to Markdown with cleanup using Unhwp native library
+        using var parseResult = UnhwpConverter.Parse(filePath, new RenderOptions
         {
-            string markdown;
-            int imageCount = 0;
-            int sectionCount = 0;
-            int paragraphCount = 0;
+            IncludeFrontmatter = false,
+            EscapeSpecialChars = false,
+            PreserveLineBreaks = false,
+            TableFallback = TableFallback.Markdown
+        });
 
-            // Pin the byte array for native calls
-            var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
-            try
-            {
-                var dataPtr = handle.AddrOfPinnedObject();
-
-                // HYBRID APPROACH: Use Structured API for images + Simple API for text
-                // Reason: Structured API's unhwp_result_get_markdown returns truncated content
-                // See: claudedocs/issues/unhwp-structured-api-incomplete-markdown.md
-
-                // Step 1: Extract images using Structured API (works correctly)
-                if (loader.ParseBytes != null && loader.ResultGetImageCount != null && loader.ResultGetImage != null && loader.ResultFree != null)
-                {
-                    var resultHandle = loader.ParseBytes(dataPtr, (nuint)data.Length, IntPtr.Zero, IntPtr.Zero);
-
-                    if (resultHandle != IntPtr.Zero)
-                    {
-                        try
-                        {
-                            // Check for errors
-                            bool hasError = false;
-                            if (loader.ResultGetError != null)
-                            {
-                                var errorPtr = loader.ResultGetError(resultHandle);
-                                if (errorPtr != IntPtr.Zero)
-                                {
-                                    var errorMsg = Marshal.PtrToStringUTF8(errorPtr) ?? "Unknown error";
-                                    warnings.Add($"HWP parse warning (images): {errorMsg}");
-                                    hasError = true;
-                                }
-                            }
-
-                            if (!hasError)
-                            {
-                                // Extract images
-                                imageCount = loader.ResultGetImageCount(resultHandle);
-                                for (int i = 0; i < imageCount; i++)
-                                {
-                                    if (loader.ResultGetImage(resultHandle, i, out var imageData) == 0)
-                                    {
-                                        var imageName = imageData.Name != IntPtr.Zero
-                                            ? Marshal.PtrToStringUTF8(imageData.Name) ?? $"image_{i}"
-                                            : $"image_{i}";
-
-                                        var dataLen = (int)imageData.DataLen;
-                                        if (dataLen > 0 && imageData.Data != IntPtr.Zero)
-                                        {
-                                            var imgData = new byte[dataLen];
-                                            Marshal.Copy(imageData.Data, imgData, 0, dataLen);
-                                            images.Add(new ImageInfo
-                                            {
-                                                Id = $"hwp_img_{i}",
-                                                Caption = imageName,
-                                                Data = imgData,
-                                                MimeType = DetectImageMimeType(imgData),
-                                                OriginalSize = dataLen,
-                                                SourceUrl = $"embedded:hwp_img_{i}"
-                                            });
-                                        }
-                                    }
-                                }
-
-                                // Get section and paragraph counts
-                                if (loader.ResultGetSectionCount != null)
-                                    sectionCount = loader.ResultGetSectionCount(resultHandle);
-                                if (loader.ResultGetParagraphCount != null)
-                                    paragraphCount = loader.ResultGetParagraphCount(resultHandle);
-                            }
-                        }
-                        finally
-                        {
-                            loader.ResultFree(resultHandle);
-                        }
-                    }
-                }
-
-                // Step 2: Get full text using Simple API (Structured API returns truncated text)
-                if (loader.BytesToMarkdown != null)
-                {
-                    var result = loader.BytesToMarkdown(dataPtr, (nuint)data.Length, out var markdownPtr, out var errorPtr);
-
-                    if (result != 0 || errorPtr != IntPtr.Zero)
-                    {
-                        var errorMsg = errorPtr != IntPtr.Zero
-                            ? Marshal.PtrToStringUTF8(errorPtr) ?? "Unknown error"
-                            : $"Conversion failed with code {result}";
-
-                        if (errorPtr != IntPtr.Zero)
-                            loader.FreeString?.Invoke(errorPtr);
-
-                        warnings.Add($"HWP conversion error: {errorMsg}");
-                        return CreateEmptyStreamResult(data.Length, fileName, warnings, structuralHints);
-                    }
-
-                    if (markdownPtr == IntPtr.Zero)
-                    {
-                        warnings.Add("Native library returned null result");
-                        return CreateEmptyStreamResult(data.Length, fileName, warnings, structuralHints);
-                    }
-
-                    markdown = Marshal.PtrToStringUTF8(markdownPtr) ?? string.Empty;
-                    loader.FreeString?.Invoke(markdownPtr);
-                }
-                else
-                {
-                    throw new InvalidOperationException("Native library not properly loaded - BytesToMarkdown not available");
-                }
-            }
-            finally
-            {
-                handle.Free();
-            }
-
-            // Post-process markdown
-            markdown = PostProcessMarkdown(markdown);
-
-            // Extract structural hints
-            structuralHints["file_type"] = "hwp_document";
-            structuralHints["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
-            structuralHints["character_count"] = markdown.Length;
-            structuralHints["word_count"] = CountWords(markdown);
-            structuralHints["conversion_method"] = "unhwp";
-            structuralHints["image_count"] = imageCount;
-            if (sectionCount > 0) structuralHints["section_count"] = sectionCount;
-            if (paragraphCount > 0) structuralHints["paragraph_count"] = paragraphCount;
-
-            // Detect structural elements
-            var hasHeaders = HeaderRegex().IsMatch(markdown);
-            var hasTables = markdown.Contains("|---", StringComparison.Ordinal) ||
-                           markdown.Contains("| ---", StringComparison.Ordinal);
-            var hasLists = ListRegex().IsMatch(markdown);
-            var hasLinks = LinkRegex().IsMatch(markdown);
-            var hasImages = ImageRegex().IsMatch(markdown) || imageCount > 0;
-
-            if (hasHeaders) structuralHints["has_headers"] = true;
-            if (hasTables) structuralHints["has_tables"] = true;
-            if (hasLists) structuralHints["has_lists"] = true;
-            if (hasLinks) structuralHints["has_links"] = true;
-            if (hasImages) structuralHints["has_images"] = true;
-
-            return new RawContent
-            {
-                Text = markdown.Trim(),
-                File = new SourceFileInfo
-                {
-                    Name = fileName,
-                    Extension = extension,
-                    Size = data.Length,
-                    CreatedAt = DateTime.UtcNow,
-                    ModifiedAt = DateTime.UtcNow
-                },
-                Images = images,
-                Hints = structuralHints,
-                Warnings = warnings,
-                ReaderType = "HwpReader"
-            };
-        }
-        catch (Exception ex)
-        {
-            warnings.Add($"Error processing HWP document from stream: {ex.Message}");
-            return CreateEmptyStreamResult(data.Length, fileName, warnings, structuralHints);
-        }
-    }
-
-    private static string PostProcessMarkdown(string markdown)
-    {
-        if (string.IsNullOrEmpty(markdown))
-            return markdown;
+        var markdown = parseResult.Markdown;
 
         // Remove null bytes
         markdown = TextSanitizer.RemoveNullBytes(markdown);
 
-        // Normalize multiple consecutive newlines to max 2
-        markdown = ExcessiveNewlinesRegex().Replace(markdown, "\n\n");
+        // Detect format
+        var format = UnhwpConverter.DetectFormat(filePath);
+        structuralHints["hwp_format"] = format switch
+        {
+            DocumentFormat.Hwp5 => "HWP5",
+            DocumentFormat.Hwpx => "HWPX",
+            DocumentFormat.Hwp3 => "HWP3",
+            _ => "Unknown"
+        };
 
-        // Ensure proper spacing around headers
-        markdown = HeaderSpacingRegex().Replace(markdown, "\n\n$1");
+        structuralHints["section_count"] = parseResult.SectionCount;
+        structuralHints["paragraph_count"] = parseResult.ParagraphCount;
 
-        return markdown.Trim();
-    }
+        // Extract embedded images
+        foreach (var image in parseResult.Images)
+        {
+            var imageInfo = new ImageInfo
+            {
+                Id = image.Name,
+                MimeType = GuessMimeType(image.Name),
+                Data = image.Data,
+                OriginalSize = image.Data.Length,
+                SourceUrl = $"embedded:{image.Name}"
+            };
+            extractedImages.Add(imageInfo);
+        }
 
-    private static int CountWords(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return 0;
+        structuralHints["file_type"] = "hwp_document";
+        structuralHints["character_count"] = markdown.Length;
+        structuralHints["word_count"] = CountWords(markdown);
+        structuralHints["conversion_method"] = "unhwp_native";
 
-        // Count both Korean characters and English words
-        var koreanChars = text.Count(c => c >= '\uAC00' && c <= '\uD7A3');
-        var englishWords = text.Split([' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries)
-            .Count(w => w.Any(c => char.IsLetter(c) && c < '\uAC00'));
+        if (extractedImages.Count > 0)
+        {
+            structuralHints["image_count"] = extractedImages.Count;
+            structuralHints["has_images"] = true;
+        }
 
-        return koreanChars + englishWords;
-    }
+        // Detect structural elements
+        var hasHeaders = HeaderRegex().IsMatch(markdown);
+        var hasTables = markdown.Contains("|---", StringComparison.Ordinal) ||
+                       markdown.Contains("| ---", StringComparison.Ordinal);
+        var hasLists = ListRegex().IsMatch(markdown);
 
-    private static RawContent CreateEmptyResult(FileInfo fileInfo, List<string> warnings, Dictionary<string, object> structuralHints)
-    {
+        if (hasHeaders) structuralHints["has_headers"] = true;
+        if (hasTables) structuralHints["has_tables"] = true;
+        if (hasLists) structuralHints["has_lists"] = true;
+
         return new RawContent
         {
-            Text = string.Empty,
+            Text = markdown.Trim(),
             File = new SourceFileInfo
             {
-                Name = fileInfo.Name,
-                Extension = Path.GetExtension(fileInfo.Name).ToLowerInvariant(),
+                Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                Extension = extension,
                 Size = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,
                 ModifiedAt = fileInfo.LastWriteTimeUtc
             },
             Hints = structuralHints,
             Warnings = warnings,
+            Images = extractedImages,
             ReaderType = "HwpReader"
         };
     }
 
-    private static RawContent CreateEmptyStreamResult(long size, string fileName, List<string> warnings, Dictionary<string, object> structuralHints)
+    private static RawContent ExtractHwpContentFromBytes(byte[] bytes, string fileName, CancellationToken cancellationToken)
     {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        var warnings = new List<string>();
+        var structuralHints = new Dictionary<string, object>();
+        var extractedImages = new List<ImageInfo>();
+
+        // Convert to Markdown with cleanup using Unhwp native library
+        using var parseResult = UnhwpConverter.ParseBytes(bytes, new RenderOptions
+        {
+            IncludeFrontmatter = false,
+            EscapeSpecialChars = false,
+            PreserveLineBreaks = false,
+            TableFallback = TableFallback.Markdown
+        });
+
+        var markdown = parseResult.Markdown;
+
+        // Remove null bytes
+        markdown = TextSanitizer.RemoveNullBytes(markdown);
+
+        // Detect format by extension
+        structuralHints["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
+
+        structuralHints["section_count"] = parseResult.SectionCount;
+        structuralHints["paragraph_count"] = parseResult.ParagraphCount;
+
+        // Extract embedded images
+        foreach (var image in parseResult.Images)
+        {
+            var imageInfo = new ImageInfo
+            {
+                Id = image.Name,
+                MimeType = GuessMimeType(image.Name),
+                Data = image.Data,
+                OriginalSize = image.Data.Length,
+                SourceUrl = $"embedded:{image.Name}"
+            };
+            extractedImages.Add(imageInfo);
+        }
+
+        structuralHints["file_type"] = "hwp_document";
+        structuralHints["character_count"] = markdown.Length;
+        structuralHints["word_count"] = CountWords(markdown);
+        structuralHints["conversion_method"] = "unhwp_native";
+
+        if (extractedImages.Count > 0)
+        {
+            structuralHints["image_count"] = extractedImages.Count;
+            structuralHints["has_images"] = true;
+        }
+
+        // Detect structural elements
+        var hasHeaders = HeaderRegex().IsMatch(markdown);
+        var hasTables = markdown.Contains("|---", StringComparison.Ordinal) ||
+                       markdown.Contains("| ---", StringComparison.Ordinal);
+        var hasLists = ListRegex().IsMatch(markdown);
+
+        if (hasHeaders) structuralHints["has_headers"] = true;
+        if (hasTables) structuralHints["has_tables"] = true;
+        if (hasLists) structuralHints["has_lists"] = true;
+
         return new RawContent
         {
-            Text = string.Empty,
+            Text = markdown.Trim(),
             File = new SourceFileInfo
             {
                 Name = fileName,
-                Extension = Path.GetExtension(fileName).ToLowerInvariant(),
-                Size = size,
+                Extension = extension,
+                Size = bytes.Length,
                 CreatedAt = DateTime.UtcNow,
                 ModifiedAt = DateTime.UtcNow
             },
             Hints = structuralHints,
             Warnings = warnings,
+            Images = extractedImages,
             ReaderType = "HwpReader"
         };
     }
 
-    // Generated regex patterns
+    private static string GuessMimeType(string resourceId)
+    {
+        var lower = resourceId.ToLowerInvariant();
+        if (lower.EndsWith(".png")) return "image/png";
+        if (lower.EndsWith(".jpg") || lower.EndsWith(".jpeg")) return "image/jpeg";
+        if (lower.EndsWith(".gif")) return "image/gif";
+        if (lower.EndsWith(".webp")) return "image/webp";
+        if (lower.EndsWith(".bmp")) return "image/bmp";
+        return "application/octet-stream";
+    }
+
+    private static int CountWords(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return 0;
+        return text.Split([' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    // Generated regex patterns for performance
     [GeneratedRegex(@"^#{1,6}\s", RegexOptions.Multiline)]
     private static partial Regex HeaderRegex();
 
     [GeneratedRegex(@"^[\*\-\+]\s|^\d+\.\s", RegexOptions.Multiline)]
     private static partial Regex ListRegex();
-
-    [GeneratedRegex(@"\[.+?\]\(.+?\)")]
-    private static partial Regex LinkRegex();
-
-    [GeneratedRegex(@"!\[.*?\]\(.+?\)")]
-    private static partial Regex ImageRegex();
-
-    [GeneratedRegex(@"\n{3,}")]
-    private static partial Regex ExcessiveNewlinesRegex();
-
-    [GeneratedRegex(@"\n(#{1,6}\s)")]
-    private static partial Regex HeaderSpacingRegex();
 }
