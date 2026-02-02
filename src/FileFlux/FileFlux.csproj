@@ -27,22 +27,13 @@
 
     <!-- Native document processing -->
     <PackageReference Include="Undoc" />
+
+    <!-- iyulab modules -->
+    <PackageReference Include="FluxCurator" />
+    <PackageReference Include="FluxImprover" />
   </ItemGroup>
 
   <ItemGroup Label="Core">
     <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" />
   </ItemGroup>
-
-  <!-- DEBUG: Project references for local development -->
-  <ItemGroup Label="Text Processing" Condition="'$(Configuration)' == 'Debug'">
-    <ProjectReference Include="..\..\..\FluxCurator\src\FluxCurator\FluxCurator.csproj" />
-    <ProjectReference Include="..\..\..\FluxImprover\src\FluxImprover\FluxImprover.csproj" />
-  </ItemGroup>
-
-  <!-- RELEASE: NuGet package references for distribution -->
-  <ItemGroup Label="Text Processing" Condition="'$(Configuration)' == 'Release'">
-    <PackageReference Include="FluxCurator" />
-    <PackageReference Include="FluxImprover" />
-  </ItemGroup>
-
 </Project>

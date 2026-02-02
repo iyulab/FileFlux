@@ -24,8 +24,8 @@
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
     <PackageVersion Include="Markdig" Version="0.44.0" />
     <!-- Native Document Readers (Rust FFI) -->
-    <PackageVersion Include="Undoc" Version="0.1.12" />
-    <PackageVersion Include="Unhwp" Version="0.1.13" />
+    <PackageVersion Include="Undoc" Version="0.1.13" />
+    <PackageVersion Include="Unhwp" Version="0.1.14" />
     <PackageVersion Include="Unpdf" Version="0.1.5" />
     <!-- Test-only: Used for programmatic test file generation -->
     <PackageVersion Include="DocumentFormat.OpenXml" Version="3.4.1" />
@@ -34,15 +34,15 @@
     <PackageVersion Include="OpenAI" Version="2.8.0" />
   </ItemGroup>
   <ItemGroup Label="Flux Packages">
-    <PackageVersion Include="FluxCurator" Version="0.6.5" />
-    <PackageVersion Include="FluxImprover" Version="0.5.3" />
+    <PackageVersion Include="FluxCurator" Version="0.7.0" />
+    <PackageVersion Include="FluxImprover" Version="0.6.0" />
   </ItemGroup>
   <ItemGroup Label="LMSupply (Release - NuGet packages)">
-    <PackageVersion Include="LMSupply.Core" Version="0.8.3" />
-    <PackageVersion Include="LMSupply.Embedder" Version="0.8.3" />
-    <PackageVersion Include="LMSupply.Generator" Version="0.8.3" />
-    <PackageVersion Include="LMSupply.Captioner" Version="0.8.3" />
-    <PackageVersion Include="LMSupply.Ocr" Version="0.8.3" />
+    <PackageVersion Include="LMSupply.Core" Version="0.13.0" />
+    <PackageVersion Include="LMSupply.Embedder" Version="0.13.0" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.13.0" />
+    <PackageVersion Include="LMSupply.Captioner" Version="0.13.0" />
+    <PackageVersion Include="LMSupply.Ocr" Version="0.13.0" />
   </ItemGroup>
   <ItemGroup Label="CLI and UI">
     <PackageVersion Include="System.CommandLine" Version="2.0.2" />
