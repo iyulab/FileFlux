@@ -8,7 +8,7 @@ namespace FileFlux.Tests.Helpers;
 /// </summary>
 public static class EnvLoader
 {
-    private static bool _loaded = false;
+    private static bool _loaded;
     private static readonly object _lock = new();
 
     public static void Load()
@@ -37,7 +37,7 @@ public static class EnvLoader
             {
                 foreach (var line in File.ReadAllLines(envPath))
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
                         continue;
 
                     var parts = line.Split('=', 2);

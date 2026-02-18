@@ -8,7 +8,7 @@ namespace FileFlux.CLI.Services.Providers;
 /// <summary>
 /// Anthropic Claude API implementation for text completion using direct HTTP API
 /// </summary>
-public class AnthropicTextCompletionService : ITextCompletionService
+public class AnthropicTextCompletionService : ITextCompletionService, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _model;
@@ -416,13 +416,13 @@ public class AnthropicTextCompletionService : ITextCompletionService
     {
         return typeString?.ToUpperInvariant() switch
         {
-            "CHUNK_SIZE_OPTIMIZATION" => RecommendationType.CHUNK_SIZE_OPTIMIZATION,
-            "METADATA_ENHANCEMENT" => RecommendationType.METADATA_ENHANCEMENT,
-            "TITLE_IMPROVEMENT" => RecommendationType.TITLE_IMPROVEMENT,
-            "DESCRIPTION_ENHANCEMENT" => RecommendationType.DESCRIPTION_ENHANCEMENT,
-            "CONTEXT_ADDITION" => RecommendationType.CONTEXT_ADDITION,
-            "STRUCTURE_IMPROVEMENT" => RecommendationType.STRUCTURE_IMPROVEMENT,
-            _ => RecommendationType.METADATA_ENHANCEMENT
+            "CHUNK_SIZE_OPTIMIZATION" => RecommendationType.ChunkSizeOptimization,
+            "METADATA_ENHANCEMENT" => RecommendationType.MetadataEnhancement,
+            "TITLE_IMPROVEMENT" => RecommendationType.TitleImprovement,
+            "DESCRIPTION_ENHANCEMENT" => RecommendationType.DescriptionEnhancement,
+            "CONTEXT_ADDITION" => RecommendationType.ContextAddition,
+            "STRUCTURE_IMPROVEMENT" => RecommendationType.StructureImprovement,
+            _ => RecommendationType.MetadataEnhancement
         };
     }
 
@@ -452,6 +452,12 @@ public class AnthropicTextCompletionService : ITextCompletionService
         }
 
         return structure;
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     // DTOs for Anthropic API

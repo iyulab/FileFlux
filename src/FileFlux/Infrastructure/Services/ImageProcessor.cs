@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using FileFlux.Core;
 using FileFlux.Domain;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Services;
 
@@ -334,19 +335,19 @@ public class ImageProcessor
 
         // Image reference with descriptive alt text
         var displayAlt = string.IsNullOrEmpty(altText) ? $"Image {index}" : altText;
-        sb.AppendLine($"![{displayAlt}]({relativePath})");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"![{displayAlt}]({relativePath})");
 
         // AI description if available
         if (!string.IsNullOrEmpty(image.AIDescription))
         {
             sb.AppendLine();
-            sb.AppendLine($"> **AI Analysis**: {image.AIDescription}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"> **AI Analysis**: {image.AIDescription}");
         }
         else
         {
             // Fallback: provide basic image metadata as caption
             sb.AppendLine();
-            sb.AppendLine($"> *Image {index}: {image.Width}x{image.Height}px, {FormatFileSize(image.FileSize)}*");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"> *Image {index}: {image.Width}x{image.Height}px, {FormatFileSize(image.FileSize)}*");
         }
 
         return sb.ToString();

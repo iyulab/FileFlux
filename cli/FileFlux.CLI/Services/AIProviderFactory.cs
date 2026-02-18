@@ -335,7 +335,7 @@ public class AIProviderFactory
     /// Get the effective max tokens for LMSupply models.
     /// Phi-4-mini has 512 token context, but we need room for the enrichment prompt.
     /// </summary>
-    private int GetLMSupplyMaxTokens()
+    private static int GetLMSupplyMaxTokens()
     {
         // Check for custom configuration via environment variable
         var customLimit = Environment.GetEnvironmentVariable("LMSUPPLY_MAX_TOKENS");
@@ -349,21 +349,21 @@ public class AIProviderFactory
         return 400;
     }
 
-    private FluxImproverService CreateOpenAIFluxImproverService()
+    private Providers.FluxImprover.OpenAICompletionService CreateOpenAIFluxImproverService()
     {
         var apiKey = _config.OpenAIApiKey ?? throw new InvalidOperationException("OpenAI API key not configured");
         var model = _config.OpenAIModel ?? "gpt-5-nano";
         return new Providers.FluxImprover.OpenAICompletionService(apiKey, model);
     }
 
-    private FluxImproverService CreateAnthropicFluxImproverService()
+    private Providers.FluxImprover.AnthropicCompletionService CreateAnthropicFluxImproverService()
     {
         var apiKey = _config.AnthropicApiKey ?? throw new InvalidOperationException("Anthropic API key not configured");
         var model = _config.AnthropicModel ?? "claude-3-5-sonnet-20241022";
         return new Providers.FluxImprover.AnthropicCompletionService(apiKey, model);
     }
 
-    private FluxImproverService CreateGpuStackFluxImproverService()
+    private Providers.FluxImprover.OpenAICompletionService CreateGpuStackFluxImproverService()
     {
         var apiKey = _config.GpuStackApiKey ?? throw new InvalidOperationException("GPU-Stack API key not configured");
         var model = _config.GpuStackModel ?? throw new InvalidOperationException("GPU-Stack model not configured");
@@ -371,14 +371,14 @@ public class AIProviderFactory
         return new Providers.FluxImprover.OpenAICompletionService(apiKey, model, endpoint);
     }
 
-    private FluxImproverService CreateGoogleFluxImproverService()
+    private Providers.FluxImprover.GoogleCompletionService CreateGoogleFluxImproverService()
     {
         var apiKey = _config.GoogleApiKey ?? throw new InvalidOperationException("Google API key not configured");
         var model = _config.GoogleModel ?? "gemini-2.0-flash";
         return new Providers.FluxImprover.GoogleCompletionService(apiKey, model);
     }
 
-    private FluxImproverService CreateLMSupplyFluxImproverService()
+    private Providers.FluxImprover.LMSupplyCompletionService CreateLMSupplyFluxImproverService()
     {
         var options = new LMSupplyOptions
         {
@@ -529,8 +529,6 @@ public class AIProviderFactory
     private class ConsoleDownloadProgress : IProgress<DownloadProgress>
     {
         private string? _currentFile;
-        private ProgressTask? _progressTask;
-        private ProgressContext? _progressContext;
         private readonly object _lock = new();
 
         public void Report(DownloadProgress value)

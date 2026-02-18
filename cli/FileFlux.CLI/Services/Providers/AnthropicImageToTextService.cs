@@ -9,7 +9,7 @@ namespace FileFlux.CLI.Services.Providers;
 /// Anthropic Claude Vision API implementation for image to text extraction using direct HTTP API
 /// Uses Claude 3.5 Sonnet, Claude 3 Opus with vision capabilities
 /// </summary>
-public class AnthropicImageToTextService : IImageToTextService
+public class AnthropicImageToTextService : IImageToTextService, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _model;
@@ -232,6 +232,12 @@ public class AnthropicImageToTextService : IImageToTextService
 
         // Default to JPEG
         return "image/jpeg";
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     // DTOs for Anthropic API

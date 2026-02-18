@@ -172,7 +172,7 @@ public class ProcessingResult<T>
     /// <summary>
     /// 파싱된 문서 내용 (Parsing 단계에서 설정)
     /// </summary>
-    public ParsedContent? ParsedContent { get; set; }
+    public RefinedContent? ParsedContent { get; set; }
 
     /// <summary>
     /// 처리 성공 여부

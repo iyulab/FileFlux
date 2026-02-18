@@ -23,7 +23,7 @@ public class PdfHeaderFooterFilter
         /// <summary>
         /// Enable header/footer detection and removal. Default: false (opt-in).
         /// </summary>
-        public bool Enabled { get; set; } = false;
+        public bool Enabled { get; set; }
 
         /// <summary>
         /// Minimum ratio of pages a line must appear on to be considered header/footer.

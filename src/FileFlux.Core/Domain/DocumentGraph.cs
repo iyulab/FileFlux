@@ -87,9 +87,8 @@ public class DocumentGraph
                     return path;
                 }
 
-                if (!visited.Contains(neighbor))
+                if (visited.Add(neighbor))
                 {
-                    visited.Add(neighbor);
                     var newPath = new List<Guid>(path) { neighbor };
                     queue.Enqueue(newPath);
                 }

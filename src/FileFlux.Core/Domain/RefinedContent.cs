@@ -14,52 +14,67 @@ public class RefinedContent
     /// <summary>
     /// Reference to raw extraction stage.
     /// </summary>
-    public Guid RawId { get; init; }
+    public Guid RawId { get; set; }
 
     /// <summary>
     /// Cleaned and normalized text content.
     /// </summary>
-    public required string Text { get; init; }
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Document topic.
+    /// </summary>
+    public string Topic { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Document summary.
+    /// </summary>
+    public string Summary { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Document keywords.
+    /// </summary>
+    public List<string> Keywords { get; set; } = [];
 
     /// <summary>
     /// Document sections with hierarchical structure.
     /// </summary>
-    public IReadOnlyList<Section> Sections { get; init; } = [];
+    public List<Section> Sections { get; set; } = [];
 
     /// <summary>
     /// Extracted structured elements (tables, code, lists).
     /// </summary>
-    public IReadOnlyList<StructuredElement> Structures { get; init; } = [];
+    public IReadOnlyList<StructuredElement> Structures { get; set; } = [];
 
     /// <summary>
     /// Document-level metadata.
     /// </summary>
-    public DocumentMetadata Metadata { get; init; } = new();
+    public DocumentMetadata Metadata { get; set; } = new();
 
     /// <summary>
     /// Quality metrics after refinement.
     /// </summary>
-    public RefinementQuality Quality { get; init; } = new();
+    public RefinementQuality Quality { get; set; } = new();
 
     /// <summary>
     /// Refinement process information.
     /// </summary>
-    public RefinementInfo Info { get; init; } = new();
+    public RefinementInfo Info { get; set; } = new();
 
     /// <summary>
     /// Refinement timestamp.
     /// </summary>
-    public DateTime RefinedAt { get; init; } = DateTime.UtcNow;
+    public DateTime RefinedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
     /// Processing status.
     /// </summary>
-    public ProcessingStatus Status { get; init; } = ProcessingStatus.Completed;
+    public ProcessingStatus Status { get; set; } = ProcessingStatus.Completed;
 
     /// <summary>
     /// Errors encountered during refinement.
     /// </summary>
-    public IReadOnlyList<ProcessingError> Errors { get; init; } = [];
+    public IReadOnlyList<ProcessingError> Errors { get; set; } = [];
 
     /// <summary>
     /// Success indicator.
@@ -157,30 +172,30 @@ public class RefinementInfo
     /// <summary>
     /// Refiner type used.
     /// </summary>
-    public string RefinerType { get; init; } = string.Empty;
+    public string RefinerType { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether LLM was used for refinement.
     /// </summary>
-    public bool UsedLlm { get; init; }
+    public bool UsedLlm { get; set; }
 
     /// <summary>
     /// LLM model used (if any).
     /// </summary>
-    public string? LlmModel { get; init; }
+    public string? LlmModel { get; set; }
 
     /// <summary>
     /// Tokens consumed (if LLM was used).
     /// </summary>
-    public int? TokensUsed { get; init; }
+    public int? TokensUsed { get; set; }
 
     /// <summary>
     /// Processing duration.
     /// </summary>
-    public TimeSpan Duration { get; init; }
+    public TimeSpan Duration { get; set; }
 
     /// <summary>
     /// Warnings during refinement.
     /// </summary>
-    public IReadOnlyList<string> Warnings { get; init; } = [];
+    public List<string> Warnings { get; set; } = [];
 }

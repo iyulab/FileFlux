@@ -3,6 +3,7 @@ using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 using Undoc;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Readers;
 
@@ -13,6 +14,7 @@ namespace FileFlux.Infrastructure.Readers;
 /// </summary>
 public class MultiModalExcelDocumentReader : IDocumentReader
 {
+    private static readonly char[] s_keywordSeparators = [' ', '\n', '\r', '\t', '|'];
     private readonly IImageToTextService? _imageToTextService;
     private readonly IImageRelevanceEvaluator? _relevanceEvaluator;
     private readonly ExcelDocumentReader _baseExcelReader;
@@ -107,7 +109,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
 
             var documentImages = await ExtractDocumentImages(doc, cancellationToken);
 
-            if (documentImages.Any())
+            if (documentImages.Count != 0)
             {
                 // 관련성 평가가 활성화된 경우 배치 평가 수행
                 List<ImageRelevanceResult>? relevanceResults = null;
@@ -154,10 +156,10 @@ public class MultiModalExcelDocumentReader : IDocumentReader
                             hasRelevantImages = true;
                         }
 
-                        documentImageTexts.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
-                        documentImageTexts.AppendLine($"Spreadsheet Image {imageCount}:");
+                        documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_START:IMG_{imageCount} -->");
+                        documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"Spreadsheet Image {imageCount}:");
                         documentImageTexts.AppendLine(processedText);
-                        documentImageTexts.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
+                        documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_END:IMG_{imageCount} -->");
 
                         includedImageCount++;
                         imageProcessingResults.Add($"Spreadsheet: {imageResult.ImageType} image INCLUDED - {inclusionReason}");
@@ -323,7 +325,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
     /// <summary>
     /// 문서 컨텍스트 준비 (관련성 평가용)
     /// </summary>
-    private DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
+    private static DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
     {
         var context = new DocumentContext
         {
@@ -344,7 +346,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
         }
 
         // 간단한 키워드 추출 (공백으로 분리된 단어 중 길이가 5 이상인 것들)
-        var words = baseContent.Text.Split(new[] { ' ', '\n', '\r', '\t', '|' }, StringSplitOptions.RemoveEmptyEntries);
+        var words = baseContent.Text.Split(s_keywordSeparators, StringSplitOptions.RemoveEmptyEntries);
         context.Keywords = words
             .Where(w => w.Length >= 5)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -357,7 +359,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
     /// <summary>
     /// 텍스트 자르기 헬퍼
     /// </summary>
-    private string TruncateText(string text, int maxLength)
+    private static string TruncateText(string text, int maxLength)
     {
         if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
             return text;

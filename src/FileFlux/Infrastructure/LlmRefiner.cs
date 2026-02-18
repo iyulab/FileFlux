@@ -45,19 +45,19 @@ public sealed partial class LlmRefiner : ILlmRefiner
         options ??= LlmRefineOptions.Default;
 
         var sw = Stopwatch.StartNew();
-        _logger.LogDebug("Starting LLM refinement");
+        LogStartingLlmRefinement(_logger);
 
         // If no LLM service available, return passthrough
         if (!IsAvailable)
         {
-            _logger.LogDebug("LLM service not available, creating passthrough result");
+            LogLlmNotAvailable(_logger);
             return CreatePassthroughResult(refined, "LLM service not available");
         }
 
         // If no improvements are enabled, return passthrough
         if (!options.HasAnyImprovementEnabled)
         {
-            _logger.LogDebug("No LLM improvements enabled, creating passthrough result");
+            LogNoImprovementsEnabled(_logger);
             return CreatePassthroughResult(refined, "No improvements enabled");
         }
 
@@ -165,7 +165,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "LLM refinement failed, returning passthrough result");
+            LogLlmRefinementFailed(_logger, ex);
             return CreatePassthroughResult(refined, $"LLM refinement failed: {ex.Message}");
         }
     }
@@ -232,7 +232,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to restore broken sentences");
+            LogRestoreSentencesFailed(_logger, ex);
             return (text, false, 0);
         }
     }
@@ -280,7 +280,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to remove noise");
+            LogRemoveNoiseFailed(_logger, ex);
             return (text, false, 0);
         }
     }
@@ -329,7 +329,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to correct OCR errors");
+            LogCorrectOcrFailed(_logger, ex);
             return (text, false, 0);
         }
     }
@@ -376,7 +376,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to restructure sections");
+            LogRestructureSectionsFailed(_logger, ex);
             return (text, false, 0);
         }
     }
@@ -423,7 +423,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to merge duplicates");
+            LogMergeDuplicatesFailed(_logger, ex);
             return (text, false, 0);
         }
     }
@@ -481,6 +481,37 @@ public sealed partial class LlmRefiner : ILlmRefiner
         // Rough estimation: ~4 characters per token
         return text.Length / 4;
     }
+
+    #region LoggerMessage
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting LLM refinement")]
+    private static partial void LogStartingLlmRefinement(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "LLM service not available, creating passthrough result")]
+    private static partial void LogLlmNotAvailable(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "No LLM improvements enabled, creating passthrough result")]
+    private static partial void LogNoImprovementsEnabled(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "LLM refinement failed, returning passthrough result")]
+    private static partial void LogLlmRefinementFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Failed to restore broken sentences")]
+    private static partial void LogRestoreSentencesFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Failed to remove noise")]
+    private static partial void LogRemoveNoiseFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Failed to correct OCR errors")]
+    private static partial void LogCorrectOcrFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Failed to restructure sections")]
+    private static partial void LogRestructureSectionsFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Failed to merge duplicates")]
+    private static partial void LogMergeDuplicatesFailed(ILogger logger, Exception ex);
+
+    #endregion
 
     [GeneratedRegex(@"[a-z,]\n[a-z]", RegexOptions.Compiled)]
     private static partial Regex BrokenSentenceRegex();

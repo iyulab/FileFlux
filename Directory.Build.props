@@ -13,10 +13,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <LangVersion>preview</LangVersion>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsAsErrors />
-    <WarningsNotAsErrors />
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
   <!-- Common Package Information -->
@@ -61,8 +60,7 @@
   <!-- Code Quality and Analysis -->
   <PropertyGroup>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
-    <AnalysisLevel>latest</AnalysisLevel>
-    <AnalysisMode>Default</AnalysisMode>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
     <CodeAnalysisRuleSet Condition="Exists('$(MSBuildThisFileDirectory)FileFlux.ruleset')">$(MSBuildThisFileDirectory)FileFlux.ruleset</CodeAnalysisRuleSet>
     
     <!-- Performance optimizations -->
@@ -75,9 +73,10 @@
   <PropertyGroup>
     <!-- Suppress common warnings for auto-generated files -->
     <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Missing XML comment for publicly visible type or member -->
+    <!-- CS3*: CLS compliance (not applicable) -->
+    <NoWarn>$(NoWarn);CS3001;CS3002;CS3003;CS3009;CS3016</NoWarn>
     
-    <!-- Enable additional warnings -->
-    <WarningsAsErrors Condition="'$(Configuration)' == 'Release'">$(WarningsAsErrors);CS8600;CS8601;CS8602;CS8603</WarningsAsErrors>
+    <!-- TreatWarningsAsErrors=true covers all nullable warnings -->
   </PropertyGroup>
 
   <!-- Source Link for debugging -->
@@ -115,12 +114,16 @@
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <OutputType>Exe</OutputType>
+    <!-- CLI tool uses logging for diagnostic output, not production perf -->
+    <NoWarn>$(NoWarn);CA1848;CA1873</NoWarn>
   </PropertyGroup>
 
   <!-- Tests Project -->
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.Tests'">
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Test projects use logging for diagnostic output, not production perf -->
+    <NoWarn>$(NoWarn);CA1848;CA1873</NoWarn>
   </PropertyGroup>
 
   <!-- Sample App Project -->
@@ -128,6 +131,8 @@
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <OutputType>Exe</OutputType>
+    <!-- Sample projects use logging for demonstration, not production perf -->
+    <NoWarn>$(NoWarn);CA1848;CA1873</NoWarn>
   </PropertyGroup>
 
   <!-- Common item groups for specific project types -->

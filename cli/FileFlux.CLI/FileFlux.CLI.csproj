@@ -6,6 +6,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
 
+    <!-- CA1010: System.CommandLine.Command implements IEnumerable (non-generic) — cannot change base class -->
+    <NoWarn>$(NoWarn);CA1010</NoWarn>
+
     <!-- dotnet tool configuration -->
     <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>

@@ -5,28 +5,28 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup Label="Microsoft Extensions (10.0.2)">
-    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.3" />
     <PackageVersion Include="NTextCat" Version="0.3.65" />
   </ItemGroup>
   <ItemGroup Label="Document Processing">
     <PackageVersion Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
-    <PackageVersion Include="Markdig" Version="0.44.0" />
+    <PackageVersion Include="Markdig" Version="0.45.0" />
     <!-- Native Document Readers (Rust FFI) -->
     <PackageVersion Include="Undoc" Version="0.1.13" />
-    <PackageVersion Include="Unhwp" Version="0.1.14" />
-    <PackageVersion Include="Unpdf" Version="0.1.5" />
+    <PackageVersion Include="Unhwp" Version="0.1.16" />
+    <PackageVersion Include="Unpdf" Version="0.1.6" />
     <!-- Test-only: Used for programmatic test file generation -->
     <PackageVersion Include="DocumentFormat.OpenXml" Version="3.4.1" />
   </ItemGroup>
@@ -38,25 +38,25 @@
     <PackageVersion Include="FluxImprover" Version="0.6.0" />
   </ItemGroup>
   <ItemGroup Label="LMSupply (Release - NuGet packages)">
-    <PackageVersion Include="LMSupply.Core" Version="0.13.0" />
-    <PackageVersion Include="LMSupply.Embedder" Version="0.13.0" />
-    <PackageVersion Include="LMSupply.Generator" Version="0.13.0" />
-    <PackageVersion Include="LMSupply.Captioner" Version="0.13.0" />
-    <PackageVersion Include="LMSupply.Ocr" Version="0.13.0" />
+    <PackageVersion Include="LMSupply.Core" Version="0.13.1" />
+    <PackageVersion Include="LMSupply.Embedder" Version="0.13.1" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.13.1" />
+    <PackageVersion Include="LMSupply.Captioner" Version="0.13.1" />
+    <PackageVersion Include="LMSupply.Ocr" Version="0.13.1" />
   </ItemGroup>
   <ItemGroup Label="CLI and UI">
-    <PackageVersion Include="System.CommandLine" Version="2.0.2" />
+    <PackageVersion Include="System.CommandLine" Version="2.0.3" />
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />
   </ItemGroup>
   <ItemGroup Label="Database">
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
   </ItemGroup>
   <ItemGroup Label="Testing Framework">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="FluentAssertions" Version="8.8.0" />
-    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="coverlet.collector" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup Label="Build Tools">
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />

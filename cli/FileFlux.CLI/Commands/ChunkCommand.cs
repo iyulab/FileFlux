@@ -1,4 +1,5 @@
 using FileFlux.CLI.Services;
+using System.Globalization;
 using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.Infrastructure;
@@ -282,10 +283,10 @@ public class ChunkCommand : Command
         {
             var maxSizeDisplay = chunkSizeAdjusted
                 ? $"{effectiveMaxSize} [dim](adjusted from {maxSize})[/]"
-                : maxSize.ToString();
+                : maxSize.ToString(CultureInfo.InvariantCulture);
             var overlapDisplay = chunkSizeAdjusted
                 ? $"{effectiveOverlap} [dim](adjusted from {overlap})[/]"
-                : overlap.ToString();
+                : overlap.ToString(CultureInfo.InvariantCulture);
 
             AnsiConsole.MarkupLine($"[blue]FileFlux CLI - Chunk[/]");
             AnsiConsole.MarkupLine($"  Input:    {Markup.Escape(input)}");
@@ -311,8 +312,8 @@ public class ChunkCommand : Command
             if (extractImages) Directory.CreateDirectory(dirs.Images);
 
             RawContent rawContent = null!;
-            ParsedContent parsedContent = null!;
-            ParsedContent contentToChunk = null!;
+            RefinedContent parsedContent = null!;
+            RefinedContent contentToChunk = null!;
             DocumentChunk[] chunks = null!;
             var images = new List<Domain.ProcessedImage>();
             var skippedImageCount = 0;
@@ -479,11 +480,11 @@ public class ChunkCommand : Command
                 table.AddColumn("Metric");
                 table.AddColumn("Value");
                 table.AddRow("Pipeline", pipelineDesc);
-                table.AddRow("Total chunks", chunks.Length.ToString());
-                table.AddRow("Total characters", totalChars.ToString("N0"));
-                table.AddRow("Average chunk size", avgChunkSize.ToString("N0"));
-                table.AddRow("Min chunk size", chunks.Length > 0 ? chunks.Min(c => c.Content.Length).ToString("N0") : "0");
-                table.AddRow("Max chunk size", chunks.Length > 0 ? chunks.Max(c => c.Content.Length).ToString("N0") : "0");
+                table.AddRow("Total chunks", chunks.Length.ToString(CultureInfo.InvariantCulture));
+                table.AddRow("Total characters", totalChars.ToString("N0", CultureInfo.InvariantCulture));
+                table.AddRow("Average chunk size", avgChunkSize.ToString("N0", CultureInfo.InvariantCulture));
+                table.AddRow("Min chunk size", chunks.Length > 0 ? chunks.Min(c => c.Content.Length).ToString("N0", CultureInfo.InvariantCulture) : "0");
+                table.AddRow("Max chunk size", chunks.Length > 0 ? chunks.Max(c => c.Content.Length).ToString("N0", CultureInfo.InvariantCulture) : "0");
 
                 if (enableRefine)
                 {
@@ -494,10 +495,10 @@ public class ChunkCommand : Command
                 }
 
                 if (images.Count > 0)
-                    table.AddRow("Images extracted", images.Count.ToString());
+                    table.AddRow("Images extracted", images.Count.ToString(CultureInfo.InvariantCulture));
 
                 if (skippedImageCount > 0)
-                    table.AddRow("Images skipped", skippedImageCount.ToString());
+                    table.AddRow("Images skipped", skippedImageCount.ToString(CultureInfo.InvariantCulture));
 
                 if (enableEnrich && enrichedCount > 0)
                     table.AddRow("Enriched chunks", $"{enrichedCount} ({enrichedCount * 100 / chunks.Length}%)");

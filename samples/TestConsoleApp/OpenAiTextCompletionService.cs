@@ -190,7 +190,7 @@ public class OpenAiTextCompletionService : ITextCompletionService
                 {
                     new QualityRecommendation
                     {
-                        Type = RecommendationType.METADATA_ENHANCEMENT,
+                        Type = RecommendationType.MetadataEnhancement,
                         Description = "OpenAI로 품질 평가 완료",
                         Priority = 5
                     }

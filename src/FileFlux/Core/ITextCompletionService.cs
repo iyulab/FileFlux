@@ -354,32 +354,27 @@ public enum RecommendationType
     /// <summary>
     /// 청크 크기 최적화
     /// </summary>
-    CHUNK_SIZE_OPTIMIZATION,
-
-    /// <summary>
-    /// 메타데이터 보완
-    /// </summary>
-    METADATA_ENHANCEMENT,
+    ChunkSizeOptimization,
 
     /// <summary>
     /// 제목 개선
     /// </summary>
-    TITLE_IMPROVEMENT,
+    TitleImprovement,
 
     /// <summary>
     /// 설명 보완
     /// </summary>
-    DESCRIPTION_ENHANCEMENT,
+    DescriptionEnhancement,
 
     /// <summary>
     /// 컨텍스트 정보 추가
     /// </summary>
-    CONTEXT_ADDITION,
+    ContextAddition,
 
     /// <summary>
     /// 구조화 개선
     /// </summary>
-    STRUCTURE_IMPROVEMENT,
+    StructureImprovement,
 
     /// <summary>
     /// 청킹 전략 변경

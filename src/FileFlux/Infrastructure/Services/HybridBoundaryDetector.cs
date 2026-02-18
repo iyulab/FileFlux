@@ -164,7 +164,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         return (statisticalResult.UncertaintyScore, normalized);
     }
 
-    private async Task<double> CalculateSimilarityScoreAsync(
+    private static async Task<double> CalculateSimilarityScoreAsync(
         string segment1,
         string segment2,
         IEmbeddingService embeddingService,
@@ -179,7 +179,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         return embeddingService.CalculateSimilarity(embeddingArray[0], embeddingArray[1]);
     }
 
-    private double NormalizeUncertainty(double uncertaintyScore)
+    private static double NormalizeUncertainty(double uncertaintyScore)
     {
         // Log scale normalization
         // Score 1-10: low (0-0.3)
@@ -192,7 +192,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         return Math.Min(1, logScore / 3); // log10(1000) = 3
     }
 
-    private BoundaryType DetermineBoundaryType(
+    private static BoundaryType DetermineBoundaryType(
         string segment1,
         string segment2,
         double uncertaintyScore,
@@ -206,7 +206,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         }
 
         // 구조적 마커 체크
-        if (segment2.StartsWith("#", StringComparison.Ordinal) || segment2.Contains("HEADING_START"))
+        if (segment2.StartsWith('#') || segment2.Contains("HEADING_START"))
         {
             return BoundaryType.Section;
         }
@@ -263,7 +263,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         return _boundaryThreshold;
     }
 
-    private List<HybridBoundaryPoint> MergeNearbyBoundaries(
+    private static List<HybridBoundaryPoint> MergeNearbyBoundaries(
         List<HybridBoundaryPoint> boundaries,
         int mergeDistance)
     {
@@ -294,7 +294,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
         return merged;
     }
 
-    private string GenerateReason(HybridBoundaryResult result)
+    private static string GenerateReason(HybridBoundaryResult result)
     {
         var reasons = new List<string>();
 

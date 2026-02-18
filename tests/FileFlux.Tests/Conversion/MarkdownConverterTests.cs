@@ -6,6 +6,8 @@ namespace FileFlux.Tests.Conversion;
 
 public class MarkdownConverterTests
 {
+    private static readonly char[] s_newlineSeparators = ['\r', '\n'];
+    private static readonly string[] s_lineSeparators = ["\r\n", "\n"];
     private readonly MarkdownConverter _converter;
 
     public MarkdownConverterTests()
@@ -128,7 +130,7 @@ public class MarkdownConverterTests
         // Assert
         Assert.True(result.IsSuccess);
         // MinHeadingLevel=2 should convert # to ##
-        var firstLine = result.Markdown.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)[0];
+        var firstLine = result.Markdown.Split(s_newlineSeparators, StringSplitOptions.RemoveEmptyEntries)[0];
         Assert.StartsWith("## ", firstLine); // Single # becomes ##
         Assert.Contains("## ", result.Markdown);
     }
@@ -334,7 +336,7 @@ public class MarkdownConverterTests
         // Assert
         Assert.True(result.IsSuccess);
         // Normalized should have at most 2 consecutive empty lines
-        var normalizedLines = result.Markdown.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+        var normalizedLines = result.Markdown.Split(s_lineSeparators, StringSplitOptions.None);
         int consecutiveBlank = 0;
         int maxConsecutiveBlank = 0;
         foreach (var line in normalizedLines)
@@ -365,7 +367,7 @@ public class MarkdownConverterTests
         // Assert
         Assert.True(result.IsSuccess);
         // Count blank lines - should have 4 consecutive empty lines preserved
-        var blankLineCount = result.Markdown.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None)
+        var blankLineCount = result.Markdown.Split(s_lineSeparators, StringSplitOptions.None)
             .Select((line, index) => new { line, index })
             .Where(x => string.IsNullOrEmpty(x.line))
             .Count();

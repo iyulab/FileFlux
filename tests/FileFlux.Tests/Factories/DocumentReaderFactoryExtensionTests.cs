@@ -68,10 +68,10 @@ public class DocumentReaderFactoryExtensionTests
     [InlineData(".xml", false)]   // XML은 지원하지 않음
     [InlineData("", false)]       // 빈 문자열
     [InlineData(null, false)]     // null
-    public void IsExtensionSupported_ShouldReturnCorrectResult(string extension, bool expected)
+    public void IsExtensionSupported_ShouldReturnCorrectResult(string? extension, bool expected)
     {
         // Act
-        var result = _factory.IsExtensionSupported(extension);
+        var result = _factory.IsExtensionSupported(extension!);
 
         // Assert
         Assert.Equal(expected, result);

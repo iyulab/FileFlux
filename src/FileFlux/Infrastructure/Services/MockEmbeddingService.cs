@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Services;
 
@@ -9,6 +10,7 @@ namespace FileFlux.Infrastructure.Services;
 /// </summary>
 public class MockEmbeddingService : IEmbeddingService
 {
+    private static readonly char[] s_tokenSeparators = [' ', '\n', '\r', '\t', '.', ',', '!', '?', ';', ':', '-', '(', ')', '[', ']'];
     private readonly Dictionary<string, float> _idfCache = new();
     private readonly int _dimension;
     private readonly Random _random = new();
@@ -89,8 +91,8 @@ public class MockEmbeddingService : IEmbeddingService
         var embedding = new float[_dimension];
 
         // Tokenize text (simple word split)
-        var words = text.ToLower()
-            .Split(new[] { ' ', '\n', '\r', '\t', '.', ',', '!', '?', ';', ':', '-', '(', ')', '[', ']' },
+        var words = text.ToLowerInvariant()
+            .Split(s_tokenSeparators,
                    StringSplitOptions.RemoveEmptyEntries);
 
         if (words.Length == 0)
@@ -102,8 +104,8 @@ public class MockEmbeddingService : IEmbeddingService
         var wordFreq = new Dictionary<string, float>();
         foreach (var word in words)
         {
-            if (wordFreq.ContainsKey(word))
-                wordFreq[word]++;
+            if (wordFreq.TryGetValue(word, out var existingFreq))
+                wordFreq[word] = existingFreq + 1;
             else
                 wordFreq[word] = 1;
         }
@@ -115,21 +117,18 @@ public class MockEmbeddingService : IEmbeddingService
             var freq = kvp.Value / words.Length; // TF
 
             // Simple IDF simulation
-            if (!_idfCache.ContainsKey(word))
+            if (!_idfCache.TryGetValue(word, out var idf))
             {
-                _idfCache[word] = (float)Math.Log(1000.0 / (1 + _random.Next(1, 100)));
+                idf = (float)Math.Log(1000.0 / (1 + _random.Next(1, 100)));
+                _idfCache[word] = idf;
             }
-            var idf = _idfCache[word];
 
             // Hash word to get consistent indices
-            using (var sha = SHA256.Create())
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(word));
+            for (int i = 0; i < Math.Min(4, hash.Length); i++)
             {
-                var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(word));
-                for (int i = 0; i < Math.Min(4, hash.Length); i++)
-                {
-                    var idx = (hash[i] * 7 + i * 13) % _dimension;
-                    embedding[idx] += freq * idf * (1 + (float)purpose * 0.1f);
-                }
+                var idx = (hash[i] * 7 + i * 13) % _dimension;
+                embedding[idx] += freq * idf * (1 + (float)purpose * 0.1f);
             }
         }
 
@@ -142,7 +141,7 @@ public class MockEmbeddingService : IEmbeddingService
         return embedding;
     }
 
-    private void AddSemanticFeatures(float[] embedding, string text, string[] words)
+    private static void AddSemanticFeatures(float[] embedding, string text, string[] words)
     {
         // Add features for text characteristics
         var features = new Dictionary<int, float>
@@ -181,7 +180,7 @@ public class MockEmbeddingService : IEmbeddingService
         AddTopicFeatures(embedding, words);
     }
 
-    private void AddTopicFeatures(float[] embedding, string[] words)
+    private static void AddTopicFeatures(float[] embedding, string[] words)
     {
         var topics = new Dictionary<string, int>
         {
@@ -213,7 +212,7 @@ public class MockEmbeddingService : IEmbeddingService
             // Count keyword matches with boost for exact matches
             foreach (var keyword in keywords)
             {
-                var count = words.Count(w => w.ToLower().Contains(keyword.ToLower()));
+                var count = words.Count(w => w.Contains(keyword, StringComparison.OrdinalIgnoreCase));
                 score += count > 0 ? (float)count / words.Length : 0;
             }
 
@@ -227,7 +226,7 @@ public class MockEmbeddingService : IEmbeddingService
         }
     }
 
-    private void NormalizeEmbedding(float[] embedding)
+    private static void NormalizeEmbedding(float[] embedding)
     {
         float norm = 0;
         for (int i = 0; i < embedding.Length; i++)
@@ -246,12 +245,12 @@ public class MockEmbeddingService : IEmbeddingService
         }
     }
 
-    private int CountOccurrences(string text, char c)
+    private static int CountOccurrences(string text, char c)
     {
         return text.Count(ch => ch == c);
     }
 
-    private bool ContainsPattern(string text, string pattern)
+    private static bool ContainsPattern(string text, string pattern)
     {
         return System.Text.RegularExpressions.Regex.IsMatch(text, pattern);
     }

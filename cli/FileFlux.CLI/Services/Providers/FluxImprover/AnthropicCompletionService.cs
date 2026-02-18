@@ -9,7 +9,7 @@ namespace FileFlux.CLI.Services.Providers.FluxImprover;
 /// <summary>
 /// Anthropic Claude implementation of FluxImprover's ITextCompletionService
 /// </summary>
-public class AnthropicCompletionService : FI.ITextCompletionService
+public class AnthropicCompletionService : FI.ITextCompletionService, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _model;
@@ -38,7 +38,7 @@ public class AnthropicCompletionService : FI.ITextCompletionService
         {
             foreach (var msg in options.Messages)
             {
-                if (msg.Role.ToLowerInvariant() != "system")
+                if (!string.Equals(msg.Role, "system", StringComparison.OrdinalIgnoreCase))
                 {
                     messages.Add(new { role = msg.Role.ToLowerInvariant(), content = msg.Content });
                 }
@@ -69,7 +69,8 @@ public class AnthropicCompletionService : FI.ITextCompletionService
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
         var anthropicResponse = JsonSerializer.Deserialize<AnthropicResponse>(responseJson);
 
-        return anthropicResponse?.Content?.FirstOrDefault()?.Text ?? string.Empty;
+        var contentList = anthropicResponse?.Content;
+        return contentList is { Count: > 0 } ? contentList[0].Text ?? string.Empty : string.Empty;
     }
 
     public async IAsyncEnumerable<string> CompleteStreamingAsync(
@@ -83,7 +84,7 @@ public class AnthropicCompletionService : FI.ITextCompletionService
         {
             foreach (var msg in options.Messages)
             {
-                if (msg.Role.ToLowerInvariant() != "system")
+                if (!string.Equals(msg.Role, "system", StringComparison.OrdinalIgnoreCase))
                 {
                     messages.Add(new { role = msg.Role.ToLowerInvariant(), content = msg.Content });
                 }
@@ -118,9 +119,14 @@ public class AnthropicCompletionService : FI.ITextCompletionService
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(stream);
 
-        while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync(cancellationToken);
+            if (line is null)
+            {
+                break;
+            }
+
             if (string.IsNullOrEmpty(line) || !line.StartsWith("data: "))
             {
                 continue;
@@ -138,6 +144,12 @@ public class AnthropicCompletionService : FI.ITextCompletionService
                 yield return streamEvent.Delta.Text;
             }
         }
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private class AnthropicResponse

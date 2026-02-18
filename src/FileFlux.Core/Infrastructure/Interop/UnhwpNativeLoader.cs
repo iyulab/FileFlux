@@ -60,102 +60,102 @@ public sealed class UnhwpNativeLoader : IDisposable
     // ========================================
 
     // int unhwp_to_markdown(const char* path, char** out_markdown, char** out_error)
-    public delegate int ToMarkdownDelegate(
+    public delegate int ToMarkdownFn(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
         out IntPtr outMarkdown,
         out IntPtr outError);
 
     // int unhwp_to_markdown_with_cleanup(const char* path, char** out_markdown, char** out_error)
-    public delegate int ToMarkdownWithCleanupDelegate(
+    public delegate int ToMarkdownWithCleanupFn(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
         out IntPtr outMarkdown,
         out IntPtr outError);
 
     // int unhwp_bytes_to_markdown(const uint8_t* data, size_t data_len, char** out_markdown, char** out_error)
-    public delegate int BytesToMarkdownDelegate(
+    public delegate int BytesToMarkdownFn(
         IntPtr data,
         nuint dataLen,
         out IntPtr outMarkdown,
         out IntPtr outError);
 
     // void unhwp_free_string(char* ptr)
-    public delegate void FreeStringDelegate(IntPtr ptr);
+    public delegate void FreeStringFn(IntPtr ptr);
 
     // int unhwp_detect_format(const char* path)
-    public delegate int DetectFormatDelegate(
+    public delegate int DetectFormatFn(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
 
     // const char* unhwp_version()
-    public delegate IntPtr VersionDelegate();
+    public delegate IntPtr VersionFn();
 
     // ========================================
     // Structured Result API Delegates
     // ========================================
 
     // IntPtr unhwp_parse(const char* path, RenderOptions* renderOptions, CleanupOptions* cleanupOptions)
-    public delegate IntPtr ParseDelegate(
+    public delegate IntPtr ParseFn(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
         IntPtr renderOptions,
         IntPtr cleanupOptions);
 
     // IntPtr unhwp_parse_bytes(const uint8_t* data, size_t data_len, RenderOptions* renderOptions, CleanupOptions* cleanupOptions)
-    public delegate IntPtr ParseBytesDelegate(
+    public delegate IntPtr ParseBytesFn(
         IntPtr data,
         nuint dataLen,
         IntPtr renderOptions,
         IntPtr cleanupOptions);
 
     // IntPtr unhwp_result_get_markdown(IntPtr result)
-    public delegate IntPtr ResultGetMarkdownDelegate(IntPtr result);
+    public delegate IntPtr ResultGetMarkdownFn(IntPtr result);
 
     // IntPtr unhwp_result_get_text(IntPtr result)
-    public delegate IntPtr ResultGetTextDelegate(IntPtr result);
+    public delegate IntPtr ResultGetTextFn(IntPtr result);
 
     // int unhwp_result_get_image_count(IntPtr result)
-    public delegate int ResultGetImageCountDelegate(IntPtr result);
+    public delegate int ResultGetImageCountFn(IntPtr result);
 
     // int unhwp_result_get_image(IntPtr result, int index, ImageData* outImage)
-    public delegate int ResultGetImageDelegate(IntPtr result, int index, out ImageData outImage);
+    public delegate int ResultGetImageFn(IntPtr result, int index, out ImageData outImage);
 
     // int unhwp_result_get_section_count(IntPtr result)
-    public delegate int ResultGetSectionCountDelegate(IntPtr result);
+    public delegate int ResultGetSectionCountFn(IntPtr result);
 
     // int unhwp_result_get_paragraph_count(IntPtr result)
-    public delegate int ResultGetParagraphCountDelegate(IntPtr result);
+    public delegate int ResultGetParagraphCountFn(IntPtr result);
 
     // IntPtr unhwp_result_get_raw_content(IntPtr result)
-    public delegate IntPtr ResultGetRawContentDelegate(IntPtr result);
+    public delegate IntPtr ResultGetRawContentFn(IntPtr result);
 
     // IntPtr unhwp_result_get_error(IntPtr result)
-    public delegate IntPtr ResultGetErrorDelegate(IntPtr result);
+    public delegate IntPtr ResultGetErrorFn(IntPtr result);
 
     // void unhwp_result_free(IntPtr result)
-    public delegate void ResultFreeDelegate(IntPtr result);
+    public delegate void ResultFreeFn(IntPtr result);
 
     // ========================================
     // Function pointers - Simple API
     // ========================================
-    public ToMarkdownDelegate? ToMarkdown { get; private set; }
-    public ToMarkdownWithCleanupDelegate? ToMarkdownWithCleanup { get; private set; }
-    public BytesToMarkdownDelegate? BytesToMarkdown { get; private set; }
-    public FreeStringDelegate? FreeString { get; private set; }
-    public DetectFormatDelegate? DetectFormat { get; private set; }
-    public VersionDelegate? Version { get; private set; }
+    public ToMarkdownFn? ToMarkdown { get; private set; }
+    public ToMarkdownWithCleanupFn? ToMarkdownWithCleanup { get; private set; }
+    public BytesToMarkdownFn? BytesToMarkdown { get; private set; }
+    public FreeStringFn? FreeString { get; private set; }
+    public DetectFormatFn? DetectFormat { get; private set; }
+    public VersionFn? Version { get; private set; }
 
     // ========================================
     // Function pointers - Structured Result API
     // ========================================
-    public ParseDelegate? Parse { get; private set; }
-    public ParseBytesDelegate? ParseBytes { get; private set; }
-    public ResultGetMarkdownDelegate? ResultGetMarkdown { get; private set; }
-    public ResultGetTextDelegate? ResultGetText { get; private set; }
-    public ResultGetImageCountDelegate? ResultGetImageCount { get; private set; }
-    public ResultGetImageDelegate? ResultGetImage { get; private set; }
-    public ResultGetSectionCountDelegate? ResultGetSectionCount { get; private set; }
-    public ResultGetParagraphCountDelegate? ResultGetParagraphCount { get; private set; }
-    public ResultGetRawContentDelegate? ResultGetRawContent { get; private set; }
-    public ResultGetErrorDelegate? ResultGetError { get; private set; }
-    public ResultFreeDelegate? ResultFree { get; private set; }
+    public ParseFn? Parse { get; private set; }
+    public ParseBytesFn? ParseBytes { get; private set; }
+    public ResultGetMarkdownFn? ResultGetMarkdown { get; private set; }
+    public ResultGetTextFn? ResultGetText { get; private set; }
+    public ResultGetImageCountFn? ResultGetImageCount { get; private set; }
+    public ResultGetImageFn? ResultGetImage { get; private set; }
+    public ResultGetSectionCountFn? ResultGetSectionCount { get; private set; }
+    public ResultGetParagraphCountFn? ResultGetParagraphCount { get; private set; }
+    public ResultGetRawContentFn? ResultGetRawContent { get; private set; }
+    public ResultGetErrorFn? ResultGetError { get; private set; }
+    public ResultFreeFn? ResultFree { get; private set; }
 
     /// <summary>
     /// Gets whether the native library is loaded.
@@ -246,7 +246,7 @@ public sealed class UnhwpNativeLoader : IDisposable
     /// <summary>
     /// Downloads update to pending folder (staging area).
     /// </summary>
-    private async Task DownloadPendingUpdateAsync(string version, CancellationToken cancellationToken)
+    private static async Task DownloadPendingUpdateAsync(string version, CancellationToken cancellationToken)
     {
         var cacheDir = GetCacheDirectory();
         var pendingDir = Path.Combine(cacheDir, PendingFolder);
@@ -330,7 +330,7 @@ public sealed class UnhwpNativeLoader : IDisposable
     /// <summary>
     /// Applies pending update if exists (called on startup before loading library).
     /// </summary>
-    private void ApplyPendingUpdateIfExists()
+    private static void ApplyPendingUpdateIfExists()
     {
         try
         {
@@ -496,7 +496,7 @@ public sealed class UnhwpNativeLoader : IDisposable
         return httpClient;
     }
 
-    private string? GetCachedLibraryPath()
+    private static string? GetCachedLibraryPath()
     {
         var cacheDir = GetCacheDirectory();
         var libraryName = GetPlatformLibraryName();
@@ -627,58 +627,58 @@ public sealed class UnhwpNativeLoader : IDisposable
         // Bind Simple API function pointers
         // ========================================
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_to_markdown", out var toMarkdownPtr))
-            ToMarkdown = Marshal.GetDelegateForFunctionPointer<ToMarkdownDelegate>(toMarkdownPtr);
+            ToMarkdown = Marshal.GetDelegateForFunctionPointer<ToMarkdownFn>(toMarkdownPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_to_markdown_with_cleanup", out var toMarkdownWithCleanupPtr))
-            ToMarkdownWithCleanup = Marshal.GetDelegateForFunctionPointer<ToMarkdownWithCleanupDelegate>(toMarkdownWithCleanupPtr);
+            ToMarkdownWithCleanup = Marshal.GetDelegateForFunctionPointer<ToMarkdownWithCleanupFn>(toMarkdownWithCleanupPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_bytes_to_markdown", out var bytesToMarkdownPtr))
-            BytesToMarkdown = Marshal.GetDelegateForFunctionPointer<BytesToMarkdownDelegate>(bytesToMarkdownPtr);
+            BytesToMarkdown = Marshal.GetDelegateForFunctionPointer<BytesToMarkdownFn>(bytesToMarkdownPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_free_string", out var freeStringPtr))
-            FreeString = Marshal.GetDelegateForFunctionPointer<FreeStringDelegate>(freeStringPtr);
+            FreeString = Marshal.GetDelegateForFunctionPointer<FreeStringFn>(freeStringPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_detect_format", out var detectFormatPtr))
-            DetectFormat = Marshal.GetDelegateForFunctionPointer<DetectFormatDelegate>(detectFormatPtr);
+            DetectFormat = Marshal.GetDelegateForFunctionPointer<DetectFormatFn>(detectFormatPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_version", out var versionPtr))
-            Version = Marshal.GetDelegateForFunctionPointer<VersionDelegate>(versionPtr);
+            Version = Marshal.GetDelegateForFunctionPointer<VersionFn>(versionPtr);
 
         // ========================================
         // Bind Structured Result API function pointers
         // ========================================
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_parse", out var parsePtr))
-            Parse = Marshal.GetDelegateForFunctionPointer<ParseDelegate>(parsePtr);
+            Parse = Marshal.GetDelegateForFunctionPointer<ParseFn>(parsePtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_parse_bytes", out var parseBytesPtr))
-            ParseBytes = Marshal.GetDelegateForFunctionPointer<ParseBytesDelegate>(parseBytesPtr);
+            ParseBytes = Marshal.GetDelegateForFunctionPointer<ParseBytesFn>(parseBytesPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_markdown", out var resultGetMarkdownPtr))
-            ResultGetMarkdown = Marshal.GetDelegateForFunctionPointer<ResultGetMarkdownDelegate>(resultGetMarkdownPtr);
+            ResultGetMarkdown = Marshal.GetDelegateForFunctionPointer<ResultGetMarkdownFn>(resultGetMarkdownPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_text", out var resultGetTextPtr))
-            ResultGetText = Marshal.GetDelegateForFunctionPointer<ResultGetTextDelegate>(resultGetTextPtr);
+            ResultGetText = Marshal.GetDelegateForFunctionPointer<ResultGetTextFn>(resultGetTextPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_image_count", out var resultGetImageCountPtr))
-            ResultGetImageCount = Marshal.GetDelegateForFunctionPointer<ResultGetImageCountDelegate>(resultGetImageCountPtr);
+            ResultGetImageCount = Marshal.GetDelegateForFunctionPointer<ResultGetImageCountFn>(resultGetImageCountPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_image", out var resultGetImagePtr))
-            ResultGetImage = Marshal.GetDelegateForFunctionPointer<ResultGetImageDelegate>(resultGetImagePtr);
+            ResultGetImage = Marshal.GetDelegateForFunctionPointer<ResultGetImageFn>(resultGetImagePtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_section_count", out var resultGetSectionCountPtr))
-            ResultGetSectionCount = Marshal.GetDelegateForFunctionPointer<ResultGetSectionCountDelegate>(resultGetSectionCountPtr);
+            ResultGetSectionCount = Marshal.GetDelegateForFunctionPointer<ResultGetSectionCountFn>(resultGetSectionCountPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_paragraph_count", out var resultGetParagraphCountPtr))
-            ResultGetParagraphCount = Marshal.GetDelegateForFunctionPointer<ResultGetParagraphCountDelegate>(resultGetParagraphCountPtr);
+            ResultGetParagraphCount = Marshal.GetDelegateForFunctionPointer<ResultGetParagraphCountFn>(resultGetParagraphCountPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_raw_content", out var resultGetRawContentPtr))
-            ResultGetRawContent = Marshal.GetDelegateForFunctionPointer<ResultGetRawContentDelegate>(resultGetRawContentPtr);
+            ResultGetRawContent = Marshal.GetDelegateForFunctionPointer<ResultGetRawContentFn>(resultGetRawContentPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_get_error", out var resultGetErrorPtr))
-            ResultGetError = Marshal.GetDelegateForFunctionPointer<ResultGetErrorDelegate>(resultGetErrorPtr);
+            ResultGetError = Marshal.GetDelegateForFunctionPointer<ResultGetErrorFn>(resultGetErrorPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "unhwp_result_free", out var resultFreePtr))
-            ResultFree = Marshal.GetDelegateForFunctionPointer<ResultFreeDelegate>(resultFreePtr);
+            ResultFree = Marshal.GetDelegateForFunctionPointer<ResultFreeFn>(resultFreePtr);
     }
 
     private static string GetCacheDirectory()

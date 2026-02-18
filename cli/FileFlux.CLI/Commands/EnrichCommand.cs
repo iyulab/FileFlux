@@ -1,4 +1,5 @@
 using FileFlux.CLI.Services;
+using System.Globalization;
 using FileFlux.CLI.Output;
 using FileFlux.Domain;
 using FluxImprover;
@@ -186,8 +187,8 @@ public class EnrichCommand : Command
 
                     foreach (var chunk in chunks)
                     {
-                        // Convert metadata to IDictionary<string, object>
-                        IDictionary<string, object>? metadata = null;
+                        // Convert metadata to Dictionary<string, object>
+                        Dictionary<string, object>? metadata = null;
                         if (chunk.Metadata != null)
                         {
                             metadata = chunk.Metadata.ToDictionary(
@@ -251,12 +252,12 @@ public class EnrichCommand : Command
                 var table = new Table();
                 table.AddColumn("Metric");
                 table.AddColumn("Value");
-                table.AddRow("Total chunks", enrichedChunks.Count.ToString());
-                table.AddRow("With summaries", withSummary.ToString());
-                table.AddRow("With keywords", withKeywords.ToString());
-                table.AddRow("Total keywords", totalKeywords.ToString());
+                table.AddRow("Total chunks", enrichedChunks.Count.ToString(CultureInfo.InvariantCulture));
+                table.AddRow("With summaries", withSummary.ToString(CultureInfo.InvariantCulture));
+                table.AddRow("With keywords", withKeywords.ToString(CultureInfo.InvariantCulture));
+                table.AddRow("Total keywords", totalKeywords.ToString(CultureInfo.InvariantCulture));
                 table.AddRow("Avg keywords/chunk", enrichedChunks.Count > 0
-                    ? (totalKeywords / (double)enrichedChunks.Count).ToString("F1")
+                    ? (totalKeywords / (double)enrichedChunks.Count).ToString("F1", CultureInfo.InvariantCulture)
                     : "0");
 
                 AnsiConsole.Write(table);

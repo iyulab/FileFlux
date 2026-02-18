@@ -57,7 +57,7 @@ public class NormalizationOptions
     /// If column counts vary more than this, the table is considered malformed.
     /// Default is 0 (all rows must have same column count).
     /// </summary>
-    public int MaxColumnVariance { get; set; } = 0;
+    public int MaxColumnVariance { get; set; }
 
     /// <summary>
     /// Maximum allowed heading level jump. Default is 1.

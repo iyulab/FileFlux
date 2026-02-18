@@ -4,6 +4,7 @@ using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Markdig.Renderers;
+using System.Globalization;
 using System.Text;
 using System.IO;
 
@@ -265,7 +266,7 @@ public class MarkdownDocumentReader : IDocumentReader
                 if (cell is TableCell tableCell)
                 {
                     var cellContent = ExtractTableCellContent(tableCell);
-                    content.Append($"{cellContent.Trim()} | ");
+                    content.Append(CultureInfo.InvariantCulture, $"{cellContent.Trim()} | ");
                 }
             }
             content.AppendLine();
@@ -290,7 +291,7 @@ public class MarkdownDocumentReader : IDocumentReader
                     if (cell is TableCell tableCell)
                     {
                         var cellContent = ExtractTableCellContent(tableCell);
-                        content.Append($"{cellContent.Trim()} | ");
+                        content.Append(CultureInfo.InvariantCulture, $"{cellContent.Trim()} | ");
                     }
                 }
                 content.AppendLine();
@@ -307,10 +308,10 @@ public class MarkdownDocumentReader : IDocumentReader
         var prefix = new string('#', heading.Level);
 
         // 헤딩 시작 마커
-        content.AppendLine($"<!-- HEADING_START:H{heading.Level} -->");
-        content.AppendLine($"{prefix} {headingText}");
+        content.AppendLine(CultureInfo.InvariantCulture, $"<!-- HEADING_START:H{heading.Level} -->");
+        content.AppendLine(CultureInfo.InvariantCulture, $"{prefix} {headingText}");
         // 헤딩 종료 마커
-        content.AppendLine($"<!-- HEADING_END:H{heading.Level} -->");
+        content.AppendLine(CultureInfo.InvariantCulture, $"<!-- HEADING_END:H{heading.Level} -->");
     }
 
     private static void ExtractParagraph(ParagraphBlock paragraph, StringBuilder content)
@@ -323,7 +324,7 @@ public class MarkdownDocumentReader : IDocumentReader
     {
         // 리스트 시작 마커
         var listType = list.IsOrdered ? "ORDERED" : "UNORDERED";
-        content.AppendLine($"<!-- LIST_START:{listType} -->");
+        content.AppendLine(CultureInfo.InvariantCulture, $"<!-- LIST_START:{listType} -->");
 
         var itemIndex = 1;
         foreach (var item in list)
@@ -345,7 +346,7 @@ public class MarkdownDocumentReader : IDocumentReader
         }
 
         // 리스트 종료 마커
-        content.AppendLine($"<!-- LIST_END:{listType} -->");
+        content.AppendLine(CultureInfo.InvariantCulture, $"<!-- LIST_END:{listType} -->");
     }
 
     private static void ExtractCodeBlock(CodeBlock codeBlock, StringBuilder content)
@@ -355,7 +356,7 @@ public class MarkdownDocumentReader : IDocumentReader
 
         if (codeBlock is FencedCodeBlock fenced)
         {
-            content.AppendLine($"```{fenced.Info ?? ""}");
+            content.AppendLine(CultureInfo.InvariantCulture, $"```{fenced.Info ?? ""}");
             content.AppendLine(fenced.Lines.ToString());
             content.AppendLine("```");
         }
@@ -379,7 +380,7 @@ public class MarkdownDocumentReader : IDocumentReader
             var lines = quoteContent.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
             {
-                content.AppendLine($"> {line}");
+                content.AppendLine(CultureInfo.InvariantCulture, $"> {line}");
             }
         }
     }
@@ -432,17 +433,17 @@ public class MarkdownDocumentReader : IDocumentReader
                     var emphasisText = new StringBuilder();
                     ExtractInlinesRecursive(emphasis, emphasisText);
                     var marker = emphasis.DelimiterChar == '*' ? "**" : "__";
-                    text.Append($"{marker}{emphasisText}{marker}");
+                    text.Append(CultureInfo.InvariantCulture, $"{marker}{emphasisText}{marker}");
                     break;
 
                 case LinkInline link:
                     var linkText = new StringBuilder();
                     ExtractInlinesRecursive(link, linkText);
-                    text.Append($"[{linkText}]({link.Url})");
+                    text.Append(CultureInfo.InvariantCulture, $"[{linkText}]({link.Url})");
                     break;
 
                 case CodeInline code:
-                    text.Append($"`{code.Content}`");
+                    text.Append(CultureInfo.InvariantCulture, $"`{code.Content}`");
                     break;
 
                 case ContainerInline containerInline:

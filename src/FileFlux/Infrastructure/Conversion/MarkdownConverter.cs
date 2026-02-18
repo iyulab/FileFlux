@@ -2,6 +2,7 @@ using FileFlux.Core;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Conversion;
 
@@ -11,6 +12,7 @@ namespace FileFlux.Infrastructure.Conversion;
 /// </summary>
 public class MarkdownConverter : IMarkdownConverter
 {
+    private static readonly string[] s_lineSeparators = ["\r\n", "\n"];
     private readonly ITextCompletionService? _textCompletionService;
 
     /// <summary>
@@ -103,14 +105,14 @@ public class MarkdownConverter : IMarkdownConverter
     /// <summary>
     /// 휴리스틱 기반 Markdown 변환
     /// </summary>
-    private string ConvertWithHeuristics(
+    private static string ConvertWithHeuristics(
         RawContent rawContent,
         MarkdownConversionOptions options,
         StructureStatistics stats)
     {
         var text = rawContent.Text ?? string.Empty;
         var sb = new StringBuilder();
-        var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+        var lines = text.Split(s_lineSeparators, StringSplitOptions.None);
 
         // RawContent.Hints에서 구조 정보 추출
         var hasHeadings = rawContent.Hints?.ContainsKey("HasHeadings") == true;
@@ -266,7 +268,7 @@ public class MarkdownConverter : IMarkdownConverter
         }
     }
 
-    private string BuildLLMPrompt(string heuristicMarkdown, RawContent rawContent)
+    private static string BuildLLMPrompt(string heuristicMarkdown, RawContent rawContent)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Improve the following Markdown structure while preserving all content.");
@@ -280,7 +282,7 @@ public class MarkdownConverter : IMarkdownConverter
             sb.AppendLine("Document hints:");
             foreach (var hint in rawContent.Hints.Take(5))
             {
-                sb.AppendLine($"- {hint.Key}: {hint.Value}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"- {hint.Key}: {hint.Value}");
             }
             sb.AppendLine();
         }
@@ -323,7 +325,7 @@ public class MarkdownConverter : IMarkdownConverter
         if (string.IsNullOrWhiteSpace(line)) return false;
 
         var pipeCount = line.Count(c => c == '|');
-        return pipeCount >= 2 && !line.TrimStart().StartsWith(">");
+        return pipeCount >= 2 && !line.TrimStart().StartsWith('>');
     }
 
     private static bool IsTableSeparator(string line)
@@ -332,7 +334,7 @@ public class MarkdownConverter : IMarkdownConverter
         return Regex.IsMatch(line, @"^\|?\s*[-:]+\s*\|");
     }
 
-    private void OutputTable(StringBuilder sb, List<string> tableLines, StructureStatistics stats)
+    private static void OutputTable(StringBuilder sb, List<string> tableLines, StructureStatistics stats)
     {
         if (tableLines.Count == 0) return;
 
@@ -386,7 +388,7 @@ public class MarkdownConverter : IMarkdownConverter
 
         // 대문자로만 이루어진 짧은 라인 → 헤딩으로 추론
         if (trimmedLine.Length > 0 && trimmedLine.Length <= 100 &&
-            trimmedLine.ToUpper() == trimmedLine &&
+            trimmedLine.Equals(trimmedLine.ToUpperInvariant(), StringComparison.Ordinal) &&
             !trimmedLine.All(c => char.IsPunctuation(c) || char.IsWhiteSpace(c)))
         {
             if (Regex.IsMatch(trimmedLine, @"^[A-Z][A-Z0-9\s\-_]+$"))
@@ -429,12 +431,12 @@ public class MarkdownConverter : IMarkdownConverter
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
 
-        var words = text.ToLower().Split(' ');
+        var words = text.ToLowerInvariant().Split(' ');
         for (int i = 0; i < words.Length; i++)
         {
             if (words[i].Length > 0)
             {
-                words[i] = char.ToUpper(words[i][0]) + words[i][1..];
+                words[i] = char.ToUpper(words[i][0], CultureInfo.InvariantCulture) + words[i][1..];
             }
         }
         return string.Join(" ", words);
@@ -593,7 +595,7 @@ public class MarkdownConverter : IMarkdownConverter
         sb.Append('|');
         foreach (var header in headers.Take(columnCount))
         {
-            sb.Append($" {EscapeMarkdownTableCell(header ?? "")} |");
+            sb.Append(CultureInfo.InvariantCulture, $" {EscapeMarkdownTableCell(header ?? "")} |");
         }
         sb.AppendLine();
 
@@ -613,7 +615,7 @@ public class MarkdownConverter : IMarkdownConverter
                 TextAlignment.Justify => ":---:",
                 _ => "---"
             };
-            sb.Append($" {separator} |");
+            sb.Append(CultureInfo.InvariantCulture, $" {separator} |");
         }
         sb.AppendLine();
 
@@ -627,7 +629,7 @@ public class MarkdownConverter : IMarkdownConverter
             for (int colIdx = 0; colIdx < columnCount; colIdx++)
             {
                 var cell = colIdx < row.Length ? row[colIdx] : "";
-                sb.Append($" {EscapeMarkdownTableCell(cell ?? "")} |");
+                sb.Append(CultureInfo.InvariantCulture, $" {EscapeMarkdownTableCell(cell ?? "")} |");
             }
             sb.AppendLine();
         }
@@ -635,7 +637,7 @@ public class MarkdownConverter : IMarkdownConverter
         // Add confidence warning comment if low confidence
         if (table.NeedsLlmAssist)
         {
-            sb.AppendLine($"<!-- Table confidence: {table.Confidence:F2} - may need verification -->");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"<!-- Table confidence: {table.Confidence:F2} - may need verification -->");
         }
 
         return sb.ToString().TrimEnd();

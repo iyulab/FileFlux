@@ -1,4 +1,5 @@
 using FileFlux.CLI.Services;
+using System.Globalization;
 using FileFlux.CLI.Output;
 using FluxImprover;
 using FluxImprover.Models;
@@ -257,14 +258,14 @@ public class QACommand : Command
                 var table = new Table();
                 table.AddColumn("Metric");
                 table.AddColumn("Value");
-                table.AddRow("Source chunks", chunks.Count.ToString());
-                table.AddRow("Total generated", totalGenerated.ToString());
-                table.AddRow("After filtering", totalFiltered.ToString());
+                table.AddRow("Source chunks", chunks.Count.ToString(CultureInfo.InvariantCulture));
+                table.AddRow("Total generated", totalGenerated.ToString(CultureInfo.InvariantCulture));
+                table.AddRow("After filtering", totalFiltered.ToString(CultureInfo.InvariantCulture));
                 table.AddRow("Filter pass rate", totalGenerated > 0
                     ? $"{(double)totalFiltered / totalGenerated:P1}"
                     : "N/A");
                 table.AddRow("Avg QA per chunk", chunks.Count > 0
-                    ? (allQAPairs.Count / (double)chunks.Count).ToString("F1")
+                    ? (allQAPairs.Count / (double)chunks.Count).ToString("F1", CultureInfo.InvariantCulture)
                     : "0");
 
                 AnsiConsole.Write(table);

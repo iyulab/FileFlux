@@ -49,7 +49,7 @@ public class MarkdownConversionOptions
     /// 휴리스틱 실패 시 LLM을 사용하여 구조를 추론합니다.
     /// ITextCompletionService가 DI로 제공된 경우에만 작동합니다.
     /// </summary>
-    public bool UseLLMInference { get; set; } = false;
+    public bool UseLLMInference { get; set; }
 
     /// <summary>
     /// 코드 블록을 감지하고 언어 힌트를 추가합니다.

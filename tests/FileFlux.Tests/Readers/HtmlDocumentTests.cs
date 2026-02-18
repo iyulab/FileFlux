@@ -524,10 +524,8 @@ public class HtmlDocumentTests
     [Fact]
     public async Task ExtractAsync_WithLargeBase64Image_ShouldExtractAndReduceTextSize()
     {
-        // Arrange - Simulate a large base64 image (repeat base64 data to simulate ~100KB)
-        var smallBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
-        // Create a fake "large" base64 by repeating valid base64 chars (won't decode but tests text size reduction)
-        var largeBase64 = string.Concat(Enumerable.Repeat("AAAA", 25000)); // ~100KB of base64-like data
+        // Arrange - Create a fake "large" base64 by repeating valid base64 chars (~100KB, tests text size reduction)
+        var largeBase64 = string.Concat(Enumerable.Repeat("AAAA", 25000));
 
         var htmlContentWithBase64 = $"""
             <!DOCTYPE html>

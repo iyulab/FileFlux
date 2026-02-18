@@ -188,7 +188,7 @@ public class ExtractionResult
     /// <summary>
     /// Parsed document content
     /// </summary>
-    public required ParsedContent ParsedContent { get; set; }
+    public required RefinedContent ParsedContent { get; set; }
 
     /// <summary>
     /// Processed text with image references replaced

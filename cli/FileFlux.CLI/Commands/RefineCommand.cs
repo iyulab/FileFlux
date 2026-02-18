@@ -1,4 +1,5 @@
 using FileFlux.CLI.Services;
+using System.Globalization;
 using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.Infrastructure;
@@ -15,6 +16,15 @@ namespace FileFlux.CLI.Commands;
 /// </summary>
 public class RefineCommand : Command
 {
+    private static readonly System.Text.Json.JsonSerializerOptions s_deserializeOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+    private static readonly System.Text.Json.JsonSerializerOptions s_serializeOptions = new()
+    {
+        WriteIndented = true
+    };
+
     public RefineCommand() : base("refine", "Refine/clean extracted content (remove headers, footers, fix structure)")
     {
         var inputArg = new Argument<string>("input")
@@ -232,17 +242,14 @@ public class RefineCommand : Command
         try
         {
             ExtractionResult? extractionResult = null;
-            ParsedContent parsedContent;
+            RefinedContent parsedContent;
             int originalLength;
 
             // Check if input is already extracted JSON or a document file
             if (input.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             {
                 var json = await File.ReadAllTextAsync(input, cancellationToken);
-                var extracted = JsonSerializer.Deserialize<ExtractedContent>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var extracted = JsonSerializer.Deserialize<ExtractedContent>(json, s_deserializeOptions);
 
                 if (extracted?.Text == null)
                 {
@@ -251,12 +258,11 @@ public class RefineCommand : Command
                 }
 
                 originalLength = extracted.Text.Length;
-                parsedContent = new ParsedContent
+                parsedContent = new RefinedContent
                 {
                     Text = extracted.Text,
                     Metadata = new DocumentMetadata { FileName = Path.GetFileName(input) },
-                    Structure = new DocumentStructure(),
-                    Info = new ParsingInfo()
+                    Info = new RefinementInfo()
                 };
             }
             else
@@ -298,7 +304,7 @@ public class RefineCommand : Command
                     Text = refined.Text,
                     Metadata = refined.Metadata
                 };
-                var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(result, s_serializeOptions);
                 await File.WriteAllTextAsync(outputFile, json, cancellationToken);
             }
             else
@@ -323,9 +329,9 @@ public class RefineCommand : Command
                 if (extractionResult != null)
                 {
                     if (extractionResult.Images.Count > 0)
-                        table.AddRow("Images extracted", extractionResult.Images.Count.ToString());
+                        table.AddRow("Images extracted", extractionResult.Images.Count.ToString(CultureInfo.InvariantCulture));
                     if (extractionResult.SkippedImageCount > 0)
-                        table.AddRow("Images skipped", extractionResult.SkippedImageCount.ToString());
+                        table.AddRow("Images skipped", extractionResult.SkippedImageCount.ToString(CultureInfo.InvariantCulture));
                 }
 
                 AnsiConsole.Write(table);

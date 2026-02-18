@@ -1,4 +1,5 @@
 using FileFlux.CLI.Services;
+using System.Globalization;
 using FluxImprover;
 using FluxImprover.Options;
 using FluxImprover.Evaluation;
@@ -298,11 +299,11 @@ public class EvaluateCommand : Command
                 table.AddColumn("Count");
 
                 if (faithfulnessCount > 0)
-                    table.AddRow("Faithfulness", $"{totalFaithfulness / faithfulnessCount:P1}", faithfulnessCount.ToString());
+                    table.AddRow("Faithfulness", $"{totalFaithfulness / faithfulnessCount:P1}", faithfulnessCount.ToString(CultureInfo.InvariantCulture));
                 if (relevancyCount > 0)
-                    table.AddRow("Relevancy", $"{totalRelevancy / relevancyCount:P1}", relevancyCount.ToString());
+                    table.AddRow("Relevancy", $"{totalRelevancy / relevancyCount:P1}", relevancyCount.ToString(CultureInfo.InvariantCulture));
                 if (answerabilityCount > 0)
-                    table.AddRow("Answerability", $"{totalAnswerability / answerabilityCount:P1}", answerabilityCount.ToString());
+                    table.AddRow("Answerability", $"{totalAnswerability / answerabilityCount:P1}", answerabilityCount.ToString(CultureInfo.InvariantCulture));
 
                 table.AddEmptyRow();
                 table.AddRow("[bold]Pass Rate[/]", $"[bold]{(double)passed / evaluatedPairs.Count:P1}[/]", $"[bold]{passed}/{evaluatedPairs.Count}[/]");

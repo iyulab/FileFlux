@@ -181,7 +181,7 @@ public static class LanguageDetector
             var sampleText = text.Length > 10000 ? text.Substring(0, 10000) : text;
             var languages = _identifier.Value.Identify(sampleText).Take(topN).ToList();
 
-            if (!languages.Any())
+            if (languages.Count == 0)
                 return new List<(string, double)> { ("unknown", 0.0) };
 
             var results = new List<(string Language, double Confidence)>();

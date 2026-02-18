@@ -130,7 +130,7 @@ The results support our hypothesis that transformer architectures provide superi
 
         // Assert
         Assert.NotEmpty(chunks);
-        var firstChunk = chunks.First();
+        var firstChunk = chunks[0];
         
         // Context7 metadata should be present
         Assert.NotNull(firstChunk.ContentType());
@@ -247,8 +247,8 @@ The results support our hypothesis that transformer architectures provide superi
         var basicChunks = basicProcessor.Result.Chunks ?? [];
 
         // Assert - Smart chunks should have richer metadata
-        var smartChunk = smartChunks.First();
-        var basicChunk = basicChunks.First();
+        var smartChunk = smartChunks[0];
+        var basicChunk = basicChunks[0];
         
         // Context7 enhancements only in Smart chunks (may be empty if not implemented)
         Assert.NotNull(smartChunk.TechnicalKeywords());
@@ -290,9 +290,9 @@ The results support our hypothesis that transformer architectures provide superi
             Assert.True(new[] { "A", "B", "C", "D", "F" }.Contains(grade));
             
             // Grade should correlate with RAG suitability score
-            if (chunk.Props.ContainsKey("RAGSuitabilityScore"))
+            if (chunk.Props.TryGetValue("RAGSuitabilityScore", out var ragScoreObj))
             {
-                var ragScore = Convert.ToDouble(chunk.Props["RAGSuitabilityScore"]);
+                var ragScore = Convert.ToDouble(ragScoreObj, System.Globalization.CultureInfo.InvariantCulture);
                 if (ragScore >= 0.9) Assert.Equal("A", grade);
                 else if (ragScore >= 0.8) Assert.Equal("B", grade);
                 else if (ragScore >= 0.7) Assert.Equal("C", grade);
@@ -402,13 +402,14 @@ The results support our hypothesis that transformer architectures provide superi
             
             // Completeness score should also be in Properties
             Assert.True(chunk.Props.ContainsKey("CompletenessScore"));
-            var propertyCompleteness = Convert.ToDouble(chunk.Props["CompletenessScore"]);
+            var propertyCompleteness = Convert.ToDouble(chunk.Props["CompletenessScore"], System.Globalization.CultureInfo.InvariantCulture);
             Assert.Equal(completeness, propertyCompleteness, 2);
         }
     }
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         // Clean up test files
         var testFiles = new[] { _technicalTestFile, _businessTestFile, _academicTestFile };
         foreach (var file in testFiles)

@@ -8,6 +8,12 @@ namespace FileFlux.Tests.Mocks;
 /// </summary>
 public class MockTextCompletionService : ITextCompletionService
 {
+    private static readonly string[] s_mockKeywords = ["test", "mock"];
+    private static readonly string[] s_mockCategories = ["test"];
+    private static readonly string[] s_requirementsStackKeywords = ["MVP", "기술스택", "기능요구사항", "비기능요구사항", "GPUStack", ".NET", "인프라"];
+    private static readonly string[] s_stackKeywords = [".NET", "GPUStack", "AI모델", "벡터데이터베이스", "컨테이너"];
+    private static readonly string[] s_defaultKeywords = ["문서", "분석", "시스템"];
+
     public TextCompletionServiceInfo ProviderInfo { get; } = new()
     {
         Name = "Mock Service",
@@ -16,7 +22,7 @@ public class MockTextCompletionService : ITextCompletionService
         MaxContextLength = 4096
     };
     private static readonly string[] result = new[] { "test", "mock", "sample" };
-    private string? _mockResponse = null;
+    private string? _mockResponse;
 
     /// <summary>
     /// 테스트를 위한 Mock 응답 설정
@@ -78,9 +84,9 @@ public class MockTextCompletionService : ITextCompletionService
     {
         return Task.FromResult(new MetadataExtractionResult
         {
-            Keywords = new[] { "test", "mock" },
+            Keywords = s_mockKeywords,
             Language = "en",
-            Categories = new[] { "test" },
+            Categories = s_mockCategories,
             Entities = new Dictionary<string, string[]>(),
             TechnicalMetadata = new Dictionary<string, string>(),
             Confidence = 0.9,
@@ -131,7 +137,7 @@ public class MockTextCompletionService : ITextCompletionService
             {
                 new QualityRecommendation
                 {
-                    Type = RecommendationType.CHUNK_SIZE_OPTIMIZATION,
+                    Type = RecommendationType.ChunkSizeOptimization,
                     Description = "Mock recommendation",
                     Priority = 5
                 }
@@ -160,19 +166,19 @@ public class MockTextCompletionService : ITextCompletionService
         if (hasRequirements && hasStack)
         {
             topic = "AIMS MVP 시스템 요구사항 분석";
-            keywords.AddRange(new[] { "MVP", "기술스택", "기능요구사항", "비기능요구사항", "GPUStack", ".NET", "인프라" });
+            keywords.AddRange(s_requirementsStackKeywords);
             summary = "AIMS MVP 프로젝트의 기술 스택 구성과 기능/비기능 요구사항을 정의한 기술 문서입니다.";
         }
         else if (hasStack)
         {
             topic = "기술 스택 구성";
-            keywords.AddRange(new[] { ".NET", "GPUStack", "AI모델", "벡터데이터베이스", "컨테이너" });
+            keywords.AddRange(s_stackKeywords);
             summary = "프로젝트의 백엔드, 프론트엔드, AI/ML, 인프라 기술 스택을 정의합니다.";
         }
         else
         {
             topic = "기술 문서";
-            keywords.AddRange(new[] { "문서", "분석", "시스템" });
+            keywords.AddRange(s_defaultKeywords);
             summary = "기술적인 내용을 다루는 구조화된 문서입니다.";
         }
 

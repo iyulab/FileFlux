@@ -71,7 +71,7 @@ public class LruMemoryCache : IDocumentCache
     /// <summary>
     /// Sets a value in the cache, evicting LRU items if necessary.
     /// </summary>
-    public void Set<T>(string key, T value, TimeSpan? expiration = null)
+    public void SetValue<T>(string key, T value, TimeSpan? expiration = null)
     {
         if (value == null)
             throw new ArgumentNullException(nameof(value));
@@ -243,7 +243,7 @@ public static class LruMemoryCacheExtensions
     {
         foreach (var item in items)
         {
-            cache.Set(item.Key, item.Value);
+            cache.SetValue(item.Key, item.Value);
         }
     }
 

@@ -194,7 +194,7 @@ public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable
         await _ocr.DisposeAsync().ConfigureAwait(false);
     }
 
-    private ImageToTextResult CreateResult(
+    private static ImageToTextResult CreateResult(
         OcrResult ocrResult,
         long processingTimeMs,
         ImageToTextOptions? options,

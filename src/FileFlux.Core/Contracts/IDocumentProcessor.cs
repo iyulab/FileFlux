@@ -325,7 +325,7 @@ public class RefineOptions
     /// <summary>
     /// Process images (generate captions with LLM if available).
     /// </summary>
-    public bool ProcessImages { get; set; } = false;
+    public bool ProcessImages { get; set; }
 
     /// <summary>
     /// LLM model to use (if UseLlm is true).
@@ -342,7 +342,7 @@ public class RefineOptions
     /// When enabled, repetitive lines appearing on multiple pages are identified and filtered.
     /// Default: false (opt-in feature).
     /// </summary>
-    public bool FilterPdfHeaderFooter { get; set; } = false;
+    public bool FilterPdfHeaderFooter { get; set; }
 
     /// <summary>
     /// Minimum ratio of pages a line must appear on to be considered header/footer.

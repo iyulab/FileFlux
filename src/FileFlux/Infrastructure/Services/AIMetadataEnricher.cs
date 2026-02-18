@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Services;
 
@@ -11,7 +12,7 @@ namespace FileFlux.Infrastructure.Services;
 /// AI-powered metadata enricher with fallback support.
 /// Implements IMetadataEnricher with caching and error resilience.
 /// </summary>
-public class AIMetadataEnricher : IMetadataEnricher
+public partial class AIMetadataEnricher : IMetadataEnricher
 {
     private readonly ITextCompletionService? _llmService;
     private readonly RuleBasedMetadataExtractor _fallbackExtractor;
@@ -50,7 +51,7 @@ public class AIMetadataEnricher : IMetadataEnricher
         // 1. No AI service → rule-based extraction
         if (_llmService == null)
         {
-            _logger.LogWarning("AI service not available, using rule-based extraction");
+            LogAiServiceNotAvailable(_logger);
             return await _fallbackExtractor.ExtractAsync(content, schema, cancellationToken);
         }
 
@@ -68,12 +69,10 @@ public class AIMetadataEnricher : IMetadataEnricher
                 var metadata = await ExtractWithAIAsync(content, schema, options, cts.Token);
 
                 // 3. Validate confidence
-                var confidence = Convert.ToDouble(metadata["confidence"]);
+                var confidence = Convert.ToDouble(metadata["confidence"], CultureInfo.InvariantCulture);
                 if (confidence < options.MinConfidence)
                 {
-                    _logger.LogWarning(
-                        "Low confidence {Confidence} < {MinConfidence}, merging with rule-based",
-                        confidence, options.MinConfidence);
+                    LogLowConfidence(_logger, confidence, options.MinConfidence);
 
                     // 4. Merge with rule-based
                     var fallback = await _fallbackExtractor.ExtractAsync(content, schema, cancellationToken);
@@ -84,14 +83,12 @@ public class AIMetadataEnricher : IMetadataEnricher
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                _logger.LogWarning("Metadata enrichment timeout (attempt {Attempt}/{Max})",
-                    retries + 1, options.MaxRetries + 1);
+                LogEnrichmentTimeout(_logger, retries + 1, options.MaxRetries + 1);
                 lastException = new TimeoutException("Metadata enrichment timed out");
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Metadata enrichment failed (attempt {Attempt}/{Max})",
-                    retries + 1, options.MaxRetries + 1);
+                LogEnrichmentAttemptFailed(_logger, ex, retries + 1, options.MaxRetries + 1);
                 lastException = ex;
             }
 
@@ -103,7 +100,7 @@ public class AIMetadataEnricher : IMetadataEnricher
         }
 
         // 5. All retries failed → fallback
-        _logger.LogError(lastException, "All AI extraction attempts failed, using rule-based fallback");
+        LogAllAttemptsFailed(_logger, lastException);
 
         if (options.ContinueOnEnrichmentFailure)
         {
@@ -128,12 +125,12 @@ public class AIMetadataEnricher : IMetadataEnricher
         // 1. Check cache
         if (_cache.TryGetValue(cacheKey, out object? cachedObj) && cachedObj is IDictionary<string, object> cached)
         {
-            _logger.LogDebug("Metadata cache hit for {CacheKey}", cacheKey);
+            LogMetadataCacheHit(_logger, cacheKey);
             return cached;
         }
 
         // 2. Cache miss → extract
-        _logger.LogDebug("Metadata cache miss for {CacheKey}", cacheKey);
+        LogMetadataCacheMiss(_logger, cacheKey);
         var metadata = await EnrichAsync(content, schema, options, cancellationToken);
 
         // 3. Store in cache
@@ -161,7 +158,7 @@ public class AIMetadataEnricher : IMetadataEnricher
                 _cache.TryGetValue(request.CacheKey, out object? cachedObj) &&
                 cachedObj is IDictionary<string, object> cached)
             {
-                var confidence = cached.TryGetValue("confidence", out var confVal) ? Convert.ToDouble(confVal) : 0.0;
+                var confidence = cached.TryGetValue("confidence", out var confVal) ? Convert.ToDouble(confVal, CultureInfo.InvariantCulture) : 0.0;
                 var method = cached.TryGetValue("extractionMethod", out var methodVal) ? methodVal?.ToString() : "cached";
 
                 results.Add(new EnrichedMetadataResult
@@ -181,12 +178,11 @@ public class AIMetadataEnricher : IMetadataEnricher
 
         if (uncachedRequests.Count == 0)
         {
-            _logger.LogInformation("All {Count} requests served from cache", requests.Count);
+            LogAllRequestsFromCache(_logger, requests.Count);
             return results;
         }
 
-        _logger.LogInformation("Processing {Uncached}/{Total} requests (rest from cache)",
-            uncachedRequests.Count, requests.Count);
+        LogProcessingRequests(_logger, uncachedRequests.Count, requests.Count);
 
         // 2. Process uncached requests individually
         // TODO: Implement true batch processing with single LLM call
@@ -196,7 +192,7 @@ public class AIMetadataEnricher : IMetadataEnricher
             {
                 var metadata = await EnrichAsync(request.Content, schema, options, cancellationToken);
 
-                var confidence = metadata.TryGetValue("confidence", out var confVal) ? Convert.ToDouble(confVal) : 0.0;
+                var confidence = metadata.TryGetValue("confidence", out var confVal) ? Convert.ToDouble(confVal, CultureInfo.InvariantCulture) : 0.0;
                 var method = metadata.TryGetValue("extractionMethod", out var methodVal) ? methodVal?.ToString() : "ai";
 
                 results.Add(new EnrichedMetadataResult
@@ -216,7 +212,7 @@ public class AIMetadataEnricher : IMetadataEnricher
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to process document {DocumentId}", request.DocumentId);
+                LogDocumentProcessingFailed(_logger, ex, request.DocumentId);
 
                 // Add empty result on failure
                 results.Add(new EnrichedMetadataResult
@@ -272,8 +268,7 @@ public class AIMetadataEnricher : IMetadataEnricher
         var userMessage = $"Extract metadata from this document:\n\n{truncated}";
 
         // Call LLM
-        _logger.LogDebug("Calling LLM for metadata extraction (schema: {Schema}, chars: {Length})",
-            schema, truncated.Length);
+        LogCallingLlm(_logger, schema, truncated.Length);
 
         var response = await _llmService!.GenerateAsync(
             systemPrompt + "\n\n" + userMessage,
@@ -289,7 +284,7 @@ public class AIMetadataEnricher : IMetadataEnricher
     /// <summary>
     /// Truncate content based on extraction strategy.
     /// </summary>
-    private string TruncateContent(string content, MetadataExtractionStrategy strategy)
+    private static string TruncateContent(string content, MetadataExtractionStrategy strategy)
     {
         var maxChars = strategy switch
         {
@@ -302,13 +297,13 @@ public class AIMetadataEnricher : IMetadataEnricher
         if (content.Length <= maxChars)
             return content;
 
-        return content.Substring(0, maxChars) + "\n\n[... content truncated for metadata extraction ...]";
+        return string.Concat(content.AsSpan(0, maxChars), "\n\n[... content truncated for metadata extraction ...]");
     }
 
     /// <summary>
     /// Get system prompt for schema.
     /// </summary>
-    private string GetSchemaPrompt(MetadataSchema schema)
+    private static string GetSchemaPrompt(MetadataSchema schema)
     {
         return schema switch
         {
@@ -320,7 +315,7 @@ public class AIMetadataEnricher : IMetadataEnricher
         };
     }
 
-    private string GetGeneralPrompt() => @"You are a document metadata extraction specialist.
+    private static string GetGeneralPrompt() => @"You are a document metadata extraction specialist.
 
 Extract the following from the document:
 - topics: Main topics (3-5 items)
@@ -343,7 +338,7 @@ Example:
   ""confidence"": 0.91
 }";
 
-    private string GetProductManualPrompt() => @"You are a product manual metadata specialist.
+    private static string GetProductManualPrompt() => @"You are a product manual metadata specialist.
 
 Extract product information:
 REQUIRED:
@@ -377,7 +372,7 @@ Example:
   ""confidence"": 0.93
 }";
 
-    private string GetTechnicalDocPrompt() => @"You are a technical documentation analyzer.
+    private static string GetTechnicalDocPrompt() => @"You are a technical documentation analyzer.
 
 Extract technical information:
 REQUIRED:
@@ -450,7 +445,7 @@ Example:
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to parse LLM response, using fallback");
+            LogParseLlmResponseFailed(_logger, ex);
         }
 
         // Parsing failed → return minimal metadata
@@ -465,7 +460,7 @@ Example:
     /// Merge AI and rule-based metadata (hybrid mode).
     /// </summary>
     private Dictionary<string, object> MergeMetadata(
-        IDictionary<string, object> aiMetadata,
+        Dictionary<string, object> aiMetadata,
         IDictionary<string, object> ruleMetadata)
     {
         var merged = new Dictionary<string, object>(aiMetadata);
@@ -473,21 +468,63 @@ Example:
         // Add rule-based fields if missing in AI
         foreach (var (key, value) in ruleMetadata)
         {
-            if (!merged.ContainsKey(key) || merged[key] == null)
+            if (!merged.TryGetValue(key, out var existing) || existing == null)
             {
                 merged[key] = value;
             }
         }
 
         // Update confidence (average of both)
-        var aiConf = aiMetadata.TryGetValue("confidence", out var aiConfVal) ? Convert.ToDouble(aiConfVal) : 0.0;
-        var ruleConf = ruleMetadata.TryGetValue("confidence", out var ruleConfVal) ? Convert.ToDouble(ruleConfVal) : 0.0;
+        var aiConf = aiMetadata.TryGetValue("confidence", out var aiConfVal) ? Convert.ToDouble(aiConfVal, CultureInfo.InvariantCulture) : 0.0;
+        var ruleConf = ruleMetadata.TryGetValue("confidence", out var ruleConfVal) ? Convert.ToDouble(ruleConfVal, CultureInfo.InvariantCulture) : 0.0;
         merged["confidence"] = (aiConf + ruleConf) / 2.0;
         merged["extractionMethod"] = "hybrid";
 
-        _logger.LogDebug("Merged AI (confidence: {AI}) and rule-based (confidence: {Rule}) metadata",
-            aiConf, ruleConf);
+        LogMergedMetadata(_logger, aiConf, ruleConf);
 
         return merged;
     }
+
+    #region LoggerMessage
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "AI service not available, using rule-based extraction")]
+    private static partial void LogAiServiceNotAvailable(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Low confidence {Confidence} < {MinConfidence}, merging with rule-based")]
+    private static partial void LogLowConfidence(ILogger logger, double confidence, double minConfidence);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Metadata enrichment timeout (attempt {Attempt}/{Max})")]
+    private static partial void LogEnrichmentTimeout(ILogger logger, int attempt, int max);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Metadata enrichment failed (attempt {Attempt}/{Max})")]
+    private static partial void LogEnrichmentAttemptFailed(ILogger logger, Exception ex, int attempt, int max);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "All AI extraction attempts failed, using rule-based fallback")]
+    private static partial void LogAllAttemptsFailed(ILogger logger, Exception? ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Metadata cache hit for {CacheKey}")]
+    private static partial void LogMetadataCacheHit(ILogger logger, string cacheKey);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Metadata cache miss for {CacheKey}")]
+    private static partial void LogMetadataCacheMiss(ILogger logger, string cacheKey);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "All {Count} requests served from cache")]
+    private static partial void LogAllRequestsFromCache(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Processing {Uncached}/{Total} requests (rest from cache)")]
+    private static partial void LogProcessingRequests(ILogger logger, int uncached, int total);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to process document {DocumentId}")]
+    private static partial void LogDocumentProcessingFailed(ILogger logger, Exception ex, string documentId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Calling LLM for metadata extraction (schema: {Schema}, chars: {Length})")]
+    private static partial void LogCallingLlm(ILogger logger, MetadataSchema schema, int length);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to parse LLM response, using fallback")]
+    private static partial void LogParseLlmResponseFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Merged AI (confidence: {AI}) and rule-based (confidence: {Rule}) metadata")]
+    private static partial void LogMergedMetadata(ILogger logger, double ai, double rule);
+
+    #endregion
 }

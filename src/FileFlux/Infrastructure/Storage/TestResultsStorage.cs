@@ -1,6 +1,7 @@
 using FileFlux.Core;
 using System.Text.Json;
 using System.Text;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Storage;
 
@@ -46,7 +47,7 @@ public class TestResultsStorage
     public async Task SaveExtractionResultAsync(string fileName, RawContent rawContent)
     {
         var sanitizedName = SanitizeFileName(fileName);
-        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
 
         // JSON 메타데이터 저장
         var metadata = new
@@ -73,33 +74,33 @@ public class TestResultsStorage
     /// <summary>
     /// 파싱 결과 저장
     /// </summary>
-    public async Task SaveParsingResultAsync(string fileName, ParsedContent parsedContent)
+    public async Task SaveParsingResultAsync(string fileName, RefinedContent parsedContent)
     {
         var sanitizedName = SanitizeFileName(fileName);
-        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
 
         // JSON 메타데이터 저장
         var metadata = new
         {
             OriginalFileName = parsedContent.Metadata?.FileName,
-            DocumentType = parsedContent.Structure.Type,
-            Topic = parsedContent.Structure.Topic,
-            Keywords = parsedContent.Structure.Keywords,
-            Summary = parsedContent.Structure.Summary,
-            SectionCount = parsedContent.Structure.Sections.Count,
+            DocumentType = parsedContent.Metadata?.FileType,
+            Topic = parsedContent.Topic,
+            Keywords = parsedContent.Keywords,
+            Summary = parsedContent.Summary,
+            SectionCount = parsedContent.Sections.Count,
             QualityMetrics = new
             {
                 parsedContent.Quality.ConfidenceScore,
-                parsedContent.Quality.CompletenessScore,
-                parsedContent.Quality.ConsistencyScore,
+                parsedContent.Quality.CleanupScore,
+                parsedContent.Quality.RetentionScore,
                 parsedContent.Quality.OverallScore,
                 parsedContent.Quality.StructureScore
             },
-            ParsingInfo = new
+            RefinementInfo = new
             {
                 parsedContent.Info.UsedLlm,
-                parsedContent.Info.ParserType,
-                Duration = parsedContent.Duration.TotalMilliseconds,
+                parsedContent.Info.RefinerType,
+                Duration = parsedContent.Info.Duration.TotalMilliseconds,
                 WarningCount = parsedContent.Info.Warnings.Count,
                 Warnings = parsedContent.Info.Warnings
             }
@@ -120,10 +121,10 @@ public class TestResultsStorage
         }
 
         // 섹션 구조 저장
-        if (parsedContent.Structure.Sections.Count != 0)
+        if (parsedContent.Sections.Count != 0)
         {
             var sectionsPath = Path.Combine(_baseDirectory, "parsing-results", $"{sanitizedName}_{timestamp}_sections.json");
-            await File.WriteAllTextAsync(sectionsPath, JsonSerializer.Serialize(parsedContent.Structure.Sections, _jsonOptions), Encoding.UTF8);
+            await File.WriteAllTextAsync(sectionsPath, JsonSerializer.Serialize(parsedContent.Sections, _jsonOptions), Encoding.UTF8);
         }
     }
 
@@ -133,7 +134,7 @@ public class TestResultsStorage
     public async Task SaveChunkingResultsAsync(string fileName, DocumentChunk[] chunks, ChunkingOptions options)
     {
         var sanitizedName = SanitizeFileName(fileName);
-        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
 
         // 청킹 통계
         var statistics = new
@@ -158,19 +159,19 @@ public class TestResultsStorage
         var allChunksPath = Path.Combine(_baseDirectory, "chunking-results", $"{sanitizedName}_{timestamp}_all_chunks.txt");
         var allChunksContent = new StringBuilder();
 
-        allChunksContent.AppendLine($"FileFlux 청킹 결과: {fileName}");
-        allChunksContent.AppendLine($"총 {chunks.Length}개 청크 생성");
-        allChunksContent.AppendLine($"처리 시간: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        allChunksContent.AppendLine(CultureInfo.InvariantCulture, $"FileFlux 청킹 결과: {fileName}");
+        allChunksContent.AppendLine(CultureInfo.InvariantCulture, $"총 {chunks.Length}개 청크 생성");
+        allChunksContent.AppendLine(CultureInfo.InvariantCulture, $"처리 시간: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         allChunksContent.AppendLine("=".PadRight(80, '='));
         allChunksContent.AppendLine();
 
         for (int i = 0; i < chunks.Length; i++)
         {
             var chunk = chunks[i];
-            allChunksContent.AppendLine($"=== 청크 {i + 1}/{chunks.Length} ===");
-            allChunksContent.AppendLine($"ID: {chunk.Id}");
-            allChunksContent.AppendLine($"크기: {chunk.Content.Length}자");
-            allChunksContent.AppendLine($"위치: {chunk.Location.StartChar} - {chunk.Location.EndChar}");
+            allChunksContent.AppendLine(CultureInfo.InvariantCulture, $"=== 청크 {i + 1}/{chunks.Length} ===");
+            allChunksContent.AppendLine(CultureInfo.InvariantCulture, $"ID: {chunk.Id}");
+            allChunksContent.AppendLine(CultureInfo.InvariantCulture, $"크기: {chunk.Content.Length}자");
+            allChunksContent.AppendLine(CultureInfo.InvariantCulture, $"위치: {chunk.Location.StartChar} - {chunk.Location.EndChar}");
             allChunksContent.AppendLine();
             allChunksContent.AppendLine(chunk.Content);
             allChunksContent.AppendLine();

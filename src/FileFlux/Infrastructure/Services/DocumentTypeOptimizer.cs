@@ -1,5 +1,6 @@
 using FileFlux.Domain;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Services;
 
@@ -90,7 +91,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         return new Dictionary<DocumentCategory, PerformanceMetrics>(_performanceMetrics);
     }
 
-    private Dictionary<DocumentCategory, PerformanceMetrics> InitializePerformanceMetrics()
+    private static Dictionary<DocumentCategory, PerformanceMetrics> InitializePerformanceMetrics()
     {
         return new Dictionary<DocumentCategory, PerformanceMetrics>
         {
@@ -217,7 +218,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         };
     }
 
-    private (DocumentCategory Category, double Confidence, string? SubType) DetectCategoryByContent(
+    private static (DocumentCategory Category, double Confidence, string? SubType) DetectCategoryByContent(
         string content,
         DocumentMetadata? metadata)
     {
@@ -259,75 +260,75 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         return (bestCategory.Key, confidence, subType);
     }
 
-    private double ScoreTechnical(string content)
+    private static double ScoreTechnical(string content)
     {
         var keywords = new[] { "code", "function", "api", "algorithm", "system", "software",
                                "implementation", "class", "method", "debug", "compile", "syntax" };
         return CalculateKeywordScore(content, keywords);
     }
 
-    private double ScoreLegal(string content)
+    private static double ScoreLegal(string content)
     {
         var keywords = new[] { "legal", "law", "contract", "agreement", "clause", "liability",
                                "court", "statute", "regulation", "compliance", "attorney", "pursuant" };
         return CalculateKeywordScore(content, keywords);
     }
 
-    private double ScoreAcademic(string content)
+    private static double ScoreAcademic(string content)
     {
         var keywords = new[] { "research", "study", "hypothesis", "methodology", "abstract",
                                "conclusion", "literature", "citation", "reference", "analysis", "findings" };
         return CalculateKeywordScore(content, keywords);
     }
 
-    private double ScoreFinancial(string content)
+    private static double ScoreFinancial(string content)
     {
         var keywords = new[] { "finance", "investment", "revenue", "profit", "market", "portfolio",
                                "asset", "equity", "dividend", "fiscal", "budget", "earnings" };
         return CalculateKeywordScore(content, keywords);
     }
 
-    private double ScoreMedical(string content)
+    private static double ScoreMedical(string content)
     {
         var keywords = new[] { "patient", "diagnosis", "treatment", "medical", "clinical", "symptom",
                                "disease", "therapy", "medication", "health", "physician", "hospital" };
         return CalculateKeywordScore(content, keywords);
     }
 
-    private double ScoreBusiness(string content)
+    private static double ScoreBusiness(string content)
     {
         var keywords = new[] { "business", "strategy", "management", "market", "customer", "product",
                                "service", "growth", "performance", "stakeholder", "competitive" };
         return CalculateKeywordScore(content, keywords);
     }
 
-    private double ScoreCreative(string content)
+    private static double ScoreCreative(string content)
     {
         var keywords = new[] { "story", "character", "plot", "narrative", "creative", "artistic",
                                "design", "aesthetic", "inspiration", "imagination", "expression" };
         return CalculateKeywordScore(content, keywords);
     }
 
-    private double CalculateKeywordScore(string content, string[] keywords)
+    private static double CalculateKeywordScore(string content, string[] keywords)
     {
-        var lowerContent = content.ToLower();
+        var lowerContent = content.ToLowerInvariant();
         var wordCount = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
 
         if (wordCount == 0) return 0;
 
         var keywordCount = keywords.Sum(keyword =>
-            Regex.Matches(lowerContent, $@"\b{Regex.Escape(keyword)}\b").Count);
+            Regex.Count(lowerContent, $@"\b{Regex.Escape(keyword)}\b"));
 
         // 정규화된 점수 (0-1)
         return Math.Min(1.0, keywordCount / (double)wordCount * 100);
     }
 
-    private void AdjustScoresByMetadata(Dictionary<DocumentCategory, double> scores, DocumentMetadata metadata)
+    private static void AdjustScoresByMetadata(Dictionary<DocumentCategory, double> scores, DocumentMetadata metadata)
     {
         // 파일 확장자 기반 조정
         if (!string.IsNullOrEmpty(metadata.FileType))
         {
-            switch (metadata.FileType.ToLower())
+            switch (metadata.FileType.ToLowerInvariant())
             {
                 case ".cs":
                 case ".py":
@@ -346,7 +347,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         }
     }
 
-    private string? DetermineSubType(DocumentCategory category, string content)
+    private static string? DetermineSubType(DocumentCategory category, string content)
     {
         return category switch
         {
@@ -357,7 +358,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         };
     }
 
-    private string DetectTechnicalSubType(string content)
+    private static string DetectTechnicalSubType(string content)
     {
         if (content.Contains("API") || content.Contains("endpoint")) return "API Documentation";
         if (content.Contains("README") || content.Contains("Installation")) return "README";
@@ -365,7 +366,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         return "Technical Documentation";
     }
 
-    private string DetectLegalSubType(string content)
+    private static string DetectLegalSubType(string content)
     {
         if (content.Contains("agreement") || content.Contains("contract")) return "Contract";
         if (content.Contains("patent")) return "Patent";
@@ -373,7 +374,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         return "Legal Document";
     }
 
-    private string DetectAcademicSubType(string content)
+    private static string DetectAcademicSubType(string content)
     {
         if (content.Contains("abstract") && content.Contains("methodology")) return "Research Paper";
         if (content.Contains("thesis")) return "Thesis";
@@ -381,7 +382,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         return "Academic Paper";
     }
 
-    private string DetectLanguage(string content)
+    private static string DetectLanguage(string content)
     {
         // 간단한 언어 감지 (실제로는 더 정교한 방법 필요)
         if (Regex.IsMatch(content, @"[\u3131-\uD79D]")) return "ko"; // 한글
@@ -390,7 +391,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         return "en"; // 기본 영어
     }
 
-    private double CalculateAverageSentenceLength(string content)
+    private static double CalculateAverageSentenceLength(string content)
     {
         var sentences = Regex.Split(content, @"[.!?]+");
         if (sentences.Length == 0) return 0;
@@ -399,7 +400,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         return totalWords / (double)sentences.Length;
     }
 
-    private double CalculateComplexity(string content)
+    private static double CalculateComplexity(string content)
     {
         var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length == 0) return 0;
@@ -417,7 +418,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         return Math.Min(1.0, Math.Max(0, complexity));
     }
 
-    private List<DocumentStructuralElement> DetectStructuralElements(string content)
+    private static List<DocumentStructuralElement> DetectStructuralElements(string content)
     {
         var elements = new List<DocumentStructuralElement>();
 
@@ -476,7 +477,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         return elements;
     }
 
-    private void AddCharacteristics(DocumentTypeInfo typeInfo, string content)
+    private static void AddCharacteristics(DocumentTypeInfo typeInfo, string content)
     {
         typeInfo.Characteristics["WordCount"] = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
         typeInfo.Characteristics["LineCount"] = content.Split('\n').Length;
@@ -486,7 +487,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         typeInfo.Characteristics["HasHeaders"] = content.Contains('#') || content.Contains("Chapter") || content.Contains("Section");
     }
 
-    private void AdjustStrategyByStructure(ChunkingOptions options, DocumentTypeInfo documentType)
+    private static void AdjustStrategyByStructure(ChunkingOptions options, DocumentTypeInfo documentType)
     {
         var hasCode = documentType.StructuralElements.Any(e => e.Type == "CodeBlock");
         var hasTables = documentType.StructuralElements.Any(e => e.Type == "Table");
@@ -514,7 +515,7 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         }
     }
 
-    private Dictionary<string, object> GetStrategySpecificOptions(
+    private static Dictionary<string, object> GetStrategySpecificOptions(
         DocumentTypeInfo documentType,
         PerformanceMetrics metrics)
     {

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net.Http.Headers;
@@ -46,94 +47,94 @@ public sealed class UndocNativeLoader : IDisposable
     // ========================================
 
     /// <summary>const char* undoc_version()</summary>
-    public delegate IntPtr VersionDelegate();
+    public delegate IntPtr VersionFn();
 
     /// <summary>const char* undoc_last_error()</summary>
-    public delegate IntPtr LastErrorDelegate();
+    public delegate IntPtr LastErrorFn();
 
     /// <summary>void* undoc_parse_file(const char* path)</summary>
-    public delegate IntPtr ParseFileDelegate(
+    public delegate IntPtr ParseFileFn(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
 
     /// <summary>void* undoc_parse_bytes(const uint8_t* data, size_t len)</summary>
-    public delegate IntPtr ParseBytesDelegate(
+    public delegate IntPtr ParseBytesFn(
         IntPtr data,
         nuint len);
 
     /// <summary>void undoc_free_document(void* doc)</summary>
-    public delegate void FreeDocumentDelegate(IntPtr doc);
+    public delegate void FreeDocumentFn(IntPtr doc);
 
     /// <summary>char* undoc_to_markdown(void* doc, int flags)</summary>
-    public delegate IntPtr ToMarkdownDelegate(IntPtr doc, int flags);
+    public delegate IntPtr ToMarkdownFn(IntPtr doc, int flags);
 
     /// <summary>char* undoc_to_text(void* doc)</summary>
-    public delegate IntPtr ToTextDelegate(IntPtr doc);
+    public delegate IntPtr ToTextFn(IntPtr doc);
 
     /// <summary>char* undoc_to_json(void* doc, int format)</summary>
-    public delegate IntPtr ToJsonDelegate(IntPtr doc, int format);
+    public delegate IntPtr ToJsonFn(IntPtr doc, int format);
 
     /// <summary>char* undoc_plain_text(void* doc)</summary>
-    public delegate IntPtr PlainTextDelegate(IntPtr doc);
+    public delegate IntPtr PlainTextFn(IntPtr doc);
 
     /// <summary>int undoc_section_count(void* doc)</summary>
-    public delegate int SectionCountDelegate(IntPtr doc);
+    public delegate int SectionCountFn(IntPtr doc);
 
     /// <summary>int undoc_resource_count(void* doc)</summary>
-    public delegate int ResourceCountDelegate(IntPtr doc);
+    public delegate int ResourceCountFn(IntPtr doc);
 
     /// <summary>char* undoc_get_title(void* doc)</summary>
-    public delegate IntPtr GetTitleDelegate(IntPtr doc);
+    public delegate IntPtr GetTitleFn(IntPtr doc);
 
     /// <summary>char* undoc_get_author(void* doc)</summary>
-    public delegate IntPtr GetAuthorDelegate(IntPtr doc);
+    public delegate IntPtr GetAuthorFn(IntPtr doc);
 
     /// <summary>void undoc_free_string(char* str)</summary>
-    public delegate void FreeStringDelegate(IntPtr str);
+    public delegate void FreeStringFn(IntPtr str);
 
     // ========================================
     // Resource Access API Delegates (v0.1.8+)
     // ========================================
 
     /// <summary>char* undoc_get_resource_ids(void* doc) - Returns JSON array of resource IDs</summary>
-    public delegate IntPtr GetResourceIdsDelegate(IntPtr doc);
+    public delegate IntPtr GetResourceIdsFn(IntPtr doc);
 
     /// <summary>char* undoc_get_resource_info(void* doc, const char* resource_id) - Returns JSON resource metadata</summary>
-    public delegate IntPtr GetResourceInfoDelegate(
+    public delegate IntPtr GetResourceInfoFn(
         IntPtr doc,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string resourceId);
 
     /// <summary>uint8_t* undoc_get_resource_data(void* doc, const char* resource_id, size_t* out_len) - Returns binary data</summary>
-    public delegate IntPtr GetResourceDataDelegate(
+    public delegate IntPtr GetResourceDataFn(
         IntPtr doc,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string resourceId,
         out nuint outLen);
 
     /// <summary>void undoc_free_bytes(uint8_t* data, size_t len) - Frees binary data</summary>
-    public delegate void FreeBytesDelegate(IntPtr data, nuint len);
+    public delegate void FreeBytesFn(IntPtr data, nuint len);
 
     // ========================================
     // Function pointers
     // ========================================
-    public VersionDelegate? Version { get; private set; }
-    public LastErrorDelegate? LastError { get; private set; }
-    public ParseFileDelegate? ParseFile { get; private set; }
-    public ParseBytesDelegate? ParseBytes { get; private set; }
-    public FreeDocumentDelegate? FreeDocument { get; private set; }
-    public ToMarkdownDelegate? ToMarkdown { get; private set; }
-    public ToTextDelegate? ToText { get; private set; }
-    public ToJsonDelegate? ToJson { get; private set; }
-    public PlainTextDelegate? PlainText { get; private set; }
-    public SectionCountDelegate? SectionCount { get; private set; }
-    public ResourceCountDelegate? ResourceCount { get; private set; }
-    public GetTitleDelegate? GetTitle { get; private set; }
-    public GetAuthorDelegate? GetAuthor { get; private set; }
-    public FreeStringDelegate? FreeString { get; private set; }
+    public VersionFn? Version { get; private set; }
+    public LastErrorFn? LastError { get; private set; }
+    public ParseFileFn? ParseFile { get; private set; }
+    public ParseBytesFn? ParseBytes { get; private set; }
+    public FreeDocumentFn? FreeDocument { get; private set; }
+    public ToMarkdownFn? ToMarkdown { get; private set; }
+    public ToTextFn? ToText { get; private set; }
+    public ToJsonFn? ToJson { get; private set; }
+    public PlainTextFn? PlainText { get; private set; }
+    public SectionCountFn? SectionCount { get; private set; }
+    public ResourceCountFn? ResourceCount { get; private set; }
+    public GetTitleFn? GetTitle { get; private set; }
+    public GetAuthorFn? GetAuthor { get; private set; }
+    public FreeStringFn? FreeString { get; private set; }
 
     // Resource Access API (v0.1.8+)
-    public GetResourceIdsDelegate? GetResourceIds { get; private set; }
-    public GetResourceInfoDelegate? GetResourceInfo { get; private set; }
-    public GetResourceDataDelegate? GetResourceData { get; private set; }
-    public FreeBytesDelegate? FreeBytes { get; private set; }
+    public GetResourceIdsFn? GetResourceIds { get; private set; }
+    public GetResourceInfoFn? GetResourceInfo { get; private set; }
+    public GetResourceDataFn? GetResourceData { get; private set; }
+    public FreeBytesFn? FreeBytes { get; private set; }
 
     /// <summary>
     /// Gets whether the native library is loaded.
@@ -224,7 +225,7 @@ public sealed class UndocNativeLoader : IDisposable
     /// <summary>
     /// Downloads update to pending folder (staging area).
     /// </summary>
-    private async Task DownloadPendingUpdateAsync(string version, CancellationToken cancellationToken)
+    private static async Task DownloadPendingUpdateAsync(string version, CancellationToken cancellationToken)
     {
         var cacheDir = GetCacheDirectory();
         var pendingDir = Path.Combine(cacheDir, PendingFolder);
@@ -308,7 +309,7 @@ public sealed class UndocNativeLoader : IDisposable
     /// <summary>
     /// Applies pending update if exists (called on startup before loading library).
     /// </summary>
-    private void ApplyPendingUpdateIfExists()
+    private static void ApplyPendingUpdateIfExists()
     {
         try
         {
@@ -474,7 +475,7 @@ public sealed class UndocNativeLoader : IDisposable
         return httpClient;
     }
 
-    private string? GetCachedLibraryPath()
+    private static string? GetCachedLibraryPath()
     {
         var cacheDir = GetCacheDirectory();
         var libraryName = GetPlatformLibraryName();
@@ -603,61 +604,61 @@ public sealed class UndocNativeLoader : IDisposable
 
         // Bind function pointers
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_version", out var versionPtr))
-            Version = Marshal.GetDelegateForFunctionPointer<VersionDelegate>(versionPtr);
+            Version = Marshal.GetDelegateForFunctionPointer<VersionFn>(versionPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_last_error", out var lastErrorPtr))
-            LastError = Marshal.GetDelegateForFunctionPointer<LastErrorDelegate>(lastErrorPtr);
+            LastError = Marshal.GetDelegateForFunctionPointer<LastErrorFn>(lastErrorPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_parse_file", out var parseFilePtr))
-            ParseFile = Marshal.GetDelegateForFunctionPointer<ParseFileDelegate>(parseFilePtr);
+            ParseFile = Marshal.GetDelegateForFunctionPointer<ParseFileFn>(parseFilePtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_parse_bytes", out var parseBytesPtr))
-            ParseBytes = Marshal.GetDelegateForFunctionPointer<ParseBytesDelegate>(parseBytesPtr);
+            ParseBytes = Marshal.GetDelegateForFunctionPointer<ParseBytesFn>(parseBytesPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_free_document", out var freeDocumentPtr))
-            FreeDocument = Marshal.GetDelegateForFunctionPointer<FreeDocumentDelegate>(freeDocumentPtr);
+            FreeDocument = Marshal.GetDelegateForFunctionPointer<FreeDocumentFn>(freeDocumentPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_to_markdown", out var toMarkdownPtr))
-            ToMarkdown = Marshal.GetDelegateForFunctionPointer<ToMarkdownDelegate>(toMarkdownPtr);
+            ToMarkdown = Marshal.GetDelegateForFunctionPointer<ToMarkdownFn>(toMarkdownPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_to_text", out var toTextPtr))
-            ToText = Marshal.GetDelegateForFunctionPointer<ToTextDelegate>(toTextPtr);
+            ToText = Marshal.GetDelegateForFunctionPointer<ToTextFn>(toTextPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_to_json", out var toJsonPtr))
-            ToJson = Marshal.GetDelegateForFunctionPointer<ToJsonDelegate>(toJsonPtr);
+            ToJson = Marshal.GetDelegateForFunctionPointer<ToJsonFn>(toJsonPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_plain_text", out var plainTextPtr))
-            PlainText = Marshal.GetDelegateForFunctionPointer<PlainTextDelegate>(plainTextPtr);
+            PlainText = Marshal.GetDelegateForFunctionPointer<PlainTextFn>(plainTextPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_section_count", out var sectionCountPtr))
-            SectionCount = Marshal.GetDelegateForFunctionPointer<SectionCountDelegate>(sectionCountPtr);
+            SectionCount = Marshal.GetDelegateForFunctionPointer<SectionCountFn>(sectionCountPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_resource_count", out var resourceCountPtr))
-            ResourceCount = Marshal.GetDelegateForFunctionPointer<ResourceCountDelegate>(resourceCountPtr);
+            ResourceCount = Marshal.GetDelegateForFunctionPointer<ResourceCountFn>(resourceCountPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_title", out var getTitlePtr))
-            GetTitle = Marshal.GetDelegateForFunctionPointer<GetTitleDelegate>(getTitlePtr);
+            GetTitle = Marshal.GetDelegateForFunctionPointer<GetTitleFn>(getTitlePtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_author", out var getAuthorPtr))
-            GetAuthor = Marshal.GetDelegateForFunctionPointer<GetAuthorDelegate>(getAuthorPtr);
+            GetAuthor = Marshal.GetDelegateForFunctionPointer<GetAuthorFn>(getAuthorPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_free_string", out var freeStringPtr))
-            FreeString = Marshal.GetDelegateForFunctionPointer<FreeStringDelegate>(freeStringPtr);
+            FreeString = Marshal.GetDelegateForFunctionPointer<FreeStringFn>(freeStringPtr);
 
         // ========================================
         // Bind Resource Access API (v0.1.8+)
         // ========================================
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_resource_ids", out var getResourceIdsPtr))
-            GetResourceIds = Marshal.GetDelegateForFunctionPointer<GetResourceIdsDelegate>(getResourceIdsPtr);
+            GetResourceIds = Marshal.GetDelegateForFunctionPointer<GetResourceIdsFn>(getResourceIdsPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_resource_info", out var getResourceInfoPtr))
-            GetResourceInfo = Marshal.GetDelegateForFunctionPointer<GetResourceInfoDelegate>(getResourceInfoPtr);
+            GetResourceInfo = Marshal.GetDelegateForFunctionPointer<GetResourceInfoFn>(getResourceInfoPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_get_resource_data", out var getResourceDataPtr))
-            GetResourceData = Marshal.GetDelegateForFunctionPointer<GetResourceDataDelegate>(getResourceDataPtr);
+            GetResourceData = Marshal.GetDelegateForFunctionPointer<GetResourceDataFn>(getResourceDataPtr);
 
         if (NativeLibrary.TryGetExport(_libraryHandle, "undoc_free_bytes", out var freeBytesPtr))
-            FreeBytes = Marshal.GetDelegateForFunctionPointer<FreeBytesDelegate>(freeBytesPtr);
+            FreeBytes = Marshal.GetDelegateForFunctionPointer<FreeBytesFn>(freeBytesPtr);
     }
 
     private static string GetCacheDirectory()
@@ -736,6 +737,7 @@ public sealed class UndocNativeLoader : IDisposable
 /// Markdown rendering flags for undoc.
 /// </summary>
 [Flags]
+[SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "Flags enum for native interop")]
 public enum UndocMarkdownFlags
 {
     /// <summary>No flags.</summary>

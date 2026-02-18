@@ -483,8 +483,8 @@ public class FileFluxApp
                 var imageCount = rawContent.Hints.GetValueOrDefault("ImageCount", 0);
                 Console.WriteLine($"   🔢 처리된 이미지: {imageCount}개");
 
-                if (rawContent.Hints.ContainsKey("ImageProcessingResults") &&
-                    rawContent.Hints["ImageProcessingResults"] is System.Collections.Generic.List<string> results)
+                if (rawContent.Hints.TryGetValue("ImageProcessingResults", out var imageProcessingResults) &&
+                    imageProcessingResults is System.Collections.Generic.List<string> results)
                 {
                     Console.WriteLine("   📋 이미지 처리 상세:");
                     foreach (var result in results)
@@ -525,7 +525,7 @@ public class FileFluxApp
             }
 
             // 경고사항 출력
-            if (rawContent.Warnings?.Any() == true)
+            if (rawContent.Warnings is { Count: > 0 })
             {
                 Console.WriteLine("\n⚠️  경고사항:");
                 foreach (var warning in rawContent.Warnings)

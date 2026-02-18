@@ -1,6 +1,7 @@
 using FileFlux.Core;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Services;
 
@@ -8,8 +9,9 @@ namespace FileFlux.Infrastructure.Services;
 /// Rule-based metadata extractor (AI-free fallback).
 /// Uses pattern matching and heuristics to extract basic metadata.
 /// </summary>
-public class RuleBasedMetadataExtractor
+public partial class RuleBasedMetadataExtractor
 {
+    private static readonly string[] s_paragraphSeparators = ["\n\n", "\r\n\r\n"];
     private readonly ILogger<RuleBasedMetadataExtractor> _logger;
 
     public RuleBasedMetadataExtractor(ILogger<RuleBasedMetadataExtractor>? logger = null)
@@ -25,7 +27,7 @@ public class RuleBasedMetadataExtractor
         MetadataSchema schema,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Starting rule-based metadata extraction with schema: {Schema}", schema);
+        LogStartingExtraction(_logger, schema);
 
         var metadata = schema switch
         {
@@ -39,7 +41,7 @@ public class RuleBasedMetadataExtractor
         metadata["confidence"] = CalculateConfidence(metadata);
         metadata["extractionMethod"] = "rule-based";
 
-        _logger.LogInformation("Rule-based extraction complete. Found {Count} fields", metadata.Count);
+        LogExtractionComplete(_logger, metadata.Count);
 
         return Task.FromResult<IDictionary<string, object>>(metadata);
     }
@@ -47,7 +49,7 @@ public class RuleBasedMetadataExtractor
     /// <summary>
     /// Extract product manual metadata.
     /// </summary>
-    private Dictionary<string, object> ExtractProductManualMetadata(string content)
+    private static Dictionary<string, object> ExtractProductManualMetadata(string content)
     {
         var metadata = new Dictionary<string, object>();
 
@@ -126,7 +128,7 @@ public class RuleBasedMetadataExtractor
             {
                 if (DateTime.TryParse(match.Groups[1].Value, out var date))
                 {
-                    metadata["releaseDate"] = date.ToString("yyyy-MM-dd");
+                    metadata["releaseDate"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                 }
                 break;
             }
@@ -134,14 +136,14 @@ public class RuleBasedMetadataExtractor
 
         // Extract topics from section headers
         var topics = ExtractTopicsFromHeaders(content);
-        if (topics.Any())
+        if (topics.Count != 0)
         {
             metadata["topics"] = topics.ToArray();
         }
 
         // Extract keywords
         var keywords = ExtractKeywords(content, isManual: true);
-        if (keywords.Any())
+        if (keywords.Count != 0)
         {
             metadata["keywords"] = keywords.ToArray();
         }
@@ -155,7 +157,7 @@ public class RuleBasedMetadataExtractor
     /// <summary>
     /// Extract technical documentation metadata.
     /// </summary>
-    private Dictionary<string, object> ExtractTechnicalDocMetadata(string content)
+    private static Dictionary<string, object> ExtractTechnicalDocMetadata(string content)
     {
         var metadata = new Dictionary<string, object>();
 
@@ -193,7 +195,7 @@ public class RuleBasedMetadataExtractor
             }
         }
 
-        if (libraries.Any())
+        if (libraries.Count != 0)
         {
             metadata["libraries"] = libraries.Take(15).ToArray();
         }
@@ -212,7 +214,7 @@ public class RuleBasedMetadataExtractor
             .Take(10)
             .ToArray();
 
-        if (foundFrameworks.Any())
+        if (foundFrameworks.Length != 0)
         {
             metadata["frameworks"] = foundFrameworks;
         }
@@ -231,21 +233,21 @@ public class RuleBasedMetadataExtractor
             .Take(10)
             .ToArray();
 
-        if (foundTech.Any())
+        if (foundTech.Length != 0)
         {
             metadata["technologies"] = foundTech;
         }
 
         // Extract topics
         var topics = ExtractTopicsFromHeaders(content);
-        if (topics.Any())
+        if (topics.Count != 0)
         {
             metadata["topics"] = topics.ToArray();
         }
 
         // Extract keywords
         var keywords = ExtractKeywords(content, isTechnical: true);
-        if (keywords.Any())
+        if (keywords.Count != 0)
         {
             metadata["keywords"] = keywords.ToArray();
         }
@@ -260,7 +262,7 @@ public class RuleBasedMetadataExtractor
     /// <summary>
     /// Extract general document metadata.
     /// </summary>
-    private Dictionary<string, object> ExtractGeneralMetadata(string content)
+    private static Dictionary<string, object> ExtractGeneralMetadata(string content)
     {
         var metadata = new Dictionary<string, object>();
 
@@ -269,14 +271,14 @@ public class RuleBasedMetadataExtractor
 
         // Extract topics
         var topics = ExtractTopicsFromHeaders(content);
-        if (topics.Any())
+        if (topics.Count != 0)
         {
             metadata["topics"] = topics.ToArray();
         }
 
         // Extract keywords
         var keywords = ExtractKeywords(content);
-        if (keywords.Any())
+        if (keywords.Count != 0)
         {
             metadata["keywords"] = keywords.ToArray();
         }
@@ -302,7 +304,7 @@ public class RuleBasedMetadataExtractor
     /// <summary>
     /// Extract topics from section headers.
     /// </summary>
-    private List<string> ExtractTopicsFromHeaders(string content)
+    private static List<string> ExtractTopicsFromHeaders(string content)
     {
         var topics = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -336,7 +338,7 @@ public class RuleBasedMetadataExtractor
     /// <summary>
     /// Extract keywords from content.
     /// </summary>
-    private List<string> ExtractKeywords(string content, bool isManual = false, bool isTechnical = false)
+    private static List<string> ExtractKeywords(string content, bool isManual = false, bool isTechnical = false)
     {
         var keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -370,13 +372,13 @@ public class RuleBasedMetadataExtractor
     /// <summary>
     /// Extract description from first meaningful paragraph.
     /// </summary>
-    private string ExtractDescription(string content)
+    private static string ExtractDescription(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
             return string.Empty;
 
         // Find first paragraph with meaningful content
-        var paragraphs = content.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var paragraphs = content.Split(s_paragraphSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var para in paragraphs)
         {
@@ -393,7 +395,7 @@ public class RuleBasedMetadataExtractor
                     var desc = sentences[0].Trim();
                     if (desc.Length > 20)
                     {
-                        return desc.Length > 200 ? desc.Substring(0, 200) + "..." : desc;
+                        return desc.Length > 200 ? string.Concat(desc.AsSpan(0, 200), "...") : desc;
                     }
                 }
             }
@@ -405,7 +407,7 @@ public class RuleBasedMetadataExtractor
     /// <summary>
     /// Detect document type based on content patterns.
     /// </summary>
-    private string DetectDocumentType(string content)
+    private static string DetectDocumentType(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
             return "unknown";
@@ -453,7 +455,7 @@ public class RuleBasedMetadataExtractor
     /// <summary>
     /// Simple language detection.
     /// </summary>
-    private string DetectLanguage(string content)
+    private static string DetectLanguage(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
             return "unknown";
@@ -477,7 +479,7 @@ public class RuleBasedMetadataExtractor
     /// <summary>
     /// Calculate confidence score based on extracted fields.
     /// </summary>
-    private double CalculateConfidence(Dictionary<string, object> metadata)
+    private static double CalculateConfidence(Dictionary<string, object> metadata)
     {
         var score = 0.0;
         var maxScore = 0.0;
@@ -498,4 +500,14 @@ public class RuleBasedMetadataExtractor
 
         return Math.Min(score / maxScore, 1.0);
     }
+
+    #region LoggerMessage
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting rule-based metadata extraction with schema: {Schema}")]
+    private static partial void LogStartingExtraction(ILogger logger, MetadataSchema schema);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Rule-based extraction complete. Found {Count} fields")]
+    private static partial void LogExtractionComplete(ILogger logger, int count);
+
+    #endregion
 }

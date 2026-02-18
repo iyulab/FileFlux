@@ -20,7 +20,7 @@ public class ChunkQualityEngine
     /// <summary>
     /// Calculates comprehensive quality metrics for document chunks.
     /// </summary>
-    public async Task<ChunkingQualityMetrics> CalculateQualityMetricsAsync(
+    public static async Task<ChunkingQualityMetrics> CalculateQualityMetricsAsync(
         IEnumerable<DocumentChunk> chunks,
         CancellationToken cancellationToken = default)
     {
@@ -32,12 +32,12 @@ public class ChunkQualityEngine
     /// <summary>
     /// Calculates comprehensive quality metrics for internal use
     /// </summary>
-    private async Task<ComprehensiveQualityMetrics> CalculateComprehensiveQualityMetricsAsync(
+    private static async Task<ComprehensiveQualityMetrics> CalculateComprehensiveQualityMetricsAsync(
         IEnumerable<DocumentChunk> chunks,
         CancellationToken cancellationToken = default)
     {
         var chunkList = chunks.ToList();
-        if (!chunkList.Any())
+        if (chunkList.Count == 0)
             return new ComprehensiveQualityMetrics();
 
         var metrics = new ComprehensiveQualityMetrics();
@@ -72,7 +72,7 @@ public class ChunkQualityEngine
     /// <summary>
     /// Calculates overall document quality score combining all metrics.
     /// </summary>
-    public double CalculateOverallQualityScore(
+    public static double CalculateOverallQualityScore(
         ChunkingQualityMetrics chunkingQuality,
         InformationDensityMetrics informationDensity,
         StructuralCoherenceMetrics structuralCoherence)
@@ -106,7 +106,7 @@ public class ChunkQualityEngine
     /// <summary>
     /// Generates quality recommendations based on analysis results.
     /// </summary>
-    public List<QualityRecommendation> GenerateRecommendations(
+    public static List<QualityRecommendation> GenerateRecommendations(
         ChunkingQualityMetrics chunkingQuality,
         InformationDensityMetrics informationDensity,
         StructuralCoherenceMetrics structuralCoherence,
@@ -187,7 +187,7 @@ public class ChunkQualityEngine
 
     #region Private Helper Methods
 
-    private Task<(double Completeness, double Coherence)> AnalyzeChunkQualityAsync(
+    private static Task<(double Completeness, double Coherence)> AnalyzeChunkQualityAsync(
         DocumentChunk chunk, CancellationToken cancellationToken)
     {
         // Analyze chunk completeness and coherence
@@ -197,7 +197,7 @@ public class ChunkQualityEngine
         return Task.FromResult((completeness, coherence));
     }
 
-    private double AnalyzeChunkCompleteness(DocumentChunk chunk)
+    private static double AnalyzeChunkCompleteness(DocumentChunk chunk)
     {
         var content = chunk.Content.Trim();
         if (string.IsNullOrEmpty(content)) return 0;
@@ -219,7 +219,7 @@ public class ChunkQualityEngine
         return Math.Min(1.0, score);
     }
 
-    private double AnalyzeChunkCoherence(DocumentChunk chunk)
+    private static double AnalyzeChunkCoherence(DocumentChunk chunk)
     {
         var content = chunk.Content;
         if (string.IsNullOrEmpty(content)) return 0;
@@ -248,7 +248,7 @@ public class ChunkQualityEngine
         return Math.Min(1.0, coherenceScore);
     }
 
-    private double CalculateContentConsistency(List<DocumentChunk> chunks)
+    private static double CalculateContentConsistency(List<DocumentChunk> chunks)
     {
         if (chunks.Count < 2) return 1.0;
 
@@ -260,7 +260,7 @@ public class ChunkQualityEngine
         return Math.Min(1.0, lengthConsistency);
     }
 
-    private double CalculateBoundaryQuality(List<DocumentChunk> chunks)
+    private static double CalculateBoundaryQuality(List<DocumentChunk> chunks)
     {
         if (chunks.Count < 2) return 1.0;
 
@@ -275,10 +275,10 @@ public class ChunkQualityEngine
             boundaryScores.Add(boundaryScore);
         }
 
-        return boundaryScores.Any() ? boundaryScores.Average() : 0.5;
+        return boundaryScores.Count != 0 ? boundaryScores.Average() : 0.5;
     }
 
-    private double AnalyzeBoundaryQuality(DocumentChunk current, DocumentChunk next)
+    private static double AnalyzeBoundaryQuality(DocumentChunk current, DocumentChunk next)
     {
         var score = 0.5; // Base score
 
@@ -295,9 +295,9 @@ public class ChunkQualityEngine
         return Math.Min(1.0, score);
     }
 
-    private double CalculateSizeDistribution(List<DocumentChunk> chunks)
+    private static double CalculateSizeDistribution(List<DocumentChunk> chunks)
     {
-        if (!chunks.Any()) return 0;
+        if (chunks.Count == 0) return 0;
 
         var sizes = chunks.Select(c => (double)c.Content.Length);
         var avgSize = sizes.Average();
@@ -308,7 +308,7 @@ public class ChunkQualityEngine
         return Math.Max(0, 1.0 - coefficient);
     }
 
-    private double CalculateOverlapEffectiveness(List<DocumentChunk> chunks)
+    private static double CalculateOverlapEffectiveness(List<DocumentChunk> chunks)
     {
         if (chunks.Count < 2) return 1.0;
 
@@ -324,10 +324,10 @@ public class ChunkQualityEngine
             overlapScores.Add(overlapScore);
         }
 
-        return overlapScores.Any() ? overlapScores.Average() : 0.5;
+        return overlapScores.Count != 0 ? overlapScores.Average() : 0.5;
     }
 
-    private double AnalyzeOverlapQuality(DocumentChunk current, DocumentChunk next)
+    private static double AnalyzeOverlapQuality(DocumentChunk current, DocumentChunk next)
     {
         // Simple word-based overlap analysis
         var currentWords = current.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -339,10 +339,10 @@ public class ChunkQualityEngine
         return union > 0 ? (double)overlap / union : 0;
     }
 
-    private double CalculateVariance(IEnumerable<double> values)
+    private static double CalculateVariance(IEnumerable<double> values)
     {
         var valueList = values.ToList();
-        if (!valueList.Any()) return 0;
+        if (valueList.Count == 0) return 0;
 
         var mean = valueList.Average();
         var variance = valueList.Sum(v => Math.Pow(v - mean, 2)) / valueList.Count;
@@ -353,9 +353,9 @@ public class ChunkQualityEngine
 
     #region Information Density Metrics
 
-    private double CalculateInformationDensity(List<DocumentChunk> chunks)
+    private static double CalculateInformationDensity(List<DocumentChunk> chunks)
     {
-        if (!chunks.Any()) return 0.0;
+        if (chunks.Count == 0) return 0.0;
 
         // Simple heuristic: ratio of meaningful words to total words
         var densities = chunks.Select(chunk =>
@@ -368,22 +368,22 @@ public class ChunkQualityEngine
         return densities.Average();
     }
 
-    private double CalculateKeywordRichness(List<DocumentChunk> chunks)
+    private static double CalculateKeywordRichness(List<DocumentChunk> chunks)
     {
-        if (!chunks.Any()) return 0.0;
+        if (chunks.Count == 0) return 0.0;
 
         // Measure density of technical/important keywords
         var keywordPatterns = new[] { "api", "data", "system", "method", "process", "result", "analysis" };
         var totalWords = chunks.Sum(c => c.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
         var keywordCount = chunks.Sum(c => keywordPatterns.Count(kw =>
-            c.Content.ToLowerInvariant().Contains(kw)));
+            c.Content.Contains(kw, StringComparison.OrdinalIgnoreCase)));
 
         return totalWords > 0 ? Math.Min(1.0, (double)keywordCount / totalWords * 10) : 0.0;
     }
 
-    private double CalculateFactualContentRatio(List<DocumentChunk> chunks)
+    private static double CalculateFactualContentRatio(List<DocumentChunk> chunks)
     {
-        if (!chunks.Any()) return 0.0;
+        if (chunks.Count == 0) return 0.0;
 
         // Simple heuristic: chunks with numbers, specific terms, etc.
         var factualChunks = chunks.Count(chunk =>
@@ -395,7 +395,7 @@ public class ChunkQualityEngine
         return (double)factualChunks / chunks.Count;
     }
 
-    private double CalculateRedundancyLevel(List<DocumentChunk> chunks)
+    private static double CalculateRedundancyLevel(List<DocumentChunk> chunks)
     {
         if (chunks.Count < 2) return 0.0;
 
@@ -414,9 +414,9 @@ public class ChunkQualityEngine
 
     #region Structural Coherence Metrics
 
-    private double CalculateStructurePreservation(List<DocumentChunk> chunks)
+    private static double CalculateStructurePreservation(List<DocumentChunk> chunks)
     {
-        if (!chunks.Any()) return 0.0;
+        if (chunks.Count == 0) return 0.0;
 
         // Check for structure markers (headers, lists, etc.)
         var structuredChunks = chunks.Count(chunk =>
@@ -428,7 +428,7 @@ public class ChunkQualityEngine
         return (double)structuredChunks / chunks.Count;
     }
 
-    private double CalculateContextContinuity(List<DocumentChunk> chunks)
+    private static double CalculateContextContinuity(List<DocumentChunk> chunks)
     {
         if (chunks.Count < 2) return 1.0;
 
@@ -443,9 +443,9 @@ public class ChunkQualityEngine
         return continuityScores.Average();
     }
 
-    private double CalculateReferenceIntegrity(List<DocumentChunk> chunks)
+    private static double CalculateReferenceIntegrity(List<DocumentChunk> chunks)
     {
-        if (!chunks.Any()) return 0.0;
+        if (chunks.Count == 0) return 0.0;
 
         // Check for proper handling of references, citations, etc.
         var chunksWithReferences = chunks.Count(chunk =>
@@ -457,9 +457,9 @@ public class ChunkQualityEngine
         return (double)chunksWithReferences / chunks.Count;
     }
 
-    private double CalculateMetadataRichness(List<DocumentChunk> chunks)
+    private static double CalculateMetadataRichness(List<DocumentChunk> chunks)
     {
-        if (!chunks.Any()) return 0.0;
+        if (chunks.Count == 0) return 0.0;
 
         // Measure richness of chunk metadata
         var richChunks = chunks.Count(chunk =>
@@ -474,19 +474,19 @@ public class ChunkQualityEngine
 
     #region Helper Methods
 
-    private bool IsStopWord(string word)
+    private static bool IsStopWord(string word)
     {
         var stopWords = new HashSet<string> { "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "is", "are", "was", "were", "be", "been", "have", "has", "had", "do", "does", "did" };
         return stopWords.Contains(word.ToLowerInvariant());
     }
 
-    private double CalculateSimilarity(string text1, string text2)
+    private static double CalculateSimilarity(string text1, string text2)
     {
         var words1 = text1.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w => w.ToLowerInvariant()).ToHashSet();
         var words2 = text2.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w => w.ToLowerInvariant()).ToHashSet();
 
-        if (!words1.Any() && !words2.Any()) return 1.0;
-        if (!words1.Any() || !words2.Any()) return 0.0;
+        if (words1.Count == 0 && words2.Count == 0) return 1.0;
+        if (words1.Count == 0 || words2.Count == 0) return 0.0;
 
         var intersection = words1.Intersect(words2).Count();
         var union = words1.Union(words2).Count();
@@ -494,7 +494,7 @@ public class ChunkQualityEngine
         return union > 0 ? (double)intersection / union : 0.0;
     }
 
-    private double MeasureContextualContinuity(DocumentChunk chunk1, DocumentChunk chunk2)
+    private static double MeasureContextualContinuity(DocumentChunk chunk1, DocumentChunk chunk2)
     {
         // Simple heuristic based on content similarity and flow
         var similarity = CalculateSimilarity(chunk1.Content, chunk2.Content);

@@ -93,7 +93,7 @@ public class ChunkingOptions
     /// When enabled, chunks are pre-assessed and may skip unnecessary LLM enrichment operations.
     /// This can reduce LLM API costs by 30-50% for well-structured documents.
     /// </summary>
-    public bool EnableConditionalEnrichment { get; set; } = false;
+    public bool EnableConditionalEnrichment { get; set; }
 
     /// <summary>
     /// Quality score threshold above which enrichment is skipped (0.0 - 1.0)

@@ -1,5 +1,6 @@
 using HtmlAgilityPack;
 using FileFlux.Core;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -289,7 +290,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         {
             var title = HtmlEntity.DeEntitize(titleNode.InnerText).Trim();
             structuralHints["title"] = title;
-            textBuilder.AppendLine($"# {title}");
+            textBuilder.AppendLine(CultureInfo.InvariantCulture, $"# {title}");
             textBuilder.AppendLine();
         }
 
@@ -443,7 +444,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         if (IsSkippedElement(tagName)) return;
 
         // 블록 레벨 요소 전 줄바꿈
-        if (IsBlockElement(tagName) && textBuilder.Length > 0 && !textBuilder.ToString().EndsWith("\n", StringComparison.Ordinal))
+        if (IsBlockElement(tagName) && textBuilder.Length > 0 && !textBuilder.ToString().EndsWith('\n'))
         {
             textBuilder.AppendLine();
         }
@@ -516,13 +517,13 @@ public partial class HtmlDocumentReader : IDocumentReader
 
     private static void ProcessHeading(HtmlNode node, StringBuilder textBuilder, string tagName)
     {
-        var level = int.Parse(tagName.Substring(1)); // h1 -> 1, h2 -> 2, etc.
+        var level = int.Parse(tagName.AsSpan(1), CultureInfo.InvariantCulture); // h1 -> 1, h2 -> 2, etc.
         var headingText = HtmlEntity.DeEntitize(node.InnerText).Trim();
 
         if (!string.IsNullOrWhiteSpace(headingText))
         {
             var prefix = new string('#', level);
-            textBuilder.AppendLine($"{prefix} {headingText}");
+            textBuilder.AppendLine(CultureInfo.InvariantCulture, $"{prefix} {headingText}");
         }
     }
 
@@ -552,16 +553,16 @@ public partial class HtmlDocumentReader : IDocumentReader
 
                 if (isOrdered)
                 {
-                    textBuilder.Append($"{indent}{i + 1}. ");
+                    textBuilder.Append(CultureInfo.InvariantCulture, $"{indent}{i + 1}. ");
                 }
                 else
                 {
-                    textBuilder.Append($"{indent}- ");
+                    textBuilder.Append(CultureInfo.InvariantCulture, $"{indent}- ");
                 }
 
                 foreach (var childNode in item.ChildNodes)
                 {
-                    if (!childNode.Name.Equals("ul", StringComparison.InvariantCultureIgnoreCase) && !childNode.Name.Equals("ol", StringComparison.InvariantCultureIgnoreCase))
+                    if (!childNode.Name.Equals("ul", StringComparison.OrdinalIgnoreCase) && !childNode.Name.Equals("ol", StringComparison.OrdinalIgnoreCase))
                     {
                         TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, cancellationToken, depth + 1);
                     }
@@ -589,7 +590,7 @@ public partial class HtmlDocumentReader : IDocumentReader
 
         if (!string.IsNullOrWhiteSpace(captionText))
         {
-            textBuilder.AppendLine($"--- TABLE: {captionText} ---");
+            textBuilder.AppendLine(CultureInfo.InvariantCulture, $"--- TABLE: {captionText} ---");
         }
         else
         {
@@ -625,7 +626,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         {
             if (!string.IsNullOrWhiteSpace(href))
             {
-                textBuilder.Append($"[{linkText}]({href})");
+                textBuilder.Append(CultureInfo.InvariantCulture, $"[{linkText}]({href})");
                 linkCount++;
 
                 // 외부 링크 판별 (http/https로 시작하는 경우)
@@ -668,7 +669,7 @@ public partial class HtmlDocumentReader : IDocumentReader
 
             // Output placeholder instead of huge base64 data
             var captionText = !string.IsNullOrWhiteSpace(alt) ? alt : "";
-            textBuilder.AppendLine($"![{captionText}](embedded:{imageId})");
+            textBuilder.AppendLine(CultureInfo.InvariantCulture, $"![{captionText}](embedded:{imageId})");
         }
         else
         {
@@ -683,11 +684,11 @@ public partial class HtmlDocumentReader : IDocumentReader
 
             if (!string.IsNullOrWhiteSpace(alt))
             {
-                textBuilder.AppendLine($"![{alt}]({src})");
+                textBuilder.AppendLine(CultureInfo.InvariantCulture, $"![{alt}]({src})");
             }
             else
             {
-                textBuilder.AppendLine($"![]({src})");
+                textBuilder.AppendLine(CultureInfo.InvariantCulture, $"![]({src})");
             }
         }
 
@@ -728,7 +729,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     private static void ProcessInlineCode(HtmlNode node, StringBuilder textBuilder, ref bool hasCode)
     {
         var codeText = HtmlEntity.DeEntitize(node.InnerText);
-        textBuilder.Append($"`{codeText}`");
+        textBuilder.Append(CultureInfo.InvariantCulture, $"`{codeText}`");
         hasCode = true;
     }
 
@@ -754,7 +755,7 @@ public partial class HtmlDocumentReader : IDocumentReader
 
             if (!string.IsNullOrWhiteSpace(language))
             {
-                textBuilder.AppendLine($"```{language}");
+                textBuilder.AppendLine(CultureInfo.InvariantCulture, $"```{language}");
             }
             else
             {
@@ -794,14 +795,14 @@ public partial class HtmlDocumentReader : IDocumentReader
             var captionText = HtmlEntity.DeEntitize(captionNode.InnerText).Trim();
             if (!string.IsNullOrWhiteSpace(captionText))
             {
-                textBuilder.AppendLine($"*Figure: {captionText}*");
+                textBuilder.AppendLine(CultureInfo.InvariantCulture, $"*Figure: {captionText}*");
             }
         }
 
         // figure 내의 다른 요소들 처리
         foreach (var childNode in node.ChildNodes)
         {
-            if (!childNode.Name.Equals("img", StringComparison.InvariantCultureIgnoreCase) && !childNode.Name.Equals("figcaption", StringComparison.InvariantCultureIgnoreCase))
+            if (!childNode.Name.Equals("img", StringComparison.OrdinalIgnoreCase) && !childNode.Name.Equals("figcaption", StringComparison.OrdinalIgnoreCase))
             {
                 TraverseNode(childNode, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, cancellationToken, depth + 1);
             }

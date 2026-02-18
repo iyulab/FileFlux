@@ -148,6 +148,7 @@ public class LMSupplyCompletionService : FI.ITextCompletionService, IAsyncDispos
     {
         if (_disposed) return;
         _disposed = true;
+        GC.SuppressFinalize(this);
 
         if (_model != null)
         {

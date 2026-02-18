@@ -12,7 +12,7 @@ namespace FileFlux.Infrastructure;
 /// <summary>
 /// Document enricher that integrates with FluxImprover for LLM-powered enrichment.
 /// </summary>
-public sealed class DocumentEnricher : IDocumentEnricher
+public sealed partial class DocumentEnricher : IDocumentEnricher
 {
     private readonly FluxImproverServices? _improverServices;
     private readonly FluxImproverIntegrationHelper _integrationHelper;
@@ -51,10 +51,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
         var sw = Stopwatch.StartNew();
         var stats = new EnrichmentStatsBuilder();
 
-        _logger?.LogInformation(
-            "Starting enrichment of {ChunkCount} chunks with options: " +
-            "Summaries={Summaries}, Keywords={Keywords}, ContextualText={Contextual}, Graph={Graph}",
-            chunks.Count, options.GenerateSummaries, options.ExtractKeywords,
+        if (_logger is not null) LogStartingEnrichment(_logger, chunks.Count, options.GenerateSummaries, options.ExtractKeywords,
             options.AddContextualText, options.BuildGraph);
 
         // Enrich chunks
@@ -69,7 +66,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
         {
             // No LLM - create basic enriched chunks without LLM features
             enrichedChunks = chunks.Select(c => new EnrichedDocumentChunk { Chunk = c }).ToList();
-            _logger?.LogDebug("No LLM services available, skipping LLM enrichment");
+            if (_logger is not null) LogNoLlmServices(_logger);
         }
 
         stats.EnrichedChunks = enrichedChunks.Count(e => e.IsEnriched);
@@ -129,11 +126,11 @@ public sealed class DocumentEnricher : IDocumentEnricher
     {
         options ??= GraphBuildOptions.Default;
 
-        var documentId = chunks.FirstOrDefault()?.Chunk.RawId ?? Guid.NewGuid();
+        var documentId = chunks.Count > 0 ? chunks[0].Chunk.RawId : Guid.NewGuid();
         var nodes = new List<ChunkNode>(chunks.Count);
         var edges = new List<ChunkEdge>();
 
-        _logger?.LogDebug("Building graph for {ChunkCount} chunks", chunks.Count);
+        if (_logger is not null) LogBuildingGraph(_logger, chunks.Count);
 
         // Create nodes
         for (int i = 0; i < chunks.Count; i++)
@@ -231,7 +228,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
             }
             catch (Exception ex)
             {
-                _logger?.LogWarning(ex, "Failed to enrich chunk {Index}", index);
+                if (_logger is not null) LogEnrichChunkFailed(_logger, ex, index);
                 results[index] = new EnrichedDocumentChunk { Chunk = chunk };
                 Interlocked.Increment(ref stats.FailedChunks);
             }
@@ -280,7 +277,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
             }
             catch (Exception ex)
             {
-                _logger?.LogDebug(ex, "Failed to generate summary for chunk {Id}", chunk.Id);
+                if (_logger is not null) LogSummaryFailed(_logger, ex, chunk.Id);
             }
         }
 
@@ -295,7 +292,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
             }
             catch (Exception ex)
             {
-                _logger?.LogDebug(ex, "Failed to extract keywords for chunk {Id}", chunk.Id);
+                if (_logger is not null) LogKeywordsFailed(_logger, ex, chunk.Id);
             }
         }
 
@@ -319,7 +316,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
             }
             catch (Exception ex)
             {
-                _logger?.LogDebug(ex, "Failed to generate contextual text for chunk {Id}", chunk.Id);
+                if (_logger is not null) LogContextualTextFailed(_logger, ex, chunk.Id);
             }
         }
 
@@ -332,7 +329,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
         };
     }
 
-    private IEnumerable<ChunkEdge> BuildHierarchicalEdges(IReadOnlyList<EnrichedDocumentChunk> chunks)
+    private static List<ChunkEdge> BuildHierarchicalEdges(IReadOnlyList<EnrichedDocumentChunk> chunks)
     {
         var edges = new List<ChunkEdge>();
 
@@ -369,7 +366,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
         return edges;
     }
 
-    private IEnumerable<ChunkEdge> BuildSharedEntityEdges(
+    private static List<ChunkEdge> BuildSharedEntityEdges(
         IReadOnlyList<EnrichedDocumentChunk> chunks,
         GraphBuildOptions options)
     {
@@ -482,7 +479,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Failed to discover semantic relationships");
+            if (_logger is not null) LogSemanticRelationshipsFailed(_logger, ex);
         }
 
         return edges;
@@ -503,7 +500,7 @@ public sealed class DocumentEnricher : IDocumentEnricher
         _ => EdgeType.Semantic
     };
 
-    private static bool IsPathPrefix(IReadOnlyList<string> prefix, IReadOnlyList<string> path)
+    private static bool IsPathPrefix(List<string> prefix, List<string> path)
     {
         if (prefix.Count >= path.Count)
             return false;
@@ -524,6 +521,34 @@ public sealed class DocumentEnricher : IDocumentEnricher
         return [];
     }
 
+    #region LoggerMessage
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Starting enrichment of {ChunkCount} chunks with options: Summaries={Summaries}, Keywords={Keywords}, ContextualText={Contextual}, Graph={Graph}")]
+    private static partial void LogStartingEnrichment(ILogger logger, int chunkCount, bool summaries, bool keywords, bool contextual, bool graph);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "No LLM services available, skipping LLM enrichment")]
+    private static partial void LogNoLlmServices(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Building graph for {ChunkCount} chunks")]
+    private static partial void LogBuildingGraph(ILogger logger, int chunkCount);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to enrich chunk {Index}")]
+    private static partial void LogEnrichChunkFailed(ILogger logger, Exception ex, int index);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Failed to generate summary for chunk {Id}")]
+    private static partial void LogSummaryFailed(ILogger logger, Exception ex, Guid id);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Failed to extract keywords for chunk {Id}")]
+    private static partial void LogKeywordsFailed(ILogger logger, Exception ex, Guid id);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Failed to generate contextual text for chunk {Id}")]
+    private static partial void LogContextualTextFailed(ILogger logger, Exception ex, Guid id);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to discover semantic relationships")]
+    private static partial void LogSemanticRelationshipsFailed(ILogger logger, Exception ex);
+
+    #endregion
+
     /// <summary>
     /// Mutable builder for enrichment stats.
     /// </summary>
@@ -536,8 +561,6 @@ public sealed class DocumentEnricher : IDocumentEnricher
         public int ContextualTextsAdded;
         public int GraphNodes;
         public int GraphEdges;
-        public int LlmCalls;
-        public int TokensUsed;
 
         public EnrichmentStats Build(TimeSpan duration) => new()
         {
@@ -548,8 +571,6 @@ public sealed class DocumentEnricher : IDocumentEnricher
             ContextualTextsAdded = ContextualTextsAdded,
             GraphNodes = GraphNodes,
             GraphEdges = GraphEdges,
-            LlmCalls = LlmCalls,
-            TokensUsed = TokensUsed,
             Duration = duration
         };
     }

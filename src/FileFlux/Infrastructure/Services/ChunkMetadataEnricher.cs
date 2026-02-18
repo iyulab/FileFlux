@@ -16,7 +16,7 @@ public class ChunkMetadataEnricher
     /// <param name="chunk">Target chunk to enrich.</param>
     /// <param name="context">Document-level context for enrichment.</param>
     /// <returns>The enriched chunk.</returns>
-    public DocumentChunk Enrich(DocumentChunk chunk, DocumentContext context)
+    public static DocumentChunk Enrich(DocumentChunk chunk, DocumentContext context)
     {
         // Calculate relevance score based on content quality
         var relevanceScore = CalculateRelevanceScore(chunk.Content, context);
@@ -77,7 +77,7 @@ public class ChunkMetadataEnricher
         }
 
         // Heading detection
-        if (trimmed.StartsWith("#", StringComparison.Ordinal) ||
+        if (trimmed.StartsWith('#') ||
             (trimmed.Length < 100 && trimmed.Split('\n').Length == 1 && char.IsUpper(trimmed[0])))
         {
             return "heading";
@@ -107,7 +107,7 @@ public class ChunkMetadataEnricher
     /// <param name="content">Chunk content.</param>
     /// <param name="context">Document context with domain information.</param>
     /// <returns>Dictionary of topic scores.</returns>
-    public Dictionary<string, double> CalculateTopicScores(string content, DocumentContext context)
+    public static Dictionary<string, double> CalculateTopicScores(string content, DocumentContext context)
     {
         var scores = new Dictionary<string, double>();
 
@@ -158,7 +158,7 @@ public class ChunkMetadataEnricher
     /// <summary>
     /// Extracts technical keywords from content based on domain.
     /// </summary>
-    public List<string> ExtractTechnicalKeywords(string content, string domain)
+    public static List<string> ExtractTechnicalKeywords(string content, string domain)
     {
         var keywords = new List<string>();
 
@@ -224,7 +224,7 @@ public class ChunkMetadataEnricher
     /// <summary>
     /// Generates a contextual header for the chunk.
     /// </summary>
-    public string GenerateContextualHeader(DocumentChunk chunk, DocumentContext context)
+    public static string GenerateContextualHeader(DocumentChunk chunk, DocumentContext context)
     {
         var headerParts = new List<string>();
 
@@ -255,7 +255,7 @@ public class ChunkMetadataEnricher
     /// <summary>
     /// Calculates information density of the content.
     /// </summary>
-    public double CalculateInformationDensity(string content)
+    public static double CalculateInformationDensity(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
             return 0.0;

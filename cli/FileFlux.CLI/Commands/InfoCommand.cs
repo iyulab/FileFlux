@@ -1,4 +1,5 @@
 using FileFlux;
+using System.Globalization;
 using FileFlux.Core;
 using FileFlux.CLI.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,7 +53,7 @@ public class InfoCommand : Command
         grid.AddRow("[bold]File name:[/]", fileInfo.Name);
         grid.AddRow("[bold]File size:[/]", FormatFileSize(fileInfo.Length));
         grid.AddRow("[bold]Extension:[/]", fileInfo.Extension);
-        grid.AddRow("[bold]Modified:[/]", fileInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"));
+        grid.AddRow("[bold]Modified:[/]", fileInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
 
         var panel = new Panel(grid)
         {
@@ -103,10 +104,10 @@ public class InfoCommand : Command
                         contentGrid.AddColumn();
                         contentGrid.AddColumn();
 
-                        contentGrid.AddRow("[bold]Total characters:[/]", totalChars.ToString("N0"));
-                        contentGrid.AddRow("[bold]Estimated words:[/]", estimatedWords.ToString("N0"));
-                        contentGrid.AddRow("[bold]Estimated tokens:[/]", estimatedTokens.ToString("N0"));
-                        contentGrid.AddRow("[bold]Chunks (large):[/]", chunks.Count().ToString());
+                        contentGrid.AddRow("[bold]Total characters:[/]", totalChars.ToString("N0", CultureInfo.InvariantCulture));
+                        contentGrid.AddRow("[bold]Estimated words:[/]", estimatedWords.ToString("N0", CultureInfo.InvariantCulture));
+                        contentGrid.AddRow("[bold]Estimated tokens:[/]", estimatedTokens.ToString("N0", CultureInfo.InvariantCulture));
+                        contentGrid.AddRow("[bold]Chunks (large):[/]", chunks.Count.ToString(CultureInfo.InvariantCulture));
 
                         var contentPanel = new Panel(contentGrid)
                         {

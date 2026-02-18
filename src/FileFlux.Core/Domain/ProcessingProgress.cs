@@ -172,7 +172,7 @@ public class ProcessingResult<T>
     /// <summary>
     /// Parsed document content (set during Parsing stage)
     /// </summary>
-    public ParsedContent? ParsedContent { get; set; }
+    public RefinedContent? ParsedContent { get; set; }
 
     /// <summary>
     /// Processing success flag

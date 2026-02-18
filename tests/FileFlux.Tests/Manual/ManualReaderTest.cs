@@ -80,7 +80,7 @@ public class ManualReaderTest
         if (result.Text != null)
         {
             var preview = result.Text.Length > 3000
-                ? result.Text.Substring(0, 3000) + "\n... [TRUNCATED]"
+                ? string.Concat(result.Text.AsSpan(0, 3000), "\n... [TRUNCATED]")
                 : result.Text;
             _logger.LogInformation("{Preview}", preview);
         }

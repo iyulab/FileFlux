@@ -87,7 +87,7 @@ public class DocumentChunk : IEnrichedChunk
     /// <summary>
     /// Context dependency score (0.0 - 1.0)
     /// </summary>
-    public double ContextDependency { get; set; } = 0.0;
+    public double ContextDependency { get; set; }
 
     /// <summary>
     /// Source metadata for the document this chunk belongs to
@@ -169,7 +169,7 @@ public class SourceMetadataInfo : ISourceMetadata
     public string? FilePath { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string Language { get; set; } = "en";
-    public double LanguageConfidence { get; set; } = 0.0;
+    public double LanguageConfidence { get; set; }
     public int WordCount { get; set; }
     public int ChunkCount { get; set; }
     public int? PageCount { get; set; }

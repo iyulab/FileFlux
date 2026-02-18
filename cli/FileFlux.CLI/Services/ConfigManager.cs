@@ -7,6 +7,7 @@ namespace FileFlux.CLI.Services;
 /// </summary>
 public class ConfigManager
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new() { WriteIndented = true };
     private static readonly string ConfigDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "FileFlux");
@@ -86,7 +87,7 @@ public class ConfigManager
         return key.ToUpperInvariant().Replace("-", "_");
     }
 
-    private Dictionary<string, string> Load()
+    private static Dictionary<string, string> Load()
     {
         try
         {
@@ -111,11 +112,7 @@ public class ConfigManager
         {
             Directory.CreateDirectory(ConfigDir);
 
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true
-            };
-            var json = JsonSerializer.Serialize(_config, options);
+            var json = JsonSerializer.Serialize(_config, s_jsonOptions);
             File.WriteAllText(ConfigPath, json);
         }
         catch (Exception ex)

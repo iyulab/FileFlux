@@ -150,7 +150,7 @@ public class PdfDocumentReaderTests
         if (result.Hints.TryGetValue("PageCount", out object? pageCount))
         {
             _logger.LogInformation("Page count: {Count}", pageCount);
-            Assert.True(Convert.ToInt32(pageCount) > 0);
+            Assert.True(Convert.ToInt32(pageCount, System.Globalization.CultureInfo.InvariantCulture) > 0);
         }
 
         if (result.Hints.TryGetValue("ProcessedPages", out object? processedPages))

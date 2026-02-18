@@ -53,7 +53,7 @@ public class DocumentMetadata
     /// <summary>
     /// Language detection confidence (0.0 - 1.0)
     /// </summary>
-    public double LanguageConfidence { get; set; } = 0.0;
+    public double LanguageConfidence { get; set; }
 
     /// <summary>
     /// Total page count

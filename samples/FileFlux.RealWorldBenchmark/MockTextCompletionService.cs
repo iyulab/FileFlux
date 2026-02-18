@@ -114,7 +114,7 @@ public class MockTextCompletionService : ITextCompletionService
             {
                 new QualityRecommendation
                 {
-                    Type = RecommendationType.CHUNK_SIZE_OPTIMIZATION,
+                    Type = RecommendationType.ChunkSizeOptimization,
                     Description = "Mock recommendation",
                     Priority = 5
                 }

@@ -25,7 +25,7 @@ public class ChunkQualityEngineTests
         var chunks = CreateSampleChunks();
 
         // Act
-        var result = await _engine.CalculateQualityMetricsAsync(chunks);
+        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
 
         // Assert
         Assert.NotNull(result);
@@ -44,7 +44,7 @@ public class ChunkQualityEngineTests
         var chunks = new List<DocumentChunk>();
 
         // Act
-        var result = await _engine.CalculateQualityMetricsAsync(chunks);
+        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
 
         // Assert
         Assert.NotNull(result);
@@ -69,7 +69,7 @@ public class ChunkQualityEngineTests
         }
 
         // Act
-        var result = await _engine.CalculateQualityMetricsAsync(chunks);
+        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
 
         // Assert
         Assert.NotNull(result);
@@ -104,7 +104,7 @@ public class ChunkQualityEngineTests
         };
 
         // Act
-        var result = await _engine.CalculateQualityMetricsAsync(chunks);
+        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
 
         // Assert
         Assert.NotNull(result);
@@ -140,7 +140,7 @@ public class ChunkQualityEngineTests
         };
 
         // Act
-        var score = _engine.CalculateOverallQualityScore(chunkingMetrics, densityMetrics, structureMetrics);
+        var score = ChunkQualityEngine.CalculateOverallQualityScore(chunkingMetrics, densityMetrics, structureMetrics);
 
         // Assert
         Assert.InRange(score, 0.0, 1.0);
@@ -175,7 +175,7 @@ public class ChunkQualityEngineTests
         var options = new ChunkingOptions();
 
         // Act
-        var recommendations = _engine.GenerateRecommendations(chunkingMetrics, densityMetrics, structureMetrics, options);
+        var recommendations = ChunkQualityEngine.GenerateRecommendations(chunkingMetrics, densityMetrics, structureMetrics, options);
 
         // Assert
         Assert.NotNull(recommendations);
@@ -234,8 +234,8 @@ public class ChunkQualityEngineTests
         var options = new ChunkingOptions();
 
         // Act
-        var highRecommendations = _engine.GenerateRecommendations(highChunkingMetrics, highDensityMetrics, highStructureMetrics, options);
-        var lowRecommendations = _engine.GenerateRecommendations(lowChunkingMetrics, lowDensityMetrics, lowStructureMetrics, options);
+        var highRecommendations = ChunkQualityEngine.GenerateRecommendations(highChunkingMetrics, highDensityMetrics, highStructureMetrics, options);
+        var lowRecommendations = ChunkQualityEngine.GenerateRecommendations(lowChunkingMetrics, lowDensityMetrics, lowStructureMetrics, options);
 
         // Assert
         Assert.True(highRecommendations.Count <= lowRecommendations.Count,

@@ -39,7 +39,7 @@ public class LMSupplyOptions
     /// When true, uses "multilingual" model if Korean, Japanese, or Chinese is detected.
     /// Default: false (explicit model selection)
     /// </summary>
-    public bool AutoSelectMultilingualModel { get; set; } = false;
+    public bool AutoSelectMultilingualModel { get; set; }
 
     /// <summary>
     /// Gets or sets the text generator model identifier.
@@ -87,7 +87,7 @@ public class LMSupplyOptions
     /// Gets or sets whether to warm up models on initialization.
     /// Default: false
     /// </summary>
-    public bool WarmupOnInit { get; set; } = false;
+    public bool WarmupOnInit { get; set; }
 
     /// <summary>
     /// Gets the recommended embedding model based on detected language.

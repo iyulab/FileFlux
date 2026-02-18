@@ -3,6 +3,7 @@ using FileFlux.Domain;
 using FileFlux.Infrastructure.Output;
 using FileFlux.Infrastructure.Services;
 using System.Text;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure;
 
@@ -268,7 +269,7 @@ public sealed partial class FluxDocumentProcessor
             {
                 if (sb.Length > 0)
                     sb.AppendLine();
-                sb.AppendLine($"### Table {tableNum} (Page {table.PageNumber})");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"### Table {tableNum} (Page {table.PageNumber})");
                 sb.AppendLine();
                 sb.AppendLine(tableMarkdown);
                 tableNum++;
@@ -334,7 +335,7 @@ public sealed partial class FluxDocumentProcessor
         sb.Append('|');
         foreach (var header in headers.Take(columnCount))
         {
-            sb.Append($" {EscapeMarkdownCell(header ?? "")} |");
+            sb.Append(CultureInfo.InvariantCulture, $" {EscapeMarkdownCell(header ?? "")} |");
         }
         sb.AppendLine();
 
@@ -356,7 +357,7 @@ public sealed partial class FluxDocumentProcessor
             for (int colIdx = 0; colIdx < columnCount; colIdx++)
             {
                 var cell = colIdx < row.Length ? row[colIdx] : "";
-                sb.Append($" {EscapeMarkdownCell(cell ?? "")} |");
+                sb.Append(CultureInfo.InvariantCulture, $" {EscapeMarkdownCell(cell ?? "")} |");
             }
             sb.AppendLine();
         }

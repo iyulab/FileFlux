@@ -1,5 +1,6 @@
 using FileFlux.Core;
 using System.Text;
+using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -11,6 +12,12 @@ namespace FileFlux.CLI.Output;
 /// </summary>
 public class ChunkedOutputWriter : IOutputWriter
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
     private readonly string _format;
 
     public ChunkedOutputWriter(string format = "md")
@@ -57,40 +64,40 @@ public class ChunkedOutputWriter : IOutputWriter
 
         // YAML frontmatter with navigation
         sb.AppendLine("---");
-        sb.AppendLine($"chunk: {chunkNum}");
-        sb.AppendLine($"total: {totalChunks}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"chunk: {chunkNum}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"total: {totalChunks}");
         if (chunkNum > 1)
-            sb.AppendLine($"prev: chunk_{chunkNum - 1}.md");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"prev: chunk_{chunkNum - 1}.md");
         if (chunkNum < totalChunks)
-            sb.AppendLine($"next: chunk_{chunkNum + 1}.md");
-        sb.AppendLine($"tokens: {chunk.Tokens}");
-        sb.AppendLine($"quality: {chunk.Quality:F2}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"next: chunk_{chunkNum + 1}.md");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"tokens: {chunk.Tokens}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"quality: {chunk.Quality:F2}");
         if (!string.IsNullOrEmpty(chunk.Metadata.FileName))
-            sb.AppendLine($"source: \"{chunk.Metadata.FileName}\"");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"source: \"{chunk.Metadata.FileName}\"");
         if (chunk.Location.StartPage.HasValue)
-            sb.AppendLine($"page: {chunk.Location.StartPage}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"page: {chunk.Location.StartPage}");
         if (!string.IsNullOrEmpty(chunk.Location.Section))
-            sb.AppendLine($"section: \"{chunk.Location.Section}\"");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"section: \"{chunk.Location.Section}\"");
         sb.AppendLine("---");
         sb.AppendLine();
 
-        sb.AppendLine($"# Chunk {chunkNum} of {totalChunks}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"# Chunk {chunkNum} of {totalChunks}");
         sb.AppendLine();
 
         // Enrichment metadata if present (using typed accessors)
         if (ChunkPropsKeys.TryGetValue<string>(chunk.Props, ChunkPropsKeys.EnrichedTopics, out var topicsStr) && !string.IsNullOrEmpty(topicsStr))
         {
-            sb.AppendLine($"**Topics:** {topicsStr}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"**Topics:** {topicsStr}");
         }
 
         if (chunk.EnrichedKeywords is { Count: > 0 } keywordsList)
         {
-            sb.AppendLine($"**Keywords:** {string.Join(", ", keywordsList)}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"**Keywords:** {string.Join(", ", keywordsList)}");
         }
 
         if (!string.IsNullOrEmpty(chunk.EnrichedSummary))
         {
-            sb.AppendLine($"**Summary:** {chunk.EnrichedSummary}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"**Summary:** {chunk.EnrichedSummary}");
             sb.AppendLine();
         }
 
@@ -113,13 +120,6 @@ public class ChunkedOutputWriter : IOutputWriter
 
     private static string FormatAsJson(DocumentChunk chunk, int totalChunks)
     {
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        };
-
         var chunkNum = chunk.Index + 1;
 
         var data = new
@@ -160,6 +160,6 @@ public class ChunkedOutputWriter : IOutputWriter
             } : null
         };
 
-        return JsonSerializer.Serialize(data, options);
+        return JsonSerializer.Serialize(data, s_jsonOptions);
     }
 }

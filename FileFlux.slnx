@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="cli/FileFlux.CLI/FileFlux.CLI.csproj" />
+  <Project Path="samples/FileFlux.SampleApp/FileFlux.SampleApp.csproj" />
+  <Project Path="src/FileFlux/FileFlux.csproj" />
+  <Project Path="tests/FileFlux.Tests/FileFlux.Tests.csproj" />
+</Solution>

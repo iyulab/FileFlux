@@ -146,7 +146,7 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
         }
     }
 
-    private BoundaryType DetermineBoundaryType(string segment1, string segment2, double similarity)
+    private static BoundaryType DetermineBoundaryType(string segment1, string segment2, double similarity)
     {
         // Check for structural indicators first (priority)
         if (ContainsHeading(segment2))
@@ -176,7 +176,7 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
         }
 
         // High similarity - check for sentence/paragraph boundaries based on structure
-        if (segment1.EndsWith(".", StringComparison.Ordinal) && char.IsUpper(segment2.FirstOrDefault()))
+        if (segment1.EndsWith('.') && char.IsUpper(segment2.FirstOrDefault()))
         {
             // Very high similarity suggests sentence boundary, medium-high suggests paragraph
             return similarity >= 0.7 ? BoundaryType.Sentence : BoundaryType.Paragraph;
@@ -186,7 +186,7 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
         return BoundaryType.Paragraph;
     }
 
-    private IEnumerable<BoundaryPoint> PostProcessBoundaries(
+    private static List<BoundaryPoint> PostProcessBoundaries(
         List<BoundaryPoint> boundaries,
         IList<string> segments)
     {
@@ -238,28 +238,28 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
         return processed;
     }
 
-    private bool ContainsHeading(string text)
+    private static bool ContainsHeading(string text)
     {
-        return text.StartsWith("#", StringComparison.Ordinal) ||
+        return text.StartsWith('#') ||
                text.Contains("HEADING_START") ||
                System.Text.RegularExpressions.Regex.IsMatch(text, @"^(Chapter|Section|\d+\.)\s+",
                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 
-    private bool ContainsCodeBlock(string text)
+    private static bool ContainsCodeBlock(string text)
     {
         return text.Contains("```") ||
                text.Contains("CODE_BLOCK_START") ||
                text.Contains("CODE_START");
     }
 
-    private bool ContainsTable(string text)
+    private static bool ContainsTable(string text)
     {
         return text.Contains("TABLE_START") ||
                text.Contains('|') && text.Count(c => c == '|') > 2;
     }
 
-    private bool ContainsList(string text)
+    private static bool ContainsList(string text)
     {
         return text.Contains("LIST_START") ||
                System.Text.RegularExpressions.Regex.IsMatch(text, @"^\s*[-*+•]\s+",
@@ -340,13 +340,13 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
 
         // Post-process boundaries
         var processedBoundaries = PostProcessBoundaries(boundaries, segments);
-        return Task.FromResult(processedBoundaries);
+        return Task.FromResult<IEnumerable<BoundaryPoint>>(processedBoundaries);
     }
 
     /// <summary>
     /// Calculate text-based similarity using word overlap (Jaccard similarity)
     /// </summary>
-    private double CalculateTextSimilarity(string text1, string text2)
+    private static double CalculateTextSimilarity(string text1, string text2)
     {
         if (string.IsNullOrWhiteSpace(text1) && string.IsNullOrWhiteSpace(text2))
             return 1.0;
@@ -365,10 +365,10 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
             .Where(w => w.Length > 2)
             .ToHashSet();
 
-        if (!words1.Any() && !words2.Any())
+        if (words1.Count == 0 && words2.Count == 0)
             return 1.0;
 
-        if (!words1.Any() || !words2.Any())
+        if (words1.Count == 0 || words2.Count == 0)
             return 0.0;
 
         // Calculate Jaccard similarity

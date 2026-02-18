@@ -9,8 +9,17 @@ namespace FileFlux.CLI.Services.Providers;
 /// Google Gemini Vision API implementation for image to text extraction using direct HTTP API
 /// Uses Gemini models with vision capabilities (gemini-2.5-flash, gemini-2.5-pro)
 /// </summary>
-public class GoogleImageToTextService : IImageToTextService
+public class GoogleImageToTextService : IImageToTextService, IDisposable
 {
+    private static readonly JsonSerializerOptions s_serializeOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+    private static readonly JsonSerializerOptions s_deserializeOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
     private readonly HttpClient _httpClient;
     private readonly string _model;
     private readonly bool _verbose;
@@ -196,21 +205,15 @@ public class GoogleImageToTextService : IImageToTextService
     private async Task<T> PostAsync<T>(GeminiVisionRequest requestBody, CancellationToken cancellationToken)
     {
         var url = $"{ApiEndpoint}/{_model}:generateContent";
-        var json = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+        var json = JsonSerializer.Serialize(requestBody, s_serializeOptions);
         var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var response = await _httpClient.PostAsync(url, content, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonSerializer.Deserialize<T>(responseJson, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        }) ?? throw new InvalidOperationException("Failed to deserialize response");
+        return JsonSerializer.Deserialize<T>(responseJson, s_deserializeOptions)
+            ?? throw new InvalidOperationException("Failed to deserialize response");
     }
 
     private static string GetMimeType(byte[] imageData)
@@ -260,6 +263,12 @@ public class GoogleImageToTextService : IImageToTextService
 
         // Default to JPEG
         return "image/jpeg";
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     // DTOs for Google Gemini Vision API

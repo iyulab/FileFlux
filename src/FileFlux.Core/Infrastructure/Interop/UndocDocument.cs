@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -212,24 +213,27 @@ public sealed class UndocDocument : IDisposable
         return _loader.ResourceCount?.Invoke(_handle) ?? 0;
     }
 
-    private IReadOnlyList<UndocResourceInfo> LoadResources()
+    private static readonly ReadOnlyCollection<UndocResourceInfo> EmptyResources =
+        new ReadOnlyCollection<UndocResourceInfo>([]);
+
+    private ReadOnlyCollection<UndocResourceInfo> LoadResources()
     {
         ThrowIfDisposed();
 
         // Check if resource API is available (v0.1.8+)
         if (_loader.GetResourceIds == null)
-            return [];
+            return EmptyResources;
 
         var idsPtr = _loader.GetResourceIds(_handle);
         if (idsPtr == IntPtr.Zero)
-            return [];
+            return EmptyResources;
 
         string[] ids;
         try
         {
             var idsJson = Marshal.PtrToStringUTF8(idsPtr);
             if (string.IsNullOrEmpty(idsJson))
-                return [];
+                return EmptyResources;
 
             ids = JsonSerializer.Deserialize<string[]>(idsJson) ?? [];
         }
@@ -239,7 +243,7 @@ public sealed class UndocDocument : IDisposable
         }
 
         if (ids.Length == 0)
-            return [];
+            return EmptyResources;
 
         var resources = new List<UndocResourceInfo>(ids.Length);
         foreach (var id in ids)

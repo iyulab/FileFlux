@@ -3,6 +3,7 @@ using FileFlux.Core.Infrastructure.Readers;
 using Unpdf;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Readers;
 
@@ -13,6 +14,7 @@ namespace FileFlux.Infrastructure.Readers;
 /// </summary>
 public class MultiModalPdfDocumentReader : IDocumentReader
 {
+    private static readonly char[] s_keywordSeparators = [' ', '\n', '\r', '\t'];
     private readonly IImageToTextService? _imageToTextService;
     private readonly IImageRelevanceEvaluator? _relevanceEvaluator;
     private readonly PdfDocumentReader _basePdfReader;
@@ -165,7 +167,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
 
             // Batch relevance evaluation if evaluator is available
             List<ImageRelevanceResult>? relevanceResults = null;
-            if (_relevanceEvaluator != null && imageTextResults.Any())
+            if (_relevanceEvaluator != null && imageTextResults.Count != 0)
             {
                 var imageTexts = imageTextResults.Select(r => r.ExtractedText).ToList();
                 relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
@@ -199,10 +201,10 @@ public class MultiModalPdfDocumentReader : IDocumentReader
 
                 if (shouldInclude)
                 {
-                    enhancedText.AppendLine($"<!-- IMAGE_START:IMG_{imageCount} -->");
-                    enhancedText.AppendLine($"Image {imageCount}:");
+                    enhancedText.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_START:IMG_{imageCount} -->");
+                    enhancedText.AppendLine(CultureInfo.InvariantCulture, $"Image {imageCount}:");
                     enhancedText.AppendLine(processedText);
-                    enhancedText.AppendLine($"<!-- IMAGE_END:IMG_{imageCount} -->");
+                    enhancedText.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_END:IMG_{imageCount} -->");
 
                     includedImageCount++;
                     imageProcessingResults.Add($"Image {imageCount}: {imageResult.ImageType} INCLUDED - {inclusionReason}");
@@ -279,7 +281,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     /// <summary>
     /// Prepare document context for relevance evaluation.
     /// </summary>
-    private DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
+    private static DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
     {
         var context = new DocumentContext
         {
@@ -300,7 +302,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         }
 
         // Simple keyword extraction (words with length >= 5)
-        var words = baseContent.Text.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        var words = baseContent.Text.Split(s_keywordSeparators, StringSplitOptions.RemoveEmptyEntries);
         context.Keywords = words
             .Where(w => w.Length >= 5)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -313,7 +315,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     /// <summary>
     /// Text truncation helper.
     /// </summary>
-    private string TruncateText(string text, int maxLength)
+    private static string TruncateText(string text, int maxLength)
     {
         if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
             return text;

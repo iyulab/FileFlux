@@ -2,6 +2,7 @@ using FileFlux;
 using FileFlux.Core;
 using FileFlux.Infrastructure.Services;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Parsers;
 
@@ -10,6 +11,7 @@ namespace FileFlux.Infrastructure.Parsers;
 /// </summary>
 public partial class BasicDocumentParser : IDocumentParser
 {
+    private static readonly char[] s_wordSeparators = [' ', '\t', '\n', '\r', '.', ',', '!', '?'];
     private readonly ITextCompletionService? _textCompletionService;
 
     public BasicDocumentParser(ITextCompletionService? textCompletionService = null)
@@ -33,7 +35,7 @@ public partial class BasicDocumentParser : IDocumentParser
         return rawContent.Text != null;
     }
 
-    public async Task<ParsedContent> ParseAsync(
+    public async Task<RefinedContent> ParseAsync(
         RawContent rawContent,
         DocumentParsingOptions options,
         CancellationToken cancellationToken = default)
@@ -46,7 +48,7 @@ public partial class BasicDocumentParser : IDocumentParser
 
         try
         {
-            ParsedContent result;
+            RefinedContent result;
 
             if (options.UseLlmParsing && _textCompletionService != null)
             {
@@ -60,13 +62,13 @@ public partial class BasicDocumentParser : IDocumentParser
             }
 
             // 파싱 메타데이터 설정
-            result.Info = new ParsingInfo
+            result.Info = new RefinementInfo
             {
-                ParserType = ParserType,
+                RefinerType = ParserType,
                 UsedLlm = options.UseLlmParsing && _textCompletionService != null,
-                Warnings = warnings
+                Warnings = warnings,
+                Duration = DateTime.UtcNow - startTime
             };
-            result.Duration = DateTime.UtcNow - startTime;
 
             return result;
         }
@@ -79,7 +81,7 @@ public partial class BasicDocumentParser : IDocumentParser
     /// <summary>
     /// 규칙 기반 기본 구조화 (LLM 없음)
     /// </summary>
-    private ParsedContent ParseWithRules(RawContent rawContent, DocumentParsingOptions options)
+    private static RefinedContent ParseWithRules(RawContent rawContent, DocumentParsingOptions options)
     {
         var text = rawContent.Text;
         var hints = rawContent.Hints;
@@ -101,19 +103,14 @@ public partial class BasicDocumentParser : IDocumentParser
 
         var formattedText = FormatStructuredText(sections);
 
-        return new ParsedContent
+        return new RefinedContent
         {
             Text = formattedText,
             Metadata = metadata,
-            Structure = new DocumentStructure
-            {
-                Type = documentType,
-                Topic = keywords.FirstOrDefault() ?? "Unknown",
-                Summary = summary,
-                Keywords = keywords,
-                Sections = sections,
-                Entities = [] // 규칙 기반에서는 엔티티 추출 제한적
-            },
+            Topic = keywords.FirstOrDefault() ?? "Unknown",
+            Summary = summary,
+            Keywords = keywords,
+            Sections = sections,
             Quality = CalculateQualityMetrics(text, sections, false)
         };
     }
@@ -121,7 +118,7 @@ public partial class BasicDocumentParser : IDocumentParser
     /// <summary>
     /// 텍스트 완성 서비스 기반 고도화 구조화
     /// </summary>
-    private async Task<ParsedContent> ParseWithTextCompletionAsync(
+    private async Task<RefinedContent> ParseWithTextCompletionAsync(
         RawContent rawContent,
         DocumentParsingOptions options,
         CancellationToken cancellationToken)
@@ -131,16 +128,19 @@ public partial class BasicDocumentParser : IDocumentParser
         var basicResult = ParseWithRules(rawContent, options);
 
         // 텍스트 완성 서비스를 통한 구조화 개선
-        var enhancedStructure = await EnhanceWithTextCompletionAsync(rawContent.Text, basicResult.Structure, options, cancellationToken);
+        var enhanced = await EnhanceWithTextCompletionAsync(rawContent.Text, basicResult, options, cancellationToken);
 
         // 품질 재계산
-        var enhancedQuality = CalculateQualityMetrics(rawContent.Text, enhancedStructure.Sections, true);
+        var enhancedQuality = CalculateQualityMetrics(rawContent.Text, enhanced.Sections, true);
 
-        return new ParsedContent
+        return new RefinedContent
         {
-            Text = FormatStructuredText(enhancedStructure.Sections),
+            Text = FormatStructuredText(enhanced.Sections),
             Metadata = basicResult.Metadata,
-            Structure = enhancedStructure,
+            Topic = enhanced.Topic,
+            Summary = enhanced.Summary,
+            Keywords = enhanced.Keywords,
+            Sections = enhanced.Sections,
             Quality = enhancedQuality
         };
     }
@@ -163,7 +163,7 @@ public partial class BasicDocumentParser : IDocumentParser
         return "General";
     }
 
-    private List<Section> ExtractSections(string text, Dictionary<string, object> hints)
+    private static List<Section> ExtractSections(string text, Dictionary<string, object> hints)
     {
         List<Section> flatSections;
 
@@ -463,7 +463,7 @@ public partial class BasicDocumentParser : IDocumentParser
     {
         // 단순 빈도 기반 키워드 추출
         var words = text.ToLowerInvariant()
-            .Split(new[] { ' ', '\t', '\n', '\r', '.', ',', '!', '?' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(s_wordSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length > 3) // 3글자 이상
             .GroupBy(w => w)
             .OrderByDescending(g => g.Count())
@@ -525,7 +525,7 @@ public partial class BasicDocumentParser : IDocumentParser
             else
             {
                 // Only add headers for sections with meaningful titles
-                sb.Append($"{new string('#', s.Level)} {s.Title}\n{s.Content}");
+                sb.Append(CultureInfo.InvariantCulture, $"{new string('#', s.Level)} {s.Title}\n{s.Content}");
             }
 
             // Recursively process children
@@ -536,74 +536,67 @@ public partial class BasicDocumentParser : IDocumentParser
         }
     }
 
-    private static QualityMetrics CalculateQualityMetrics(string originalText, List<Section> sections, bool usedLlm)
+    private static RefinementQuality CalculateQualityMetrics(string originalText, List<Section> sections, bool usedLlm)
     {
         var structureConfidence = sections.Count != 0 ? 0.8 : 0.3;
-        var completenessScore = Math.Min(1.0, sections.Sum(s => s.Content.Length) / (double)originalText.Length);
-        var metadataAccuracy = usedLlm ? 0.9 : 0.6;
+        var retentionScore = Math.Min(1.0, sections.Sum(s => s.Content.Length) / (double)originalText.Length);
+        var cleanupScore = usedLlm ? 0.9 : 0.6;
 
-        var overallScore = (structureConfidence + completenessScore + metadataAccuracy) / 3.0;
-
-        return new QualityMetrics
+        return new RefinementQuality
         {
-            ConfidenceScore = structureConfidence,
-            CompletenessScore = completenessScore,
-            ConsistencyScore = metadataAccuracy,
-            Details = new Dictionary<string, object>
-            {
-                ["section_count"] = sections.Count,
-                ["avg_section_length"] = sections.Count != 0 ? sections.Average(s => s.Content.Length) : 0,
-                ["used_llm"] = usedLlm
-            }
+            StructureScore = structureConfidence,
+            RetentionScore = retentionScore,
+            CleanupScore = cleanupScore,
+            ConfidenceScore = structureConfidence
         };
     }
 
-    private async Task<DocumentStructure> EnhanceWithTextCompletionAsync(
+    private async Task<RefinedContent> EnhanceWithTextCompletionAsync(
         string text,
-        DocumentStructure basicStructure,
+        RefinedContent basicResult,
         DocumentParsingOptions options,
         CancellationToken cancellationToken)
     {
         // 구조화 프롬프트 구성
-        var prompt = BuildStructuringPrompt(text, basicStructure, options);
+        var prompt = BuildStructuringPrompt(text, basicResult, options);
 
         try
         {
             if (_textCompletionService == null)
             {
-                return basicStructure;
+                return basicResult;
             }
 
             // 텍스트 완성 서비스 호출
             var response = await _textCompletionService.GenerateAsync(prompt, cancellationToken);
 
             // 응답을 구조화된 데이터로 파싱
-            return ParseTextCompletionResponse(response, basicStructure);
+            return ParseTextCompletionResponse(response, basicResult);
         }
         catch (Exception)
         {
             // 텍스트 완성 서비스 실패 시 기본 구조 반환
-            return basicStructure;
+            return basicResult;
         }
     }
 
-    private static string BuildStructuringPrompt(string text, DocumentStructure basicStructure, DocumentParsingOptions options)
+    private static string BuildStructuringPrompt(string text, RefinedContent basicResult, DocumentParsingOptions options)
     {
         return $"""
         문서 구조화 작업:
-        
+
         원본 문서:
         {text}
-        
+
         기본 분석 결과:
-        - 문서 유형: {basicStructure.Type}
-        - 섹션 수: {basicStructure.Sections.Count}
-        
+        - 문서 유형: {basicResult.Metadata.FileType}
+        - 섹션 수: {basicResult.Sections.Count}
+
         요청사항:
         1. 문서의 주요 주제와 핵심 키워드 5개 추출
         2. 문서 요약 (2-3 문장)
         3. 개선된 섹션 구조 제안
-        
+
         응답 형식:
         TOPIC: [주제]
         KEYWORDS: [키워드1, 키워드2, ...]
@@ -612,14 +605,16 @@ public partial class BasicDocumentParser : IDocumentParser
         """;
     }
 
-    private static DocumentStructure ParseTextCompletionResponse(string response, DocumentStructure fallback)
+    private static RefinedContent ParseTextCompletionResponse(string response, RefinedContent fallback)
     {
         try
         {
-            var enhanced = new DocumentStructure
+            var enhanced = new RefinedContent
             {
-                Type = fallback.Type,
-                Sections = fallback.Sections
+                Sections = fallback.Sections,
+                Topic = fallback.Topic,
+                Summary = fallback.Summary,
+                Keywords = fallback.Keywords
             };
 
             // 간단한 파싱 (실제로는 더 정교한 파싱 필요)

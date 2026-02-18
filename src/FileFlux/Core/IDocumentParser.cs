@@ -32,7 +32,7 @@ public interface IDocumentParser
     /// <param name="options">파싱 옵션</param>
     /// <param name="cancellationToken">취소 토큰</param>
     /// <returns>구조화된 문서 내용</returns>
-    Task<ParsedContent> ParseAsync(
+    Task<RefinedContent> ParseAsync(
         RawContent rawContent,
         DocumentParsingOptions options,
         CancellationToken cancellationToken = default);

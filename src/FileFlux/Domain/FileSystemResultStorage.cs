@@ -115,7 +115,7 @@ public sealed class FileSystemResultStorage : IDisposable
     /// <param name="fileHash">파일 해시</param>
     /// <param name="content">파싱된 문서 내용</param>
     /// <returns>저장된 파일 경로</returns>
-    public async Task<string> SaveParsedContentAsync(string fileHash, ParsedContent content)
+    public async Task<string> SaveParsedContentAsync(string fileHash, RefinedContent content)
     {
         var resultDir = GetResultDirectory(fileHash);
         Directory.CreateDirectory(resultDir);
@@ -131,9 +131,9 @@ public sealed class FileSystemResultStorage : IDisposable
             StructuredText = content.Text,
             OriginalText = content.Text,
             Metadata = content.Metadata,
-            Structure = content.Structure,
+            Sections = content.Sections,
             Quality = content.Quality,
-            ParsingInfo = content.Info
+            RefinementInfo = content.Info
         };
 
         var jsonPath = Path.Combine(parsingDir, "parsed-content.json");

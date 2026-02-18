@@ -218,6 +218,7 @@ public class SemanticBoundaryDetectorTests
         // Assert
         // Note: This is a simplified assertion since MockEmbeddingService
         // doesn't guarantee exact similarity values
+        _ = expectedBoundary;
         Assert.NotNull(result);
     }
 }

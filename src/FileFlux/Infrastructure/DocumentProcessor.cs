@@ -27,7 +27,7 @@ public sealed partial class FluxDocumentProcessor
     private readonly IDocumentParserFactory _parserFactory;
     private readonly IChunkerFactory _chunkerFactory;
     private readonly FluxImproverServices? _improverServices;
-    private readonly ITextRefiner _textRefiner;
+    private readonly TextRefiner _textRefiner;
     private readonly ILogger<FluxDocumentProcessor> _logger;
     private readonly IMarkdownConverter? _markdownConverter;
     private readonly IImageToTextService? _imageToTextService;
@@ -39,6 +39,8 @@ public sealed partial class FluxDocumentProcessor
     /// <param name="parserFactory">Factory for document parsers</param>
     /// <param name="chunkerFactory">Factory for chunkers (from FluxCurator)</param>
     /// <param name="improverServices">FluxImprover services for enhancement (optional)</param>
+    /// <param name="markdownConverter">Markdown converter (optional)</param>
+    /// <param name="imageToTextService">Image-to-text extraction service (optional)</param>
     /// <param name="logger">Logger instance</param>
     public FluxDocumentProcessor(
         IDocumentReaderFactory readerFactory,
@@ -70,7 +72,7 @@ public sealed partial class FluxDocumentProcessor
         ValidateFilePath(filePath);
         options ??= new ChunkingOptions();
 
-        _logger.LogDebug("Processing file: {FilePath}", filePath);
+        LogProcessingFile(_logger, filePath);
 
         // Stage 1: Extract (FileFlux.Core)
         var rawContent = await ExtractAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -100,7 +102,7 @@ public sealed partial class FluxDocumentProcessor
             chunks = await EnhanceChunksAsync(chunks, rawContent.Text, options, cancellationToken).ConfigureAwait(false);
         }
 
-        _logger.LogInformation("Processed {FileName}: {ChunkCount} chunks", rawContent.File.Name, chunks.Length);
+        LogProcessedFile(_logger, rawContent.File.Name, chunks.Length);
         return chunks;
     }
 
@@ -128,7 +130,7 @@ public sealed partial class FluxDocumentProcessor
     {
         ValidateFilePath(filePath);
 
-        _logger.LogDebug("Extracting content from: {FilePath}", filePath);
+        LogExtractingContent(_logger, filePath);
 
         try
         {
@@ -159,7 +161,7 @@ public sealed partial class FluxDocumentProcessor
     #region Stage 2: Parse
 
     /// <inheritdoc/>
-    public async Task<ParsedContent> ParseAsync(
+    public async Task<RefinedContent> ParseAsync(
         RawContent raw,
         ParsingOptions? options = null,
         CancellationToken cancellationToken = default)
@@ -167,7 +169,7 @@ public sealed partial class FluxDocumentProcessor
         ArgumentNullException.ThrowIfNull(raw);
         options ??= new ParsingOptions();
 
-        _logger.LogDebug("Parsing document: {FileName}", raw.File.Name);
+        LogParsingDocument(_logger, raw.File.Name);
 
         try
         {
@@ -188,7 +190,7 @@ public sealed partial class FluxDocumentProcessor
     }
 
     /// <inheritdoc/>
-    public async IAsyncEnumerable<ParsedContent> ParseStreamAsync(
+    public async IAsyncEnumerable<RefinedContent> ParseStreamAsync(
         RawContent raw,
         ParsingOptions? options = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -201,15 +203,15 @@ public sealed partial class FluxDocumentProcessor
     #region Stage 2.5: Refine
 
     /// <inheritdoc/>
-    public async Task<ParsedContent> RefineAsync(
-        ParsedContent parsed,
+    public async Task<RefinedContent> RefineAsync(
+        RefinedContent parsed,
         RefiningOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(parsed);
         options ??= new RefiningOptions();
 
-        _logger.LogDebug("Refining document: {FileName}", parsed.Metadata.FileName);
+        LogRefiningDocument(_logger, parsed.Metadata.FileName);
 
         try
         {
@@ -234,17 +236,16 @@ public sealed partial class FluxDocumentProcessor
                     if (markdownResult.IsSuccess)
                     {
                         refinedText = markdownResult.Markdown;
-                        _logger.LogDebug("Converted to Markdown: {Method}, {HeadingCount} headings, {TableCount} tables",
-                            markdownResult.Method, markdownResult.Statistics.HeadingCount, markdownResult.Statistics.TableCount);
+                        LogConvertedToMarkdown(_logger, markdownResult.Method, markdownResult.Statistics.HeadingCount, markdownResult.Statistics.TableCount);
                     }
                     else
                     {
-                        _logger.LogWarning("Markdown conversion failed, using original text");
+                        LogMarkdownConversionFailed(_logger);
                     }
                 }
                 else
                 {
-                    _logger.LogDebug("ConvertToMarkdown enabled but RawContent not provided in Extra, skipping Markdown conversion");
+                    LogMarkdownSkippedNoRawContent(_logger);
                 }
             }
 
@@ -300,17 +301,19 @@ public sealed partial class FluxDocumentProcessor
             var textRefineOptions = MapTextRefinementPreset(options.TextRefinementPreset);
             refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
 
-            // Create refined parsed content
-            var refined = new ParsedContent
+            // Create refined content
+            var refined = new RefinedContent
             {
                 Text = refinedText,
                 Metadata = parsed.Metadata,
-                Structure = parsed.Structure,
+                Topic = parsed.Topic,
+                Summary = parsed.Summary,
+                Keywords = parsed.Keywords,
+                Sections = parsed.Sections,
                 Info = parsed.Info
             };
 
-            _logger.LogDebug("Refined document: {OriginalLength} -> {RefinedLength} chars",
-                parsed.Text.Length, refinedText.Length);
+            LogRefinedDocument(_logger, parsed.Text.Length, refinedText.Length);
 
             return refined;
         }
@@ -440,7 +443,7 @@ public sealed partial class FluxDocumentProcessor
     private static bool IsLikelyRepeatedHeader(string line)
     {
         // Lines that are all uppercase and short are often headers
-        if (line.Length < 20 && line == line.ToUpperInvariant() && !line.Any(char.IsDigit) && line.Length > 2)
+        if (line.Length < 20 && line.All(c => !char.IsLetter(c) || char.IsUpper(c)) && !line.Any(char.IsDigit) && line.Length > 2)
             return true;
 
         return false;
@@ -554,7 +557,7 @@ public sealed partial class FluxDocumentProcessor
     /// </summary>
     private async Task<string> ProcessImagesToTextAsync(
         string text,
-        IReadOnlyList<Core.ImageInfo> images,
+        List<Core.ImageInfo> images,
         CancellationToken cancellationToken)
     {
         if (_imageToTextService == null || images.Count == 0)
@@ -588,13 +591,12 @@ public sealed partial class FluxDocumentProcessor
 
                     result = result.Replace(placeholder, replacement);
 
-                    _logger.LogDebug("Processed image {ImageId}: extracted {CharCount} chars",
-                        image.Id, extractionResult.ExtractedText.Length);
+                    LogProcessedImage(_logger, image.Id, extractionResult.ExtractedText.Length);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to extract text from image {ImageId}", image.Id);
+                LogImageExtractionFailed(_logger, ex, image.Id);
             }
         }
 
@@ -607,7 +609,7 @@ public sealed partial class FluxDocumentProcessor
 
     /// <inheritdoc/>
     public async Task<DocumentChunk[]> ChunkAsync(
-        ParsedContent parsed,
+        RefinedContent parsed,
         ChunkingOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -617,7 +619,7 @@ public sealed partial class FluxDocumentProcessor
         if (string.IsNullOrWhiteSpace(parsed.Text))
             return [];
 
-        _logger.LogDebug("Chunking with strategy: {Strategy}", options.Strategy);
+        LogChunkingStrategy(_logger, options.Strategy);
 
         try
         {
@@ -658,7 +660,7 @@ public sealed partial class FluxDocumentProcessor
             }
             EnrichChunksWithMetadata(chunks, parsed, pageRanges);
 
-            _logger.LogDebug("Created {Count} chunks using {Strategy}", chunks.Count, chunker.StrategyName);
+            LogCreatedChunks(_logger, chunks.Count, chunker.StrategyName);
             return [.. chunks];
         }
         catch (Exception ex) when (ex is not FileFluxException)
@@ -669,7 +671,7 @@ public sealed partial class FluxDocumentProcessor
 
     /// <inheritdoc/>
     public async IAsyncEnumerable<DocumentChunk> ChunkStreamAsync(
-        ParsedContent parsed,
+        RefinedContent parsed,
         ChunkingOptions? options = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -696,7 +698,7 @@ public sealed partial class FluxDocumentProcessor
         if (_improverServices == null || chunks.Length == 0)
             return chunks;
 
-        _logger.LogDebug("Enhancing {Count} chunks with FluxImprover", chunks.Length);
+        LogEnhancingChunks(_logger, chunks.Length);
 
         try
         {
@@ -744,7 +746,7 @@ public sealed partial class FluxDocumentProcessor
                             IncludeQualityMetrics = true
                         }
                     };
-                    _logger.LogDebug("Using conditional enrichment with threshold {Threshold}", options.ConditionalEnrichmentThreshold);
+                    LogConditionalEnrichment(_logger, options.ConditionalEnrichmentThreshold);
                 }
 
                 var enrichedChunks = await _improverServices.ChunkEnrichment
@@ -768,12 +770,12 @@ public sealed partial class FluxDocumentProcessor
                 }
             }
 
-            _logger.LogDebug("Enhancement completed for {Count} chunks", chunks.Length);
+            LogEnhancementCompleted(_logger, chunks.Length);
             return chunks;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Enhancement failed, returning original chunks");
+            LogEnhancementFailed(_logger, ex);
             return chunks;
         }
     }
@@ -803,11 +805,11 @@ public sealed partial class FluxDocumentProcessor
 
     private static void EnrichChunksWithMetadata(
         IReadOnlyList<DocumentChunk> chunks,
-        ParsedContent parsed,
+        RefinedContent parsed,
         Dictionary<int, (int Start, int End)>? pageRanges = null)
     {
         // Build flattened section list for heading path calculation
-        var allSections = FlattenSections(parsed.Structure.Sections);
+        var allSections = FlattenSections(parsed.Sections);
 
         foreach (var chunk in chunks)
         {
@@ -817,10 +819,10 @@ public sealed partial class FluxDocumentProcessor
             chunk.SourceInfo.ChunkCount = chunks.Count;
 
             // Add structure info using standard keys
-            if (!string.IsNullOrEmpty(parsed.Structure.Topic))
-                chunk.Props[ChunkPropsKeys.DocumentTopic] = parsed.Structure.Topic;
-            if (parsed.Structure.Keywords.Count > 0)
-                chunk.Props[ChunkPropsKeys.DocumentKeywords] = parsed.Structure.Keywords;
+            if (!string.IsNullOrEmpty(parsed.Topic))
+                chunk.Props[ChunkPropsKeys.DocumentTopic] = parsed.Topic;
+            if (parsed.Keywords.Count > 0)
+                chunk.Props[ChunkPropsKeys.DocumentKeywords] = parsed.Keywords;
 
             // Calculate heading path based on chunk position
             var headingPath = CalculateHeadingPath(allSections, chunk.Location.StartChar, chunk.Location.EndChar);
@@ -954,9 +956,67 @@ public sealed partial class FluxDocumentProcessor
     {
         foreach (var warning in warnings)
         {
-            _logger.LogWarning("{Stage} warning: {Warning}", stage, warning);
+            LogStageWarning(_logger, stage, warning);
         }
     }
+
+    #endregion
+
+    #region LoggerMessage
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Processing file: {FilePath}")]
+    private static partial void LogProcessingFile(ILogger logger, string filePath);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Processed {FileName}: {ChunkCount} chunks")]
+    private static partial void LogProcessedFile(ILogger logger, string fileName, int chunkCount);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Extracting content from: {FilePath}")]
+    private static partial void LogExtractingContent(ILogger logger, string filePath);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Parsing document: {FileName}")]
+    private static partial void LogParsingDocument(ILogger logger, string fileName);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Refining document: {FileName}")]
+    private static partial void LogRefiningDocument(ILogger logger, string? fileName);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Converted to Markdown: {Method}, {HeadingCount} headings, {TableCount} tables")]
+    private static partial void LogConvertedToMarkdown(ILogger logger, ConversionMethod method, int headingCount, int tableCount);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Markdown conversion failed, using original text")]
+    private static partial void LogMarkdownConversionFailed(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "ConvertToMarkdown enabled but RawContent not provided in Extra, skipping Markdown conversion")]
+    private static partial void LogMarkdownSkippedNoRawContent(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Refined document: {OriginalLength} -> {RefinedLength} chars")]
+    private static partial void LogRefinedDocument(ILogger logger, int originalLength, int refinedLength);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Chunking with strategy: {Strategy}")]
+    private static partial void LogChunkingStrategy(ILogger logger, string strategy);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Created {Count} chunks using {Strategy}")]
+    private static partial void LogCreatedChunks(ILogger logger, int count, string strategy);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Enhancing {Count} chunks with FluxImprover")]
+    private static partial void LogEnhancingChunks(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Using conditional enrichment with threshold {Threshold}")]
+    private static partial void LogConditionalEnrichment(ILogger logger, double threshold);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Enhancement completed for {Count} chunks")]
+    private static partial void LogEnhancementCompleted(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Enhancement failed, returning original chunks")]
+    private static partial void LogEnhancementFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Processed image {ImageId}: extracted {CharCount} chars")]
+    private static partial void LogProcessedImage(ILogger logger, string imageId, int charCount);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to extract text from image {ImageId}")]
+    private static partial void LogImageExtractionFailed(ILogger logger, Exception ex, string imageId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "{Stage} warning: {Warning}")]
+    private static partial void LogStageWarning(ILogger logger, string stage, string warning);
 
     #endregion
 }

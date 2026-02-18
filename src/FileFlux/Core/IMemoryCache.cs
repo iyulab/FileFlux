@@ -33,7 +33,7 @@ public interface IDocumentCache
     /// <summary>
     /// Sets a value in the cache with optional expiration.
     /// </summary>
-    void Set<T>(string key, T value, TimeSpan? expiration = null);
+    void SetValue<T>(string key, T value, TimeSpan? expiration = null);
 
     /// <summary>
     /// Removes a specific key from the cache.

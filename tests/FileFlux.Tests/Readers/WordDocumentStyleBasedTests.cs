@@ -438,6 +438,7 @@ public class WordDocumentStyleBasedTests : IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         // 테스트 파일 정리
         foreach (var file in _createdFiles)
         {

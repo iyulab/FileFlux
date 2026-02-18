@@ -65,7 +65,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
                 {
                     if (_options.EnableCaching)
                     {
-                        _cache.Set(cacheKey, chunks.ToArray(), _options.CacheDuration);
+                        _cache.SetValue(cacheKey, chunks.ToArray(), _options.CacheDuration);
                     }
                     chunks.Clear(); // Clear buffer to free memory
                 }
@@ -74,7 +74,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
             // Cache remaining chunks
             if (_options.EnableCaching && chunks.Count > 0)
             {
-                _cache.Set(cacheKey, chunks.ToArray(), _options.CacheDuration);
+                _cache.SetValue(cacheKey, chunks.ToArray(), _options.CacheDuration);
             }
         }
         finally
@@ -232,7 +232,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
         }
     }
 
-    private string GenerateCacheKey(string filePath, ChunkingOptions options)
+    private static string GenerateCacheKey(string filePath, ChunkingOptions options)
     {
         var fileInfo = new FileInfo(filePath);
         return $"{filePath}_{fileInfo.LastWriteTimeUtc:yyyyMMddHHmmss}_{options.Strategy}_{options.MaxChunkSize}_{options.OverlapSize}";
@@ -346,7 +346,7 @@ public class MemoryOptimizationOptions
     /// <summary>
     /// Enable aggressive memory management.
     /// </summary>
-    public bool AggressiveMemoryManagement { get; set; } = false;
+    public bool AggressiveMemoryManagement { get; set; }
 }
 
 /// <summary>

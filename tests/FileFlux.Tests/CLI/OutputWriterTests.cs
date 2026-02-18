@@ -16,6 +16,7 @@ public class OutputWriterTests : IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         if (Directory.Exists(_testDir))
         {
             Directory.Delete(_testDir, true);

@@ -1,4 +1,5 @@
 using FileFlux.CLI.Services;
+using System.Globalization;
 using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.Infrastructure;
@@ -15,6 +16,15 @@ namespace FileFlux.CLI.Commands;
 /// </summary>
 public class ProcessCommand : Command
 {
+    private static readonly string[] s_paragraphSeparators = ["\n\n", "\r\n\r\n"];
+    private static readonly string[] s_sentenceEnders = [".", "!", "?", "\u3002", "\uFF01", "\uFF1F"];
+    private static readonly string[] s_summaryPrefixes = ["This text", "This section", "The text", "The document"];
+    private static readonly System.Text.Json.JsonSerializerOptions s_jsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+    };
+
     public ProcessCommand() : base("process", "Complete 4-stage pipeline: Extract → Refine → Chunk → Enrich")
     {
         var inputArg = new Argument<string>("input")
@@ -294,8 +304,8 @@ public class ProcessCommand : Command
         try
         {
             RawContent rawContent = null!;
-            ParsedContent parsedContent = null!;
-            ParsedContent refinedContent = null!;
+            RefinedContent parsedContent = null!;
+            RefinedContent refinedContent = null!;
             DocumentChunk[] chunks = null!;
             var images = new List<Domain.ProcessedImage>();
             var skippedImageCount = 0;
@@ -419,7 +429,7 @@ public class ProcessCommand : Command
                         stage = "extract",
                         sourceFile = Path.GetFileName(input),
                         sourceFormat = Path.GetExtension(input).TrimStart('.').ToUpperInvariant(),
-                        extractedAt = DateTime.UtcNow.ToString("o"),
+                        extractedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
                         statistics = new
                         {
                             rawSize = rawContent.Text.Length,
@@ -432,11 +442,7 @@ public class ProcessCommand : Command
                             imagesSkipped = skippedImageCount
                         }
                     };
-                    var extractJson = System.Text.Json.JsonSerializer.Serialize(extractInfo, new System.Text.Json.JsonSerializerOptions
-                    {
-                        WriteIndented = true,
-                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
-                    });
+                    var extractJson = System.Text.Json.JsonSerializer.Serialize(extractInfo, s_jsonOptions);
                     await File.WriteAllTextAsync(
                         Path.Combine(dirs.Extract, "extracted.json"),
                         extractJson,
@@ -475,27 +481,23 @@ public class ProcessCommand : Command
                         var refineInfo = new
                         {
                             stage = "refine",
-                            refinedAt = DateTime.UtcNow.ToString("o"),
+                            refinedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
                             statistics = new
                             {
                                 originalSize = parsedContent.Text.Length,
                                 refinedSize = refinedContent.Text.Length,
                                 reductionPercent = Math.Round(reduction, 1),
-                                sectionsFound = refinedContent.Structure?.Sections?.Count ?? 0
+                                sectionsFound = refinedContent.Sections?.Count ?? 0
                             },
                             quality = refinedContent.Quality != null ? new
                             {
                                 structureScore = Math.Round(refinedContent.Quality.StructureScore, 3),
-                                consistencyScore = Math.Round(refinedContent.Quality.ConsistencyScore, 3),
-                                retentionScore = Math.Round(refinedContent.Quality.InformationRetentionScore, 3),
+                                cleanupScore = Math.Round(refinedContent.Quality.CleanupScore, 3),
+                                retentionScore = Math.Round(refinedContent.Quality.RetentionScore, 3),
                                 overallScore = Math.Round(refinedContent.Quality.OverallScore, 3)
                             } : null
                         };
-                        var refineJson = System.Text.Json.JsonSerializer.Serialize(refineInfo, new System.Text.Json.JsonSerializerOptions
-                        {
-                            WriteIndented = true,
-                            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
-                        });
+                        var refineJson = System.Text.Json.JsonSerializer.Serialize(refineInfo, s_jsonOptions);
                         await File.WriteAllTextAsync(
                             Path.Combine(dirs.Refine, "refined.json"),
                             refineJson,
@@ -708,9 +710,9 @@ public class ProcessCommand : Command
                 grid.AddColumn();
 
                 grid.AddRow("[bold]Pipeline:[/]", pipelineDesc);
-                grid.AddRow("[bold]Chunks created:[/]", chunks.Length.ToString());
-                grid.AddRow("[bold]Total characters:[/]", totalChars.ToString("N0"));
-                grid.AddRow("[bold]Average size:[/]", avgSize.ToString("N0"));
+                grid.AddRow("[bold]Chunks created:[/]", chunks.Length.ToString(CultureInfo.InvariantCulture));
+                grid.AddRow("[bold]Total characters:[/]", totalChars.ToString("N0", CultureInfo.InvariantCulture));
+                grid.AddRow("[bold]Average size:[/]", avgSize.ToString("N0", CultureInfo.InvariantCulture));
                 grid.AddRow("[bold]Size range:[/]", chunks.Length > 0
                     ? $"{chunks.Min(c => c.Content.Length):N0} - {chunks.Max(c => c.Content.Length):N0}"
                     : "0 - 0");
@@ -724,7 +726,7 @@ public class ProcessCommand : Command
                 }
 
                 if (images.Count > 0)
-                    grid.AddRow("[bold]Images extracted:[/]", images.Count.ToString());
+                    grid.AddRow("[bold]Images extracted:[/]", images.Count.ToString(CultureInfo.InvariantCulture));
 
                 if (enableEnrich && enrichedCount > 0)
                     grid.AddRow("[bold]Enriched chunks:[/]", $"{enrichedCount} ({enrichedCount * 100 / chunks.Length}%)");
@@ -921,7 +923,7 @@ public class ProcessCommand : Command
             return new List<string> { content };
 
         var segments = new List<string>();
-        var paragraphs = content.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var paragraphs = content.Split(s_paragraphSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         var currentSegment = new System.Text.StringBuilder();
 
@@ -954,7 +956,7 @@ public class ProcessCommand : Command
                         // If single sentence is still too long, truncate
                         if (sentence.Length > maxChars)
                         {
-                            segments.Add(sentence.Substring(0, maxChars - 50) + "...");
+                            segments.Add(string.Concat(sentence.AsSpan(0, maxChars - 50), "..."));
                         }
                         else
                         {
@@ -997,10 +999,10 @@ public class ProcessCommand : Command
     /// <summary>
     /// Split text into sentences (simple heuristic).
     /// </summary>
-    private static IEnumerable<string> SplitIntoSentences(string text)
+    private static List<string> SplitIntoSentences(string text)
     {
         // Simple sentence splitting - handles Korean and English
-        var sentenceEnders = new[] { ".", "!", "?", "。", "！", "？" };
+        var sentenceEnders = s_sentenceEnders;
         var result = new List<string>();
         var current = new System.Text.StringBuilder();
 
@@ -1009,7 +1011,7 @@ public class ProcessCommand : Command
             current.Append(text[i]);
 
             // Check for sentence enders
-            if (sentenceEnders.Any(e => text[i].ToString() == e))
+            if (sentenceEnders.Any(e => text[i].ToString(CultureInfo.InvariantCulture) == e))
             {
                 // Look ahead - don't split if followed by digit or lowercase (e.g., "3.14" or abbreviations)
                 if (i + 1 < text.Length)
@@ -1048,14 +1050,14 @@ public class ProcessCommand : Command
             // Remove redundant starting phrases from subsequent summaries
             if (i > 0)
             {
-                var prefixesToRemove = new[] { "This text", "This section", "The text", "The document" };
+                var prefixesToRemove = s_summaryPrefixes;
                 foreach (var prefix in prefixesToRemove)
                 {
                     if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                     {
                         var afterPrefix = trimmed.Substring(prefix.Length).TrimStart();
                         if (afterPrefix.Length > 0)
-                            trimmed = char.ToUpper(afterPrefix[0]) + afterPrefix.Substring(1);
+                            trimmed = string.Concat(char.ToUpper(afterPrefix[0], CultureInfo.InvariantCulture).ToString(), afterPrefix.AsSpan(1));
                         break;
                     }
                 }
@@ -1065,7 +1067,7 @@ public class ProcessCommand : Command
 
         // Truncate if too long
         if (merged.Length > 1000)
-            merged = merged.Substring(0, 997) + "...";
+            merged = string.Concat(merged.AsSpan(0, 997), "...");
 
         return merged;
     }
@@ -1092,11 +1094,7 @@ public class ProcessCommand : Command
         if (enrichedChunks.Count == 0)
             return;
 
-        var jsonOptions = new System.Text.Json.JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
-        };
+        var jsonOptions = s_jsonOptions;
 
         // Save individual enrichment files
         var enrichmentEntries = new List<object>();
@@ -1130,7 +1128,7 @@ public class ProcessCommand : Command
 
             // Add content preview (first 200 chars)
             var preview = chunk.Content.Length > 200
-                ? chunk.Content.Substring(0, 200) + "..."
+                ? string.Concat(chunk.Content.AsSpan(0, 200), "...")
                 : chunk.Content;
             enrichmentData["contentPreview"] = preview;
 
@@ -1188,7 +1186,7 @@ public class ProcessCommand : Command
             {
                 var trimmed = s.Trim();
                 if (trimmed.Length > 300)
-                    trimmed = trimmed.Substring(0, 297) + "...";
+                    trimmed = string.Concat(trimmed.AsSpan(0, 297), "...");
                 return trimmed;
             }));
         }
@@ -1197,7 +1195,7 @@ public class ProcessCommand : Command
         var indexData = new
         {
             stage = "enrich",
-            enrichedAt = DateTime.UtcNow.ToString("o"),
+            enrichedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
             statistics = new
             {
                 totalChunks = chunks.Length,
@@ -1320,7 +1318,7 @@ public class ProcessCommand : Command
         var numberedSectionCount = numberedMatches.Count;
 
         // Analyze paragraphs
-        var paragraphs = sample.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var paragraphs = sample.Split(s_paragraphSeparators, StringSplitOptions.RemoveEmptyEntries);
         var validParagraphs = paragraphs.Where(p => p.Trim().Length > 20).ToArray();
         var paragraphCount = validParagraphs.Length;
         var avgParagraphLength = paragraphCount > 0

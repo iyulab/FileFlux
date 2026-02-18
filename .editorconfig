@@ -48,3 +48,7 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# Test projects: allow underscores in test method names (e.g., Method_Should_Work)
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none

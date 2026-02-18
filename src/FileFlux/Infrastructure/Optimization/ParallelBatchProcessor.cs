@@ -245,7 +245,7 @@ public class ParallelBatchProcessor : IParallelBatchProcessor
         }
     }
 
-    private async IAsyncEnumerable<T> MergeAsyncEnumerables<T>(
+    private static async IAsyncEnumerable<T> MergeAsyncEnumerables<T>(
         IAsyncEnumerable<T>[] sources,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -270,7 +270,7 @@ public class ParallelBatchProcessor : IParallelBatchProcessor
         }
     }
 
-    private double CalculateThroughput(int documentCount, TimeSpan elapsed)
+    private static double CalculateThroughput(int documentCount, TimeSpan elapsed)
     {
         return elapsed.TotalSeconds > 0
             ? documentCount / elapsed.TotalSeconds

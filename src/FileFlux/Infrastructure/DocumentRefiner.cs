@@ -8,6 +8,7 @@ using FluxCurator.Core;
 using FluxCurator.Core.Infrastructure.Refining;
 using Microsoft.Extensions.Logging;
 using FluxCuratorTextRefineOptions = FluxCurator.Core.Domain.TextRefineOptions;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure;
 
@@ -15,9 +16,9 @@ namespace FileFlux.Infrastructure;
 /// Default document refiner implementation.
 /// Transforms RawContent into RefinedContent by cleaning, normalizing, and extracting structure.
 /// </summary>
-public sealed class DocumentRefiner : IDocumentRefiner
+public sealed partial class DocumentRefiner : IDocumentRefiner
 {
-    private readonly ITextRefiner _textRefiner;
+    private readonly TextRefiner _textRefiner;
     private readonly IMarkdownConverter? _markdownConverter;
     private readonly IMarkdownNormalizer _markdownNormalizer;
     private readonly ILogger<DocumentRefiner> _logger;
@@ -52,7 +53,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
         options ??= RefineOptions.Default;
 
         var sw = Stopwatch.StartNew();
-        _logger.LogDebug("Starting refinement for {FileName}", raw.File.Name);
+        LogStartingRefinement(_logger, raw.File.Name);
 
         try
         {
@@ -75,7 +76,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
                         MinPageCount = 3
                     });
                     refinedText = pdfFilter.Filter(refinedText, pageCount);
-                    _logger.LogDebug("Applied PDF header/footer filter: {PageCount} pages", pageCount);
+                    LogAppliedPdfFilter(_logger, pageCount);
                 }
             }
 
@@ -94,8 +95,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
             {
                 // Use structured data from RawContent (new architecture)
                 refinedText = ConvertStructuredToMarkdown(raw, options);
-                _logger.LogDebug("Converted structured data to markdown: {TableCount} tables, {BlockCount} blocks",
-                    raw.TableCount, raw.Blocks.Count);
+                LogConvertedStructuredData(_logger, raw.TableCount, raw.Blocks.Count);
             }
             else if ((options.ConvertTablesToMarkdown || options.ConvertBlocksToMarkdown) && _markdownConverter != null)
             {
@@ -135,8 +135,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
                 if (normalizationResult.HasChanges)
                 {
                     refinedText = normalizationResult.Markdown;
-                    _logger.LogDebug("Markdown normalized: {ActionCount} corrections applied",
-                        normalizationResult.Actions.Count);
+                    LogMarkdownNormalized(_logger, normalizationResult.Actions.Count);
                 }
             }
 
@@ -193,14 +192,13 @@ public sealed class DocumentRefiner : IDocumentRefiner
                 }
             };
 
-            _logger.LogInformation("Refined {OriginalChars} → {RefinedChars} chars, {StructureCount} structures, {SectionCount} sections in {Duration:F2}s",
-                raw.Text.Length, refinedText.Length, structures.Count, sections.Count, sw.Elapsed.TotalSeconds);
+            LogRefinementComplete(_logger, raw.Text.Length, refinedText.Length, structures.Count, sections.Count, sw.Elapsed.TotalSeconds);
 
             return refined;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Refinement failed for {FileName}", raw.File.Name);
+            LogRefinementFailed(_logger, ex, raw.File.Name);
             throw new DocumentProcessingException($"stream://{raw.File.Name}", $"Refinement failed: {ex.Message}", ex);
         }
     }
@@ -331,7 +329,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
     /// <summary>
     /// Extracts structured elements from refined text.
     /// </summary>
-    private List<StructuredElement> ExtractStructuredElements(string text)
+    private static List<StructuredElement> ExtractStructuredElements(string text)
     {
         var structures = new List<StructuredElement>();
 
@@ -479,7 +477,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
     /// This is the core conversion logic moved from Extract stage to Refine stage.
     /// Supports image-text interleaving based on Y-coordinate positioning.
     /// </summary>
-    private string ConvertStructuredToMarkdown(RawContent raw, RefineOptions options)
+    private static string ConvertStructuredToMarkdown(RawContent raw, RefineOptions options)
     {
         var sb = new StringBuilder();
         var tables = raw.Tables;
@@ -568,8 +566,8 @@ public sealed class DocumentRefiner : IDocumentRefiner
         // Add images with position info
         foreach (var image in raw.Images)
         {
-            var pageNum = image.Properties.TryGetValue("PageNumber", out var pn) ? Convert.ToInt32(pn) : image.Position;
-            var boundsBottom = image.Properties.TryGetValue("BoundsBottom", out var bb) ? Convert.ToDouble(bb) : 0.0;
+            var pageNum = image.Properties.TryGetValue("PageNumber", out var pn) ? Convert.ToInt32(pn, CultureInfo.InvariantCulture) : image.Position;
+            var boundsBottom = image.Properties.TryGetValue("BoundsBottom", out var bb) ? Convert.ToDouble(bb, CultureInfo.InvariantCulture) : 0.0;
 
             items.Add(new ContentItem
             {
@@ -619,9 +617,9 @@ public sealed class DocumentRefiner : IDocumentRefiner
     /// </summary>
     private static string GenerateImageAltText(ImageInfo image)
     {
-        var width = image.Properties.TryGetValue("Width", out var w) ? Convert.ToInt32(w) : 0;
-        var height = image.Properties.TryGetValue("Height", out var h) ? Convert.ToInt32(h) : 0;
-        var pageNum = image.Properties.TryGetValue("PageNumber", out var p) ? Convert.ToInt32(p) : image.Position;
+        var width = image.Properties.TryGetValue("Width", out var w) ? Convert.ToInt32(w, CultureInfo.InvariantCulture) : 0;
+        var height = image.Properties.TryGetValue("Height", out var h) ? Convert.ToInt32(h, CultureInfo.InvariantCulture) : 0;
+        var pageNum = image.Properties.TryGetValue("PageNumber", out var p) ? Convert.ToInt32(p, CultureInfo.InvariantCulture) : image.Position;
 
         if (width > 0 && height > 0)
         {
@@ -738,7 +736,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
         sb.Append('|');
         foreach (var header in headers.Take(columnCount))
         {
-            sb.Append($" {EscapeMarkdownCell(header ?? "")} |");
+            sb.Append(CultureInfo.InvariantCulture, $" {EscapeMarkdownCell(header ?? "")} |");
         }
         sb.AppendLine();
 
@@ -758,7 +756,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
                 TextAlignment.Justify => ":---:",
                 _ => "---"
             };
-            sb.Append($" {separator} |");
+            sb.Append(CultureInfo.InvariantCulture, $" {separator} |");
         }
         sb.AppendLine();
 
@@ -772,7 +770,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
             for (int colIdx = 0; colIdx < columnCount; colIdx++)
             {
                 var cell = colIdx < row.Length ? row[colIdx] : "";
-                sb.Append($" {EscapeMarkdownCell(cell ?? "")} |");
+                sb.Append(CultureInfo.InvariantCulture, $" {EscapeMarkdownCell(cell ?? "")} |");
             }
             sb.AppendLine();
         }
@@ -780,7 +778,7 @@ public sealed class DocumentRefiner : IDocumentRefiner
         // Add confidence warning comment if low confidence
         if (table.NeedsLlmAssist)
         {
-            sb.AppendLine($"<!-- Table confidence: {table.Confidence:F2} - may need LLM assistance -->");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"<!-- Table confidence: {table.Confidence:F2} - may need LLM assistance -->");
         }
 
         return sb.ToString().TrimEnd();
@@ -938,6 +936,28 @@ public sealed class DocumentRefiner : IDocumentRefiner
         if (originalLength == 0) return 1.0;
         return Math.Min(1.0, (double)refinedLength / originalLength);
     }
+
+    #endregion
+
+    #region LoggerMessage
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting refinement for {FileName}")]
+    private static partial void LogStartingRefinement(ILogger logger, string fileName);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Applied PDF header/footer filter: {PageCount} pages")]
+    private static partial void LogAppliedPdfFilter(ILogger logger, int pageCount);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Converted structured data to markdown: {TableCount} tables, {BlockCount} blocks")]
+    private static partial void LogConvertedStructuredData(ILogger logger, int tableCount, int blockCount);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Markdown normalized: {ActionCount} corrections applied")]
+    private static partial void LogMarkdownNormalized(ILogger logger, int actionCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Refined {OriginalChars} -> {RefinedChars} chars, {StructureCount} structures, {SectionCount} sections in {Duration:F2}s")]
+    private static partial void LogRefinementComplete(ILogger logger, int originalChars, int refinedChars, int structureCount, int sectionCount, double duration);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Refinement failed for {FileName}")]
+    private static partial void LogRefinementFailed(ILogger logger, Exception ex, string fileName);
 
     #endregion
 }

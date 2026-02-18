@@ -19,7 +19,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
     /// Extracts all images from an Office document.
     /// Requires undoc v0.1.8+ for resource access API.
     /// </summary>
-    public async Task<IReadOnlyList<ExtractedResource>> ExtractImagesAsync(
+    public static async Task<IReadOnlyList<ExtractedResource>> ExtractImagesAsync(
         string filePath,
         CancellationToken cancellationToken = default)
     {
@@ -52,7 +52,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
     /// Extracts all images from an Office document stream.
     /// Requires undoc v0.1.8+ for resource access API.
     /// </summary>
-    public async Task<IReadOnlyList<ExtractedResource>> ExtractImagesAsync(
+    public static async Task<IReadOnlyList<ExtractedResource>> ExtractImagesAsync(
         Stream stream,
         CancellationToken cancellationToken = default)
     {

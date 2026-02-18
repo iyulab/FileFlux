@@ -15,6 +15,7 @@ public class TextDocumentReader : IDocumentReader
 
     public string ReaderType => "TextReader";
     private static readonly string[] separator = new[] { "\n\n", "\r\n\r\n" };
+    private static readonly char[] wordSeparators = [' ', '\t', '\n', '\r'];
 
     public bool CanRead(string fileName)
     {
@@ -287,7 +288,7 @@ public class TextDocumentReader : IDocumentReader
         };
 
         // 마크다운 특화 힌트
-        if (fileExtension.Equals(".md", StringComparison.InvariantCultureIgnoreCase))
+        if (fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase))
         {
             var lines = text.Split('\n', StringSplitOptions.None);
             var headerLines = lines.Where(line => line.TrimStart().StartsWith('#')).ToList();
@@ -315,7 +316,7 @@ public class TextDocumentReader : IDocumentReader
         hints["line_count"] = lineCount;
         hints["paragraph_count"] = paragraphCount;
         hints["character_count"] = text.Length;
-        hints["word_count"] = text.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).Length;
+        hints["word_count"] = text.Split(wordSeparators, StringSplitOptions.RemoveEmptyEntries).Length;
 
         return hints;
     }
@@ -471,7 +472,7 @@ public class TextDocumentReader : IDocumentReader
     /// <summary>
     /// 진행률을 추적하면서 스트림에서 문서를 읽습니다
     /// </summary>
-    public async Task<RawContent> ExtractStreamAsync(
+    public static async Task<RawContent> ExtractStreamAsync(
         Stream stream,
         string fileName,
         Action<ProcessingProgress>? progressCallback = null,

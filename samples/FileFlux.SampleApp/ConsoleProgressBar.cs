@@ -8,7 +8,7 @@ public class ConsoleProgressBar
     private readonly int _width;
     private readonly char _completeChar;
     private readonly char _incompleteChar;
-    private int _lastLineLength = 0;
+    private int _lastLineLength;
 
     /// <summary>
     /// ConsoleProgressBar 인스턴스를 초기화합니다
@@ -122,7 +122,7 @@ public class ConsoleProgressBar
     {
         private readonly ConsoleProgressBar _progressBar;
         private readonly List<StageInfo> _stages;
-        private int _currentStageIndex = 0;
+        private int _currentStageIndex;
 
         public MultiStageProgressBar(params string[] stageNames)
         {

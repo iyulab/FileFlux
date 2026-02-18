@@ -43,9 +43,9 @@ public class BasicDocumentParserTests
         var result = await _parser.ParseAsync(rawContent, options);
 
         // Assert
-        Assert.NotEmpty(result.Structure.Sections);
+        Assert.NotEmpty(result.Sections);
 
-        foreach (var section in result.Structure.Sections)
+        foreach (var section in result.Sections)
         {
             Assert.True(section.Start >= 0, $"Section '{section.Title}' should have Start >= 0");
             Assert.True(section.End > section.Start, $"Section '{section.Title}' should have End > Start");
@@ -88,9 +88,9 @@ public class BasicDocumentParserTests
 
         // Assert
         // Should have 2 top-level sections (Chapter 1 and Chapter 2)
-        Assert.Equal(2, result.Structure.Sections.Count);
+        Assert.Equal(2, result.Sections.Count);
 
-        var chapter1 = result.Structure.Sections[0];
+        var chapter1 = result.Sections[0];
         Assert.Equal("Chapter 1", chapter1.Title);
         Assert.Equal(1, chapter1.Level);
         Assert.Equal(2, chapter1.Children.Count); // Section 1.1 and Section 1.2
@@ -109,7 +109,7 @@ public class BasicDocumentParserTests
         Assert.Equal("Section 1.2", section12.Title);
         Assert.Empty(section12.Children);
 
-        var chapter2 = result.Structure.Sections[1];
+        var chapter2 = result.Sections[1];
         Assert.Equal("Chapter 2", chapter2.Title);
         Assert.Equal(1, chapter2.Level);
     }
@@ -139,9 +139,9 @@ public class BasicDocumentParserTests
         var result = await _parser.ParseAsync(rawContent, options);
 
         // Assert
-        Assert.Single(result.Structure.Sections); // Only Main Title at root
+        Assert.Single(result.Sections); // Only Main Title at root
 
-        var mainTitle = result.Structure.Sections[0];
+        var mainTitle = result.Sections[0];
         Assert.Equal("Main Title", mainTitle.Title);
         Assert.Single(mainTitle.Children); // Deep Section as child
 
@@ -175,9 +175,9 @@ public class BasicDocumentParserTests
         var result = await _parser.ParseAsync(rawContent, options);
 
         // Assert
-        Assert.Equal(3, result.Structure.Sections.Count);
+        Assert.Equal(3, result.Sections.Count);
 
-        foreach (var section in result.Structure.Sections)
+        foreach (var section in result.Sections)
         {
             Assert.Equal(1, section.Level);
             Assert.Empty(section.Children); // Paragraphs don't have children
@@ -205,9 +205,9 @@ public class BasicDocumentParserTests
         var result = await _parser.ParseAsync(rawContent, options);
 
         // Assert
-        Assert.Single(result.Structure.Sections);
+        Assert.Single(result.Sections);
 
-        var section = result.Structure.Sections[0];
+        var section = result.Sections[0];
         Assert.Equal(0, section.Start); // Starts at beginning
         Assert.Equal(markdown.Length - 1, section.End); // Ends at last character
 
@@ -233,7 +233,7 @@ public class BasicDocumentParserTests
         var result = await _parser.ParseAsync(rawContent, options);
 
         // Assert
-        Assert.Empty(result.Structure.Sections);
+        Assert.Empty(result.Sections);
     }
 
     [Fact]
@@ -264,7 +264,7 @@ public class BasicDocumentParserTests
         var result = await _parser.ParseAsync(rawContent, options);
 
         // Assert
-        Assert.Equal(3, result.Structure.Sections.Count);
-        Assert.All(result.Structure.Sections, s => Assert.Equal(1, s.Level));
+        Assert.Equal(3, result.Sections.Count);
+        Assert.All(result.Sections, s => Assert.Equal(1, s.Level));
     }
 }

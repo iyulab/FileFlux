@@ -8,9 +8,9 @@ namespace FileFlux.Infrastructure.Caching;
 /// <summary>
 /// 문서 처리 결과 캐싱 서비스 - 메모리 효율적인 LRU 캐시
 /// </summary>
-public sealed class DocumentCacheService : IDocumentCacheService
+public sealed partial class DocumentCacheService : IDocumentCacheService
 {
-    private readonly IMemoryCache _cache;
+    private readonly MemoryCache _cache;
     private readonly ConcurrentDictionary<string, DateTime> _accessTimes;
     private readonly ILogger<DocumentCacheService> _logger;
     private readonly DocumentCacheOptions _options;
@@ -36,8 +36,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
             TimeSpan.FromMinutes(_options.CleanupIntervalMinutes),
             TimeSpan.FromMinutes(_options.CleanupIntervalMinutes));
 
-        _logger.LogInformation("DocumentCacheService initialized with {MaxItems} max items, {MaxMemoryMB}MB limit",
-            _options.MaxCacheSize, _options.MaxMemoryUsageMB);
+        LogCacheInitialized(_logger, _options.MaxCacheSize, _options.MaxMemoryUsageMB);
     }
 
     /// <summary>
@@ -56,13 +55,12 @@ public sealed class DocumentCacheService : IDocumentCacheService
             result.HitCount++;
             result.LastAccessed = DateTime.UtcNow;
 
-            _logger.LogDebug("Cache hit for key: {CacheKey}, chunks: {ChunkCount}",
-                cacheKey, result.Chunks.Count);
+            LogCacheHit(_logger, cacheKey, result.Chunks.Count);
 
             return Task.FromResult<CachedDocumentResult?>(result);
         }
 
-        _logger.LogDebug("Cache miss for key: {CacheKey}", cacheKey);
+        LogCacheMiss(_logger, cacheKey);
         return Task.FromResult<CachedDocumentResult?>(null);
     }
 
@@ -86,8 +84,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
         // Check memory limits
         if (estimatedSize > _options.MaxItemSizeMB * 1024 * 1024)
         {
-            _logger.LogWarning("Document too large for cache: {SizeMB}MB > {MaxMB}MB",
-                estimatedSize / (1024 * 1024), _options.MaxItemSizeMB);
+            LogDocumentTooLarge(_logger, estimatedSize / (1024 * 1024), _options.MaxItemSizeMB);
             return Task.CompletedTask;
         }
 
@@ -122,8 +119,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
         _cache.Set(cacheKey, cachedResult, entryOptions);
         _accessTimes.TryAdd(cacheKey, DateTime.UtcNow);
 
-        _logger.LogDebug("Cached document: {CacheKey}, chunks: {ChunkCount}, size: {SizeMB:F2}MB",
-            cacheKey, chunkList.Count, estimatedSize / (1024.0 * 1024.0));
+        LogDocumentCached(_logger, cacheKey, chunkList.Count, estimatedSize / (1024.0 * 1024.0));
 
         return Task.CompletedTask;
     }
@@ -138,7 +134,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
         _cache.Remove(cacheKey);
         _accessTimes.TryRemove(cacheKey, out _);
 
-        _logger.LogDebug("Removed from cache: {CacheKey}", cacheKey);
+        LogCacheRemoved(_logger, cacheKey);
         return Task.CompletedTask;
     }
 
@@ -153,7 +149,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
         }
         _accessTimes.Clear();
 
-        _logger.LogInformation("Cache cleared");
+        LogCacheCleared(_logger);
         return Task.CompletedTask;
     }
 
@@ -218,8 +214,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
         var keyData = $"{filePath}|{fileInfo.LastWriteTimeUtc:O}|{fileInfo.Length}|{options.Strategy}|{options.MaxChunkSize}|{options.OverlapSize}";
 
         // Generate SHA256 hash for consistent, collision-resistant key
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(keyData));
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(keyData));
         var cacheKey = Convert.ToHexString(hashBytes)[..16]; // Use first 16 chars for readability
 
         return Task.FromResult(cacheKey);
@@ -269,7 +264,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
                 _accessTimes.TryRemove(key, out _);
             }
 
-            _logger.LogDebug("Evicted {Count} items from cache due to size limit", oldestItems.Count);
+            LogEvicted(_logger, oldestItems.Count);
         }
     }
 
@@ -301,7 +296,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
 
             if (expiredKeys.Count > 0)
             {
-                _logger.LogDebug("Cleaned up {Count} expired cache items", expiredKeys.Count);
+                LogCleanedUp(_logger, expiredKeys.Count);
             }
         }
         finally
@@ -319,7 +314,7 @@ public sealed class DocumentCacheService : IDocumentCacheService
         {
             _accessTimes.TryRemove(keyString, out _);
 
-            _logger.LogDebug("Cache item evicted: {Key}, reason: {Reason}", keyString, reason);
+            LogItemEvicted(_logger, keyString, reason);
         }
     }
 
@@ -330,4 +325,38 @@ public sealed class DocumentCacheService : IDocumentCacheService
         _accessTimes?.Clear();
         GC.SuppressFinalize(this);
     }
+
+    #region LoggerMessage
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "DocumentCacheService initialized with {MaxItems} max items, {MaxMemoryMB}MB limit")]
+    private static partial void LogCacheInitialized(ILogger logger, int maxItems, int maxMemoryMB);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Cache hit for key: {CacheKey}, chunks: {ChunkCount}")]
+    private static partial void LogCacheHit(ILogger logger, string cacheKey, int chunkCount);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Cache miss for key: {CacheKey}")]
+    private static partial void LogCacheMiss(ILogger logger, string cacheKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Document too large for cache: {SizeMB}MB > {MaxMB}MB")]
+    private static partial void LogDocumentTooLarge(ILogger logger, long sizeMB, int maxMB);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Cached document: {CacheKey}, chunks: {ChunkCount}, size: {SizeMB:F2}MB")]
+    private static partial void LogDocumentCached(ILogger logger, string cacheKey, int chunkCount, double sizeMB);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Removed from cache: {CacheKey}")]
+    private static partial void LogCacheRemoved(ILogger logger, string cacheKey);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Cache cleared")]
+    private static partial void LogCacheCleared(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Evicted {Count} items from cache due to size limit")]
+    private static partial void LogEvicted(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Cleaned up {Count} expired cache items")]
+    private static partial void LogCleanedUp(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Cache item evicted: {Key}, reason: {Reason}")]
+    private static partial void LogItemEvicted(ILogger logger, string key, EvictionReason reason);
+
+    #endregion
 }

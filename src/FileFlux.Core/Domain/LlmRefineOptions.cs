@@ -51,7 +51,7 @@ public class LlmRefineOptions
     /// Maximum tokens to use for LLM (0 = no limit).
     /// Default: 0
     /// </summary>
-    public int MaxTokens { get; set; } = 0;
+    public int MaxTokens { get; set; }
 
     /// <summary>
     /// LLM temperature (0.0 - 1.0).
@@ -74,7 +74,7 @@ public class LlmRefineOptions
     /// Enable verbose logging of LLM operations.
     /// Default: false
     /// </summary>
-    public bool VerboseLogging { get; set; } = false;
+    public bool VerboseLogging { get; set; }
 
     // ========================================
     // Factory Methods

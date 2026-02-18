@@ -1,5 +1,6 @@
 using FileFlux.Core;
 using System.Text;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using static FileFlux.Core.FileNameHelper;
 
@@ -10,6 +11,12 @@ namespace FileFlux.CLI.Output;
 /// </summary>
 public class ExtractOutputWriter
 {
+    private static readonly System.Text.Json.JsonSerializerOptions s_jsonOptions = new()
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+    private static readonly char[] s_wordSeparators = [' ', '\t', '\n', '\r'];
     private readonly string _format;
     private readonly bool _extractImages;
     private readonly string? _imagesDirectory;
@@ -34,7 +41,7 @@ public class ExtractOutputWriter
     /// <summary>
     /// Write parsed content directly without chunking
     /// </summary>
-    public async Task WriteAsync(ParsedContent parsedContent, string outputPath, CancellationToken cancellationToken = default)
+    public async Task WriteAsync(RefinedContent parsedContent, string outputPath, CancellationToken cancellationToken = default)
     {
         if (_format == "json")
         {
@@ -46,7 +53,7 @@ public class ExtractOutputWriter
         }
     }
 
-    private async Task WriteMarkdownAsync(ParsedContent parsedContent, string outputPath, CancellationToken cancellationToken)
+    private async Task WriteMarkdownAsync(RefinedContent parsedContent, string outputPath, CancellationToken cancellationToken)
     {
         var sb = new StringBuilder();
         var metadata = parsedContent.Metadata;
@@ -54,36 +61,36 @@ public class ExtractOutputWriter
         // YAML frontmatter
         sb.AppendLine("---");
         if (!string.IsNullOrEmpty(metadata.Title))
-            sb.AppendLine($"title: \"{EscapeYaml(metadata.Title)}\"");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"title: \"{EscapeYaml(metadata.Title)}\"");
 
-        sb.AppendLine($"source: \"{EscapeYaml(metadata.FileName)}\"");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"source: \"{EscapeYaml(metadata.FileName)}\"");
 
         if (!string.IsNullOrEmpty(metadata.Author))
-            sb.AppendLine($"author: \"{EscapeYaml(metadata.Author)}\"");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"author: \"{EscapeYaml(metadata.Author)}\"");
 
         if (metadata.PageCount > 0)
-            sb.AppendLine($"pages: {metadata.PageCount}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"pages: {metadata.PageCount}");
 
         if (metadata.WordCount > 0)
-            sb.AppendLine($"words: {metadata.WordCount}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"words: {metadata.WordCount}");
 
         if (!string.IsNullOrEmpty(metadata.Language))
         {
-            sb.AppendLine($"language: {metadata.Language}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"language: {metadata.Language}");
             if (metadata.LanguageConfidence > 0)
-                sb.AppendLine($"language_confidence: {metadata.LanguageConfidence:F2}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"language_confidence: {metadata.LanguageConfidence:F2}");
         }
 
-        sb.AppendLine($"file_type: {metadata.FileType}");
-        sb.AppendLine($"file_size: {metadata.FileSize}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"file_type: {metadata.FileType}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"file_size: {metadata.FileSize}");
 
         if (metadata.CreatedAt.HasValue)
-            sb.AppendLine($"created_at: {metadata.CreatedAt.Value:yyyy-MM-dd}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"created_at: {metadata.CreatedAt.Value:yyyy-MM-dd}");
 
         if (metadata.ModifiedAt.HasValue)
-            sb.AppendLine($"modified_at: {metadata.ModifiedAt.Value:yyyy-MM-dd}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"modified_at: {metadata.ModifiedAt.Value:yyyy-MM-dd}");
 
-        sb.AppendLine($"processed_at: {metadata.ProcessedAt:yyyy-MM-ddTHH:mm:ssZ}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"processed_at: {metadata.ProcessedAt:yyyy-MM-ddTHH:mm:ssZ}");
         sb.AppendLine("---");
         sb.AppendLine();
 
@@ -92,7 +99,7 @@ public class ExtractOutputWriter
 
         if (_verbose)
         {
-            var base64Count = Regex.Matches(content, @"data:image/\w+;base64,").Count;
+            var base64Count = Regex.Count(content, @"data:image/\w+;base64,");
             Console.WriteLine($"[Verbose] Content: {content.Length} chars, {base64Count} base64 images detected");
         }
 
@@ -120,16 +127,10 @@ public class ExtractOutputWriter
         await File.WriteAllTextAsync(outputPath, sb.ToString(), Encoding.UTF8, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task WriteJsonAsync(ParsedContent parsedContent, string outputPath, CancellationToken cancellationToken)
+    private static async Task WriteJsonAsync(RefinedContent parsedContent, string outputPath, CancellationToken cancellationToken)
     {
         var metadata = parsedContent.Metadata;
         var fullContent = RemoveBase64Images(parsedContent.Text);
-
-        var options = new System.Text.Json.JsonSerializerOptions
-        {
-            WriteIndented = true,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        };
 
         var data = new
         {
@@ -144,9 +145,9 @@ public class ExtractOutputWriter
                 languageConfidence = metadata.LanguageConfidence,
                 fileType = metadata.FileType,
                 fileSize = metadata.FileSize,
-                createdAt = metadata.CreatedAt?.ToString("o"),
-                modifiedAt = metadata.ModifiedAt?.ToString("o"),
-                processedAt = metadata.ProcessedAt.ToString("o")
+                createdAt = metadata.CreatedAt?.ToString("o", CultureInfo.InvariantCulture),
+                modifiedAt = metadata.ModifiedAt?.ToString("o", CultureInfo.InvariantCulture),
+                processedAt = metadata.ProcessedAt.ToString("o", CultureInfo.InvariantCulture)
             },
             content = fullContent,
             statistics = new
@@ -156,7 +157,7 @@ public class ExtractOutputWriter
             }
         };
 
-        var json = System.Text.Json.JsonSerializer.Serialize(data, options);
+        var json = System.Text.Json.JsonSerializer.Serialize(data, s_jsonOptions);
         await File.WriteAllTextAsync(outputPath, json, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
     }
 
@@ -280,6 +281,6 @@ public class ExtractOutputWriter
         if (string.IsNullOrWhiteSpace(text))
             return 0;
 
-        return text.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).Length;
+        return text.Split(s_wordSeparators, StringSplitOptions.RemoveEmptyEntries).Length;
     }
 }

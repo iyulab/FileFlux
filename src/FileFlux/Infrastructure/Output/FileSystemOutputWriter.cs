@@ -2,6 +2,7 @@ using FileFlux.Core;
 using FileFlux.Domain;
 using System.Text;
 using System.Text.Json;
+using System.Globalization;
 
 namespace FileFlux.Infrastructure.Output;
 
@@ -15,6 +16,11 @@ public class FileSystemOutputWriter : IOutputWriter
         WriteIndented = true,
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    private static readonly JsonSerializerOptions JsonlOptions = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public async Task WriteExtractionAsync(
@@ -83,25 +89,25 @@ public class FileSystemOutputWriter : IOutputWriter
         // YAML frontmatter
         sb.AppendLine("---");
         if (!string.IsNullOrEmpty(metadata.Title))
-            sb.AppendLine($"title: \"{EscapeYaml(metadata.Title)}\"");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"title: \"{EscapeYaml(metadata.Title)}\"");
 
-        sb.AppendLine($"source: \"{EscapeYaml(metadata.FileName)}\"");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"source: \"{EscapeYaml(metadata.FileName)}\"");
 
         if (!string.IsNullOrEmpty(metadata.Author))
-            sb.AppendLine($"author: \"{EscapeYaml(metadata.Author)}\"");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"author: \"{EscapeYaml(metadata.Author)}\"");
 
         if (metadata.PageCount > 0)
-            sb.AppendLine($"pages: {metadata.PageCount}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"pages: {metadata.PageCount}");
 
         if (metadata.WordCount > 0)
-            sb.AppendLine($"words: {metadata.WordCount}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"words: {metadata.WordCount}");
 
         if (!string.IsNullOrEmpty(metadata.Language))
-            sb.AppendLine($"language: {metadata.Language}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"language: {metadata.Language}");
 
-        sb.AppendLine($"file_type: {metadata.FileType}");
-        sb.AppendLine($"file_size: {metadata.FileSize}");
-        sb.AppendLine($"processed_at: {metadata.ProcessedAt:yyyy-MM-ddTHH:mm:ssZ}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"file_type: {metadata.FileType}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"file_size: {metadata.FileSize}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"processed_at: {metadata.ProcessedAt:yyyy-MM-ddTHH:mm:ssZ}");
         sb.AppendLine("---");
         sb.AppendLine();
 
@@ -192,7 +198,7 @@ public class FileSystemOutputWriter : IOutputWriter
         for (int i = 0; i < chunks.Length; i++)
         {
             var chunk = chunks[i];
-            var index = (i + 1).ToString("D3");
+            var index = (i + 1).ToString("D3", CultureInfo.InvariantCulture);
 
             if (format == "md")
             {
@@ -200,12 +206,12 @@ public class FileSystemOutputWriter : IOutputWriter
                 var mdPath = Path.Combine(outputDirectory, $"{index}.md");
                 var sb = new StringBuilder();
                 sb.AppendLine("---");
-                sb.AppendLine($"chunk_index: {i + 1}");
-                sb.AppendLine($"chunk_id: \"{chunk.Id}\"");
-                sb.AppendLine($"start_char: {chunk.Location.StartChar}");
-                sb.AppendLine($"end_char: {chunk.Location.EndChar}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"chunk_index: {i + 1}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"chunk_id: \"{chunk.Id}\"");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"start_char: {chunk.Location.StartChar}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"end_char: {chunk.Location.EndChar}");
                 if (!string.IsNullOrEmpty(chunk.Metadata.Title))
-                    sb.AppendLine($"title: \"{EscapeYaml(chunk.Metadata.Title)}\"");
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"title: \"{EscapeYaml(chunk.Metadata.Title)}\"");
                 sb.AppendLine("---");
                 sb.AppendLine();
                 sb.AppendLine(chunk.Content);
@@ -252,10 +258,7 @@ public class FileSystemOutputWriter : IOutputWriter
                     },
                     metadata = chunk.Metadata
                 };
-                var line = JsonSerializer.Serialize(chunkData, new JsonSerializerOptions
-                {
-                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                });
+                var line = JsonSerializer.Serialize(chunkData, JsonlOptions);
                 await File.AppendAllTextAsync(jsonlPath, line + Environment.NewLine, Encoding.UTF8, cancellationToken);
             }
         }
@@ -387,7 +390,7 @@ public class FileSystemOutputWriter : IOutputWriter
             // Fallback: use first 200 chars of first chunk content
             var firstContent = chunks[0].Content;
             documentSummary = firstContent.Length > 200
-                ? firstContent.Substring(0, 200) + "..."
+                ? string.Concat(firstContent.AsSpan(0, 200), "...")
                 : firstContent;
         }
 
@@ -407,7 +410,7 @@ public class FileSystemOutputWriter : IOutputWriter
     /// Builds chunk JSON data with cleaned-up metadata structure.
     /// Removes file-level metadata duplicates and organizes enrichment data.
     /// </summary>
-    private static object BuildChunkJsonData(DocumentChunk chunk, int index)
+    private static Dictionary<string, object?> BuildChunkJsonData(DocumentChunk chunk, int index)
     {
         // Extract enrichment data separately for cleaner structure
         var enrichment = ExtractEnrichmentData(chunk.Props);
@@ -451,7 +454,7 @@ public class FileSystemOutputWriter : IOutputWriter
     /// <summary>
     /// Extracts enrichment data from chunk properties into a structured object.
     /// </summary>
-    private static object? ExtractEnrichmentData(IDictionary<string, object> props)
+    private static Dictionary<string, object?>? ExtractEnrichmentData(Dictionary<string, object> props)
     {
         var enrichment = new Dictionary<string, object?>();
 
@@ -476,7 +479,7 @@ public class FileSystemOutputWriter : IOutputWriter
     /// <summary>
     /// Extracts quality metrics from chunk into a structured object.
     /// </summary>
-    private static object? ExtractQualityMetrics(DocumentChunk chunk)
+    private static Dictionary<string, object?>? ExtractQualityMetrics(DocumentChunk chunk)
     {
         var quality = new Dictionary<string, object?>();
 

@@ -9,8 +9,12 @@ namespace FileFlux.CLI.Services.Providers.FluxImprover;
 /// <summary>
 /// Google Gemini implementation of FluxImprover's ITextCompletionService
 /// </summary>
-public class GoogleCompletionService : FI.ITextCompletionService
+public class GoogleCompletionService : FI.ITextCompletionService, IDisposable
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
     private readonly HttpClient _httpClient;
     private readonly string _model;
     private const string ApiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -36,11 +40,11 @@ public class GoogleCompletionService : FI.ITextCompletionService
         {
             foreach (var msg in options.Messages)
             {
-                if (msg.Role.ToLowerInvariant() != "system")
+                if (!string.Equals(msg.Role, "system", StringComparison.OrdinalIgnoreCase))
                 {
                     contents.Add(new
                     {
-                        role = msg.Role.ToLowerInvariant() == "assistant" ? "model" : "user",
+                        role = string.Equals(msg.Role, "assistant", StringComparison.OrdinalIgnoreCase) ? "model" : "user",
                         parts = new[] { new { text = msg.Content } }
                     });
                 }
@@ -79,12 +83,11 @@ public class GoogleCompletionService : FI.ITextCompletionService
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        var geminiResponse = JsonSerializer.Deserialize<GeminiResponse>(responseJson, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+        var geminiResponse = JsonSerializer.Deserialize<GeminiResponse>(responseJson, s_jsonOptions);
 
-        return geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? string.Empty;
+        var candidates = geminiResponse?.Candidates;
+        var parts = candidates is { Count: > 0 } ? candidates[0].Content?.Parts : null;
+        return parts is { Count: > 0 } ? parts[0].Text ?? string.Empty : string.Empty;
     }
 
     public async IAsyncEnumerable<string> CompleteStreamingAsync(
@@ -98,11 +101,11 @@ public class GoogleCompletionService : FI.ITextCompletionService
         {
             foreach (var msg in options.Messages)
             {
-                if (msg.Role.ToLowerInvariant() != "system")
+                if (!string.Equals(msg.Role, "system", StringComparison.OrdinalIgnoreCase))
                 {
                     contents.Add(new
                     {
-                        role = msg.Role.ToLowerInvariant() == "assistant" ? "model" : "user",
+                        role = string.Equals(msg.Role, "assistant", StringComparison.OrdinalIgnoreCase) ? "model" : "user",
                         parts = new[] { new { text = msg.Content } }
                     });
                 }
@@ -146,9 +149,14 @@ public class GoogleCompletionService : FI.ITextCompletionService
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(stream);
 
-        while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync(cancellationToken);
+            if (line is null)
+            {
+                break;
+            }
+
             if (string.IsNullOrEmpty(line) || !line.StartsWith("data: "))
             {
                 continue;
@@ -172,18 +180,23 @@ public class GoogleCompletionService : FI.ITextCompletionService
     {
         try
         {
-            var streamResponse = JsonSerializer.Deserialize<GeminiResponse>(data, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            });
+            var streamResponse = JsonSerializer.Deserialize<GeminiResponse>(data, s_jsonOptions);
 
-            return streamResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+            var candidates = streamResponse?.Candidates;
+            var parts = candidates is { Count: > 0 } ? candidates[0].Content?.Parts : null;
+            return parts is { Count: > 0 } ? parts[0].Text : null;
         }
         catch (JsonException)
         {
             // Skip malformed JSON chunks
             return null;
         }
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private class GeminiResponse

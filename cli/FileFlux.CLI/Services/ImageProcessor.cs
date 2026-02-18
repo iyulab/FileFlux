@@ -1,4 +1,5 @@
 using System.Text;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 using FileFlux;
@@ -168,25 +169,25 @@ public class ImageProcessor
         return regex.Replace(content, "");
     }
 
-    private string BuildImageReplacement(ProcessedImage image, string relativePath)
+    private static string BuildImageReplacement(ProcessedImage image, string relativePath)
     {
         var sb = new StringBuilder();
 
         // Image reference with descriptive alt text
         var altText = string.IsNullOrEmpty(image.AltText) ? $"Image {image.Index}" : image.AltText;
-        sb.AppendLine($"![{altText}]({relativePath})");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"![{altText}]({relativePath})");
 
         // AI description if available
         if (!string.IsNullOrEmpty(image.AIDescription))
         {
             sb.AppendLine();
-            sb.AppendLine($"> **AI 분석**: {image.AIDescription}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"> **AI 분석**: {image.AIDescription}");
         }
         else
         {
             // Fallback: provide basic image metadata as caption
             sb.AppendLine();
-            sb.AppendLine($"> *Image {image.Index}: {image.Width}x{image.Height}px, {FormatFileSize(image.FileSize)}*");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"> *Image {image.Index}: {image.Width}x{image.Height}px, {FormatFileSize(image.FileSize)}*");
         }
 
         return sb.ToString();

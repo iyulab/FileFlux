@@ -8,6 +8,7 @@ namespace FileFlux.Infrastructure.Services;
 /// </summary>
 public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
 {
+    private static readonly string[] s_paragraphSeparators = ["\n\n", "\r\n\r\n"];
     private readonly ISemanticBoundaryDetector _boundaryDetector;
 
     public ChunkCoherenceAnalyzer(ISemanticBoundaryDetector? boundaryDetector = null)
@@ -190,7 +191,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         return OptimizeBoundaries(boundaries, options);
     }
 
-    private List<string> SplitIntoSentences(string text)
+    private static List<string> SplitIntoSentences(string text)
     {
         // Simple sentence splitting (can be improved with NLP libraries)
         var sentencePattern = @"(?<=[.!?])\s+(?=[A-Z])";
@@ -209,10 +210,10 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         return sentences;
     }
 
-    private List<string> SplitIntoSegments(string content, int targetSize)
+    private static List<string> SplitIntoSegments(string content, int targetSize)
     {
         var segments = new List<string>();
-        var paragraphs = content.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var paragraphs = content.Split(s_paragraphSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var paragraph in paragraphs)
         {
@@ -254,7 +255,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         return segments;
     }
 
-    private List<double> CalculatePairwiseSimilarities(float[][] embeddings, IEmbeddingService embeddingService)
+    private static List<double> CalculatePairwiseSimilarities(float[][] embeddings, IEmbeddingService embeddingService)
     {
         var similarities = new List<double>();
 
@@ -270,7 +271,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         return similarities;
     }
 
-    private double CalculateVariance(List<double> values, double mean)
+    private static double CalculateVariance(List<double> values, double mean)
     {
         if (values.Count == 0) return 0;
 
@@ -278,7 +279,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         return Math.Sqrt(sumOfSquares / values.Count);
     }
 
-    private List<CoherenceIssue> DetectCoherenceIssues(
+    private static List<CoherenceIssue> DetectCoherenceIssues(
         List<string> sentences,
         List<double> similarities,
         double avgSimilarity)
@@ -348,7 +349,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         return issues;
     }
 
-    private double CalculateCoherenceScore(double avgSimilarity, double variance, List<CoherenceIssue> issues)
+    private static double CalculateCoherenceScore(double avgSimilarity, double variance, List<CoherenceIssue> issues)
     {
         // Start with average similarity as base score
         double score = avgSimilarity;
@@ -376,7 +377,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         return Math.Max(0, Math.Min(1, score));
     }
 
-    private CohesionLevel DetermineCohesionLevel(double coherenceScore)
+    private static CohesionLevel DetermineCohesionLevel(double coherenceScore)
     {
         return coherenceScore switch
         {
@@ -388,7 +389,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         };
     }
 
-    private List<string> GenerateSuggestions(List<CoherenceIssue> issues, CohesionLevel level, double avgSimilarity)
+    private static List<string> GenerateSuggestions(List<CoherenceIssue> issues, CohesionLevel level, double avgSimilarity)
     {
         var suggestions = new List<string>();
 
@@ -428,7 +429,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         return suggestions;
     }
 
-    private string GetPreview(string content, int start, int end)
+    private static string GetPreview(string content, int start, int end)
     {
         var length = Math.Min(100, end - start);
         var preview = content.Substring(start, Math.Min(length, content.Length - start));
@@ -441,7 +442,7 @@ public class ChunkCoherenceAnalyzer : IChunkCoherenceAnalyzer
         return preview.Replace("\n", " ").Trim();
     }
 
-    private IEnumerable<ChunkBoundary> OptimizeBoundaries(List<ChunkBoundary> boundaries, ChunkingOptions options)
+    private static List<ChunkBoundary> OptimizeBoundaries(List<ChunkBoundary> boundaries, ChunkingOptions options)
     {
         var optimized = new List<ChunkBoundary>();
 

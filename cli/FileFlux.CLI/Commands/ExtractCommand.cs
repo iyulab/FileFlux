@@ -1,4 +1,5 @@
 using FileFlux.CLI.Services;
+using System.Globalization;
 using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.Infrastructure;
@@ -204,23 +205,23 @@ public class ExtractCommand : Command
                 var table = new Table();
                 table.AddColumn("Metric");
                 table.AddColumn("Value");
-                table.AddRow("Total characters", result.ProcessedText.Length.ToString("N0"));
-                table.AddRow("Total words", result.ParsedContent.Metadata.WordCount.ToString("N0"));
+                table.AddRow("Total characters", result.ProcessedText.Length.ToString("N0", CultureInfo.InvariantCulture));
+                table.AddRow("Total words", result.ParsedContent.Metadata.WordCount.ToString("N0", CultureInfo.InvariantCulture));
 
                 if (result.ParsedContent.Metadata.PageCount > 0)
-                    table.AddRow("Pages", result.ParsedContent.Metadata.PageCount.ToString());
+                    table.AddRow("Pages", result.ParsedContent.Metadata.PageCount.ToString(CultureInfo.InvariantCulture));
 
                 if (!string.IsNullOrEmpty(result.ParsedContent.Metadata.Language))
                     table.AddRow("Language", result.ParsedContent.Metadata.Language);
 
                 if (result.Images.Count > 0)
-                    table.AddRow("Images extracted", result.Images.Count.ToString());
+                    table.AddRow("Images extracted", result.Images.Count.ToString(CultureInfo.InvariantCulture));
 
                 if (result.SkippedImageCount > 0)
-                    table.AddRow("Images skipped", result.SkippedImageCount.ToString());
+                    table.AddRow("Images skipped", result.SkippedImageCount.ToString(CultureInfo.InvariantCulture));
 
                 if (result.Images.Any(i => !string.IsNullOrEmpty(i.AIDescription)))
-                    table.AddRow("AI analyzed", result.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription)).ToString());
+                    table.AddRow("AI analyzed", result.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription)).ToString(CultureInfo.InvariantCulture));
 
                 AnsiConsole.Write(table);
             }

@@ -1,5 +1,6 @@
 using FileFlux.Core;
 using System.Text;
+using System.Globalization;
 
 namespace FileFlux.CLI.Output;
 
@@ -15,23 +16,23 @@ public class MarkdownOutputWriter : IOutputWriter
         var sb = new StringBuilder();
         var chunkList = chunks.ToList();
 
-        sb.AppendLine($"# Document Chunks ({chunkList.Count} chunks)");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"# Document Chunks ({chunkList.Count} chunks)");
         sb.AppendLine();
 
         foreach (var chunk in chunkList)
         {
-            sb.AppendLine($"## Chunk {chunk.Index + 1}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"## Chunk {chunk.Index + 1}");
             sb.AppendLine();
-            sb.AppendLine($"**Length:** {chunk.Content.Length} characters");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"**Length:** {chunk.Content.Length} characters");
 
             if (ChunkPropsKeys.TryGetValue<string>(chunk.Props, ChunkPropsKeys.EnrichedTopics, out var topicsStr) && !string.IsNullOrEmpty(topicsStr))
             {
-                sb.AppendLine($"**Topics:** {topicsStr}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"**Topics:** {topicsStr}");
             }
 
             if (chunk.EnrichedKeywords is { Count: > 0 } keywordsList)
             {
-                sb.AppendLine($"**Keywords:** {string.Join(", ", keywordsList)}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"**Keywords:** {string.Join(", ", keywordsList)}");
             }
 
             sb.AppendLine();

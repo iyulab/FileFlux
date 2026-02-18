@@ -19,7 +19,7 @@ namespace FileFlux.Infrastructure;
 /// Pipeline: Extract → Refine → LLM-Refine → Chunk → Enrich
 /// LLM-Refine stage is optional and gracefully skips if no LLM service is available.
 /// </remarks>
-public sealed class StatefulDocumentProcessor : IDocumentProcessor
+public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 {
     private readonly IDocumentReaderFactory _readerFactory;
     private readonly IChunkerFactory _chunkerFactory;
@@ -27,7 +27,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
     private readonly ILlmRefiner? _llmRefiner;
     private readonly IDocumentEnricher? _documentEnricher;
     private readonly FluxImproverServices? _improverServices;
-    private readonly ITextRefiner _textRefiner;
+    private readonly TextRefiner _textRefiner;
     private readonly IMarkdownConverter? _markdownConverter;
     private readonly IImageToTextService? _imageToTextService;
     private readonly ILogger<StatefulDocumentProcessor> _logger;
@@ -173,12 +173,12 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         if (_state >= ProcessorState.Extracted)
         {
-            _logger.LogDebug("Extract already completed, skipping");
+            LogStageSkipped(_logger, "Extract");
             return;
         }
 
         var sw = Stopwatch.StartNew();
-        _logger.LogDebug("Starting extraction: {FilePath}", FilePath);
+        LogStartingStage(_logger, "extraction", FilePath);
 
         try
         {
@@ -203,8 +203,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
             Result.Metrics.OriginalCharCount = rawContent.Text.Length;
 
             _state = ProcessorState.Extracted;
-            _logger.LogInformation("Extracted {CharCount} chars from {FileName} in {Duration:F2}s",
-                rawContent.Text.Length, rawContent.File.Name, sw.Elapsed.TotalSeconds);
+            LogExtracted(_logger, rawContent.Text.Length, rawContent.File.Name, sw.Elapsed.TotalSeconds);
         }
         catch (Exception ex)
         {
@@ -246,7 +245,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         if (_state >= ProcessorState.Refined)
         {
-            _logger.LogDebug("Refine already completed, skipping");
+            LogStageSkipped(_logger, "Refine");
             return;
         }
 
@@ -258,7 +257,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         options ??= RefineOptions.Default;
         var sw = Stopwatch.StartNew();
-        _logger.LogDebug("Starting refinement: {FilePath}", FilePath);
+        LogStartingStage(_logger, "refinement", FilePath);
 
         try
         {
@@ -282,8 +281,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
             Result.Metrics.StructuresExtracted = refined.Structures.Count;
 
             _state = ProcessorState.Refined;
-            _logger.LogInformation("Refined {OriginalChars} → {RefinedChars} chars, {StructureCount} structures in {Duration:F2}s",
-                raw.Text.Length, refined.Text.Length, refined.Structures.Count, sw.Elapsed.TotalSeconds);
+            LogRefined(_logger, raw.Text.Length, refined.Text.Length, refined.Structures.Count, sw.Elapsed.TotalSeconds);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -375,7 +373,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         if (_state >= ProcessorState.LlmRefined)
         {
-            _logger.LogDebug("LLM Refine already completed, skipping");
+            LogStageSkipped(_logger, "LLM Refine");
             return;
         }
 
@@ -387,14 +385,14 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         options ??= LlmRefineOptions.Default;
         var sw = Stopwatch.StartNew();
-        _logger.LogDebug("Starting LLM refinement: {FilePath}", FilePath);
+        LogStartingStage(_logger, "LLM refinement", FilePath);
 
         try
         {
             // If no improvements are enabled, skip LLM refinement
             if (!options.HasAnyImprovementEnabled)
             {
-                _logger.LogDebug("LLM refinement disabled via options, skipping");
+                LogLlmRefinementDisabled(_logger);
                 Result.LlmRefined = LlmRefinedContent.FromRefinedContent(Result.Refined!);
                 _state = ProcessorState.LlmRefined;
                 return;
@@ -408,8 +406,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
                 Result.Metrics.LlmRefineTokens = Result.LlmRefined.Info.InputTokens + Result.LlmRefined.Info.OutputTokens;
 
                 _state = ProcessorState.LlmRefined;
-                _logger.LogInformation("LLM Refined {OriginalChars} → {RefinedChars} chars, {Improvements} improvements in {Duration:F2}s",
-                    Result.Refined!.Text.Length,
+                LogLlmRefined(_logger, Result.Refined!.Text.Length,
                     Result.LlmRefined.Text.Length,
                     Result.LlmRefined.Info.Improvements.Count,
                     sw.Elapsed.TotalSeconds);
@@ -417,17 +414,17 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
             }
 
             // Fallback to passthrough if LLM service not available
-            _logger.LogDebug("LLM refiner not available, creating passthrough result");
+            LogLlmRefinerNotAvailable(_logger);
             Result.LlmRefined = LlmRefinedContent.FromRefinedContent(Result.Refined!);
             Result.Metrics.LlmRefineDuration = sw.Elapsed;
 
             _state = ProcessorState.LlmRefined;
-            _logger.LogInformation("LLM Refine stage completed (passthrough) in {Duration:F2}s", sw.Elapsed.TotalSeconds);
+            LogLlmRefinePassthrough(_logger, sw.Elapsed.TotalSeconds);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             // On LLM failure, create passthrough result instead of failing the whole pipeline
-            _logger.LogWarning(ex, "LLM refinement failed, creating passthrough result");
+            LogLlmRefinementFailed(_logger, ex);
             Result.LlmRefined = LlmRefinedContent.FromRefinedContent(Result.Refined!);
             Result.Metrics.LlmRefineDuration = sw.Elapsed;
             _state = ProcessorState.LlmRefined;
@@ -445,7 +442,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         if (_state >= ProcessorState.Chunked)
         {
-            _logger.LogDebug("Chunk already completed, skipping");
+            LogStageSkipped(_logger, "Chunk");
             return;
         }
 
@@ -457,7 +454,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         options ??= new ChunkingOptions();
         var sw = Stopwatch.StartNew();
-        _logger.LogDebug("Starting chunking: {FilePath}, Strategy: {Strategy}", FilePath, options.Strategy);
+        LogStartingChunking(_logger, FilePath, options.Strategy);
 
         try
         {
@@ -519,8 +516,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
             Result.Metrics.TotalTokens = chunks.Sum(c => c.Tokens);
 
             _state = ProcessorState.Chunked;
-            _logger.LogInformation("Created {ChunkCount} chunks, {TotalTokens} tokens in {Duration:F2}s",
-                chunks.Count, Result.Metrics.TotalTokens, sw.Elapsed.TotalSeconds);
+            LogCreatedChunks(_logger, chunks.Count, Result.Metrics.TotalTokens, sw.Elapsed.TotalSeconds);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -608,7 +604,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         if (_state >= ProcessorState.Enriched)
         {
-            _logger.LogDebug("Enrich already completed, skipping");
+            LogStageSkipped(_logger, "Enrich");
             return;
         }
 
@@ -620,7 +616,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
         options ??= EnrichOptions.Default;
         var sw = Stopwatch.StartNew();
-        _logger.LogDebug("Starting enrichment: {FilePath}", FilePath);
+        LogStartingStage(_logger, "enrichment", FilePath);
 
         try
         {
@@ -652,8 +648,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
                 Result.Metrics.EnrichDuration = sw.Elapsed;
 
                 _state = ProcessorState.Enriched;
-                _logger.LogInformation("Enriched {ChunkCount} chunks via IDocumentEnricher, graph: {NodeCount} nodes, {EdgeCount} edges in {Duration:F2}s",
-                    chunks.Count, Result.Graph.NodeCount, Result.Graph.EdgeCount, sw.Elapsed.TotalSeconds);
+                LogEnriched(_logger, chunks.Count, Result.Graph.NodeCount, Result.Graph.EdgeCount, sw.Elapsed.TotalSeconds);
                 return;
             }
 
@@ -662,8 +657,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
             Result.Metrics.EnrichDuration = sw.Elapsed;
             _state = ProcessorState.Enriched;
-            _logger.LogInformation("Enriched {ChunkCount} chunks, graph: {NodeCount} nodes, {EdgeCount} edges in {Duration:F2}s",
-                chunks.Count, Result.Graph!.NodeCount, Result.Graph.EdgeCount, sw.Elapsed.TotalSeconds);
+            LogEnriched(_logger, chunks.Count, Result.Graph!.NodeCount, Result.Graph.EdgeCount, sw.Elapsed.TotalSeconds);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -821,7 +815,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
 
     #region Helper Methods
 
-    private string CleanContent(string text)
+    private static string CleanContent(string text)
     {
         // Remove artificial paragraph headings
         text = System.Text.RegularExpressions.Regex.Replace(
@@ -837,7 +831,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         return text.Trim();
     }
 
-    private List<StructuredElement> ExtractStructuredElements(string text)
+    private static List<StructuredElement> ExtractStructuredElements(string text)
     {
         var structures = new List<StructuredElement>();
 
@@ -892,7 +886,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         return structures;
     }
 
-    private List<Dictionary<string, string>> ParseMarkdownTable(string tableText)
+    private static List<Dictionary<string, string>> ParseMarkdownTable(string tableText)
     {
         var lines = tableText.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         if (lines.Length < 3) return [];
@@ -919,7 +913,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         return rows;
     }
 
-    private List<Section> BuildSections(string text)
+    private static List<Section> BuildSections(string text)
     {
         var sections = new List<Section>();
         var headingPattern = @"^(#{1,6})\s+(.+)$";
@@ -947,7 +941,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         return sections;
     }
 
-    private DocumentMetadata BuildMetadata(RawContent raw)
+    private static DocumentMetadata BuildMetadata(RawContent raw)
     {
         return new DocumentMetadata
         {
@@ -960,7 +954,7 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
         };
     }
 
-    private void LinkStructuresToChunks(List<DocumentChunk> chunks, IReadOnlyList<StructuredElement> structures)
+    private static void LinkStructuresToChunks(List<DocumentChunk> chunks, IReadOnlyList<StructuredElement> structures)
     {
         foreach (var structure in structures)
         {
@@ -1044,6 +1038,46 @@ public sealed class StatefulDocumentProcessor : IDocumentProcessor
             throw new ObjectDisposedException(nameof(StatefulDocumentProcessor));
         }
     }
+
+    #endregion
+
+    #region LoggerMessage
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "{Stage} already completed, skipping")]
+    private static partial void LogStageSkipped(ILogger logger, string stage);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting {Stage}: {FilePath}")]
+    private static partial void LogStartingStage(ILogger logger, string stage, string filePath);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Extracted {CharCount} chars from {FileName} in {Duration:F2}s")]
+    private static partial void LogExtracted(ILogger logger, int charCount, string fileName, double duration);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Refined {OriginalChars} -> {RefinedChars} chars, {StructureCount} structures in {Duration:F2}s")]
+    private static partial void LogRefined(ILogger logger, int originalChars, int refinedChars, int structureCount, double duration);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "LLM refinement disabled via options, skipping")]
+    private static partial void LogLlmRefinementDisabled(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "LLM Refined {OriginalChars} -> {RefinedChars} chars, {Improvements} improvements in {Duration:F2}s")]
+    private static partial void LogLlmRefined(ILogger logger, int originalChars, int refinedChars, int improvements, double duration);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "LLM refiner not available, creating passthrough result")]
+    private static partial void LogLlmRefinerNotAvailable(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "LLM Refine stage completed (passthrough) in {Duration:F2}s")]
+    private static partial void LogLlmRefinePassthrough(ILogger logger, double duration);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "LLM refinement failed, creating passthrough result")]
+    private static partial void LogLlmRefinementFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Starting chunking: {FilePath}, Strategy: {Strategy}")]
+    private static partial void LogStartingChunking(ILogger logger, string filePath, string strategy);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Created {ChunkCount} chunks, {TotalTokens} tokens in {Duration:F2}s")]
+    private static partial void LogCreatedChunks(ILogger logger, int chunkCount, int totalTokens, double duration);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Enriched {ChunkCount} chunks, graph: {NodeCount} nodes, {EdgeCount} edges in {Duration:F2}s")]
+    private static partial void LogEnriched(ILogger logger, int chunkCount, int nodeCount, int edgeCount, double duration);
 
     #endregion
 
