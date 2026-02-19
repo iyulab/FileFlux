@@ -34,15 +34,15 @@
     <PackageVersion Include="OpenAI" Version="2.8.0" />
   </ItemGroup>
   <ItemGroup Label="Flux Packages">
-    <PackageVersion Include="FluxCurator" Version="0.7.0" />
-    <PackageVersion Include="FluxImprover" Version="0.6.0" />
+    <PackageVersion Include="FluxCurator" Version="0.7.1" />
+    <PackageVersion Include="FluxImprover" Version="0.7.0" />
   </ItemGroup>
   <ItemGroup Label="LMSupply (Release - NuGet packages)">
-    <PackageVersion Include="LMSupply.Core" Version="0.13.1" />
-    <PackageVersion Include="LMSupply.Embedder" Version="0.13.1" />
-    <PackageVersion Include="LMSupply.Generator" Version="0.13.1" />
-    <PackageVersion Include="LMSupply.Captioner" Version="0.13.1" />
-    <PackageVersion Include="LMSupply.Ocr" Version="0.13.1" />
+    <PackageVersion Include="LMSupply.Core" Version="0.13.2" />
+    <PackageVersion Include="LMSupply.Embedder" Version="0.13.2" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.13.2" />
+    <PackageVersion Include="LMSupply.Captioner" Version="0.13.2" />
+    <PackageVersion Include="LMSupply.Ocr" Version="0.13.2" />
   </ItemGroup>
   <ItemGroup Label="CLI and UI">
     <PackageVersion Include="System.CommandLine" Version="2.0.3" />
