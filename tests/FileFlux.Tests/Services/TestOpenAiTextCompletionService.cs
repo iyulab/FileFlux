@@ -15,7 +15,7 @@ namespace FileFlux.Tests.Services;
 /// <summary>
 /// Test용 OpenAI 텍스트 완성 서비스 - RAG 품질 벤치마크용
 /// </summary>
-public class TestOpenAiTextCompletionService : ITextCompletionService
+public class TestOpenAiTextCompletionService : IDocumentAnalysisService
 {
     private readonly ChatClient _chatClient;
 
@@ -28,10 +28,10 @@ public class TestOpenAiTextCompletionService : ITextCompletionService
         _chatClient = openAiClient.GetChatClient(model);
     }
 
-    public TextCompletionServiceInfo ProviderInfo => new()
+    public DocumentAnalysisServiceInfo ProviderInfo => new()
     {
         Name = "OpenAI (Test)",
-        Type = TextCompletionProviderType.OpenAI,
+        Type = DocumentAnalysisProviderType.OpenAI,
         SupportedModels = new[] { "gpt-5-nano", "gpt-4o" },
         MaxContextLength = 128000,
         InputTokenCost = 0.00015m,

@@ -391,7 +391,7 @@ public class MarkdownConverterTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(ConversionMethod.Heuristic, result.Method);
-        Assert.Contains(result.Warnings, w => w.Contains("ITextCompletionService not available"));
+        Assert.Contains(result.Warnings, w => w.Contains("IDocumentAnalysisService not available"));
     }
 
     #endregion

@@ -1066,7 +1066,7 @@ class Program
     static IDocumentProcessor CreateProcessor()
     {
         // Use OpenAI service if API key is configured, otherwise fallback to mock
-        ITextCompletionService textService;
+        IDocumentAnalysisService textService;
         
         var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         var model = Environment.GetEnvironmentVariable("OPENAI_MODEL");
@@ -2173,9 +2173,9 @@ public class SimpleServiceProvider : IServiceProvider
 {
     private readonly Dictionary<Type, object> _services = new();
     
-    public SimpleServiceProvider(ITextCompletionService textService, IAdaptiveStrategySelector selector)
+    public SimpleServiceProvider(IDocumentAnalysisService textService, IAdaptiveStrategySelector selector)
     {
-        _services[typeof(ITextCompletionService)] = textService;
+        _services[typeof(IDocumentAnalysisService)] = textService;
         _services[typeof(IAdaptiveStrategySelector)] = selector;
     }
     

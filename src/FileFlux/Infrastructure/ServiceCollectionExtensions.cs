@@ -74,15 +74,15 @@ public static class ServiceCollectionExtensions
 
         // Parser factory (always Singleton - thread-safe, stateless)
         services.AddSingleton<IDocumentParserFactory>(provider =>
-            new DocumentParserFactory(provider.GetService<ITextCompletionService>()));
+            new DocumentParserFactory(provider.GetService<IDocumentAnalysisService>()));
 
         // Basic parser (always Transient - may hold state)
         services.AddTransient<IDocumentParser>(provider =>
-            new BasicDocumentParser(provider.GetService<ITextCompletionService>()));
+            new BasicDocumentParser(provider.GetService<IDocumentAnalysisService>()));
 
         // === Markdown Converter (always Singleton - thread-safe) ===
         services.AddSingleton<IMarkdownConverter>(provider =>
-            new MarkdownConverter(provider.GetService<ITextCompletionService>()));
+            new MarkdownConverter(provider.GetService<IDocumentAnalysisService>()));
 
         // === Markdown Normalizer (always Singleton - thread-safe) ===
         services.AddSingleton<IMarkdownNormalizer, MarkdownNormalizer>();
@@ -105,7 +105,7 @@ public static class ServiceCollectionExtensions
             typeof(ILlmRefiner),
             provider =>
             {
-                var textCompletionService = provider.GetService<ITextCompletionService>();
+                var textCompletionService = provider.GetService<IDocumentAnalysisService>();
                 var loggerFactory = provider.GetService<ILoggerFactory>();
                 var logger = loggerFactory?.CreateLogger<LlmRefiner>();
                 return new LlmRefiner(textCompletionService, logger);
@@ -116,16 +116,16 @@ public static class ServiceCollectionExtensions
         services.AddFluxCurator();
 
         // === FluxImprover: Enhancement (optional, configurable lifetime) ===
-        // FluxImproverServices is registered if ITextCompletionService is available
+        // FluxImproverServices is registered if IDocumentAnalysisService is available
         services.Add(new ServiceDescriptor(
             typeof(FluxImproverServices),
             provider =>
             {
-                var completionService = provider.GetService<ITextCompletionService>();
+                var completionService = provider.GetService<IDocumentAnalysisService>();
                 if (completionService == null)
                     return null!;
 
-                // Adapt FileFlux's ITextCompletionService to FluxImprover's interface
+                // Adapt FileFlux's IDocumentAnalysisService to FluxImprover's interface
                 var adapter = new FluxImproverTextCompletionAdapter(completionService);
                 return new FluxImproverBuilder()
                     .WithCompletionService(adapter)
@@ -182,7 +182,7 @@ public static class ServiceCollectionExtensions
         // Memory cache for metadata
         services.AddMemoryCache(options => options.SizeLimit = 100);
 
-        // Note: IEmbeddingService and ITextCompletionService are not registered by default.
+        // Note: IEmbeddingService and IDocumentAnalysisService are not registered by default.
         // Consumer applications should inject their own implementations via DI.
 
         return services;
@@ -197,7 +197,7 @@ public static class ServiceCollectionExtensions
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddFileFlux(
         this IServiceCollection services,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         ArgumentNullException.ThrowIfNull(textCompletionService);
@@ -215,7 +215,7 @@ public static class ServiceCollectionExtensions
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddFileFlux(
         this IServiceCollection services,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         IImageToTextService? imageToTextService,
         ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {

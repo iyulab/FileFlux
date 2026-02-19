@@ -102,7 +102,7 @@ The results support our hypothesis that transformer architectures provide superi
     {
         var services = new ServiceCollection();
         services.AddFileFlux();
-        services.AddSingleton<ITextCompletionService, MockTextCompletionService>();
+        services.AddSingleton<IDocumentAnalysisService, MockTextCompletionService>();
 
         _serviceProvider = services.BuildServiceProvider();
         _processorFactory = _serviceProvider.GetRequiredService<IDocumentProcessorFactory>();

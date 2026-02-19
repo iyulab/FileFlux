@@ -401,8 +401,8 @@ public class AIProviderFactory
         }
 
         // Register text completion service
-        services.AddScoped<ITextCompletionService>(sp =>
-            new OpenAITextCompletionService(apiKey, model));
+        services.AddScoped<IDocumentAnalysisService>(sp =>
+            new OpenAIDocumentAnalysisService(apiKey, model));
 
         // Register image-to-text service if vision is enabled
         if (_enableVision)
@@ -424,7 +424,7 @@ public class AIProviderFactory
         }
 
         // Register text completion service
-        services.AddScoped<ITextCompletionService>(sp =>
+        services.AddScoped<IDocumentAnalysisService>(sp =>
             new AnthropicTextCompletionService(apiKey, model));
 
         // Register image-to-text service if vision is enabled
@@ -454,8 +454,8 @@ public class AIProviderFactory
         }
 
         // GPU-Stack uses OpenAI-compatible API
-        services.AddScoped<ITextCompletionService>(sp =>
-            new OpenAITextCompletionService(apiKey, model, endpoint));
+        services.AddScoped<IDocumentAnalysisService>(sp =>
+            new OpenAIDocumentAnalysisService(apiKey, model, endpoint));
 
         // Register image-to-text service if vision is enabled
         if (_enableVision)
@@ -477,7 +477,7 @@ public class AIProviderFactory
         }
 
         // Register text completion service
-        services.AddScoped<ITextCompletionService>(sp =>
+        services.AddScoped<IDocumentAnalysisService>(sp =>
             new GoogleTextCompletionService(apiKey, model));
 
         // Register image-to-text service if vision is enabled
@@ -506,7 +506,7 @@ public class AIProviderFactory
         var progress = new ConsoleDownloadProgress();
 
         // Register text completion service - lazy initialization
-        services.AddScoped<ITextCompletionService>(sp =>
+        services.AddScoped<IDocumentAnalysisService>(sp =>
         {
             var factory = sp.GetRequiredService<LMSupplyServiceFactory>();
             return factory.GetGeneratorAsync(progress).GetAwaiter().GetResult();

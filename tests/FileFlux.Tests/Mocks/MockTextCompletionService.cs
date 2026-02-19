@@ -6,7 +6,7 @@ namespace FileFlux.Tests.Mocks;
 /// <summary>
 /// 테스트용 Mock Text Completion Service
 /// </summary>
-public class MockTextCompletionService : ITextCompletionService
+public class MockTextCompletionService : IDocumentAnalysisService
 {
     private static readonly string[] s_mockKeywords = ["test", "mock"];
     private static readonly string[] s_mockCategories = ["test"];
@@ -14,10 +14,10 @@ public class MockTextCompletionService : ITextCompletionService
     private static readonly string[] s_stackKeywords = [".NET", "GPUStack", "AI모델", "벡터데이터베이스", "컨테이너"];
     private static readonly string[] s_defaultKeywords = ["문서", "분석", "시스템"];
 
-    public TextCompletionServiceInfo ProviderInfo { get; } = new()
+    public DocumentAnalysisServiceInfo ProviderInfo { get; } = new()
     {
         Name = "Mock Service",
-        Type = TextCompletionProviderType.Custom,
+        Type = DocumentAnalysisProviderType.Custom,
         SupportedModels = new[] { "mock-model" },
         MaxContextLength = 4096
     };

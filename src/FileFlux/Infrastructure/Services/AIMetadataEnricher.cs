@@ -14,7 +14,7 @@ namespace FileFlux.Infrastructure.Services;
 /// </summary>
 public partial class AIMetadataEnricher : IMetadataEnricher
 {
-    private readonly ITextCompletionService? _llmService;
+    private readonly IDocumentAnalysisService? _llmService;
     private readonly RuleBasedMetadataExtractor _fallbackExtractor;
     private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
     private readonly ILogger<AIMetadataEnricher> _logger;
@@ -28,7 +28,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
     public AIMetadataEnricher(
         RuleBasedMetadataExtractor fallbackExtractor,
         Microsoft.Extensions.Caching.Memory.IMemoryCache cache,
-        ITextCompletionService? llmService = null,
+        IDocumentAnalysisService? llmService = null,
         ILogger<AIMetadataEnricher>? logger = null)
     {
         _fallbackExtractor = fallbackExtractor ?? throw new ArgumentNullException(nameof(fallbackExtractor));

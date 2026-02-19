@@ -38,7 +38,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
     public async Task<HybridBoundaryResult> DetectBoundaryAsync(
         string segment1,
         string segment2,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         IEmbeddingService embeddingService,
         CancellationToken cancellationToken = default)
     {
@@ -96,7 +96,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
 
     public async Task<IEnumerable<HybridBoundaryPoint>> DetectBoundariesAsync(
         IList<string> segments,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         IEmbeddingService embeddingService,
         HybridDetectionOptions? options,
         CancellationToken cancellationToken = default)
@@ -150,7 +150,7 @@ public class HybridBoundaryDetector : IHybridBoundaryDetector
     private async Task<(double Raw, double Normalized)> CalculateStatisticalScoreAsync(
         string segment1,
         string segment2,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         CancellationToken cancellationToken)
     {
         // 통계적 불확실성 계산 (context로 segment1 사용)

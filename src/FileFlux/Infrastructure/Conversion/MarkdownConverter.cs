@@ -8,12 +8,12 @@ namespace FileFlux.Infrastructure.Conversion;
 
 /// <summary>
 /// RawContent를 구조화된 Markdown으로 변환하는 서비스
-/// 휴리스틱 기반 변환이 기본이며, ITextCompletionService가 DI로 제공된 경우 LLM 추론 가능
+/// 휴리스틱 기반 변환이 기본이며, IDocumentAnalysisService가 DI로 제공된 경우 LLM 추론 가능
 /// </summary>
 public class MarkdownConverter : IMarkdownConverter
 {
     private static readonly string[] s_lineSeparators = ["\r\n", "\n"];
-    private readonly ITextCompletionService? _textCompletionService;
+    private readonly IDocumentAnalysisService? _textCompletionService;
 
     /// <summary>
     /// 기본 생성자 - 휴리스틱만 사용
@@ -28,13 +28,13 @@ public class MarkdownConverter : IMarkdownConverter
     /// </summary>
     public MarkdownConverter(IServiceProvider serviceProvider)
     {
-        _textCompletionService = serviceProvider.GetService<ITextCompletionService>();
+        _textCompletionService = serviceProvider.GetService<IDocumentAnalysisService>();
     }
 
     /// <summary>
-    /// ITextCompletionService를 직접 주입받는 생성자
+    /// IDocumentAnalysisService를 직접 주입받는 생성자
     /// </summary>
-    public MarkdownConverter(ITextCompletionService? textCompletionService)
+    public MarkdownConverter(IDocumentAnalysisService? textCompletionService)
     {
         _textCompletionService = textCompletionService;
     }
@@ -80,7 +80,7 @@ public class MarkdownConverter : IMarkdownConverter
             }
             else if (options.UseLLMInference && _textCompletionService == null)
             {
-                result.Warnings.Add("LLM inference requested but ITextCompletionService not available");
+                result.Warnings.Add("LLM inference requested but IDocumentAnalysisService not available");
             }
 
             // 3. 후처리

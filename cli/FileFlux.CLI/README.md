@@ -310,7 +310,7 @@ FileFlux.CLI/
 │   ├── CliEnvironmentConfig.cs
 │   ├── AIProviderFactory.cs
 │   └── Providers/
-│       └── OpenAITextCompletionService.cs
+│       └── OpenAIDocumentAnalysisService.cs
 ├── Output/             # 출력 형식 작성기
 │   ├── IOutputWriter.cs
 │   ├── JsonOutputWriter.cs
@@ -323,7 +323,7 @@ FileFlux.CLI/
 
 FileFlux CLI는 **FileFlux SDK의 소비 앱**입니다:
 
-- FileFlux는 인터페이스만 정의 (`ITextCompletionService`, `IImageToTextService`)
+- FileFlux는 인터페이스만 정의 (`IDocumentAnalysisService`, `IImageToTextService`)
 - CLI가 구현체 제공 (OpenAI, Anthropic)
 - 공식 SDK 사용 (OpenAI SDK, Anthropic SDK)
 - DI를 통한 느슨한 결합

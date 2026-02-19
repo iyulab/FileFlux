@@ -293,7 +293,7 @@ class Program
                 var chatClient = openAiClient.GetChatClient("gpt-5-nano");
                 services.AddSingleton(chatClient);
                 // LLM Provider를 직접 등록
-                services.AddScoped<ITextCompletionService, OpenAiTextCompletionService>();
+                services.AddScoped<IDocumentAnalysisService, OpenAiTextCompletionService>();
 
                 // Phase 6: OpenAI Vision 서비스 등록 (소비 애플리케이션에서 구현)
                 services.AddScoped<IImageToTextService>(provider => 

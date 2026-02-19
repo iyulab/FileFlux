@@ -46,13 +46,13 @@ public static class ImprovedTestProgram
             var chatClient = openAiClient.GetChatClient(model);
 
             services.AddSingleton(chatClient);
-            services.AddSingleton<ITextCompletionService, OpenAiTextCompletionService>();
+            services.AddSingleton<IDocumentAnalysisService, OpenAiTextCompletionService>();
             services.AddSingleton<IImageToTextService>(provider => new OpenAiImageToTextService(apiKey));
         }
         else
         {
             Console.WriteLine("\n⚠️ Using Mock services (OpenAI not configured)");
-            services.AddSingleton<ITextCompletionService, MockTextCompletionService>();
+            services.AddSingleton<IDocumentAnalysisService, MockTextCompletionService>();
             services.AddSingleton<IImageToTextService, MockImageToTextService>();
         }
 

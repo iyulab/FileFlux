@@ -8,7 +8,7 @@ namespace FileFlux.CLI.Services.Providers;
 /// <summary>
 /// Anthropic Claude API implementation for text completion using direct HTTP API
 /// </summary>
-public class AnthropicTextCompletionService : ITextCompletionService, IDisposable
+public class AnthropicTextCompletionService : IDocumentAnalysisService, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _model;
@@ -26,10 +26,10 @@ public class AnthropicTextCompletionService : ITextCompletionService, IDisposabl
         _model = model;
     }
 
-    public TextCompletionServiceInfo ProviderInfo => new()
+    public DocumentAnalysisServiceInfo ProviderInfo => new()
     {
         Name = "Anthropic",
-        Type = TextCompletionProviderType.Anthropic,
+        Type = DocumentAnalysisProviderType.Anthropic,
         SupportedModels = new[] { "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229" },
         MaxContextLength = 200000,
         InputTokenCost = 0.003m,

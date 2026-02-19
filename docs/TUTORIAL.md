@@ -33,9 +33,9 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 
 // Optional: Register AI services for advanced features
-// - ITextCompletionService: Required for intelligent chunking and AI-powered metadata enrichment
+// - IDocumentAnalysisService: Required for intelligent chunking and AI-powered metadata enrichment
 // - IImageToTextService: Required for multimodal document processing with images
-services.AddScoped<ITextCompletionService, YourLLMService>();
+services.AddScoped<IDocumentAnalysisService, YourLLMService>();
 services.AddScoped<IImageToTextService, YourVisionService>();
 
 // Register FileFlux services
@@ -336,7 +336,7 @@ Use for: Legal documents, medical records, academic papers
 
 ### Intelligent Strategy
 
-LLM-based semantic boundary detection (requires ITextCompletionService):
+LLM-based semantic boundary detection (requires IDocumentAnalysisService):
 
 ```csharp
 var options = new ChunkingOptions
@@ -542,7 +542,7 @@ Cache is valid for 1 hour and supports up to 100 documents by default.
 
 FileFlux uses a three-tier fallback strategy for robust metadata extraction:
 
-1. **AI Extraction**: Uses ITextCompletionService if available and registered
+1. **AI Extraction**: Uses IDocumentAnalysisService if available and registered
 2. **Hybrid Mode**: Combines AI and rule-based extraction if AI confidence is below threshold
 3. **Rule-Based**: Falls back to pattern matching if AI is unavailable or fails
 
@@ -557,7 +557,7 @@ var metadataOptions = new MetadataEnrichmentOptions
 ```
 
 **Automatic Fallback Behavior**:
-- If ITextCompletionService is not registered → Rule-based extraction
+- If IDocumentAnalysisService is not registered → Rule-based extraction
 - If AI extraction times out → Retry, then rule-based fallback
 - If AI confidence < MinConfidence → Merge AI and rule-based results
 - If all retries fail → Rule-based fallback (or throw if ContinueOnEnrichmentFailure = false)
@@ -931,7 +931,7 @@ services.AddTransient<IDocumentReader, CustomDocumentReader>();
 ### Custom AI Service
 
 ```csharp
-public class CustomTextCompletionService : ITextCompletionService
+public class CustomTextCompletionService : IDocumentAnalysisService
 {
     public async Task<string> GenerateAsync(
         string prompt,
@@ -947,7 +947,7 @@ public class CustomTextCompletionService : ITextCompletionService
 }
 
 // Register
-services.AddScoped<ITextCompletionService, CustomTextCompletionService>();
+services.AddScoped<IDocumentAnalysisService, CustomTextCompletionService>();
 ```
 
 ## Related Documentation

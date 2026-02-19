@@ -12,9 +12,9 @@ namespace FileFlux.Infrastructure.Parsers;
 public partial class BasicDocumentParser : IDocumentParser
 {
     private static readonly char[] s_wordSeparators = [' ', '\t', '\n', '\r', '.', ',', '!', '?'];
-    private readonly ITextCompletionService? _textCompletionService;
+    private readonly IDocumentAnalysisService? _textCompletionService;
 
-    public BasicDocumentParser(ITextCompletionService? textCompletionService = null)
+    public BasicDocumentParser(IDocumentAnalysisService? textCompletionService = null)
     {
         _textCompletionService = textCompletionService;
     }

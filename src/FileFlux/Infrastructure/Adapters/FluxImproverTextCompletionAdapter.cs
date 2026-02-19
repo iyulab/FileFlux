@@ -3,13 +3,13 @@ namespace FileFlux.Infrastructure.Adapters;
 using FluxImprover.Services;
 
 /// <summary>
-/// Adapter that wraps FileFlux's ITextCompletionService for use with FluxImprover.
+/// Adapter that wraps FileFlux's IDocumentAnalysisService for use with FluxImprover.
 /// </summary>
 internal sealed class FluxImproverTextCompletionAdapter : FluxImprover.Services.ITextCompletionService
 {
-    private readonly FileFlux.ITextCompletionService _inner;
+    private readonly FileFlux.IDocumentAnalysisService _inner;
 
-    public FluxImproverTextCompletionAdapter(FileFlux.ITextCompletionService inner)
+    public FluxImproverTextCompletionAdapter(FileFlux.IDocumentAnalysisService inner)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     }
@@ -29,7 +29,7 @@ internal sealed class FluxImproverTextCompletionAdapter : FluxImprover.Services.
         CompletionOptions? options = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // FileFlux's ITextCompletionService doesn't support streaming,
+        // FileFlux's IDocumentAnalysisService doesn't support streaming,
         // so we return the full response as a single chunk
         var result = await _inner.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false);
         yield return result;

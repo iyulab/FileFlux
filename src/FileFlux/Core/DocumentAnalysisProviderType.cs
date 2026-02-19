@@ -3,7 +3,7 @@ namespace FileFlux;
 /// <summary>
 /// 텍스트 완성 서비스 제공업체 타입
 /// </summary>
-public enum TextCompletionProviderType
+public enum DocumentAnalysisProviderType
 {
     /// <summary>
     /// OpenAI

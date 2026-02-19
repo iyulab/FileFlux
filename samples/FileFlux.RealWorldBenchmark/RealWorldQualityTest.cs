@@ -154,14 +154,14 @@ public class RealWorldQualityTest
         var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         if (!string.IsNullOrEmpty(apiKey))
         {
-            services.AddSingleton<ITextCompletionService>(provider =>
-                new OpenAITextCompletionService(
+            services.AddSingleton<IDocumentAnalysisService>(provider =>
+                new OpenAIDocumentAnalysisService(
                     apiKey,
                     Environment.GetEnvironmentVariable("OPENAI_MODEL") ?? "gpt-5-nano"));
         }
         else
         {
-            services.AddSingleton<ITextCompletionService, MockTextCompletionService>();
+            services.AddSingleton<IDocumentAnalysisService, MockTextCompletionService>();
         }
 
         services.AddSingleton<IImageToTextService, MockImageToTextService>();

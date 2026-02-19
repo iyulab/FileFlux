@@ -8,7 +8,7 @@ namespace FileFlux.CLI.Services.Providers;
 /// <summary>
 /// Google Gemini API implementation for text completion using direct HTTP API
 /// </summary>
-public class GoogleTextCompletionService : ITextCompletionService, IDisposable
+public class GoogleTextCompletionService : IDocumentAnalysisService, IDisposable
 {
     private static readonly JsonSerializerOptions s_serializeOptions = new()
     {
@@ -33,10 +33,10 @@ public class GoogleTextCompletionService : ITextCompletionService, IDisposable
         _model = model;
     }
 
-    public TextCompletionServiceInfo ProviderInfo => new()
+    public DocumentAnalysisServiceInfo ProviderInfo => new()
     {
         Name = "Google Gemini",
-        Type = TextCompletionProviderType.Google,
+        Type = DocumentAnalysisProviderType.Google,
         SupportedModels = new[] { "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro" },
         MaxContextLength = 1000000,
         InputTokenCost = 0.00015m,

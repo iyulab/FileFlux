@@ -108,7 +108,7 @@ FileFlux.Core/                    # Extraction-Only Package (Zero AI Dependencie
 FileFlux/                         # Full RAG Pipeline Package
 ├── Core/                         # AI Service Interfaces
 │   ├── IDocumentProcessor
-│   ├── ITextCompletionService    # AI text generation interface
+│   ├── IDocumentAnalysisService    # AI text generation interface
 │   ├── IImageToTextService       # Vision AI interface
 │   ├── IImageRelevanceEvaluator  # Image relevance interface
 │   ├── IEmbeddingService         # Embedding generation interface
@@ -430,7 +430,7 @@ graph TB
 
 ### 3. Metadata Enrichment (Optional)
 
-- AI-powered metadata extraction with ITextCompletionService
+- AI-powered metadata extraction with IDocumentAnalysisService
 - Three-tier fallback: AI → Hybrid → Rule-based
 - Automatic caching based on file content hash
 - Schema-based extraction (General, ProductManual, TechnicalDoc)
@@ -497,7 +497,7 @@ services.AddFileFlux();  // Pure extraction + chunking
 **With AI Services** (Consumer-provided implementations):
 ```csharp
 // Use your own AI service implementations
-services.AddScoped<ITextCompletionService, YourLLMService>();
+services.AddScoped<IDocumentAnalysisService, YourLLMService>();
 services.AddScoped<IImageToTextService, YourVisionService>();
 services.AddScoped<IEmbeddingService, YourEmbeddingService>();
 services.AddFileFlux();
@@ -706,7 +706,7 @@ FileFlux focuses on transforming documents into structured chunks optimized for 
   - No direct AI service implementations
 
 **Interface-Driven AI**: FileFlux defines AI service interfaces without implementations:
-- `ITextCompletionService`: Text generation for intelligent chunking
+- `IDocumentAnalysisService`: Text generation for intelligent chunking
 - `IImageToTextService`: Image captioning and OCR
 - `IEmbeddingService`: Embedding generation for semantic search
 
@@ -724,7 +724,7 @@ var rawContent = await reader.ReadAsync("document.pdf");
 
 // Full RAG pipeline with custom AI providers
 using FileFlux;
-services.AddScoped<ITextCompletionService, OpenAIService>();
+services.AddScoped<IDocumentAnalysisService, OpenAIService>();
 services.AddScoped<IEmbeddingService, OpenAIEmbeddingService>();
 services.AddFileFlux();
 var processor = serviceProvider.GetRequiredService<IDocumentProcessor>();

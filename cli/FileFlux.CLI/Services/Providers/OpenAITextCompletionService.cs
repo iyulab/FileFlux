@@ -10,11 +10,11 @@ namespace FileFlux.CLI.Services.Providers;
 /// <summary>
 /// OpenAI text completion service implementation for CLI
 /// </summary>
-public class OpenAITextCompletionService : ITextCompletionService
+public class OpenAIDocumentAnalysisService : IDocumentAnalysisService
 {
     private readonly ChatClient _chatClient;
 
-    public OpenAITextCompletionService(string apiKey, string model, string? endpoint = null)
+    public OpenAIDocumentAnalysisService(string apiKey, string model, string? endpoint = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
@@ -33,10 +33,10 @@ public class OpenAITextCompletionService : ITextCompletionService
         _chatClient = client.GetChatClient(model);
     }
 
-    public TextCompletionServiceInfo ProviderInfo => new()
+    public DocumentAnalysisServiceInfo ProviderInfo => new()
     {
         Name = "OpenAI",
-        Type = TextCompletionProviderType.OpenAI,
+        Type = DocumentAnalysisProviderType.OpenAI,
         SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-4o-mini" },
         MaxContextLength = 128000,
         InputTokenCost = 0.00015m,

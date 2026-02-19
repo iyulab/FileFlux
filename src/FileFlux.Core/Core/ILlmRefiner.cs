@@ -10,7 +10,7 @@ namespace FileFlux.Core;
 /// Extract → Refine (rules) → LLM-Refine → Chunk → Enrich
 ///
 /// LLM refinement is optional and will be gracefully skipped if:
-/// - No ITextCompletionService is registered
+/// - No IDocumentAnalysisService is registered
 /// - Options indicate refinement should be skipped
 /// - LLM service is unavailable
 /// </remarks>

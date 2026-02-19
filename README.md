@@ -60,7 +60,7 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 
 // Optional: Register AI services for advanced features
-// services.AddScoped<ITextCompletionService, YourLLMService>();
+// services.AddScoped<IDocumentAnalysisService, YourLLMService>();
 
 // Register FileFlux services (no logger required)
 services.AddFileFlux();
@@ -188,7 +188,7 @@ FileFlux defines AI service interfaces - consumer applications provide implement
 
 | Interface | Purpose | Example Implementations |
 |-----------|---------|------------------------|
-| `ITextCompletionService` | Text generation, intelligent chunking | OpenAI, Anthropic, LMSupply |
+| `IDocumentAnalysisService` | Text generation, intelligent chunking | OpenAI, Anthropic, LMSupply |
 | `IImageToTextService` | Image captioning, OCR | OpenAI Vision, LMSupply Captioner/OCR |
 | `IEmbeddingService` | Embedding generation | OpenAI, LMSupply Embedder |
 
@@ -201,7 +201,7 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 
 // Implement your own AI service
-services.AddScoped<ITextCompletionService, YourOpenAIService>();
+services.AddScoped<IDocumentAnalysisService, YourOpenAIService>();
 services.AddScoped<IImageToTextService, YourVisionService>();
 services.AddScoped<IEmbeddingService, YourEmbeddingService>();
 
@@ -231,7 +231,7 @@ var generator = await LMSupplyGeneratorService.CreateAsync(lmSupplyOptions);
 
 // Register as AI service implementations
 services.AddSingleton<IEmbeddingService>(embedder);
-services.AddSingleton<ITextCompletionService>(generator);
+services.AddSingleton<IDocumentAnalysisService>(generator);
 services.AddFileFlux();
 ```
 
@@ -285,9 +285,9 @@ FileFlux defines interfaces while implementation is up to the consumer applicati
 
 ```csharp
 // Optional: Register AI services for advanced features
-// - ITextCompletionService: For intelligent chunking and metadata enrichment
+// - IDocumentAnalysisService: For intelligent chunking and metadata enrichment
 // - IImageToTextService: For multimodal document processing
-services.AddScoped<ITextCompletionService, YourLLMService>();
+services.AddScoped<IDocumentAnalysisService, YourLLMService>();
 services.AddScoped<IImageToTextService, YourVisionService>();
 
 // Register FileFlux services (works without AI services too)
@@ -306,7 +306,7 @@ FileFlux defines interfaces - YOU implement them with your preferred AI provider
 
 ```csharp
 // Register your AI service implementation
-services.AddScoped<ITextCompletionService, YourAIService>();
+services.AddScoped<IDocumentAnalysisService, YourAIService>();
 services.AddFileFlux();
 ```
 
@@ -348,14 +348,14 @@ FileFlux works with or without AI services:
 services.AddFileFlux();
 
 // With AI service
-services.AddScoped<ITextCompletionService, YourAIService>();
+services.AddScoped<IDocumentAnalysisService, YourAIService>();
 services.AddFileFlux();
 
 // Environment-specific configuration
 if (Environment.IsDevelopment())
-    services.AddScoped<ITextCompletionService, MockTextCompletionService>();
+    services.AddScoped<IDocumentAnalysisService, MockTextCompletionService>();
 else
-    services.AddScoped<ITextCompletionService, ProductionAIService>();
+    services.AddScoped<IDocumentAnalysisService, ProductionAIService>();
 
 services.AddFileFlux();
 ```

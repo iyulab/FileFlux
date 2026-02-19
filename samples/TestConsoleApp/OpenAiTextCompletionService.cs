@@ -11,7 +11,7 @@ namespace TestConsoleApp;
 /// TestConsoleApp용 OpenAI 텍스트 완성 서비스 구현
 /// FileFlux SampleApp의 구현을 참조하되 TestConsoleApp에 맞게 단순화
 /// </summary>
-public class OpenAiTextCompletionService : ITextCompletionService
+public class OpenAiTextCompletionService : IDocumentAnalysisService
 {
     private readonly ChatClient _chatClient;
 
@@ -20,10 +20,10 @@ public class OpenAiTextCompletionService : ITextCompletionService
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
     }
 
-    public TextCompletionServiceInfo ProviderInfo => new()
+    public DocumentAnalysisServiceInfo ProviderInfo => new()
     {
         Name = "OpenAI",
-        Type = TextCompletionProviderType.OpenAI,
+        Type = DocumentAnalysisProviderType.OpenAI,
         SupportedModels = new[] { "gpt-5-nano", "gpt-4o" },
         MaxContextLength = 128000,
         InputTokenCost = 0.00015m, // gpt-5-nano 가격

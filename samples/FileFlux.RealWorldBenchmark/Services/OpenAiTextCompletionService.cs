@@ -13,9 +13,9 @@ using FileFlux.Domain;
 namespace FileFlux.RealWorldBenchmark.Services;
 
 /// <summary>
-/// OpenAI implementation of ITextCompletionService for benchmarking
+/// OpenAI implementation of IDocumentAnalysisService for benchmarking
 /// </summary>
-public class OpenAiTextCompletionService : ITextCompletionService
+public class OpenAiTextCompletionService : IDocumentAnalysisService
 {
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
@@ -268,10 +268,10 @@ public class OpenAiTextCompletionService : ITextCompletionService
         return await CompleteAsync(prompt, 0.7, 1000, cancellationToken);
     }
     
-    public TextCompletionServiceInfo ProviderInfo => new TextCompletionServiceInfo
+    public DocumentAnalysisServiceInfo ProviderInfo => new DocumentAnalysisServiceInfo
     {
         Name = "OpenAI",
-        Type = TextCompletionProviderType.OpenAI,
+        Type = DocumentAnalysisProviderType.OpenAI,
         SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-4-turbo" },
         MaxContextLength = 128000,
         ApiVersion = "v1"

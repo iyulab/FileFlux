@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **5-Stage Pipeline**: Extract → Rule-Refine → LLM-Refine → Chunk → Enrich
   - `ILlmRefiner`: Interface for LLM-based text refinement
-  - `LlmRefiner`: Implementation using ITextCompletionService
+  - `LlmRefiner`: Implementation using IDocumentAnalysisService
   - `LlmRefinedContent`: Output type for LLM refinement stage
   - `LlmRefineOptions`: Options for LLM refinement (temperature, instructions)
   - `ProcessorState.LlmRefined`: New state for LLM refinement
@@ -181,7 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **테이블 처리**: 헤더 구분선 자동 추가
 - **이미지 플레이스홀더 변환**: 표준 Markdown 이미지 형식
 - **공백 정규화**: Windows/Unix 줄바꿈 호환
-- **선택적 LLM 향상**: `ITextCompletionService` DI를 통한 LLM 통합 지원
+- **선택적 LLM 향상**: `IDocumentAnalysisService` DI를 통한 LLM 통합 지원
 
 ### Changed
 - MultiModal readers에서 디버그용 Console.WriteLine 제거
@@ -282,7 +282,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FileFlux.Core Package**: Standalone document extraction with zero AI dependencies
   - All 12 document readers (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML, MultiModal variants)
   - Core interfaces (IDocumentReader, IDocumentParser, IChunkingStrategy)
-  - AI service interfaces (ITextCompletionService, IImageToTextService)
+  - AI service interfaces (IDocumentAnalysisService, IImageToTextService)
 - **ChunkPropsKeys Enhancement**: Standardized property keys with typed accessors
   - `DocumentTopic`, `DocumentKeywords`, `QualityRelevanceScore`, `QualityCompleteness`
   - `ContentType`, `StructuralRole` for content classification
@@ -366,7 +366,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Comprehensive quality analysis features
-- ITextCompletionService integration guide
+- IDocumentAnalysisService integration guide
 - Q&A benchmark generation for RAG testing
 
 ### Improved
@@ -421,7 +421,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.11] - 2025-10-15
 
 ### Added
-- ITextCompletionService interface for AI integration
+- IDocumentAnalysisService interface for AI integration
 - Mock implementations for testing
 
 ### Changed

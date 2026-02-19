@@ -6,12 +6,12 @@ namespace FileFlux.Infrastructure.Services;
 /// <summary>
 /// 테스트용 Mock Text Completion Service
 /// </summary>
-public class MockTextCompletionService : ITextCompletionService
+public class MockTextCompletionService : IDocumentAnalysisService
 {
-    public TextCompletionServiceInfo ProviderInfo { get; } = new()
+    public DocumentAnalysisServiceInfo ProviderInfo { get; } = new()
     {
         Name = "Mock Service",
-        Type = TextCompletionProviderType.Custom,
+        Type = DocumentAnalysisProviderType.Custom,
         SupportedModels = new[] { "mock-model" },
         MaxContextLength = 4096
     };

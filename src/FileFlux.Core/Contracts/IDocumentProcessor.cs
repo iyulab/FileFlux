@@ -278,7 +278,7 @@ public class ProcessingOptions
 public class RefineOptions
 {
     /// <summary>
-    /// Use LLM for enhanced processing (set internally when ITextCompletionService is injected).
+    /// Use LLM for enhanced processing (set internally when IDocumentAnalysisService is injected).
     /// When LLM is available, it's always used for table/image processing.
     /// </summary>
     public bool UseLlm { get; set; }

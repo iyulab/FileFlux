@@ -14,7 +14,7 @@ public class DocumentParserFactory : IDocumentParserFactory
     private readonly ConcurrentDictionary<string, IDocumentParser> _parsers = new();
     private readonly IDocumentParser _defaultParser;
 
-    public DocumentParserFactory(ITextCompletionService? textCompletionService = null)
+    public DocumentParserFactory(IDocumentAnalysisService? textCompletionService = null)
     {
         _defaultParser = new BasicDocumentParser(textCompletionService);
         RegisterDefaultParsers(textCompletionService);
@@ -65,7 +65,7 @@ public class DocumentParserFactory : IDocumentParserFactory
         return _parsers.TryRemove(parserType.ToLowerInvariant(), out _);
     }
 
-    private void RegisterDefaultParsers(ITextCompletionService? textCompletionService)
+    private void RegisterDefaultParsers(IDocumentAnalysisService? textCompletionService)
     {
         // 기본 Parser 등록
         RegisterParser(new BasicDocumentParser(textCompletionService));

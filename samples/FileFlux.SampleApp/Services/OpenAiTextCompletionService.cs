@@ -11,7 +11,7 @@ namespace FileFlux.SampleApp.Services;
 /// SampleApp용 OpenAI 텍스트 완성 서비스 구현
 /// FileFlux의 역할 분리 원칙에 따라 소비 애플리케이션에서 구현
 /// </summary>
-public class OpenAiTextCompletionService : ITextCompletionService
+public class OpenAiTextCompletionService : IDocumentAnalysisService
 {
     private readonly ChatClient _chatClient;
 
@@ -20,10 +20,10 @@ public class OpenAiTextCompletionService : ITextCompletionService
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
     }
 
-    public TextCompletionServiceInfo ProviderInfo => new()
+    public DocumentAnalysisServiceInfo ProviderInfo => new()
     {
         Name = "OpenAI",
-        Type = TextCompletionProviderType.OpenAI,
+        Type = DocumentAnalysisProviderType.OpenAI,
         SupportedModels = new[] { "gpt-5-nano", "gpt-4o" },
         MaxContextLength = 128000,
         InputTokenCost = 0.00015m, // gpt-5-nano 가격

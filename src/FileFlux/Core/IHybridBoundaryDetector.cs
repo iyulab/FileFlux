@@ -19,7 +19,7 @@ public interface IHybridBoundaryDetector
     Task<HybridBoundaryResult> DetectBoundaryAsync(
         string segment1,
         string segment2,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         IEmbeddingService embeddingService,
         CancellationToken cancellationToken = default);
 
@@ -42,7 +42,7 @@ public interface IHybridBoundaryDetector
     /// <returns>List of hybrid boundary points</returns>
     Task<IEnumerable<HybridBoundaryPoint>> DetectBoundariesAsync(
         IList<string> segments,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         IEmbeddingService embeddingService,
         HybridDetectionOptions? options,
         CancellationToken cancellationToken = default);

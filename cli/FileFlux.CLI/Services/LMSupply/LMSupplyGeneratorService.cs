@@ -8,9 +8,9 @@ using LMSupply.Generator.Models;
 namespace FileFlux.CLI.Services.LMSupply;
 
 /// <summary>
-/// ITextCompletionService implementation using LMSupply.Generator.
+/// IDocumentAnalysisService implementation using LMSupply.Generator.
 /// </summary>
-public sealed class LMSupplyGeneratorService : ITextCompletionService, IAsyncDisposable
+public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncDisposable
 {
     private readonly IGeneratorModel _model;
     private readonly LMSupplyOptions _options;
@@ -64,10 +64,10 @@ public sealed class LMSupplyGeneratorService : ITextCompletionService, IAsyncDis
     }
 
     /// <inheritdoc />
-    public TextCompletionServiceInfo ProviderInfo => new()
+    public DocumentAnalysisServiceInfo ProviderInfo => new()
     {
         Name = "LMSupply Generator",
-        Type = TextCompletionProviderType.Local,
+        Type = DocumentAnalysisProviderType.Local,
         SupportedModels = [_model.ModelId],
         MaxContextLength = _model.MaxContextLength,
         InputTokenCost = 0,

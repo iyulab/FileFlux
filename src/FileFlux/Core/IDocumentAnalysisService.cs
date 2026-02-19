@@ -11,7 +11,7 @@ namespace FileFlux;
 /// - 소비 애플리케이션에서 구현하여 DI를 통해 주입
 /// - 모든 LLM 기반 기능은 이 서비스에 의존
 /// </summary>
-public interface ITextCompletionService
+public interface IDocumentAnalysisService
 {
     /// <summary>
     /// 문서 구조 분석을 위한 LLM 호출
@@ -66,7 +66,7 @@ public interface ITextCompletionService
     /// <summary>
     /// 텍스트 완성 서비스 제공업체 정보 (소비 애플리케이션에서 구현)
     /// </summary>
-    TextCompletionServiceInfo ProviderInfo { get; }
+    DocumentAnalysisServiceInfo ProviderInfo { get; }
 
     /// <summary>
     /// 텍스트 완성 서비스 가용성 확인 (소비 애플리케이션에서 구현)
@@ -426,7 +426,7 @@ public enum RecommendationPriority
 /// <summary>
 /// 텍스트 완성 서비스 제공업체 정보
 /// </summary>
-public class TextCompletionServiceInfo
+public class DocumentAnalysisServiceInfo
 {
     /// <summary>
     /// 제공업체명
@@ -436,7 +436,7 @@ public class TextCompletionServiceInfo
     /// <summary>
     /// 제공업체 타입
     /// </summary>
-    public TextCompletionProviderType Type { get; set; }
+    public DocumentAnalysisProviderType Type { get; set; }
 
     /// <summary>
     /// 지원하는 모델 목록

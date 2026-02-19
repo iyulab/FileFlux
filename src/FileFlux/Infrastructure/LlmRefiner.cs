@@ -12,7 +12,7 @@ namespace FileFlux.Infrastructure;
 /// </summary>
 public sealed partial class LlmRefiner : ILlmRefiner
 {
-    private readonly ITextCompletionService? _textCompletionService;
+    private readonly IDocumentAnalysisService? _textCompletionService;
     private readonly ILogger<LlmRefiner> _logger;
 
     /// <inheritdoc/>
@@ -28,7 +28,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Creates a new LLM refiner.
     /// </summary>
     public LlmRefiner(
-        ITextCompletionService? textCompletionService = null,
+        IDocumentAnalysisService? textCompletionService = null,
         ILogger<LlmRefiner>? logger = null)
     {
         _textCompletionService = textCompletionService;

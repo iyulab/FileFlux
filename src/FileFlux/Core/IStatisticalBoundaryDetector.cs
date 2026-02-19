@@ -19,7 +19,7 @@ public interface IStatisticalBoundaryDetector
     Task<StatisticalBoundaryResult> CalculateUncertaintyAsync(
         string segment,
         string? context,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -39,7 +39,7 @@ public interface IStatisticalBoundaryDetector
     /// <returns>Boundary points with uncertainty scores</returns>
     Task<IEnumerable<StatisticalBoundaryPoint>> DetectBoundariesAsync(
         IList<string> segments,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         CancellationToken cancellationToken = default);
 
     /// <summary>

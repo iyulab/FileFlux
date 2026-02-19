@@ -47,7 +47,7 @@ public class MarkdownConversionOptions
 
     /// <summary>
     /// 휴리스틱 실패 시 LLM을 사용하여 구조를 추론합니다.
-    /// ITextCompletionService가 DI로 제공된 경우에만 작동합니다.
+    /// IDocumentAnalysisService가 DI로 제공된 경우에만 작동합니다.
     /// </summary>
     public bool UseLLMInference { get; set; }
 

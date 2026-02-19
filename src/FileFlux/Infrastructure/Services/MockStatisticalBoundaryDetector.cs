@@ -27,7 +27,7 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
     public Task<StatisticalBoundaryResult> CalculateUncertaintyAsync(
         string segment,
         string? context,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         CancellationToken cancellationToken = default)
     {
         // 세그먼트와 컨텍스트 기반 모의 uncertainty 계산
@@ -76,7 +76,7 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
 
     public async Task<IEnumerable<StatisticalBoundaryPoint>> DetectBoundariesAsync(
         IList<string> segments,
-        ITextCompletionService textCompletionService,
+        IDocumentAnalysisService textCompletionService,
         CancellationToken cancellationToken = default)
     {
         var boundaries = new List<StatisticalBoundaryPoint>();

@@ -27,7 +27,7 @@ public class MockTestProgram
         services.AddFileFlux();
 
         Console.WriteLine("\n⚠️ Using Mock services (No OpenAI configuration)");
-        services.AddSingleton<ITextCompletionService, MockTextCompletionService>();
+        services.AddSingleton<IDocumentAnalysisService, MockTextCompletionService>();
         services.AddSingleton<IImageToTextService, MockImageToTextService>();
 
         var serviceProvider = services.BuildServiceProvider();
