@@ -55,26 +55,18 @@ public partial class PdfDocumentReader : IDocumentReader
             };
 
             // Get document info using Unpdf
-            var docInfo = Pdf.GetInfo(filePath);
+            using var doc = UnpdfDocument.ParseFile(filePath);
 
-            if (!string.IsNullOrWhiteSpace(docInfo.Title))
-                result.DocumentProps["title"] = docInfo.Title;
-            if (!string.IsNullOrWhiteSpace(docInfo.Author))
-                result.DocumentProps["author"] = docInfo.Author;
-            if (!string.IsNullOrWhiteSpace(docInfo.Subject))
-                result.DocumentProps["subject"] = docInfo.Subject;
-            if (!string.IsNullOrWhiteSpace(docInfo.Creator))
-                result.DocumentProps["creator"] = docInfo.Creator;
-            if (!string.IsNullOrWhiteSpace(docInfo.Producer))
-                result.DocumentProps["producer"] = docInfo.Producer;
-            if (!string.IsNullOrWhiteSpace(docInfo.PdfVersion))
-                result.DocumentProps["pdf_version"] = docInfo.PdfVersion;
+            if (!string.IsNullOrWhiteSpace(doc.Title))
+                result.DocumentProps["title"] = doc.Title;
+            if (!string.IsNullOrWhiteSpace(doc.Author))
+                result.DocumentProps["author"] = doc.Author;
 
-            result.DocumentProps["page_count"] = docInfo.PageCount;
-            result.DocumentProps["encrypted"] = docInfo.Encrypted;
+            var pageCount = doc.SectionCount;
+            result.DocumentProps["page_count"] = pageCount;
 
             // Add page info
-            for (int i = 1; i <= docInfo.PageCount; i++)
+            for (int i = 1; i <= pageCount; i++)
             {
                 result.Pages.Add(new PageInfo
                 {
@@ -220,21 +212,19 @@ public partial class PdfDocumentReader : IDocumentReader
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Convert to Markdown using Unpdf native library
-        var markdown = Pdf.ToMarkdown(filePath);
+        // Parse and convert to Markdown using Unpdf native library
+        using var doc = UnpdfDocument.ParseFile(filePath);
+        var markdown = doc.ToMarkdown();
 
         // Remove null bytes
         markdown = TextSanitizer.RemoveNullBytes(markdown);
 
-        // Get document metadata
-        var docInfo = Pdf.GetInfo(filePath);
+        if (!string.IsNullOrWhiteSpace(doc.Title))
+            structuralHints["document_title"] = doc.Title;
+        if (!string.IsNullOrWhiteSpace(doc.Author))
+            structuralHints["author"] = doc.Author;
 
-        if (!string.IsNullOrWhiteSpace(docInfo.Title))
-            structuralHints["document_title"] = docInfo.Title;
-        if (!string.IsNullOrWhiteSpace(docInfo.Author))
-            structuralHints["author"] = docInfo.Author;
-
-        structuralHints["page_count"] = docInfo.PageCount;
+        structuralHints["page_count"] = doc.SectionCount;
 
         // Update structural hints
         structuralHints["file_type"] = "pdf_document";

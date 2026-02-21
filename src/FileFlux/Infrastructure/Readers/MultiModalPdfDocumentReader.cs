@@ -97,50 +97,47 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         // Prepare document context (for relevance evaluation)
         var documentContext = PrepareDocumentContext(baseContent, filePath);
 
-        // Create temp directory for image extraction
-        var tempDir = Path.Combine(Path.GetTempPath(), $"fileflux_pdf_images_{Guid.NewGuid():N}");
-
         try
         {
-            Directory.CreateDirectory(tempDir);
-
-            // Extract images using Unpdf
-            var extractedImages = Pdf.ExtractImages(filePath, tempDir);
+            // Extract images using Unpdf native library
+            using var doc = UnpdfDocument.ParseFile(filePath);
+            var resourceIds = doc.GetResourceIds();
 
             var imageCount = 0;
             var includedImageCount = 0;
             var excludedImageCount = 0;
 
-            // Process extracted images
-            var imagesToProcess = new List<(ExtractedImage Image, byte[] Bytes)>();
+            // Process extracted image resources
+            var imagesToProcess = new List<byte[]>();
 
-            foreach (var image in extractedImages)
+            foreach (var id in resourceIds)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // Filter decorative images by size
-                var width = image.Width ?? 0;
-                var height = image.Height ?? 0;
+                var imageBytes = doc.GetResourceData(id);
+                if (imageBytes == null || imageBytes.Length <= 100)
+                    continue;
+
+                // Filter decorative images by size using resource metadata
+                int width = 0, height = 0;
+                using var resourceInfo = doc.GetResourceInfo(id);
+                if (resourceInfo != null)
+                {
+                    if (resourceInfo.RootElement.TryGetProperty("width", out var w))
+                        width = w.GetInt32();
+                    if (resourceInfo.RootElement.TryGetProperty("height", out var h))
+                        height = h.GetInt32();
+                }
 
                 if (ImageProcessingConstants.IsDecorativeImage(width, height))
-                {
                     continue;
-                }
 
-                // Read image bytes from file
-                if (File.Exists(image.Path))
-                {
-                    var imageBytes = await File.ReadAllBytesAsync(image.Path, cancellationToken);
-                    if (imageBytes.Length > 100)
-                    {
-                        imagesToProcess.Add((image, imageBytes));
-                    }
-                }
+                imagesToProcess.Add(imageBytes);
             }
 
             // Process images through IImageToTextService
             var imageTextResults = new List<ImageToTextResult>();
-            foreach (var (image, bytes) in imagesToProcess)
+            foreach (var bytes in imagesToProcess)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -148,7 +145,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                 {
                     var options = new ImageToTextOptions
                     {
-                        ImageTypeHint = "document", // PDF images are typically document/chart
+                        ImageTypeHint = "document",
                         Quality = "medium",
                         ExtractStructure = true
                     };
@@ -251,18 +248,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         }
         finally
         {
-            // Cleanup temp directory
-            try
-            {
-                if (Directory.Exists(tempDir))
-                {
-                    Directory.Delete(tempDir, recursive: true);
-                }
-            }
-            catch
-            {
-                // Ignore cleanup errors
-            }
+            // No temp files to clean up (resources extracted directly from native library)
         }
 
         return new RawContent

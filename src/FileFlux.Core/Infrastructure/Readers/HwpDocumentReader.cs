@@ -55,23 +55,12 @@ public sealed partial class HwpDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
-            // Detect format using Unhwp native library
-            var format = UnhwpConverter.DetectFormat(filePath);
-            result.DocumentProps["hwp_format"] = format switch
-            {
-                DocumentFormat.Hwp5 => "HWP5",
-                DocumentFormat.Hwpx => "HWPX",
-                DocumentFormat.Hwp3 => "HWP3",
-                _ => "Unknown"
-            };
-
+            result.DocumentProps["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
             result.DocumentProps["file_type"] = "hwp_document";
 
-            // Get document info using Parse
-            using var parseResult = UnhwpConverter.Parse(filePath);
-            result.DocumentProps["section_count"] = parseResult.SectionCount;
-            result.DocumentProps["paragraph_count"] = parseResult.ParagraphCount;
-            result.DocumentProps["image_count"] = parseResult.ImageCount;
+            using var doc = UnhwpDocument.ParseFile(filePath);
+            result.DocumentProps["section_count"] = doc.SectionCount;
+            result.DocumentProps["resource_count"] = doc.ResourceCount;
 
             // HWP documents are treated as single logical page
             result.Pages.Add(new PageInfo
@@ -81,7 +70,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
                 Props =
                 {
                     ["file_type"] = "hwp_document",
-                    ["format"] = format.ToString()
+                    ["format"] = extension == ".hwpx" ? "HWPX" : "HWP5"
                 }
             });
 
@@ -127,14 +116,12 @@ public sealed partial class HwpDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
-            // Detect format by extension for stream
             result.DocumentProps["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
             result.DocumentProps["file_type"] = "hwp_document";
 
-            using var parseResult = UnhwpConverter.ParseBytes(bytes);
-            result.DocumentProps["section_count"] = parseResult.SectionCount;
-            result.DocumentProps["paragraph_count"] = parseResult.ParagraphCount;
-            result.DocumentProps["image_count"] = parseResult.ImageCount;
+            using var doc = UnhwpDocument.ParseBytes(bytes);
+            result.DocumentProps["section_count"] = doc.SectionCount;
+            result.DocumentProps["resource_count"] = doc.ResourceCount;
 
             result.Pages.Add(new PageInfo
             {
@@ -218,45 +205,38 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         var structuralHints = new Dictionary<string, object>();
         var extractedImages = new List<ImageInfo>();
 
-        // Convert to Markdown with cleanup using Unhwp native library
-        using var parseResult = UnhwpConverter.Parse(filePath, new RenderOptions
+        // Parse and convert to Markdown using Unhwp native library
+        using var doc = UnhwpDocument.ParseFile(filePath);
+        var markdown = doc.ToMarkdown(new MarkdownOptions
         {
             IncludeFrontmatter = false,
             EscapeSpecialChars = false,
-            PreserveLineBreaks = false,
-            TableFallback = TableFallback.Markdown
+            ParagraphSpacing = false
         });
-
-        var markdown = parseResult.Markdown;
 
         // Remove null bytes
         markdown = TextSanitizer.RemoveNullBytes(markdown);
 
-        // Detect format
-        var format = UnhwpConverter.DetectFormat(filePath);
-        structuralHints["hwp_format"] = format switch
-        {
-            DocumentFormat.Hwp5 => "HWP5",
-            DocumentFormat.Hwpx => "HWPX",
-            DocumentFormat.Hwp3 => "HWP3",
-            _ => "Unknown"
-        };
+        structuralHints["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
+        structuralHints["section_count"] = doc.SectionCount;
 
-        structuralHints["section_count"] = parseResult.SectionCount;
-        structuralHints["paragraph_count"] = parseResult.ParagraphCount;
-
-        // Extract embedded images
-        foreach (var image in parseResult.Images)
+        // Extract embedded resources (images)
+        var resourceIds = doc.GetResourceIds();
+        foreach (var id in resourceIds)
         {
-            var imageInfo = new ImageInfo
+            var data = doc.GetResourceData(id);
+            if (data != null)
             {
-                Id = image.Name,
-                MimeType = GuessMimeType(image.Name),
-                Data = image.Data,
-                OriginalSize = image.Data.Length,
-                SourceUrl = $"embedded:{image.Name}"
-            };
-            extractedImages.Add(imageInfo);
+                var imageInfo = new ImageInfo
+                {
+                    Id = id,
+                    MimeType = GuessMimeType(id),
+                    Data = data,
+                    OriginalSize = data.Length,
+                    SourceUrl = $"embedded:{id}"
+                };
+                extractedImages.Add(imageInfo);
+            }
         }
 
         structuralHints["file_type"] = "hwp_document";
@@ -305,38 +285,38 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         var structuralHints = new Dictionary<string, object>();
         var extractedImages = new List<ImageInfo>();
 
-        // Convert to Markdown with cleanup using Unhwp native library
-        using var parseResult = UnhwpConverter.ParseBytes(bytes, new RenderOptions
+        // Parse and convert to Markdown using Unhwp native library
+        using var doc = UnhwpDocument.ParseBytes(bytes);
+        var markdown = doc.ToMarkdown(new MarkdownOptions
         {
             IncludeFrontmatter = false,
             EscapeSpecialChars = false,
-            PreserveLineBreaks = false,
-            TableFallback = TableFallback.Markdown
+            ParagraphSpacing = false
         });
-
-        var markdown = parseResult.Markdown;
 
         // Remove null bytes
         markdown = TextSanitizer.RemoveNullBytes(markdown);
 
-        // Detect format by extension
         structuralHints["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
+        structuralHints["section_count"] = doc.SectionCount;
 
-        structuralHints["section_count"] = parseResult.SectionCount;
-        structuralHints["paragraph_count"] = parseResult.ParagraphCount;
-
-        // Extract embedded images
-        foreach (var image in parseResult.Images)
+        // Extract embedded resources (images)
+        var resourceIds = doc.GetResourceIds();
+        foreach (var id in resourceIds)
         {
-            var imageInfo = new ImageInfo
+            var data = doc.GetResourceData(id);
+            if (data != null)
             {
-                Id = image.Name,
-                MimeType = GuessMimeType(image.Name),
-                Data = image.Data,
-                OriginalSize = image.Data.Length,
-                SourceUrl = $"embedded:{image.Name}"
-            };
-            extractedImages.Add(imageInfo);
+                var imageInfo = new ImageInfo
+                {
+                    Id = id,
+                    MimeType = GuessMimeType(id),
+                    Data = data,
+                    OriginalSize = data.Length,
+                    SourceUrl = $"embedded:{id}"
+                };
+                extractedImages.Add(imageInfo);
+            }
         }
 
         structuralHints["file_type"] = "hwp_document";

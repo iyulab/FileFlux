@@ -24,9 +24,9 @@
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
     <PackageVersion Include="Markdig" Version="0.45.0" />
     <!-- Native Document Readers (Rust FFI) -->
-    <PackageVersion Include="Undoc" Version="0.1.13" />
-    <PackageVersion Include="Unhwp" Version="0.1.16" />
-    <PackageVersion Include="Unpdf" Version="0.1.6" />
+    <PackageVersion Include="Undoc" Version="0.1.16" />
+    <PackageVersion Include="Unhwp" Version="0.2.1" />
+    <PackageVersion Include="Unpdf" Version="0.2.1" />
     <!-- Test-only: Used for programmatic test file generation -->
     <PackageVersion Include="DocumentFormat.OpenXml" Version="3.4.1" />
   </ItemGroup>
