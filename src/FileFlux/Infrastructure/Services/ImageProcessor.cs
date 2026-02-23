@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using FileFlux.Core;
@@ -37,7 +38,7 @@ public class ImageProcessor
 
         if (_verbose)
         {
-            Console.WriteLine($"[Verbose] Processing {preExtractedImages.Count} pre-extracted images, filters: minSize={_options.MinImageSize}bytes, minDimension={_options.MinImageDimension}px");
+            Trace.TraceInformation($"[Verbose] Processing {preExtractedImages.Count} pre-extracted images, filters: minSize={_options.MinImageSize}bytes, minDimension={_options.MinImageDimension}px");
         }
 
         foreach (var imageInfo in preExtractedImages)
@@ -48,7 +49,7 @@ public class ImageProcessor
                 skippedCount++;
                 if (_verbose)
                 {
-                    Console.WriteLine($"[Verbose] Skipped {imageInfo.Id}: no binary data (external URL)");
+                    Trace.TraceInformation($"[Verbose] Skipped {imageInfo.Id}: no binary data (external URL)");
                 }
                 // Remove placeholder for external images without data
                 result = result.Replace($"![{imageInfo.Caption}](embedded:{imageInfo.Id})", $"[External image: {imageInfo.Caption ?? imageInfo.Id}]");
@@ -62,7 +63,7 @@ public class ImageProcessor
                 skippedCount++;
                 if (_verbose)
                 {
-                    Console.WriteLine($"[Verbose] Skipped {imageInfo.Id}: size={imageInfo.Data.Length}bytes < {_options.MinImageSize}bytes");
+                    Trace.TraceInformation($"[Verbose] Skipped {imageInfo.Id}: size={imageInfo.Data.Length}bytes < {_options.MinImageSize}bytes");
                 }
                 // Remove placeholder from content
                 result = result.Replace($"![{imageInfo.Caption}](embedded:{imageInfo.Id})", "");
@@ -77,14 +78,14 @@ public class ImageProcessor
             var dimensions = GetImageDimensions(imageInfo.Data, format);
             if (_verbose)
             {
-                Console.WriteLine($"[Verbose] {imageInfo.Id}: mimeFormat={mimeFormat}, detectedFormat={detectedFormat ?? "unknown"}, size={imageInfo.Data.Length}bytes, dimensions={dimensions.Width}x{dimensions.Height}");
+                Trace.TraceInformation($"[Verbose] {imageInfo.Id}: mimeFormat={mimeFormat}, detectedFormat={detectedFormat ?? "unknown"}, size={imageInfo.Data.Length}bytes, dimensions={dimensions.Width}x{dimensions.Height}");
             }
             if (dimensions.Width < _options.MinImageDimension || dimensions.Height < _options.MinImageDimension)
             {
                 skippedCount++;
                 if (_verbose)
                 {
-                    Console.WriteLine($"[Verbose] Skipped {imageInfo.Id}: dimensions={dimensions.Width}x{dimensions.Height} < {_options.MinImageDimension}px");
+                    Trace.TraceInformation($"[Verbose] Skipped {imageInfo.Id}: dimensions={dimensions.Width}x{dimensions.Height} < {_options.MinImageDimension}px");
                 }
                 result = result.Replace($"![{imageInfo.Caption}](embedded:{imageInfo.Id})", "");
                 result = result.Replace($"![](embedded:{imageInfo.Id})", "");
@@ -120,7 +121,7 @@ public class ImageProcessor
                     {
                         if (_verbose)
                         {
-                            Console.WriteLine($"[Verbose] Analyzing image {savedIndex} with AI...");
+                            Trace.TraceInformation($"[Verbose] Analyzing image {savedIndex} with AI...");
                         }
                         var aiResult = await imageToTextService.ExtractTextAsync(
                             imageInfo.Data, null, cancellationToken).ConfigureAwait(false);
@@ -130,7 +131,7 @@ public class ImageProcessor
                     {
                         if (_verbose)
                         {
-                            Console.WriteLine($"[Verbose] AI analysis failed: {ex.Message}");
+                            Trace.TraceInformation($"[Verbose] AI analysis failed: {ex.Message}");
                         }
                         processedImage.AIError = ex.Message;
                     }
@@ -148,7 +149,7 @@ public class ImageProcessor
 
                 if (_verbose)
                 {
-                    Console.WriteLine($"[Verbose] Extracted: {fileName} ({dimensions.Width}x{dimensions.Height}, {imageInfo.Data.Length} bytes)");
+                    Trace.TraceInformation($"[Verbose] Extracted: {fileName} ({dimensions.Width}x{dimensions.Height}, {imageInfo.Data.Length} bytes)");
                 }
             }
             catch (Exception ex)
@@ -159,7 +160,7 @@ public class ImageProcessor
 
         if (_verbose && skippedCount > 0)
         {
-            Console.WriteLine($"[Verbose] Skipped {skippedCount} small images (icons/decorations)");
+            Trace.TraceInformation($"[Verbose] Skipped {skippedCount} small images (icons/decorations)");
         }
 
         return new ImageProcessingResult
@@ -204,7 +205,7 @@ public class ImageProcessor
 
         if (_verbose)
         {
-            Console.WriteLine($"[Verbose] Found {matches.Count} images, filters: minSize={_options.MinImageSize}bytes, minDimension={_options.MinImageDimension}px");
+            Trace.TraceInformation($"[Verbose] Found {matches.Count} images, filters: minSize={_options.MinImageSize}bytes, minDimension={_options.MinImageDimension}px");
         }
 
         var dirName = Path.GetFileName(imagesDirectory);
@@ -224,7 +225,7 @@ public class ImageProcessor
                 skippedCount++;
                 if (_verbose)
                 {
-                    Console.WriteLine($"[Verbose] Skipped: size={imageBytes.Length}bytes < {_options.MinImageSize}bytes");
+                    Trace.TraceInformation($"[Verbose] Skipped: size={imageBytes.Length}bytes < {_options.MinImageSize}bytes");
                 }
                 result = result.Replace(match.Value, "");
                 continue;
@@ -237,7 +238,7 @@ public class ImageProcessor
                 skippedCount++;
                 if (_verbose)
                 {
-                    Console.WriteLine($"[Verbose] Skipped: dimensions={dimensions.Width}x{dimensions.Height} < {_options.MinImageDimension}px");
+                    Trace.TraceInformation($"[Verbose] Skipped: dimensions={dimensions.Width}x{dimensions.Height} < {_options.MinImageDimension}px");
                 }
                 result = result.Replace(match.Value, "");
                 continue;
@@ -272,7 +273,7 @@ public class ImageProcessor
                     {
                         if (_verbose)
                         {
-                            Console.WriteLine($"[Verbose] Analyzing image {imageIndex} with AI...");
+                            Trace.TraceInformation($"[Verbose] Analyzing image {imageIndex} with AI...");
                         }
                         var aiResult = await imageToTextService.ExtractTextAsync(
                             imageBytes, null, cancellationToken).ConfigureAwait(false);
@@ -282,7 +283,7 @@ public class ImageProcessor
                     {
                         if (_verbose)
                         {
-                            Console.WriteLine($"[Verbose] AI analysis failed: {ex.Message}");
+                            Trace.TraceInformation($"[Verbose] AI analysis failed: {ex.Message}");
                         }
                         processedImage.AIError = ex.Message;
                     }
@@ -297,7 +298,7 @@ public class ImageProcessor
 
                 if (_verbose)
                 {
-                    Console.WriteLine($"[Verbose] Extracted: {fileName} ({dimensions.Width}x{dimensions.Height}, {imageBytes.Length} bytes)");
+                    Trace.TraceInformation($"[Verbose] Extracted: {fileName} ({dimensions.Width}x{dimensions.Height}, {imageBytes.Length} bytes)");
                 }
             }
             catch (Exception ex)
@@ -308,7 +309,7 @@ public class ImageProcessor
 
         if (_verbose && skippedCount > 0)
         {
-            Console.WriteLine($"[Verbose] Skipped {skippedCount} small images (icons/decorations)");
+            Trace.TraceInformation($"[Verbose] Skipped {skippedCount} small images (icons/decorations)");
         }
 
         return new ImageProcessingResult

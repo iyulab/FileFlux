@@ -1,9 +1,10 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Text;
 using FileFlux.Core;
 using FileFlux.Domain;
 using FileFlux.Infrastructure.Output;
 using FileFlux.Infrastructure.Services;
-using System.Text;
-using System.Globalization;
 
 namespace FileFlux.Infrastructure;
 
@@ -66,9 +67,9 @@ public sealed partial class FluxDocumentProcessor
 
             if (outputOptions.Verbose)
             {
-                Console.WriteLine($"[Verbose] RawContent.Images.Count = {rawContent.Images.Count}");
-                Console.WriteLine($"[Verbose] Images with Data: {rawContent.Images.Count(i => i.Data != null)}");
-                Console.WriteLine($"[Verbose] Images without Data (external URLs): {rawContent.Images.Count(i => i.Data == null)}");
+                Trace.TraceInformation($"[Verbose] RawContent.Images.Count = {rawContent.Images.Count}");
+                Trace.TraceInformation($"[Verbose] Images with Data: {rawContent.Images.Count(i => i.Data != null)}");
+                Trace.TraceInformation($"[Verbose] Images without Data (external URLs): {rawContent.Images.Count(i => i.Data == null)}");
             }
 
             // Check if images were pre-extracted by Reader (e.g., HTML with embedded base64)
@@ -76,7 +77,7 @@ public sealed partial class FluxDocumentProcessor
             {
                 if (outputOptions.Verbose)
                 {
-                    Console.WriteLine($"[Verbose] Using ProcessPreExtractedImagesAsync for {rawContent.Images.Count(i => i.Data != null)} pre-extracted images");
+                    Trace.TraceInformation($"[Verbose] Using ProcessPreExtractedImagesAsync for {rawContent.Images.Count(i => i.Data != null)} pre-extracted images");
                 }
 
                 var imageResult = await imageProcessor.ProcessPreExtractedImagesAsync(
@@ -90,7 +91,7 @@ public sealed partial class FluxDocumentProcessor
             {
                 if (outputOptions.Verbose)
                 {
-                    Console.WriteLine($"[Verbose] Using ProcessImagesAsync (inline base64 fallback)");
+                    Trace.TraceInformation($"[Verbose] Using ProcessImagesAsync (inline base64 fallback)");
                 }
 
                 // Fallback to inline base64 processing (for other document types)
