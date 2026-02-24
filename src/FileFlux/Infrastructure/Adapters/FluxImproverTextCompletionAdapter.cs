@@ -5,7 +5,7 @@ using FluxImprover.Services;
 /// <summary>
 /// Adapter that wraps FileFlux's IDocumentAnalysisService for use with FluxImprover.
 /// </summary>
-internal sealed class FluxImproverTextCompletionAdapter : FluxImprover.Services.ITextCompletionService
+internal sealed class FluxImproverTextCompletionAdapter : FluxImprover.Services.ITextGenerationService
 {
     private readonly FileFlux.IDocumentAnalysisService _inner;
 

@@ -5,7 +5,7 @@ using FluxImprover;
 using LMSupply;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
-using FluxImproverService = FluxImprover.Services.ITextCompletionService;
+using FluxImproverService = FluxImprover.Services.ITextGenerationService;
 
 namespace FileFlux.CLI.Services;
 

@@ -9,10 +9,10 @@ using FI = FluxImprover.Services;
 namespace FileFlux.CLI.Services.Providers.FluxImprover;
 
 /// <summary>
-/// LMSupply implementation of FluxImprover's ITextCompletionService
+/// LMSupply implementation of FluxImprover's ITextGenerationService
 /// Uses local AI models via LMSupply.Generator
 /// </summary>
-public class LMSupplyCompletionService : FI.ITextCompletionService, IAsyncDisposable
+public class LMSupplyCompletionService : FI.ITextGenerationService, IAsyncDisposable
 {
     private readonly LMSupplyOptions _options;
     private readonly SemaphoreSlim _initLock = new(1, 1);

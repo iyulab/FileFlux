@@ -11,11 +11,11 @@ namespace TestConsoleApp;
 /// TestConsoleApp용 OpenAI 텍스트 완성 서비스 구현
 /// FileFlux SampleApp의 구현을 참조하되 TestConsoleApp에 맞게 단순화
 /// </summary>
-public class OpenAiTextCompletionService : IDocumentAnalysisService
+public class OpenAITextGenerationService : IDocumentAnalysisService
 {
     private readonly ChatClient _chatClient;
 
-    public OpenAiTextCompletionService(ChatClient chatClient)
+    public OpenAITextGenerationService(ChatClient chatClient)
     {
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
     }

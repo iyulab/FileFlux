@@ -40,7 +40,7 @@ if (hasOpenAI)
     var chatClient = openAiClient.GetChatClient(model);
 
     services.AddSingleton(chatClient);
-    services.AddSingleton<IDocumentAnalysisService, OpenAiTextCompletionService>();
+    services.AddSingleton<IDocumentAnalysisService, OpenAITextGenerationService>();
     services.AddSingleton<IImageToTextService>(provider => new OpenAiImageToTextService(apiKey));
 }
 else

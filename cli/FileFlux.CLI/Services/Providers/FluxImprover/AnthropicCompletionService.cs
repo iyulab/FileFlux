@@ -7,9 +7,9 @@ using FI = FluxImprover.Services;
 namespace FileFlux.CLI.Services.Providers.FluxImprover;
 
 /// <summary>
-/// Anthropic Claude implementation of FluxImprover's ITextCompletionService
+/// Anthropic Claude implementation of FluxImprover's ITextGenerationService
 /// </summary>
-public class AnthropicCompletionService : FI.ITextCompletionService, IDisposable
+public class AnthropicCompletionService : FI.ITextGenerationService, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _model;

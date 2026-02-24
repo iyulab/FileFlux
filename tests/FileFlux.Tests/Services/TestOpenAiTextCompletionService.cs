@@ -15,11 +15,11 @@ namespace FileFlux.Tests.Services;
 /// <summary>
 /// Test용 OpenAI 텍스트 완성 서비스 - RAG 품질 벤치마크용
 /// </summary>
-public class TestOpenAiTextCompletionService : IDocumentAnalysisService
+public class TestOpenAITextGenerationService : IDocumentAnalysisService
 {
     private readonly ChatClient _chatClient;
 
-    public TestOpenAiTextCompletionService(string apiKey, string model = "gpt-5-nano")
+    public TestOpenAITextGenerationService(string apiKey, string model = "gpt-5-nano")
     {
         if (string.IsNullOrEmpty(apiKey))
             throw new ArgumentException("API key is required", nameof(apiKey));

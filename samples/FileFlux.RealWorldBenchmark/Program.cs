@@ -1073,7 +1073,7 @@ class Program
         
         if (!string.IsNullOrEmpty(apiKey) && !apiKey.Contains("your-") && !apiKey.Contains("here"))
         {
-            textService = new OpenAiTextCompletionService(apiKey, model);
+            textService = new OpenAITextGenerationService(apiKey, model);
             if (!_processorMessageShown)
             {
                 AnsiConsole.MarkupLine($"[green]Using OpenAI API for text completion (model: {model ?? "gpt-5-nano"})[/]");

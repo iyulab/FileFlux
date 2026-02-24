@@ -7,9 +7,9 @@ using FI = FluxImprover.Services;
 namespace FileFlux.CLI.Services.Providers.FluxImprover;
 
 /// <summary>
-/// Google Gemini implementation of FluxImprover's ITextCompletionService
+/// Google Gemini implementation of FluxImprover's ITextGenerationService
 /// </summary>
-public class GoogleCompletionService : FI.ITextCompletionService, IDisposable
+public class GoogleCompletionService : FI.ITextGenerationService, IDisposable
 {
     private static readonly JsonSerializerOptions s_jsonOptions = new()
     {

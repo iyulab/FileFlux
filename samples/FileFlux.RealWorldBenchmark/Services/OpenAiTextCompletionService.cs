@@ -15,14 +15,14 @@ namespace FileFlux.RealWorldBenchmark.Services;
 /// <summary>
 /// OpenAI implementation of IDocumentAnalysisService for benchmarking
 /// </summary>
-public class OpenAiTextCompletionService : IDocumentAnalysisService
+public class OpenAITextGenerationService : IDocumentAnalysisService
 {
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
     private readonly string _model;
     private const string ApiUrl = "https://api.openai.com/v1/chat/completions";
     
-    public OpenAiTextCompletionService(string apiKey, string? model = null)
+    public OpenAITextGenerationService(string apiKey, string? model = null)
     {
         _apiKey = apiKey ?? throw new ArgumentNullException(nameof(apiKey));
         _model = model ?? "gpt-5-nano";

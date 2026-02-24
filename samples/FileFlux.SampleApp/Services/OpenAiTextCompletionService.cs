@@ -11,11 +11,11 @@ namespace FileFlux.SampleApp.Services;
 /// SampleApp용 OpenAI 텍스트 완성 서비스 구현
 /// FileFlux의 역할 분리 원칙에 따라 소비 애플리케이션에서 구현
 /// </summary>
-public class OpenAiTextCompletionService : IDocumentAnalysisService
+public class OpenAITextGenerationService : IDocumentAnalysisService
 {
     private readonly ChatClient _chatClient;
 
-    public OpenAiTextCompletionService(ChatClient chatClient)
+    public OpenAITextGenerationService(ChatClient chatClient)
     {
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
     }

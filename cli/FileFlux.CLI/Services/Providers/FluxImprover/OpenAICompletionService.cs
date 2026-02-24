@@ -7,9 +7,9 @@ using FI = FluxImprover.Services;
 namespace FileFlux.CLI.Services.Providers.FluxImprover;
 
 /// <summary>
-/// OpenAI implementation of FluxImprover's ITextCompletionService
+/// OpenAI implementation of FluxImprover's ITextGenerationService
 /// </summary>
-public class OpenAICompletionService : FI.ITextCompletionService
+public class OpenAICompletionService : FI.ITextGenerationService
 {
     private readonly ChatClient _chatClient;
     private readonly string _model;
