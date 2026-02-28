@@ -22,7 +22,7 @@
   <ItemGroup Label="Document Processing">
     <PackageVersion Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
-    <PackageVersion Include="Markdig" Version="1.0.0" />
+    <PackageVersion Include="Markdig" Version="1.0.1" />
     <!-- Native Document Readers (Rust FFI) -->
     <PackageVersion Include="Undoc" Version="0.1.16" />
     <PackageVersion Include="Unhwp" Version="0.2.2" />
