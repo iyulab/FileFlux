@@ -22,27 +22,27 @@
   <ItemGroup Label="Document Processing">
     <PackageVersion Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
-    <PackageVersion Include="Markdig" Version="0.45.0" />
+    <PackageVersion Include="Markdig" Version="1.0.0" />
     <!-- Native Document Readers (Rust FFI) -->
     <PackageVersion Include="Undoc" Version="0.1.16" />
-    <PackageVersion Include="Unhwp" Version="0.2.1" />
+    <PackageVersion Include="Unhwp" Version="0.2.2" />
     <PackageVersion Include="Unpdf" Version="0.2.1" />
     <!-- Test-only: Used for programmatic test file generation -->
     <PackageVersion Include="DocumentFormat.OpenXml" Version="3.4.1" />
   </ItemGroup>
   <ItemGroup Label="AI Providers">
-    <PackageVersion Include="OpenAI" Version="2.8.0" />
+    <PackageVersion Include="OpenAI" Version="2.9.0" />
   </ItemGroup>
   <ItemGroup Label="Flux Packages">
-    <PackageVersion Include="FluxCurator" Version="0.7.1" />
+    <PackageVersion Include="FluxCurator" Version="0.7.2" />
     <PackageVersion Include="FluxImprover" Version="0.7.1" />
   </ItemGroup>
   <ItemGroup Label="LMSupply (Release - NuGet packages)">
-    <PackageVersion Include="LMSupply.Core" Version="0.13.2" />
-    <PackageVersion Include="LMSupply.Embedder" Version="0.13.2" />
-    <PackageVersion Include="LMSupply.Generator" Version="0.13.2" />
-    <PackageVersion Include="LMSupply.Captioner" Version="0.13.2" />
-    <PackageVersion Include="LMSupply.Ocr" Version="0.13.2" />
+    <PackageVersion Include="LMSupply.Core" Version="0.13.9" />
+    <PackageVersion Include="LMSupply.Embedder" Version="0.13.9" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.13.9" />
+    <PackageVersion Include="LMSupply.Captioner" Version="0.13.9" />
+    <PackageVersion Include="LMSupply.Ocr" Version="0.13.9" />
   </ItemGroup>
   <ItemGroup Label="CLI and UI">
     <PackageVersion Include="System.CommandLine" Version="2.0.3" />
@@ -52,13 +52,13 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
   </ItemGroup>
   <ItemGroup Label="Testing Framework">
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="FluentAssertions" Version="8.8.0" />
     <PackageVersion Include="coverlet.collector" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup Label="Build Tools">
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.103" />
   </ItemGroup>
 </Project>
