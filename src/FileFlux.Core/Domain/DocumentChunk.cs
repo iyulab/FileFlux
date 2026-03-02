@@ -1,3 +1,5 @@
+using Flux.Abstractions;
+
 namespace FileFlux.Core;
 
 /// <summary>
@@ -104,7 +106,7 @@ public class DocumentChunk : IEnrichedChunk
         : Location.Section;
     int? IEnrichedChunk.StartPage => Location.StartPage;
     int? IEnrichedChunk.EndPage => Location.EndPage;
-    int IEnrichedChunk.TokenCount => Tokens;
+    int? IEnrichedChunk.TokenCount => Tokens;
     ISourceMetadata IEnrichedChunk.Source => SourceInfo;
 
     #endregion
@@ -167,12 +169,16 @@ public class SourceMetadataInfo : ISourceMetadata
     public string SourceType { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? FilePath { get; set; }
+    public string? Url { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string Language { get; set; } = "en";
-    public double LanguageConfidence { get; set; }
+    public double? LanguageConfidence { get; set; }
     public int WordCount { get; set; }
     public int ChunkCount { get; set; }
     public int? PageCount { get; set; }
+    public DateTime? PublishedAt { get; set; }
+    public string? Author { get; set; }
+    public IReadOnlyList<string>? Keywords { get; set; }
 }
 
 /// <summary>
