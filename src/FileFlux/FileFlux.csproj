@@ -31,6 +31,10 @@
     <!-- iyulab modules -->
     <PackageReference Include="FluxCurator" />
     <PackageReference Include="FluxImprover" />
+
+    <!-- LMSupply: OCR and image captioning for IImageToTextService -->
+    <PackageReference Include="LMSupply.Ocr" />
+    <PackageReference Include="LMSupply.Captioner" />
   </ItemGroup>
 
   <ItemGroup Label="Core">
