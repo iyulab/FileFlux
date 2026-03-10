@@ -208,13 +208,41 @@ public partial class PdfDocumentReader : IDocumentReader
     {
         var fileInfo = new FileInfo(filePath);
         var warnings = new List<string>();
+        var errors = new List<ProcessingError>();
         var structuralHints = new Dictionary<string, object>();
+        var status = ProcessingStatus.Completed;
 
         cancellationToken.ThrowIfCancellationRequested();
 
         // Parse and convert to Markdown using Unpdf native library
         using var doc = UnpdfDocument.ParseFile(filePath);
-        var markdown = doc.ToMarkdown();
+        string markdown;
+
+        try
+        {
+            markdown = doc.ToMarkdown();
+        }
+        catch (UnpdfException ex)
+        {
+            // Markdown conversion failed — try plaintext as fallback
+            try
+            {
+                markdown = doc.ToText();
+                status = ProcessingStatus.Partial;
+                warnings.Add($"Markdown extraction failed, using plaintext fallback: {ex.Message}");
+                errors.Add(new ProcessingError
+                {
+                    Code = "PDF_MARKDOWN_FALLBACK",
+                    Message = ex.Message,
+                    Stage = "extraction"
+                });
+            }
+            catch
+            {
+                // Both failed — rethrow original exception
+                throw;
+            }
+        }
 
         // Remove null bytes
         markdown = TextSanitizer.RemoveNullBytes(markdown);
@@ -260,6 +288,8 @@ public partial class PdfDocumentReader : IDocumentReader
             },
             Hints = structuralHints,
             Warnings = warnings,
+            Errors = errors,
+            Status = status,
             ReaderType = "PdfReader"
         };
     }
