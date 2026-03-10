@@ -214,34 +214,19 @@ public partial class PdfDocumentReader : IDocumentReader
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Parse and convert to Markdown using Unpdf native library
+        // Parse using Unpdf native library
         using var doc = UnpdfDocument.ParseFile(filePath);
         string markdown;
 
+        // Fast path: try whole-document extraction
         try
         {
             markdown = doc.ToMarkdown();
         }
-        catch (UnpdfException ex)
+        catch (UnpdfException)
         {
-            // Markdown conversion failed — try plaintext as fallback
-            try
-            {
-                markdown = doc.ToText();
-                status = ProcessingStatus.Partial;
-                warnings.Add($"Markdown extraction failed, using plaintext fallback: {ex.Message}");
-                errors.Add(new ProcessingError
-                {
-                    Code = "PDF_MARKDOWN_FALLBACK",
-                    Message = ex.Message,
-                    Stage = "extraction"
-                });
-            }
-            catch
-            {
-                // Both failed — rethrow original exception
-                throw;
-            }
+            // Slow path: per-page extraction with error accumulation
+            (markdown, status) = ExtractPerPage(doc, errors, warnings, cancellationToken);
         }
 
         // Remove null bytes
@@ -292,6 +277,73 @@ public partial class PdfDocumentReader : IDocumentReader
             Status = status,
             ReaderType = "PdfReader"
         };
+    }
+
+    /// <summary>
+    /// Per-page extraction with error accumulation.
+    /// Tries markdown per page, falls back to plaintext per page, skips completely failed pages.
+    /// </summary>
+    private static (string markdown, ProcessingStatus status) ExtractPerPage(
+        UnpdfDocument doc,
+        List<ProcessingError> errors,
+        List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        var pageCount = doc.SectionCount;
+        var parts = new List<string>(pageCount);
+        var failedPages = new List<int>();
+
+        for (int page = 1; page <= pageCount; page++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Try markdown first
+            try
+            {
+                var pageMarkdown = doc.PageToMarkdown(page);
+                if (!string.IsNullOrWhiteSpace(pageMarkdown))
+                    parts.Add(pageMarkdown);
+                continue;
+            }
+            catch (UnpdfException)
+            {
+                // Markdown failed for this page — try plaintext
+            }
+
+            // Try plaintext fallback
+            try
+            {
+                var pageText = doc.PageToText(page);
+                if (!string.IsNullOrWhiteSpace(pageText))
+                {
+                    parts.Add(pageText);
+                    warnings.Add($"Page {page}: using plaintext fallback");
+                }
+                continue;
+            }
+            catch (UnpdfException ex)
+            {
+                // Both failed — record error and skip page
+                failedPages.Add(page);
+                errors.Add(new ProcessingError
+                {
+                    Code = "PDF_PAGE_EXTRACTION_FAILED",
+                    Message = $"Page {page}: {ex.Message}",
+                    Stage = "extraction",
+                    Details = new Dictionary<string, object> { ["page"] = page }
+                });
+            }
+        }
+
+        // If all pages failed, throw to let caller handle
+        if (parts.Count == 0 && failedPages.Count > 0)
+            throw new UnpdfException($"All {pageCount} pages failed extraction");
+
+        if (failedPages.Count > 0)
+            warnings.Add($"Skipped {failedPages.Count} page(s): [{string.Join(", ", failedPages)}]");
+
+        var status = failedPages.Count > 0 ? ProcessingStatus.Partial : ProcessingStatus.Completed;
+        return (string.Join("\n\n", parts), status);
     }
 
     private static int CountWords(string text)
