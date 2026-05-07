@@ -16,7 +16,7 @@ public class LogLanguageConventionTests
     public static IEnumerable<object[]> AssemblyTypes()
     {
         var assembly = typeof(FluxDocumentProcessor).Assembly;
-        foreach (var type in SafeGetTypes(assembly).Where(t => !t.IsCompilerGenerated()))
+        foreach (var type in SafeGetTypes(assembly).Where(t => t is not null && !t.IsCompilerGenerated()))
         {
             yield return new object[] { type };
         }
