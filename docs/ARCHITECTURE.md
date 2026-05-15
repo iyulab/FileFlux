@@ -187,27 +187,29 @@ FileFlux/                         # Full RAG Pipeline Package
 
 ### 2. StatefulDocumentProcessor (v0.9.0+)
 
-**4-Stage Processing Pipeline**:
+**5-Stage Processing Pipeline**:
 
 ```
-📂 Extract → 🔄 Refine → 📦 Chunk → ✨ Enrich
+📂 Extract → 🔄 Refine → 🤖 LLM-Refine → 📦 Chunk → ✨ Enrich
 ```
 
 | Stage | Interface | Description | Output |
 |-------|-----------|-------------|--------|
 | **Extract** | `IDocumentReader` | Raw content extraction from files | `RawContent` |
 | **Refine** | `IDocumentRefiner` | Text cleaning, normalization, structure analysis | `RefinedContent` |
-| **Chunk** | `IChunkerFactory` | Text segmentation into chunks | `List<DocumentChunk>` |
-| **Enrich** | `IDocumentEnricher` | LLM-powered summaries, keywords, contextual text | `List<EnrichedDocumentChunk>`, `DocumentGraph` |
+| **LLM-Refine** | `ILlmRefiner` | LLM-powered noise removal, sentence restoration (optional, skipped if LLM unavailable) | `LlmRefinedContent` |
+| **Chunk** | `IChunkerFactory` | Text segmentation into chunks | `IReadOnlyList<DocumentChunk>` |
+| **Enrich** | `IDocumentEnricher` | LLM-powered summaries, keywords, contextual text | `DocumentGraph` |
 
 **State Flow**:
 ```
-Created → Extracted → Refined → Chunked → Enriched → Disposed
+Created → Extracted → Refined → LlmRefined → Chunked → Enriched → Disposed
 ```
 
 **Auto-Dependency Resolution**:
 - Calling `RefineAsync()` automatically runs `ExtractAsync()` if not already completed
-- Calling `ChunkAsync()` automatically runs `ExtractAsync()` and `RefineAsync()`
+- Calling `LlmRefineAsync()` automatically runs `ExtractAsync()` and `RefineAsync()` if needed
+- Calling `ChunkAsync()` automatically runs `ExtractAsync()` and `RefineAsync()` if needed
 - Each stage is idempotent - calling twice returns cached results
 
 **Dependency Management**:
@@ -562,8 +564,15 @@ public class CustomDocumentReader : IDocumentReader
     public bool CanRead(string fileName) =>
         Path.GetExtension(fileName).Equals(".custom", StringComparison.OrdinalIgnoreCase);
 
-    public async Task<RawContent> ReadAsync(string filePath, CancellationToken cancellationToken)
+    public Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken)
     {
+        // Stage 0: Return document structure (page count, metadata)
+        // Implementation
+    }
+
+    public Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        // Stage 1: Return extracted text content
         // Implementation
     }
 }
@@ -574,27 +583,35 @@ services.AddTransient<IDocumentReader, CustomDocumentReader>();
 
 ### Adding Custom Chunking Strategy
 
-1. Implement IChunkingStrategy interface
-2. Define StrategyName and DefaultOptions
-3. Implement chunking logic in ChunkAsync method
+FileFlux uses `IChunker` from FluxCurator for chunking. Register a custom `IChunker` implementation to provide a custom chunking strategy:
+
+1. Implement `IChunker` from `FluxCurator.Core.Core`
+2. Define `StrategyName`
+3. Implement chunking logic in `ChunkAsync`
 
 **Example**:
 ```csharp
-public class CustomChunkingStrategy : IChunkingStrategy
+using FluxCurator.Core.Core;
+using FluxCurator.Core.Domain;
+
+public class CustomChunker : IChunker
 {
     public string StrategyName => "Custom";
+    public bool RequiresEmbedder => false;
 
-    public async Task<IEnumerable<DocumentChunk>> ChunkAsync(
-        ParsedDocumentContent content,
-        ChunkingOptions options,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<DocumentChunk>> ChunkAsync(
+        string text,
+        ChunkOptions options,
+        CancellationToken cancellationToken = default)
     {
         // Implementation
     }
+
+    public int EstimateChunkCount(string text, ChunkOptions options) => 1;
 }
 
 // Registration
-services.AddTransient<IChunkingStrategy, CustomChunkingStrategy>();
+services.AddTransient<IChunker, CustomChunker>();
 ```
 
 ## Error Handling

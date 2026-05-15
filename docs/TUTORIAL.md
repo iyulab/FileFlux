@@ -623,25 +623,31 @@ await foreach (var result in processor.ProcessStreamAsync("document-with-images.
 
 ### Step-by-Step Processing
 
-Break down processing into individual steps:
+Use the stateful pipeline for fine-grained control over each processing stage. The file path is set when creating the processor via the factory; individual stage methods take no path parameter:
 
 ```csharp
-// Step 1: Extract raw content
-var rawContent = await processor.ExtractAsync("document.pdf");
-Console.WriteLine($"Extracted: {rawContent.Content.Length} chars");
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+using var processor = factory.Create("document.pdf");
 
-// Step 2: Parse structure
-var parsedContent = await processor.ParseAsync(rawContent);
-Console.WriteLine($"Sections: {parsedContent.Sections?.Count ?? 0}");
+// Stage 1: Extract raw content
+await processor.ExtractAsync();
+Console.WriteLine($"Extracted: {processor.Result.Raw?.Text.Length} chars");
 
-// Step 3: Chunk content
-var chunks = await processor.ChunkAsync(parsedContent, new ChunkingOptions
+// Stage 2: Rule-based refine
+await processor.RefineAsync();
+Console.WriteLine($"Sections: {processor.Result.Refined?.Sections.Count ?? 0}");
+
+// Stage 2.5: LLM refine (optional — skipped automatically if LLM unavailable)
+await processor.LlmRefineAsync();
+
+// Stage 3: Chunk content
+await processor.ChunkAsync(new ChunkingOptions
 {
     Strategy = "Auto",
     MaxChunkSize = 512,
     OverlapSize = 64
 });
-Console.WriteLine($"Chunks: {chunks.Count()}");
+Console.WriteLine($"Chunks: {processor.Result.Chunks?.Count}");
 ```
 
 ### Quality Analysis
@@ -649,34 +655,18 @@ Console.WriteLine($"Chunks: {chunks.Count()}");
 Analyze chunk quality metrics:
 
 ```csharp
-var qualityEngine = provider.GetRequiredService<ChunkQualityEngine>();
-var chunks = await processor.ProcessAsync("document.pdf");
+// Process document first
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+using var processor = factory.Create("document.pdf");
+await processor.ProcessAsync();
+var chunks = processor.Result.Chunks ?? [];
 
-var metrics = await qualityEngine.CalculateQualityMetricsAsync(chunks);
+// Calculate quality metrics (static method)
+var metrics = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
 Console.WriteLine($"Average Completeness: {metrics.AverageCompleteness:P}");
 Console.WriteLine($"Content Consistency: {metrics.ContentConsistency:P}");
 Console.WriteLine($"Boundary Quality: {metrics.BoundaryQuality:P}");
 Console.WriteLine($"Size Distribution: {metrics.SizeDistribution:P}");
-```
-
-### Question Generation
-
-Generate questions for RAG quality testing:
-
-```csharp
-var parsedContent = await processor.ParseAsync(rawContent);
-var questions = await qualityEngine.GenerateQuestionsAsync(parsedContent, 10);
-
-foreach (var question in questions)
-{
-    Console.WriteLine($"Q: {question.Question}");
-    Console.WriteLine($"   Type: {question.Type}");
-    Console.WriteLine($"   Difficulty: {question.DifficultyScore:P}");
-}
-
-// Validate answerability
-var validation = await qualityEngine.ValidateAnswerabilityAsync(questions, chunks);
-Console.WriteLine($"Answerable: {validation.AnswerableQuestions}/{validation.TotalQuestions}");
 ```
 
 ## RAG Integration
@@ -894,6 +884,8 @@ services.AddTransient<IChunkingStrategy, CustomChunkingStrategy>();
 
 ### Custom Document Reader
 
+`IDocumentReader` has two stages: `ReadAsync` (Stage 0 - document structure) and `ExtractAsync` (Stage 1 - raw content).
+
 ```csharp
 public class CustomDocumentReader : IDocumentReader
 {
@@ -903,10 +895,34 @@ public class CustomDocumentReader : IDocumentReader
     public bool CanRead(string fileName) =>
         Path.GetExtension(fileName).Equals(".custom", StringComparison.OrdinalIgnoreCase);
 
-    public async Task<RawContent> ReadAsync(
+    // Stage 0: Parse document structure (page count, metadata)
+    public Task<ReadResult> ReadAsync(
         string filePath,
         CancellationToken cancellationToken = default)
     {
+        var fileInfo = new FileInfo(filePath);
+        return Task.FromResult(new ReadResult
+        {
+            File = new SourceFileInfo
+            {
+                Name = fileInfo.Name,
+                Extension = fileInfo.Extension,
+                Size = fileInfo.Length
+            },
+            ReaderType = "CustomReader"
+        });
+    }
+
+    public Task<ReadResult> ReadAsync(Stream stream, string fileName, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Stream reading not supported.");
+
+    // Stage 1: Extract raw text content
+    public async Task<RawContent> ExtractAsync(
+        string filePath,
+        ExtractOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        var fileInfo = new FileInfo(filePath);
         var content = await File.ReadAllTextAsync(filePath, cancellationToken);
 
         return new RawContent
@@ -914,14 +930,16 @@ public class CustomDocumentReader : IDocumentReader
             Text = content,
             File = new SourceFileInfo
             {
-                Name = Path.GetFileName(filePath),
-                Extension = Path.GetExtension(filePath),
-                Size = new FileInfo(filePath).Length
+                Name = fileInfo.Name,
+                Extension = fileInfo.Extension,
+                Size = fileInfo.Length
             },
-            ReaderType = "CustomReader",
-            ExtractedAt = DateTime.UtcNow
+            ReaderType = "CustomReader"
         };
     }
+
+    public Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Stream extraction not supported.");
 }
 
 // Register

@@ -256,6 +256,7 @@ services.AddFileFlux();
 - **Vector Graphics Tables**: Tables created with drawing primitives (lines/rectangles) instead of text layout may not be detected. These are rendered as images in most PDF viewers.
 - **Complex Multi-column Layouts**: Documents with intricate multi-column arrangements may have suboptimal text ordering.
 - **Scanned Documents**: OCR is not included; scanned PDFs require pre-processing with external OCR tools.
+- **Partial Extraction**: When whole-document extraction fails, FileFlux automatically falls back to per-page extraction. Pages that cannot be extracted are skipped and recorded in `RawContent.Errors`. `RawContent.Status` is set to `ProcessingStatus.Partial` when some pages fail, allowing RAG pipelines to use the successfully extracted content rather than losing the entire document.
 
 ### Table Extraction
 FileFlux uses layout-based table detection with confidence scoring:
