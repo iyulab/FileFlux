@@ -489,7 +489,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             {
                 RawId = Result.Raw!.Id,
                 Content = fc.Content,
-                Index = idx,
+                ChunkIndex = idx,
                 Tokens = fc.Metadata.EstimatedTokenCount,
                 Strategy = chunker.StrategyName,
                 Location = new SourceLocation
@@ -570,7 +570,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             {
                 RawId = Result.Raw!.Id,
                 Content = fc.Content,
-                Index = idx++,
+                ChunkIndex = idx++,
                 Tokens = fc.Metadata.EstimatedTokenCount,
                 Strategy = chunker.StrategyName,
                 Location = new SourceLocation

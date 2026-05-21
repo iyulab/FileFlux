@@ -100,7 +100,7 @@ public class HierarchicalDocumentChunk : DocumentChunk, IHierarchicalChunk
             ParsedId = source.ParsedId,
             RawId = source.RawId,
             Content = source.Content,
-            Index = source.Index,
+            ChunkIndex = source.ChunkIndex,
             Location = source.Location,
             Metadata = source.Metadata,
             Quality = source.Quality,

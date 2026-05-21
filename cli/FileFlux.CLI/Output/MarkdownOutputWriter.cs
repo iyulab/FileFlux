@@ -21,7 +21,7 @@ public class MarkdownOutputWriter : IOutputWriter
 
         foreach (var chunk in chunkList)
         {
-            sb.AppendLine(CultureInfo.InvariantCulture, $"## Chunk {chunk.Index + 1}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"## Chunk {chunk.ChunkIndex + 1}");
             sb.AppendLine();
             sb.AppendLine(CultureInfo.InvariantCulture, $"**Length:** {chunk.Content.Length} characters");
 

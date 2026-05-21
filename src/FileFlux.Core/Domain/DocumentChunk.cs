@@ -29,9 +29,9 @@ public class DocumentChunk : IEnrichedChunk
     public string Content { get; set; } = string.Empty;
 
     /// <summary>
-    /// Chunk index in sequence
+    /// Zero-based chunk index within the document sequence.
     /// </summary>
-    public int Index { get; set; }
+    public int ChunkIndex { get; set; }
 
     /// <summary>
     /// Source location in original document
@@ -99,7 +99,7 @@ public class DocumentChunk : IEnrichedChunk
     #region IEnrichedChunk Implementation
 
     string IEnrichedChunk.ChunkId => Id.ToString();
-    int IEnrichedChunk.ChunkIndex => Index;
+    int IEnrichedChunk.ChunkIndex => ChunkIndex;
     IReadOnlyList<string> IEnrichedChunk.HeadingPath => Location.HeadingPath;
     string? IEnrichedChunk.SectionTitle => Location.HeadingPath.Count > 0
         ? Location.HeadingPath[^1]

@@ -185,7 +185,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
 
                 foreach (var chunk in processedChunks)
                 {
-                    chunk.Index = chunkIndex++;
+                    chunk.ChunkIndex = chunkIndex++;
                     yield return chunk;
                 }
 
@@ -226,7 +226,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
 
             foreach (var chunk in remainingChunks)
             {
-                chunk.Index = chunkIndex++;
+                chunk.ChunkIndex = chunkIndex++;
                 yield return chunk;
             }
         }

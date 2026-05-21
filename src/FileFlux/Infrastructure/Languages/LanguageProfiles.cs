@@ -17,11 +17,11 @@ public sealed class EnglishLanguageProfile : LanguageProfileBase
     public override NumberFormat NumberFormat => NumberFormat.Standard;
     public override QuotationMarks QuotationMarks => QuotationMarks.English;
 
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"[.!?]+(?:\s|$)|[.!?]+(?=[""'\)\]}>])",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*\d+\.\s+.+$|" +                         // Numbered sections
         @"^\s*[A-Z]\.\s+.+$|" +                       // Letter sections
@@ -81,7 +81,7 @@ public sealed class KoreanLanguageProfile : LanguageProfileBase
     public override NumberFormat NumberFormat => NumberFormat.Standard;  // Korea uses US-style
     public override QuotationMarks QuotationMarks => QuotationMarks.Korean;
 
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"(?:습니다|입니다|됩니다|합니다|있습니다|했습니다|됐습니다|겠습니다|" +
         @"습니까|입니까|됩니까|합니까|" +
         @"세요|하세요|되세요|주세요|" +
@@ -90,7 +90,7 @@ public sealed class KoreanLanguageProfile : LanguageProfileBase
         @"[.!?。！？]+(?:\s|$))",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                                    // Markdown headers
         @"^\s*[□■◇◆○●◎▶▷►★☆ㅇ]\s+.+$|" +                       // Korean section markers
         @"^\s*[가나다라마바사아자차카타파하]\s*[.．\)）]\s+.+$|" +  // Korean letter list
@@ -118,11 +118,11 @@ public sealed class ChineseLanguageProfile : LanguageProfileBase
     public override NumberFormat NumberFormat => NumberFormat.NoGrouping;  // Chinese typically doesn't use thousands separator
     public override QuotationMarks QuotationMarks => QuotationMarks.Chinese;
 
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"[。！？；]+|[.!?;]+(?:\s|$)",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*第[一二三四五六七八九十百千\d]+[章节条款]\s*|" +  // Chinese chapter markers
         @"^\s*[一二三四五六七八九十]+[、.．]\s*|" +            // Chinese number list
@@ -145,11 +145,11 @@ public sealed class JapaneseLanguageProfile : LanguageProfileBase
     public override NumberFormat NumberFormat => NumberFormat.Standard;  // Japan uses US-style
     public override QuotationMarks QuotationMarks => QuotationMarks.Japanese;
 
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"[。！？]+|[.!?]+(?:\s|$)|(?:です|ます|でした|ました)(?:[。！？]|\s|$)",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*第[一二三四五六七八九十百千\d]+[章節条項]\s*|" +  // Japanese chapter markers
         @"^\s*[一二三四五六七八九十]+[、.．]\s*|" +            // Japanese number list
@@ -176,11 +176,11 @@ public sealed class SpanishLanguageProfile : LanguageProfileBase
         SecondaryOpen = "\u201C", SecondaryClose = "\u201D"
     };
 
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"[.!?¡¿]+(?:\s|$)|[.!?]+(?=[""'\)\]}>])",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*\d+\.\s+.+$|" +                         // Numbered sections
         @"^\s*[A-Za-z]\.\s+.+$|" +                    // Letter sections
@@ -224,11 +224,11 @@ public sealed class FrenchLanguageProfile : LanguageProfileBase
     public override QuotationMarks QuotationMarks => QuotationMarks.French;
 
     // French uses space before ? ! ; :
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"[.]+(?:\s|$)|(?:\s)?[!?]+(?:\s|$)|[.!?]+(?=[""'\)\]}>«»])",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*\d+\.\s+.+$|" +                         // Numbered sections
         @"^\s*[A-Za-z]\.\s+.+$|" +                    // Letter sections
@@ -271,11 +271,11 @@ public sealed class GermanLanguageProfile : LanguageProfileBase
     public override NumberFormat NumberFormat => NumberFormat.European;  // Germany uses 1.234,56
     public override QuotationMarks QuotationMarks => QuotationMarks.German;
 
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         "[.!?]+(?:\\s|$)|[.!?]+(?=[\"'\\)\\]}>„\u201C])",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*\d+\.\s+.+$|" +                         // Numbered sections
         @"^\s*[A-Za-z]\.\s+.+$|" +                    // Letter sections
@@ -325,11 +325,11 @@ public sealed class ArabicLanguageProfile : LanguageProfileBase
         SecondaryOpen = "\u2039", SecondaryClose = "\u203A"
     };
 
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"[.。۔؟!！？]+(?:\s|$)",  // Arabic/Persian full stop and question mark
         RegexOptions.Compiled | RegexOptions.RightToLeft);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*\d+[.．\)）]\s*|" +                      // Numbered sections
         @"^\s*[■□●○◆◇]\s+",                          // Bullet markers
@@ -351,11 +351,11 @@ public sealed class HindiLanguageProfile : LanguageProfileBase
     public override QuotationMarks QuotationMarks => QuotationMarks.English;  // Hindi typically uses English-style quotes
 
     // Hindi uses Devanagari Danda (।) and Double Danda (॥) as sentence terminators
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"[।॥]+(?:\s|$)|[.!?]+(?:\s|$)",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*\d+[.．\)）]\s*|" +                      // Numbered sections
         @"^\s*[क-ह][.．\)）]\s*|" +                    // Hindi letter list
@@ -381,11 +381,11 @@ public sealed class PortugueseLanguageProfile : LanguageProfileBase
         SecondaryOpen = "\u201C", SecondaryClose = "\u201D"
     };
 
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"[.!?]+(?:\s|$)|[.!?]+(?=[""'\)\]}>])",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*\d+\.\s+.+$|" +                         // Numbered sections
         @"^\s*[A-Za-z]\.\s+.+$|" +                    // Letter sections
@@ -432,11 +432,11 @@ public sealed class RussianLanguageProfile : LanguageProfileBase
         SecondaryOpen = "\u201E", SecondaryClose = "\u201C"
     };
 
-    public override Regex SentenceEndPattern { get; } = new(
+    public override Regex CompiledSentenceEndPattern { get; } = new(
         @"[.!?]+(?:\s|$)|[.!?]+(?=[""'\)\]}>«»])",
         RegexOptions.Compiled);
 
-    public override Regex SectionMarkerPattern { get; } = new(
+    public override Regex CompiledSectionMarkerPattern { get; } = new(
         @"^#{1,6}\s+.+$|" +                          // Markdown headers
         @"^\s*\d+\.\s+.+$|" +                         // Numbered sections
         @"^\s*[А-Яа-я]\.\s+.+$|" +                    // Cyrillic letter sections

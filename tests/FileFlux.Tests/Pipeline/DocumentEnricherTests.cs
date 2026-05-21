@@ -308,7 +308,7 @@ public class DocumentEnricherTests
             Id = Guid.NewGuid(),
             RawId = Guid.NewGuid(),
             Content = $"This is chunk {i} content with some text.",
-            Index = i,
+            ChunkIndex = i,
             Tokens = 10,
             Strategy = "test",
             Location = new SourceLocation

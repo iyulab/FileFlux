@@ -62,7 +62,7 @@ public static class ChunkExtensions
     public static Dictionary<string, double> ContextualScores(this DocumentChunk chunk) => chunk.GetContextualScores();
 
     // Additional legacy properties
-    public static int ChunkIndex(this DocumentChunk chunk) => chunk.Index;
+    public static int ChunkIndex(this DocumentChunk chunk) => chunk.ChunkIndex;
     public static int EstimatedTokens(this DocumentChunk chunk) => chunk.Tokens;
 
     // Quality score properties (chunk.Quality is now double directly)

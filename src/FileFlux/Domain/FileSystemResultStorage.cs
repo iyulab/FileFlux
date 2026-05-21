@@ -177,7 +177,7 @@ public sealed class FileSystemResultStorage : IDisposable
                 c.Content,
                 StartPosition = c.Location.StartChar,
                 EndPosition = c.Location.EndChar,
-                ChunkIndex = c.Index,
+                ChunkIndex = c.ChunkIndex,
                 c.Metadata,
                 Properties = c.Props,
                 ContentLength = c.Content.Length,

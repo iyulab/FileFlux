@@ -43,7 +43,7 @@ public class ChunkedOutputWriter : IOutputWriter
         // Write individual chunk files
         foreach (var chunk in chunkList)
         {
-            var chunkFileName = $"chunk_{chunk.Index + 1}{Extension}";
+            var chunkFileName = $"chunk_{chunk.ChunkIndex + 1}{Extension}";
             var chunkPath = Path.Combine(outputPath, chunkFileName);
 
             var content = _format switch
@@ -60,7 +60,7 @@ public class ChunkedOutputWriter : IOutputWriter
     private static string FormatAsMarkdown(DocumentChunk chunk, int totalChunks)
     {
         var sb = new StringBuilder();
-        var chunkNum = chunk.Index + 1;
+        var chunkNum = chunk.ChunkIndex + 1;
 
         // YAML frontmatter with navigation
         sb.AppendLine("---");
@@ -120,11 +120,11 @@ public class ChunkedOutputWriter : IOutputWriter
 
     private static string FormatAsJson(DocumentChunk chunk, int totalChunks)
     {
-        var chunkNum = chunk.Index + 1;
+        var chunkNum = chunk.ChunkIndex + 1;
 
         var data = new
         {
-            index = chunk.Index,
+            index = chunk.ChunkIndex,
             chunk = chunkNum,
             total = totalChunks,
             navigation = new

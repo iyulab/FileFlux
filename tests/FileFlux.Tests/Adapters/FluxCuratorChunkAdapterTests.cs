@@ -18,7 +18,7 @@ public class FluxCuratorChunkAdapterTests
         var source = new FluxCuratorChunk
         {
             Content = "Test chunk content",
-            Index = 3,
+            ChunkIndex = 3,
             TotalChunks = 10,
             Location = new FluxCuratorLocation
             {
@@ -39,7 +39,7 @@ public class FluxCuratorChunkAdapterTests
         var result = source.ToFileFluxChunk();
 
         result.Content.Should().Be("Test chunk content");
-        result.Index.Should().Be(3);
+        result.ChunkIndex.Should().Be(3);
         result.Quality.Should().BeApproximately(0.85, 0.01);
         result.Density.Should().BeApproximately(0.72, 0.01);
         result.Tokens.Should().Be(42);
@@ -213,7 +213,7 @@ public class FluxCuratorChunkAdapterTests
         {
             Id = id,
             Content = "FileFlux chunk content",
-            Index = 5,
+            ChunkIndex = 5,
             Quality = 0.9,
             Density = 0.8,
             Tokens = 100,
@@ -235,7 +235,7 @@ public class FluxCuratorChunkAdapterTests
 
         result.Id.Should().Be(id.ToString("N"));
         result.Content.Should().Be("FileFlux chunk content");
-        result.Index.Should().Be(5);
+        result.ChunkIndex.Should().Be(5);
         result.TotalChunks.Should().Be(20);
         result.Metadata.LanguageCode.Should().Be("ko");
         result.Metadata.EstimatedTokenCount.Should().Be(100);
@@ -508,9 +508,9 @@ public class FluxCuratorChunkAdapterTests
     {
         var sources = new[]
         {
-            new FluxCuratorChunk { Content = "chunk1", Index = 0 },
-            new FluxCuratorChunk { Content = "chunk2", Index = 1 },
-            new FluxCuratorChunk { Content = "chunk3", Index = 2 }
+            new FluxCuratorChunk { Content = "chunk1", ChunkIndex = 0 },
+            new FluxCuratorChunk { Content = "chunk2", ChunkIndex = 1 },
+            new FluxCuratorChunk { Content = "chunk3", ChunkIndex = 2 }
         };
 
         var results = sources.ToFileFluxChunks();
@@ -546,8 +546,8 @@ public class FluxCuratorChunkAdapterTests
     {
         var sources = new[]
         {
-            new DocumentChunk { Content = "ff1", Index = 0 },
-            new DocumentChunk { Content = "ff2", Index = 1 }
+            new DocumentChunk { Content = "ff1", ChunkIndex = 0 },
+            new DocumentChunk { Content = "ff2", ChunkIndex = 1 }
         };
 
         var results = sources.ToFluxCuratorChunks();

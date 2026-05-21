@@ -141,7 +141,7 @@ public sealed partial class DocumentEnricher : IDocumentEnricher
             nodes.Add(new ChunkNode
             {
                 ChunkId = chunk.Id,
-                Index = chunk.Index,
+                Index = chunk.ChunkIndex,
                 Summary = enriched.Summary,
                 Keywords = enriched.KeywordList,
                 StructureIds = GetStructureIds(chunk),

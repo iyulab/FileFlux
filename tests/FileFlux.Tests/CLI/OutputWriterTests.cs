@@ -221,7 +221,7 @@ public class OutputWriterTests : IDisposable
         {
             chunks.Add(new DocumentChunk
             {
-                Index = i,
+                ChunkIndex = i,
                 Content = $"Test content for chunk {i + 1}",
                 Tokens = 100 + i * 10,
                 Quality = 0.8 + i * 0.05,

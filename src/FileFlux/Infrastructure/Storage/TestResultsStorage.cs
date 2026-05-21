@@ -192,7 +192,7 @@ public class TestResultsStorage
                              $"ID: {chunk.Id}\n" +
                              $"크기: {chunk.Content.Length}자\n" +
                              $"위치: {chunk.Location.StartChar} - {chunk.Location.EndChar}\n" +
-                             $"인덱스: {chunk.Index}\n" +
+                             $"인덱스: {chunk.ChunkIndex}\n" +
                              new string('=', 50) + "\n\n";
 
             await File.WriteAllTextAsync(chunkPath, chunkHeader + chunk.Content, Encoding.UTF8);

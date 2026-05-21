@@ -170,8 +170,8 @@ public static class ProcessingInfoWriter
         // Create chunk manifest
         var chunkManifest = chunkList.Select(c => new
         {
-            index = c.Index,
-            file = $"chunk_{c.Index + 1}{(info.Format == "json" ? ".json" : ".md")}",
+            index = c.ChunkIndex,
+            file = $"chunk_{c.ChunkIndex + 1}{(info.Format == "json" ? ".json" : ".md")}",
             characters = c.Content.Length,
             tokens = c.Tokens,
             quality = c.Quality

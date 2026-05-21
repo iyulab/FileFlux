@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using FluxAbstractions = Flux.Abstractions;
 
 namespace FileFlux.Core;
 
@@ -108,19 +109,10 @@ public readonly struct Abbreviation
 /// <summary>
 /// Language-specific text segmentation profile for sentence boundary detection
 /// and document structure recognition.
+/// Extends <see cref="FluxAbstractions.ILanguageProfile"/> with FileFlux-specific compiled patterns.
 /// </summary>
-public interface ILanguageProfile
+public interface ILanguageProfile : FluxAbstractions.ILanguageProfile
 {
-    /// <summary>
-    /// ISO 639-1 language code (e.g., "en", "ko", "zh")
-    /// </summary>
-    string LanguageCode { get; }
-
-    /// <summary>
-    /// Human-readable language name
-    /// </summary>
-    string LanguageName { get; }
-
     /// <summary>
     /// ISO 15924 script code (e.g., "Latn", "Hang", "Hans", "Arab")
     /// </summary>
@@ -142,14 +134,15 @@ public interface ILanguageProfile
     QuotationMarks QuotationMarks { get; }
 
     /// <summary>
-    /// Regex pattern for detecting sentence endings
+    /// Compiled regex for detecting sentence endings.
+    /// See also <see cref="FluxAbstractions.ILanguageProfile.SentenceEndPattern"/> for the pattern string.
     /// </summary>
-    Regex SentenceEndPattern { get; }
+    Regex CompiledSentenceEndPattern { get; }
 
     /// <summary>
-    /// Regex pattern for detecting section/heading markers
+    /// Compiled regex for detecting section/heading markers
     /// </summary>
-    Regex SectionMarkerPattern { get; }
+    Regex CompiledSectionMarkerPattern { get; }
 
     /// <summary>
     /// Common abbreviations that should not trigger sentence breaks
@@ -179,13 +172,6 @@ public interface ILanguageProfile
     /// <param name="line">Line to check</param>
     /// <returns>True if line is a section marker</returns>
     bool IsSectionMarker(string line);
-
-    /// <summary>
-    /// Find sentence boundaries in text
-    /// </summary>
-    /// <param name="text">Text to analyze</param>
-    /// <returns>List of character positions where sentences end</returns>
-    IReadOnlyList<int> FindSentenceBoundaries(string text);
 }
 
 /// <summary>
@@ -195,8 +181,12 @@ public abstract class LanguageProfileBase : ILanguageProfile
 {
     public abstract string LanguageCode { get; }
     public abstract string LanguageName { get; }
-    public abstract Regex SentenceEndPattern { get; }
-    public abstract Regex SectionMarkerPattern { get; }
+    public abstract Regex CompiledSentenceEndPattern { get; }
+    public abstract Regex CompiledSectionMarkerPattern { get; }
+
+    /// <inheritdoc />
+    /// <remarks>Default implementation returns the pattern string from <see cref="CompiledSentenceEndPattern"/>.</remarks>
+    public virtual string SentenceEndPattern => CompiledSentenceEndPattern.ToString();
 
     /// <summary>
     /// ISO 15924 script code. Default is "Latn" (Latin).
@@ -238,7 +228,7 @@ public abstract class LanguageProfileBase : ILanguageProfile
         // Check last portion of text against sentence end pattern
         var checkLength = Math.Min(50, trimmed.Length);
         var tail = trimmed[^checkLength..];
-        return SentenceEndPattern.IsMatch(tail);
+        return CompiledSentenceEndPattern.IsMatch(tail);
     }
 
     public virtual bool IsSectionMarker(string line)
@@ -246,7 +236,7 @@ public abstract class LanguageProfileBase : ILanguageProfile
         if (string.IsNullOrWhiteSpace(line))
             return false;
 
-        return SectionMarkerPattern.IsMatch(line);
+        return CompiledSectionMarkerPattern.IsMatch(line);
     }
 
     public virtual IReadOnlyList<int> FindSentenceBoundaries(string text)
@@ -255,7 +245,7 @@ public abstract class LanguageProfileBase : ILanguageProfile
             return Array.Empty<int>();
 
         var boundaries = new List<int>();
-        var matches = SentenceEndPattern.Matches(text);
+        var matches = CompiledSentenceEndPattern.Matches(text);
 
         foreach (Match match in matches)
         {

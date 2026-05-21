@@ -30,7 +30,7 @@ public class FluxImproverIntegrationTests
         {
             Id = Guid.NewGuid(),
             Content = "Test content for conversion.",
-            Index = 5,
+            ChunkIndex = 5,
             Strategy = ChunkingStrategies.Auto,
             Quality = 0.85,
             Tokens = 10
@@ -73,7 +73,7 @@ public class FluxImproverIntegrationTests
         var chunk = new DocumentChunk
         {
             Content = "Extension method test.",
-            Index = 0
+            ChunkIndex = 0
         };
 
         // Act
@@ -95,7 +95,7 @@ public class FluxImproverIntegrationTests
         {
             Id = Guid.NewGuid(),
             Content = "Child chunk content.",
-            Index = 1,
+            ChunkIndex = 1,
             Level = 2,
             ParentId = "parent-123",
             Type = HierarchyChunkType.Leaf
@@ -124,7 +124,7 @@ public class FluxImproverIntegrationTests
         var chunk = new HierarchicalDocumentChunk
         {
             Content = "Root chunk content.",
-            Index = 0,
+            ChunkIndex = 0,
             Level = 0,
             ParentId = null,
             Type = HierarchyChunkType.Root
@@ -145,7 +145,7 @@ public class FluxImproverIntegrationTests
         var chunk = new HierarchicalDocumentChunk
         {
             Content = "Child content.",
-            Index = 1,
+            ChunkIndex = 1,
             Level = 1,
             ParentId = "parent-456"
         };
@@ -178,7 +178,7 @@ public class FluxImproverIntegrationTests
         var chunk = new DocumentChunk
         {
             Content = "A specific chunk from the document.",
-            Index = 3,
+            ChunkIndex = 3,
             SourceInfo = new SourceMetadataInfo
             {
                 Title = "Test Document",
@@ -209,7 +209,7 @@ public class FluxImproverIntegrationTests
     public void PrepareForContextualEnrichment_ExtensionMethod_Works()
     {
         // Arrange
-        var chunk = new DocumentChunk { Content = "Chunk text.", Index = 0 };
+        var chunk = new DocumentChunk { Content = "Chunk text.", ChunkIndex = 0 };
         var fullText = "Full document text.";
 
         // Act
@@ -229,11 +229,11 @@ public class FluxImproverIntegrationTests
         // Arrange
         var chunks = new List<HierarchicalDocumentChunk>
         {
-            new() { Level = 2, Index = 1 },
-            new() { Level = 1, Index = 2 },
-            new() { Level = 0, Index = 0 },
-            new() { Level = 1, Index = 1 },
-            new() { Level = 2, Index = 0 }
+            new() { Level = 2, ChunkIndex = 1 },
+            new() { Level = 1, ChunkIndex = 2 },
+            new() { Level = 0, ChunkIndex = 0 },
+            new() { Level = 1, ChunkIndex = 1 },
+            new() { Level = 2, ChunkIndex = 0 }
         };
 
         // Act
@@ -242,15 +242,15 @@ public class FluxImproverIntegrationTests
         // Assert
         Assert.Equal(0, ordered[0].Level);
         Assert.Equal(1, ordered[1].Level);
-        Assert.Equal(1, ordered[1].Index);
+        Assert.Equal(1, ordered[1].ChunkIndex);
         Assert.Equal(1, ordered[2].Level);
-        Assert.Equal(2, ordered[2].Index);
+        Assert.Equal(2, ordered[2].ChunkIndex);
         Assert.Equal(2, ordered[3].Level);
-        Assert.Equal(0, ordered[3].Index);
+        Assert.Equal(0, ordered[3].ChunkIndex);
         Assert.Equal(2, ordered[4].Level);
-        Assert.Equal(1, ordered[4].Index);
+        Assert.Equal(1, ordered[4].ChunkIndex);
 
-        _output.WriteLine("Ordered levels: " + string.Join(", ", ordered.Select(c => $"L{c.Level}I{c.Index}")));
+        _output.WriteLine("Ordered levels: " + string.Join(", ", ordered.Select(c => $"L{c.Level}I{c.ChunkIndex}")));
     }
 
     [Fact]
@@ -259,8 +259,8 @@ public class FluxImproverIntegrationTests
         // Arrange
         var chunks = new List<HierarchicalDocumentChunk>
         {
-            new() { Level = 1, Index = 0 },
-            new() { Level = 0, Index = 0 }
+            new() { Level = 1, ChunkIndex = 0 },
+            new() { Level = 0, ChunkIndex = 0 }
         };
 
         // Act
@@ -335,9 +335,9 @@ public class FluxImproverIntegrationTests
         // Arrange
         var chunks = new List<DocumentChunk>
         {
-            new() { Content = "Chunk 1", Index = 0 },
-            new() { Content = "Chunk 2", Index = 1 },
-            new() { Content = "Chunk 3", Index = 2 }
+            new() { Content = "Chunk 1", ChunkIndex = 0 },
+            new() { Content = "Chunk 2", ChunkIndex = 1 },
+            new() { Content = "Chunk 3", ChunkIndex = 2 }
         };
 
         // Act
@@ -356,7 +356,7 @@ public class FluxImproverIntegrationTests
         // Arrange
         var chunks = new List<DocumentChunk>
         {
-            new() { Content = "Test", Index = 0 }
+            new() { Content = "Test", ChunkIndex = 0 }
         };
 
         // Act
@@ -372,8 +372,8 @@ public class FluxImproverIntegrationTests
         // Arrange
         var chunks = new List<DocumentChunk>
         {
-            new() { Content = "Chunk 1", Index = 0 },
-            new() { Content = "Chunk 2", Index = 1 }
+            new() { Content = "Chunk 1", ChunkIndex = 0 },
+            new() { Content = "Chunk 2", ChunkIndex = 1 }
         };
         var fullText = "Full document text.";
 

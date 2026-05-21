@@ -31,7 +31,7 @@ public static class FluxCuratorChunkAdapter
             ParsedId = parsedId ?? Guid.Empty,
             RawId = rawId ?? Guid.Empty,
             Content = source.Content,
-            Index = source.Index,
+            ChunkIndex = source.ChunkIndex,
             Location = ConvertLocation(source.Location),
             Quality = source.Metadata.QualityScore,
             Density = source.Metadata.DensityScore,
@@ -73,7 +73,7 @@ public static class FluxCuratorChunkAdapter
         {
             Id = source.Id.ToString("N"),
             Content = source.Content,
-            Index = source.Index,
+            ChunkIndex = source.ChunkIndex,
             TotalChunks = source.SourceInfo.ChunkCount,
             Location = ConvertLocation(source.Location),
             Metadata = new FluxCuratorMetadata

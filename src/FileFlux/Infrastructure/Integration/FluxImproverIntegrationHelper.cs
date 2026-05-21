@@ -30,7 +30,7 @@ public class FluxImproverIntegrationHelper : IFluxImproverIntegration
         if (chunk.Location.HeadingPath.Count > 0)
             metadata["HeadingPath"] = chunk.Location.HeadingPath;
 
-        metadata["Index"] = chunk.Index;
+        metadata["Index"] = chunk.ChunkIndex;
         metadata["Strategy"] = chunk.Strategy;
         metadata["Quality"] = chunk.Quality;
         metadata["TokenCount"] = chunk.Tokens;
@@ -119,7 +119,7 @@ public class FluxImproverIntegrationHelper : IFluxImproverIntegration
         IEnumerable<HierarchicalDocumentChunk> chunks)
     {
         // Group by level and return in order (level 0 first, then 1, 2, etc.)
-        return chunks.OrderBy(c => c.Level).ThenBy(c => c.Index);
+        return chunks.OrderBy(c => c.Level).ThenBy(c => c.ChunkIndex);
     }
 
     /// <summary>

@@ -63,7 +63,7 @@ public class ChunkQualityEngineTests
             chunks.Add(new DocumentChunk
             {
                 Content = new string('A', 500), // All chunks same size
-                Index = i,
+                ChunkIndex = i,
                 Metadata = new DocumentMetadata { FileName = "test.txt" }
             });
         }
@@ -86,19 +86,19 @@ public class ChunkQualityEngineTests
             new DocumentChunk
             {
                 Content = "Short",
-                Index = 0,
+                ChunkIndex = 0,
                 Metadata = new DocumentMetadata { FileName = "test.txt" }
             },
             new DocumentChunk
             {
                 Content = new string('A', 2000), // Very large chunk
-                Index = 1,
+                ChunkIndex = 1,
                 Metadata = new DocumentMetadata { FileName = "test.txt" }
             },
             new DocumentChunk
             {
                 Content = new string('B', 500),
-                Index = 2,
+                ChunkIndex = 2,
                 Metadata = new DocumentMetadata { FileName = "test.txt" }
             }
         };
@@ -249,7 +249,7 @@ public class ChunkQualityEngineTests
             new DocumentChunk
             {
                 Content = "This is the introduction section of our document. It provides an overview of the main concepts and sets the stage for detailed discussion.",
-                Index = 0,
+                ChunkIndex = 0,
                 Location = new() { StartChar = 0, EndChar = 128 },
                 Metadata = new DocumentMetadata
                 {
@@ -261,7 +261,7 @@ public class ChunkQualityEngineTests
             new DocumentChunk
             {
                 Content = "The technical implementation details are covered here. We discuss algorithms, data structures, and performance considerations.",
-                Index = 1,
+                ChunkIndex = 1,
                 Location = new() { StartChar = 129, EndChar = 250 },
                 Metadata = new DocumentMetadata
                 {
@@ -273,7 +273,7 @@ public class ChunkQualityEngineTests
             new DocumentChunk
             {
                 Content = "Finally, we conclude with best practices and recommendations for future improvements and maintenance.",
-                Index = 2,
+                ChunkIndex = 2,
                 Location = new() { StartChar = 251, EndChar = 350 },
                 Metadata = new DocumentMetadata
                 {
