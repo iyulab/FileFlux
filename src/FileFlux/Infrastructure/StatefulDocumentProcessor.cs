@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using FileFlux.Core;
+using FileFlux.Infrastructure.Adapters;
 using FluxCurator.Core;
 using FluxCurator.Core.Core;
 using FluxCurator.Core.Infrastructure.Refining;
@@ -484,27 +485,40 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
             var fcChunks = await chunker.ChunkAsync(refined.Text, fcOptions, cancellationToken).ConfigureAwait(false);
 
-            // Convert to FileFlux DocumentChunks from FluxCurator DocumentChunks
-            var chunks = fcChunks.Select((fc, idx) => new FileFlux.Core.DocumentChunk
+            // Convert to FileFlux DocumentChunks from FluxCurator DocumentChunks.
+            // Lift the heading level before the structural marker is stripped (no info loss),
+            // then strip all internal markers so consumers receive clean content. This must use the
+            // same single-source-of-truth helpers as FluxCuratorChunkAdapter so every chunk-producing
+            // path (native IDocumentProcessor included) yields marker-free Content.
+            var chunks = fcChunks.Select((fc, idx) =>
             {
-                RawId = Result.Raw!.Id,
-                Content = fc.Content,
-                ChunkIndex = idx,
-                Tokens = fc.Metadata.EstimatedTokenCount,
-                Strategy = chunker.StrategyName,
-                Location = new SourceLocation
+                var headingLevel = FluxCuratorChunkAdapter.TryExtractHeadingLevel(fc.Content);
+                var chunk = new FileFlux.Core.DocumentChunk
                 {
-                    StartChar = fc.Location.StartPosition,
-                    EndChar = fc.Location.EndPosition
-                },
-                Metadata = refined.Metadata,
-                SourceInfo = new SourceMetadataInfo
+                    RawId = Result.Raw!.Id,
+                    Content = FluxCuratorChunkAdapter.StripInternalMarkers(fc.Content),
+                    ChunkIndex = idx,
+                    Tokens = fc.Metadata.EstimatedTokenCount,
+                    Strategy = chunker.StrategyName,
+                    Location = new SourceLocation
+                    {
+                        StartChar = fc.Location.StartPosition,
+                        EndChar = fc.Location.EndPosition
+                    },
+                    Metadata = refined.Metadata,
+                    SourceInfo = new SourceMetadataInfo
+                    {
+                        SourceId = Result.DocumentId.ToString(),
+                        SourceType = refined.Metadata.FileType ?? "unknown",
+                        Title = refined.Metadata.Title ?? refined.Metadata.FileName,
+                        FilePath = FilePath
+                    }
+                };
+                if (headingLevel is int level)
                 {
-                    SourceId = Result.DocumentId.ToString(),
-                    SourceType = refined.Metadata.FileType ?? "unknown",
-                    Title = refined.Metadata.Title ?? refined.Metadata.FileName,
-                    FilePath = FilePath
+                    chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel] = level;
                 }
+                return chunk;
             }).ToList();
 
             // Link structures to chunks
@@ -566,10 +580,13 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
         foreach (var fc in fcChunks)
         {
+            // Lift heading level before stripping markers (no info loss), then strip — same
+            // single-source-of-truth helpers as the batch path and FluxCuratorChunkAdapter.
+            var headingLevel = FluxCuratorChunkAdapter.TryExtractHeadingLevel(fc.Content);
             var chunk = new FileFlux.Core.DocumentChunk
             {
                 RawId = Result.Raw!.Id,
-                Content = fc.Content,
+                Content = FluxCuratorChunkAdapter.StripInternalMarkers(fc.Content),
                 ChunkIndex = idx++,
                 Tokens = fc.Metadata.EstimatedTokenCount,
                 Strategy = chunker.StrategyName,
@@ -580,6 +597,10 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
                 },
                 Metadata = refined.Metadata
             };
+            if (headingLevel is int level)
+            {
+                chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel] = level;
+            }
 
             chunks.Add(chunk);
             yield return chunk;
