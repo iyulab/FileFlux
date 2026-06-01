@@ -88,6 +88,9 @@ public static class ChunkPropsKeys
     /// <summary>Path in hierarchy tree</summary>
     public const string HierarchyPath = "hierarchy.path";
 
+    /// <summary>Markdown heading level (1-6) lifted from the chunk's structural marker before the marker is stripped from content.</summary>
+    public const string HierarchyHeadingLevel = "hierarchy.headingLevel";
+
     /// <summary>Chunk type classification</summary>
     public const string HierarchyChunkType = "hierarchy.chunkType";
 

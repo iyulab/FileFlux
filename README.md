@@ -77,6 +77,17 @@ foreach (var chunk in chunks)
 }
 ```
 
+> **Clean chunk content.** Before a chunk is surfaced, FileFlux removes **all HTML comments**
+> (`<!-- ... -->`) from `chunk.Content`. This covers the internal structural markers FileFlux emits and
+> consumes during boundary detection (`<!-- HEADING_START:H2 -->`, `<!-- TABLE_START -->`,
+> `<!-- DOCUMENT_IMAGES_START -->`, etc.), so consumers no longer need their own marker-removal step.
+> Note that any HTML comment authored in your source document is also stripped from chunk content. When a
+> chunk begins with a heading marker, its level (1-6) is preserved in
+> `chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel]`.
+>
+> _Known limitation:_ if a chunker splits a marker across a chunk boundary (e.g. `<!-- HEADING_ST` |
+> `ART:H1 -->`), neither half matches and both leak — identical to a downstream `<!--.*?-->` regex.
+
 ### Streaming Processing
 
 ```csharp

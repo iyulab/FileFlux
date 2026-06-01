@@ -558,4 +558,104 @@ public class FluxCuratorChunkAdapterTests
     }
 
     #endregion
+
+    #region Internal Marker Stripping
+
+    [Fact]
+    public void ToFileFluxChunk_HeadingMarkers_StrippedFromContent()
+    {
+        var source = new FluxCuratorChunk
+        {
+            Content = "<!-- HEADING_START:H2 -->\n## Overview\n<!-- HEADING_END:H2 -->\nBody text."
+        };
+
+        var result = source.ToFileFluxChunk();
+
+        result.Content.Should().NotContain("<!--");
+        result.Content.Should().NotContain("HEADING_START");
+        result.Content.Should().Contain("## Overview");
+        result.Content.Should().Contain("Body text.");
+    }
+
+    [Fact]
+    public void ToFileFluxChunk_HeadingMarker_LiftsLevelIntoProps()
+    {
+        var source = new FluxCuratorChunk
+        {
+            Content = "<!-- HEADING_START:H3 -->\n### Details\n<!-- HEADING_END:H3 -->"
+        };
+
+        var result = source.ToFileFluxChunk();
+
+        result.Props.Should().ContainKey(ChunkPropsKeys.HierarchyHeadingLevel);
+        result.Props[ChunkPropsKeys.HierarchyHeadingLevel].Should().Be(3);
+    }
+
+    [Fact]
+    public void ToFileFluxChunk_NoHeadingMarker_DoesNotSetHeadingLevelProp()
+    {
+        var source = new FluxCuratorChunk { Content = "Plain body with no markers." };
+
+        var result = source.ToFileFluxChunk();
+
+        result.Props.Should().NotContainKey(ChunkPropsKeys.HierarchyHeadingLevel);
+        result.Content.Should().Be("Plain body with no markers.");
+    }
+
+    [Theory]
+    [InlineData("<!-- TABLE_START -->\n| a | b |\n<!-- TABLE_END -->", "| a | b |")]
+    [InlineData("<!-- LIST_START:ul -->\n- item\n<!-- LIST_END:ul -->", "- item")]
+    [InlineData("<!-- CODE_START -->\ncode();\n<!-- CODE_END -->", "code();")]
+    public void ToFileFluxChunk_StructuralMarkers_Stripped(string content, string expectedSubstring)
+    {
+        var source = new FluxCuratorChunk { Content = content };
+
+        var result = source.ToFileFluxChunk();
+
+        result.Content.Should().NotContain("<!--");
+        result.Content.Should().Contain(expectedSubstring);
+    }
+
+    [Theory]
+    [InlineData("<!-- DOCUMENT_IMAGES_START -->\nalt text\n<!-- DOCUMENT_IMAGES_END -->")]
+    [InlineData("<!-- SPREADSHEET_IMAGES_START -->\nchart\n<!-- SPREADSHEET_IMAGES_END -->")]
+    [InlineData("<!-- PRESENTATION_IMAGES_START -->\nslide\n<!-- PRESENTATION_IMAGES_END -->")]
+    [InlineData("<!-- IMAGE_START -->\nfigure\n<!-- IMAGE_END -->")]
+    public void ToFileFluxChunk_MultiModalImageMarkers_Stripped(string content)
+    {
+        var source = new FluxCuratorChunk { Content = content };
+
+        var result = source.ToFileFluxChunk();
+
+        result.Content.Should().NotContain("<!--");
+        result.Content.Should().NotContain("IMAGES");
+    }
+
+    [Fact]
+    public void ToFileFluxChunk_MarkerFreeContent_Unchanged()
+    {
+        var source = new FluxCuratorChunk { Content = "No markers here at all." };
+
+        var result = source.ToFileFluxChunk();
+
+        result.Content.Should().Be("No markers here at all.");
+    }
+
+    [Fact]
+    public void ToFileFluxChunk_MarkersLeaveNoExcessBlankLines()
+    {
+        var source = new FluxCuratorChunk
+        {
+            Content = "<!-- HEADING_START:H1 -->\n# Title\n<!-- HEADING_END:H1 -->\n\n<!-- TABLE_START -->\n| x |\n<!-- TABLE_END -->"
+        };
+
+        var result = source.ToFileFluxChunk();
+
+        result.Content.Should().NotContain("<!--");
+        result.Content.Should().NotContain("\n\n\n");
+        result.Content.Should().StartWith("# Title");
+        result.Content.Should().EndWith("| x |");
+    }
+
+    #endregion
 }

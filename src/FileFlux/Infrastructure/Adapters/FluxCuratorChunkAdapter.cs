@@ -1,5 +1,7 @@
 namespace FileFlux.Infrastructure.Adapters;
 
+using System.Globalization;
+using System.Text.RegularExpressions;
 using FileFlux.Core;
 using FluxCuratorChunk = FluxCurator.Core.Domain.DocumentChunk;
 using FluxCuratorMetadata = FluxCurator.Core.Domain.ChunkMetadata;
@@ -9,8 +11,57 @@ using FluxCuratorLocation = FluxCurator.Core.Domain.ChunkLocation;
 /// Adapter for converting between FluxCurator and FileFlux DocumentChunk types.
 /// Enables seamless integration between the two libraries.
 /// </summary>
-public static class FluxCuratorChunkAdapter
+public static partial class FluxCuratorChunkAdapter
 {
+    // Internal structural/boundary markers (e.g. <!-- HEADING_START:H2 -->, <!-- TABLE_START -->,
+    // <!-- DOCUMENT_IMAGES_START -->) are emitted by FileFlux readers as chunking signals and consumed
+    // by boundary detection. They must never leak into the final chunk content surfaced to consumers
+    // (search display, embedding input, LLM context). This strips every HTML comment FileFlux may emit
+    // so downstream consumers no longer need their own marker-stripping regex.
+    [GeneratedRegex(@"<!--.*?-->", RegexOptions.Singleline)]
+    private static partial Regex InternalMarkerRegex();
+
+    // First markdown heading marker in the chunk, capturing its level (1-6).
+    [GeneratedRegex(@"<!--\s*HEADING_START:H(\d+)\s*-->", RegexOptions.Singleline)]
+    private static partial Regex HeadingLevelRegex();
+
+    // Three or more consecutive newlines left behind after marker removal.
+    [GeneratedRegex(@"(\r?\n){3,}")]
+    private static partial Regex ExcessBlankLinesRegex();
+
+    /// <summary>
+    /// Removes internal structural markers from chunk content. Returns the cleaned text with
+    /// collapsed blank lines and trimmed edges. Safe to call on already-clean content (no-op).
+    /// </summary>
+    internal static string StripInternalMarkers(string content)
+    {
+        if (string.IsNullOrEmpty(content) || !content.Contains("<!--", StringComparison.Ordinal))
+        {
+            return content;
+        }
+
+        var stripped = InternalMarkerRegex().Replace(content, string.Empty);
+        stripped = ExcessBlankLinesRegex().Replace(stripped, "\n\n");
+        return stripped.Trim();
+    }
+
+    /// <summary>
+    /// Extracts the markdown heading level (1-6) from the chunk's first HEADING_START marker,
+    /// or null when the chunk contains no heading marker.
+    /// </summary>
+    internal static int? TryExtractHeadingLevel(string content)
+    {
+        if (string.IsNullOrEmpty(content))
+        {
+            return null;
+        }
+
+        var match = HeadingLevelRegex().Match(content);
+        return match.Success && int.TryParse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var level)
+            ? level
+            : null;
+    }
+
     /// <summary>
     /// Converts a FluxCurator DocumentChunk to a FileFlux DocumentChunk.
     /// </summary>
@@ -25,12 +76,17 @@ public static class FluxCuratorChunkAdapter
     {
         ArgumentNullException.ThrowIfNull(source);
 
+        // Lift the heading level from the structural marker before it is stripped (no info loss),
+        // then remove all internal markers so consumers receive clean content.
+        var headingLevel = TryExtractHeadingLevel(source.Content);
+        var cleanContent = StripInternalMarkers(source.Content);
+
         var chunk = new DocumentChunk
         {
             Id = Guid.TryParse(source.Id, out var id) ? id : Guid.NewGuid(),
             ParsedId = parsedId ?? Guid.Empty,
             RawId = rawId ?? Guid.Empty,
-            Content = source.Content,
+            Content = cleanContent,
             ChunkIndex = source.ChunkIndex,
             Location = ConvertLocation(source.Location),
             Quality = source.Metadata.QualityScore,
@@ -48,6 +104,12 @@ public static class FluxCuratorChunkAdapter
             {
                 chunk.Props[kvp.Key] = kvp.Value;
             }
+        }
+
+        // Preserve the structural heading level lifted before marker stripping.
+        if (headingLevel is int level)
+        {
+            chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel] = level;
         }
 
         // Set language info in source metadata
