@@ -387,3 +387,6 @@ local-docs/
 .serena/
 docs/issues/
 test-output/
+
+# IDE language server cache
+*.lscache
