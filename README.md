@@ -85,6 +85,10 @@ foreach (var chunk in chunks)
 > chunk begins with a heading marker, its level (1-6) is preserved in
 > `chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel]`.
 >
+> Markdown **link reference definitions** (`[label]: https://…`) are likewise excluded from chunk
+> content — they are document metadata, not body text. The referencing link keeps its display text and
+> resolved target inline, so no content is lost.
+>
 > _Known limitation:_ if a chunker splits a marker across a chunk boundary (e.g. `<!-- HEADING_ST` |
 > `ART:H1 -->`), neither half matches and both leak — identical to a downstream `<!--.*?-->` regex.
 

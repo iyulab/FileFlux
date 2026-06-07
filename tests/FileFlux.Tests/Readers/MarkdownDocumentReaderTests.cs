@@ -155,4 +155,63 @@ This document covers:
         Assert.Contains("5. Item five", content);
         Assert.Contains("10. Item ten", content);
     }
+
+    // Link reference definitions (`[label]: url`) are Markdig metadata, not renderable
+    // content. Markdig parses them into a LinkReferenceDefinitionGroup block that has no
+    // matching ExtractBlock case and used to fall through to the NormalizeRenderer default
+    // arm, leaking the raw definition plus a trailing `[]:` into chunk text (Filer saw the
+    // trailing `[]:` after tables/lists in osi-model.md / tcp-vs-udp.md). The reader now
+    // skips these blocks entirely.
+
+    [Fact]
+    public async Task ExtractAsync_LabeledReferenceDefinition_ShouldStripDefinitionAndKeepInlineLink()
+    {
+        // Arrange — a labeled reference definition must be stripped from content, while the
+        // referencing link's display text and resolved target stay intact (no content loss).
+        var markdown = "# Doc\n\nSee [link][1] here.\n\n[1]: https://example.com\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "doc.md");
+
+        // Assert — definition line and trailing []: gone, inline link text/target preserved
+        Assert.DoesNotContain("[]:", result.Text);
+        Assert.DoesNotContain("[1]: https://example.com", result.Text);
+        Assert.Contains("link", result.Text);
+        Assert.Contains("https://example.com", result.Text); // resolved inline link target retained
+    }
+
+    [Fact]
+    public async Task ExtractAsync_TableThenReferenceDefinition_ShouldNotLeakTrailingBracketColon()
+    {
+        // Arrange — reference definition at end of document, right after a table. This is the
+        // exact Filer shape: the group renders a trailing `[]:` glued onto the table's tail.
+        var markdown = "# TCP vs UDP\n\n| Protocol | Use |\n|---|---|\n| TCP | Streaming, DNS, games |\n\n[ref]: https://example.com/spec\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "tcp.md");
+
+        // Assert — no leaked definition or placeholder, table content intact
+        Assert.DoesNotContain("[]:", result.Text);
+        Assert.DoesNotContain("[ref]:", result.Text);
+        Assert.Contains("Streaming, DNS, games", result.Text);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_MultipleReferenceDefinitions_ShouldStripAll()
+    {
+        // Arrange — several labeled definitions; none may survive into chunk content.
+        var markdown = "# Refs\n\nText with [a][1] and [b][2].\n\n[1]: https://a.example\n[2]: https://b.example\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "refs.md");
+
+        // Assert
+        Assert.DoesNotContain("[]:", result.Text);
+        Assert.DoesNotContain("[1]:", result.Text);
+        Assert.DoesNotContain("[2]:", result.Text);
+        Assert.Contains("Text with", result.Text); // body preserved
+    }
 }

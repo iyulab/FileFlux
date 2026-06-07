@@ -83,6 +83,52 @@ public class NativeProcessAsyncMarkerStripTests
         }
     }
 
+    private const string MarkdownWithReferenceDefinition =
+        "# TCP vs UDP\n\n" +
+        "| Protocol | Use |\n" +
+        "| --- | --- |\n" +
+        "| TCP | Streaming, DNS, games |\n\n" +
+        "See the [spec][1] for details.\n\n" +
+        "[1]: https://example.com/spec\n";
+
+    [Fact]
+    public async Task NativeProcessAsync_LinkReferenceDefinition_DoesNotLeakBracketColon()
+    {
+        // Arrange — mirror Filer's exact path: factory.Create(".md") -> ProcessAsync -> Result.Chunks.
+        // A labeled link reference definition must not surface as `[]:` / `[label]: url` in chunk content,
+        // while the referencing link's display text survives (no content loss). Regression for the
+        // reference-definition-group leak (Filer upstream issue 20260607).
+        var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-refdef-{Guid.NewGuid():N}.md");
+        await File.WriteAllTextAsync(tempFile, MarkdownWithReferenceDefinition);
+
+        try
+        {
+            using var processor = CreateProcessor(tempFile);
+
+            // Act
+            await processor.ProcessAsync();
+
+            // Assert
+            Assert.NotNull(processor.Result.Chunks);
+            Assert.NotEmpty(processor.Result.Chunks!);
+
+            foreach (var chunk in processor.Result.Chunks!)
+            {
+                Assert.DoesNotContain("[]:", chunk.Content, StringComparison.Ordinal);
+                Assert.DoesNotContain("[1]: https://example.com", chunk.Content, StringComparison.Ordinal);
+            }
+
+            // No content loss: the table cell and the link display text must remain in chunk content.
+            var allContent = string.Concat(processor.Result.Chunks!.Select(c => c.Content));
+            Assert.Contains("Streaming, DNS, games", allContent, StringComparison.Ordinal);
+            Assert.Contains("spec", allContent, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     [Fact]
     public async Task ChunkStreamAsync_DefaultAuto_DoesNotLeakStructuralMarkers()
     {

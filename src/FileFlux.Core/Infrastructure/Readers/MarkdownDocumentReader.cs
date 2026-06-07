@@ -209,6 +209,14 @@ public class MarkdownDocumentReader : IDocumentReader
     {
         switch (block)
         {
+            // Link reference definitions ([label]: url) are Markdig metadata, not renderable
+            // content. They have no matching case and would otherwise fall through to the
+            // NormalizeRenderer default arm, leaking the raw definition (and a trailing []:)
+            // into chunk text. Skip them entirely; inline links keep their own display text.
+            case LinkReferenceDefinitionGroup:
+            case LinkReferenceDefinition:
+                return;
+
             case HeadingBlock heading:
                 ExtractHeading(heading, content);
                 break;
