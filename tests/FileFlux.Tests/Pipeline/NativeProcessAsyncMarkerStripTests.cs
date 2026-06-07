@@ -129,6 +129,46 @@ public class NativeProcessAsyncMarkerStripTests
         }
     }
 
+    private const string MarkdownWithoutReferenceDefinitions =
+        "# TCP vs UDP\n\n" +
+        "| Feature | TCP | UDP |\n" +
+        "| --- | --- | --- |\n" +
+        "| Use cases | Web, email, files | Streaming, DNS, games |\n";
+
+    [Fact]
+    public async Task NativeProcessAsync_DocWithoutReferenceDefinitions_DoesNotLeakBracketColon()
+    {
+        // Arrange — the exact Filer shape: a document with ZERO reference definitions still gets
+        // an empty LinkReferenceDefinitionGroup appended by Markdig, which used to render a bare
+        // []: onto the tail. Verify the native chunk path Filer indexes stays clean.
+        var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-norefdef-{Guid.NewGuid():N}.md");
+        await File.WriteAllTextAsync(tempFile, MarkdownWithoutReferenceDefinitions);
+
+        try
+        {
+            using var processor = CreateProcessor(tempFile);
+
+            // Act
+            await processor.ProcessAsync();
+
+            // Assert
+            Assert.NotNull(processor.Result.Chunks);
+            Assert.NotEmpty(processor.Result.Chunks!);
+
+            foreach (var chunk in processor.Result.Chunks!)
+            {
+                Assert.DoesNotContain("[]:", chunk.Content, StringComparison.Ordinal);
+            }
+
+            var allContent = string.Concat(processor.Result.Chunks!.Select(c => c.Content));
+            Assert.Contains("Streaming, DNS, games", allContent, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     [Fact]
     public async Task ChunkStreamAsync_DefaultAuto_DoesNotLeakStructuralMarkers()
     {

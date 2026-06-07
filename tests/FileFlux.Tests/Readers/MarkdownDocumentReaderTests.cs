@@ -214,4 +214,46 @@ This document covers:
         Assert.DoesNotContain("[2]:", result.Text);
         Assert.Contains("Text with", result.Text); // body preserved
     }
+
+    // Markdig appends an (often empty) LinkReferenceDefinitionGroup to the end of EVERY document,
+    // even when the source contains zero reference definitions. Before the skip, the empty group
+    // rendered a bare `[]:` placeholder glued onto the document tail — this is the *actual* shape
+    // Filer observed in osi-model.md / tcp-vs-udp.md (confirmed: both originals have no [label]: url).
+    // These two cases guard the empty-group path directly (the labeled cases above do not).
+
+    [Fact]
+    public async Task ExtractAsync_TableDocWithoutReferenceDefinitions_ShouldNotAppendTrailingBracketColon()
+    {
+        // Arrange — tcp-vs-udp.md shape: ends with a table, zero reference definitions.
+        var markdown =
+            "# TCP vs UDP\n\n" +
+            "| Feature | TCP | UDP |\n|---------|-----|-----|\n" +
+            "| Use cases | Web, email, files | Streaming, DNS, games |\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "tcp-vs-udp.md");
+
+        // Assert — empty group must not leak a trailing []:, table content intact
+        Assert.DoesNotContain("[]:", result.Text);
+        Assert.Contains("Streaming, DNS, games", result.Text);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_ParagraphDocWithoutReferenceDefinitions_ShouldNotAppendTrailingBracketColon()
+    {
+        // Arrange — osi-model.md shape: ends with a paragraph, zero reference definitions.
+        var markdown =
+            "# OSI 7-Layer Model\n\n" +
+            "1. Physical\n2. Data Link\n3. Network\n\n" +
+            "Data encapsulation wraps each layer's payload with headers as it descends the stack.\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "osi-model.md");
+
+        // Assert
+        Assert.DoesNotContain("[]:", result.Text);
+        Assert.Contains("descends the stack", result.Text);
+    }
 }
