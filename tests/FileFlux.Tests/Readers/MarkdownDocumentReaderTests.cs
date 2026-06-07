@@ -256,4 +256,70 @@ This document covers:
         Assert.DoesNotContain("[]:", result.Text);
         Assert.Contains("descends the stack", result.Text);
     }
+
+    // Markdig's LinkInline represents BOTH links and images; only link.IsImage distinguishes
+    // them. The reader used to render every LinkInline as `[text](url)`, which (1) stripped the
+    // `!` image marker so images masqueraded as links downstream, and (2) emitted bare `[]`
+    // bracket noise for empty link text. Policy (maintainer-confirmed, consistent with
+    // DocumentRefiner/MarkdownConverter which both emit `![alt](path)`): preserve `![alt](url)`
+    // for images, and for links drop the empty-text bracket to url-only.
+
+    [Fact]
+    public async Task ExtractAsync_Image_ShouldPreserveBangMarkerAndPath()
+    {
+        // Arrange — an image must stay an image (`!` preserved), not become a plain link.
+        var markdown = "# Doc\n\n![Architecture diagram](images/arch.png)\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "doc.md");
+
+        // Assert — full image syntax retained, no `!`-stripped link form
+        Assert.Contains("![Architecture diagram](images/arch.png)", result.Text);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_EmptyLinkText_ShouldEmitUrlWithoutEmptyBrackets()
+    {
+        // Arrange — `[](url)` has empty display text; emitting `[]` is embedding noise.
+        var markdown = "# Doc\n\nSee [](https://example.com) for details.\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "doc.md");
+
+        // Assert — url preserved, no bare empty bracket token
+        Assert.Contains("https://example.com", result.Text);
+        Assert.DoesNotContain("[]", result.Text);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_ImageWithEmptyAlt_ShouldKeepImageMarker()
+    {
+        // Arrange — `![](url)` has empty alt but is still an image; the `!` marker must survive
+        // so downstream can tell it apart from text (it must NOT degrade to a plain `[](url)`).
+        var markdown = "# Doc\n\n![](images/x.png)\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "doc.md");
+
+        // Assert — image marker + path retained, never the `!`-stripped link form
+        Assert.Contains("![](images/x.png)", result.Text);
+        Assert.DoesNotContain(" [](images/x.png)", result.Text); // not demoted to a plain link
+    }
+
+    [Fact]
+    public async Task ExtractAsync_NormalInlineLink_ShouldPreserveTextAndTarget()
+    {
+        // Arrange — regression guard: ordinary links must keep their display text and target.
+        var markdown = "# Doc\n\nVisit [the site](https://example.com/page) now.\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "doc.md");
+
+        // Assert
+        Assert.Contains("[the site](https://example.com/page)", result.Text);
+    }
 }

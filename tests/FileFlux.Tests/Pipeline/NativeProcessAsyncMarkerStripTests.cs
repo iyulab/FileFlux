@@ -169,6 +169,52 @@ public class NativeProcessAsyncMarkerStripTests
         }
     }
 
+    private const string MarkdownWithImagesAndEmptyLink =
+        "# Visual Guide\n\n" +
+        "![Architecture diagram](images/arch.png)\n\n" +
+        "Intro paragraph.\n\n" +
+        "See [](https://example.com) for the empty-text link case.\n\n" +
+        "![](images/unnamed.png)\n";
+
+    [Fact]
+    public async Task NativeProcessAsync_ImagesAndEmptyLink_PreserveMarkerAndDropEmptyBrackets()
+    {
+        // Arrange — mirror Filer's exact path: factory.Create(".md") -> ProcessAsync -> Result.Chunks.
+        // Images must keep their `!` marker (not masquerade as links) and empty-text links must not
+        // leave bare `[]` bracket noise in indexed chunk content. Native-path guard for the
+        // LinkInline image/empty-link fix (issue 20260607-linkinline-image-marker-lost); the
+        // refdef leak showed reader-unit coverage alone can miss the path Filer actually indexes.
+        var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-image-{Guid.NewGuid():N}.md");
+        await File.WriteAllTextAsync(tempFile, MarkdownWithImagesAndEmptyLink);
+
+        try
+        {
+            using var processor = CreateProcessor(tempFile);
+
+            // Act
+            await processor.ProcessAsync();
+
+            // Assert
+            Assert.NotNull(processor.Result.Chunks);
+            Assert.NotEmpty(processor.Result.Chunks!);
+
+            var allContent = string.Concat(processor.Result.Chunks!.Select(c => c.Content));
+
+            // Image `!` markers + paths survive (images stay images, not demoted to links).
+            Assert.Contains("![Architecture diagram](images/arch.png)", allContent, StringComparison.Ordinal);
+            Assert.Contains("![](images/unnamed.png)", allContent, StringComparison.Ordinal);
+            // Empty-text link emits the url only — the `[](url)` bracket form must not survive.
+            // (Note: an empty-alt image legitimately keeps `![]`, so we check the link form
+            // specifically rather than a blanket `[]` absence.)
+            Assert.Contains("https://example.com", allContent, StringComparison.Ordinal);
+            Assert.DoesNotContain("[](https://example.com)", allContent, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     [Fact]
     public async Task ChunkStreamAsync_DefaultAuto_DoesNotLeakStructuralMarkers()
     {

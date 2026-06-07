@@ -447,7 +447,23 @@ public class MarkdownDocumentReader : IDocumentReader
                 case LinkInline link:
                     var linkText = new StringBuilder();
                     ExtractInlinesRecursive(link, linkText);
-                    text.Append(CultureInfo.InvariantCulture, $"[{linkText}]({link.Url})");
+                    var label = linkText.ToString();
+                    if (link.IsImage)
+                    {
+                        // Images keep the `!` marker and path so downstream can tell them apart
+                        // from text/links (consistent with DocumentRefiner/MarkdownConverter which
+                        // emit `![alt](path)`). Empty alt still renders `![](url)` — the marker matters.
+                        text.Append(CultureInfo.InvariantCulture, $"![{label}]({link.Url})");
+                    }
+                    else if (label.Length > 0)
+                    {
+                        text.Append(CultureInfo.InvariantCulture, $"[{label}]({link.Url})");
+                    }
+                    else if (!string.IsNullOrEmpty(link.Url))
+                    {
+                        // Empty link text: emit the url only, never a bare `[]` bracket token (noise).
+                        text.Append(link.Url);
+                    }
                     break;
 
                 case CodeInline code:

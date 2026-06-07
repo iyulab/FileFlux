@@ -128,8 +128,8 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
         {
             // 컨텍스트와 세그먼트 유사도 기반 조정
             var contextWords = new HashSet<string>(
-                context.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries));
-            var segmentWords = segment.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                context.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            var segmentWords = segment.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
             var overlap = segmentWords.Count(w => contextWords.Contains(w));
             var overlapRatio = segmentWords.Length > 0 ? (double)overlap / segmentWords.Length : 0;
@@ -139,7 +139,7 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
         }
 
         // 구조적 변화 감지
-        if (segment.StartsWith("#", StringComparison.Ordinal) || segment.Contains("Chapter") || segment.Contains("Section"))
+        if (segment.StartsWith('#') || segment.Contains("Chapter") || segment.Contains("Section"))
         {
             uncertainty *= 1.5; // 섹션 변경
         }
@@ -167,7 +167,7 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
         return Math.Max(1, Math.Min(1000, uncertainty));
     }
 
-    private double CalculateAverageWordLength(string text)
+    private static double CalculateAverageWordLength(string text)
     {
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length == 0) return 0;
@@ -184,7 +184,7 @@ public class MockStatisticalBoundaryDetector : IStatisticalBoundaryDetector
         return _baseThreshold;
     }
 
-    private double CalculateConfidence(double uncertainty)
+    private static double CalculateConfidence(double uncertainty)
     {
         // Uncertainty가 극단적일수록 신뢰도 높음
         if (uncertainty < 5 || uncertainty > 100)
