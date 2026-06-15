@@ -365,6 +365,16 @@ public partial class HtmlDocumentReader : IDocumentReader
             structuralHints["has_semantic_structure"] = true;
             structuralHints["semantic_elements"] = semanticElements.ToArray();
         }
+
+        // Heading 기반 섹션 분할 힌트. HtmlDocumentReader는 h1-h6을 Markdown(`# heading`)으로
+        // 변환하므로, 이 힌트가 있어야 BasicDocumentParser가 헤더 기반 섹션 분할을 수행한다.
+        // 누락 시 문서 전체가 단일 청크로 인덱싱된다(PDF/Word/PPT 등 다른 reader와 동일하게 설정).
+        var headingNodes = doc.DocumentNode.SelectNodes("//h1 | //h2 | //h3 | //h4 | //h5 | //h6");
+        if (headingNodes != null && headingNodes.Count > 0)
+        {
+            structuralHints["has_headers"] = true;
+            structuralHints["header_count"] = headingNodes.Count;
+        }
     }
 
     private static void ExtractBodyContent(HtmlNode bodyNode, StringBuilder textBuilder, Dictionary<string, object> structuralHints, List<string> warnings, List<ImageInfo> images, CancellationToken cancellationToken)

@@ -1,4 +1,5 @@
 ﻿using FileFlux.Core.Infrastructure.Readers;
+using System.Globalization;
 using System.Text;
 using Xunit;
 using Xunit.Abstractions;
@@ -107,6 +108,11 @@ public class HtmlDocumentTests
             Assert.Contains("### 섹션 1 제목", result.Text);
             Assert.Contains("### 섹션 2 제목", result.Text);
             Assert.Contains("#### 사이드바", result.Text);
+
+            // has_headers 힌트 검증 — 이 힌트가 있어야 BasicDocumentParser가 헤더 기반
+            // 섹션 분할을 수행한다. 누락 시 문서 전체가 단일 청크로 인덱싱된다.
+            Assert.True(result.Hints.ContainsKey("has_headers"));
+            Assert.True((bool)result.Hints["has_headers"]);
             
             _output.WriteLine($"HTML 구조화 결과:");
             _output.WriteLine(result.Text);
@@ -586,6 +592,72 @@ public class HtmlDocumentTests
                 File.Delete(tempFileWithBase64);
             if (File.Exists(tempFileWithoutBase64))
                 File.Delete(tempFileWithoutBase64);
+        }
+    }
+
+    [Fact]
+    public async Task ExtractAsync_WithHeadings_ShouldSetHasHeadersHintForSectionChunking()
+    {
+        // Arrange — heading만 있고 paragraph break가 거의 없는 긴 HTML.
+        // has_headers 힌트가 없으면 BasicDocumentParser가 paragraph 기반으로 처리하여
+        // 전체가 단일 청크가 된다(원 결함: HTML 963KB → 1 청크). 힌트가 있으면 섹션 분할된다.
+        var body = new StringBuilder();
+        for (var i = 1; i <= 5; i++)
+        {
+            body.AppendLine(CultureInfo.InvariantCulture, $"<h2>섹션 {i}</h2>");
+            body.AppendLine(CultureInfo.InvariantCulture, $"<p>{new string('가', 2000)}</p>");
+        }
+
+        var htmlContent = $"""
+            <!DOCTYPE html>
+            <html><head><title>헤딩 분할 테스트</title></head>
+            <body><h1>문서 제목</h1>{body}</body></html>
+            """;
+
+        var tempFile = await CreateTempHtmlFileAsync(htmlContent);
+        try
+        {
+            // Act
+            var reader = new HtmlDocumentReader();
+            var result = await reader.ExtractAsync(tempFile);
+
+            // Assert — heading 감지 → has_headers + header_count 설정
+            Assert.True(result.Hints.ContainsKey("has_headers"));
+            Assert.True((bool)result.Hints["has_headers"]);
+            Assert.True(result.Hints.ContainsKey("header_count"));
+            Assert.Equal(6, result.Hints["header_count"]); // h1 1개 + h2 5개
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ExtractAsync_WithoutHeadings_ShouldNotSetHasHeadersHint()
+    {
+        // Arrange — heading 없는 HTML은 has_headers 힌트를 set하지 않는다(대조군).
+        var htmlContent = """
+            <!DOCTYPE html>
+            <html><head><title>헤딩 없음</title></head>
+            <body><p>본문 단락 하나뿐입니다.</p></body></html>
+            """;
+
+        var tempFile = await CreateTempHtmlFileAsync(htmlContent);
+        try
+        {
+            // Act
+            var reader = new HtmlDocumentReader();
+            var result = await reader.ExtractAsync(tempFile);
+
+            // Assert
+            Assert.False(result.Hints.ContainsKey("has_headers"));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
         }
     }
 
