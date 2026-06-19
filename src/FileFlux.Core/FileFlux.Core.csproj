@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Expose internal native self-update seams to the test assembly -->
+    <InternalsVisibleTo Include="FileFlux.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Document Processing Libraries -->
     <PackageReference Include="Markdig" />
     <PackageReference Include="HtmlAgilityPack" />

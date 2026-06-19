@@ -240,14 +240,16 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Adds OfficeNativeDocumentReader for high-performance DOCX, XLSX, PPTX processing.
-    /// Uses undoc native library (Rust-based) which is downloaded on-demand from GitHub releases.
+    /// Uses the undoc native library (Rust-based). The binary is downloaded on-demand from GitHub
+    /// releases on first use; ongoing self-update is OFF by default (the cached/pinned binary is reused).
     /// </summary>
     /// <remarks>
     /// The native reader provides:
     /// - Faster processing compared to managed libraries
     /// - Better CJK text handling
     /// - Parallel section processing
-    /// - Self-update capability
+    /// - Optional background self-update (opt-in via UndocNativeLoader.AutoUpdateEnabled or the
+    ///   FILEFLUX_NATIVE_AUTOUPDATE environment variable; off by default for reproducibility)
     ///
     /// Call this BEFORE AddFileFlux() to use native readers as primary:
     /// <code>

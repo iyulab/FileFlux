@@ -8,7 +8,8 @@ namespace FileFlux.Core.Infrastructure.Interop;
 
 /// <summary>
 /// Lazy loader for unhwp native library.
-/// Downloads platform-specific binary from GitHub releases on first use.
+/// Downloads the platform-specific binary from GitHub releases on first use, then caches it.
+/// Background self-update is OFF by default — see <see cref="AutoUpdateEnabled"/>.
 /// </summary>
 /// <remarks>
 /// Cache structure:
@@ -30,6 +31,26 @@ public sealed class UnhwpNativeLoader : IDisposable
 
     private static readonly Lazy<UnhwpNativeLoader> _instance = new(() => new UnhwpNativeLoader());
     public static UnhwpNativeLoader Instance => _instance.Value;
+
+    private static bool? _autoUpdateOverride; // null = derive from FILEFLUX_NATIVE_AUTOUPDATE
+
+    /// <summary>
+    /// Enables background self-update of the native unhwp binary from GitHub releases.
+    /// Default: <c>false</c> — the NuGet-pinned bundled binary is used for reproducibility.
+    /// When unset, falls back to the <c>FILEFLUX_NATIVE_AUTOUPDATE</c> environment variable
+    /// (1/true/yes/on). An explicit set always wins over the environment variable.
+    /// </summary>
+    public static bool AutoUpdateEnabled
+    {
+        get => _autoUpdateOverride ?? NativeAutoUpdate.ResolveDefault();
+        set => _autoUpdateOverride = value;
+    }
+
+    /// <summary>
+    /// Clears any explicit <see cref="AutoUpdateEnabled"/> override so the value derives from the
+    /// environment again. Test seam for isolating static state across cases.
+    /// </summary>
+    internal static void ResetAutoUpdateOverride() => _autoUpdateOverride = null;
 
     private IntPtr _libraryHandle = IntPtr.Zero;
     private readonly SemaphoreSlim _loadLock = new(1, 1);
@@ -191,8 +212,10 @@ public sealed class UnhwpNativeLoader : IDisposable
         {
             if (_isLoaded) return;
 
-            // Check for pending update first
-            ApplyPendingUpdateIfExists();
+            // Apply a previously downloaded self-update only when self-update is enabled.
+            // With auto-update off we stay on the NuGet-pinned binary and ignore stale pending downloads.
+            if (AutoUpdateEnabled)
+                ApplyPendingUpdateIfExists();
 
             var libraryPath = await GetOrDownloadLibraryAsync(cancellationToken).ConfigureAwait(false);
             LoadLibrary(libraryPath);
@@ -213,6 +236,10 @@ public sealed class UnhwpNativeLoader : IDisposable
     /// </summary>
     private void ScheduleBackgroundUpdateCheck()
     {
+        // Self-update is opt-in. When disabled, never touch the network or the cached binary.
+        if (!AutoUpdateEnabled)
+            return;
+
         // Only start once per instance
         if (Interlocked.CompareExchange(ref _backgroundUpdateStarted, 1, 0) != 0)
             return;

@@ -14,7 +14,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 ### Key Features
 
 - **5-Stage Stateful Pipeline**: Extract → Rule-Refine → LLM-Refine → Chunk → Enrich
-- **Native Document Readers**: Rust FFI-based readers (Unpdf, Undoc, Unhwp) for 2-5x faster processing
+- **Native Document Readers**: Rust FFI-based readers (Unpdf, Undoc, Unhwp) for 2-5x faster processing. Binaries are NuGet-pinned for reproducibility; runtime self-update from GitHub releases is opt-in (off by default — set `UndocNativeLoader.AutoUpdateEnabled = true` / `UnhwpNativeLoader.AutoUpdateEnabled = true` or the `FILEFLUX_NATIVE_AUTOUPDATE=1` environment variable)
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, HWP, HWPX, Markdown, HTML, TXT, JSON, CSV
 - **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel
 - **Interface-Driven AI**: Define AI service interfaces, implement with your preferred provider
