@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.14] - 2026-06-19
+
+### Changed
+- **Native reader dependency bump**: deliver accumulated extraction-quality
+  improvements that were stranded behind stale NuGet pins.
+  - `Undoc` 0.3.0 → 0.5.2: XLSX "Place in Cell" rich-value image extraction,
+    DOCX VML legacy image extraction, bare CR/CRLF newline normalization,
+    PPTX slide layout/master text inheritance, DOCX streaming for large files
+  - `Unhwp` 0.3.2 → 0.5.1: tab/leader (`hp:tab`) rendering, floating image
+    (stamp/signature) handling, `<hp:t>` whitespace-loss fix, stronger image
+    extraction
+  - `Unpdf` 0.6.4 → 0.7.0: WebAssembly target support
+  - Now that native self-update is opt-in/off-by-default (NuGet-pinned binaries
+    are what actually loads), keeping these pins current is structurally required.
+
 ## [0.10.0] - 2025-01-28
 
 ### Added
