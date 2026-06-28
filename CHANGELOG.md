@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.15] - 2026-06-29
+
+### Fixed
+- **Captive dependency (MU-6)**: `AddFileFlux` registered `IDocumentParserFactory` and `IMarkdownConverter`
+  as hardcoded Singletons even though they capture `IDocumentAnalysisService`, which consumers commonly
+  register as Scoped (e.g. FluxIndex's `FluxIndexTextCompletionAdapter`). This captive dependency forced
+  consumers to disable global scope validation (`ValidateScopes=false`), masking other captive bugs. Both are
+  now registered with the method's shared `lifetime` parameter (default Scoped), so the graph validates under
+  `ValidateScopes=true`. The Markdown normalizer remains Singleton (no DI captures). Reported via umbrella MU-6
+  (upstream root fix of AIMS issue 260416).
+
+### Changed
+- Build: NU1903 (CVE-2025-6965 in transitive `SQLitePCLRaw.lib.e_sqlite3`, via the sample app's EFCore.Sqlite)
+  moved to `WarningsNotAsErrors` (matches the FluxIndex convention) — keeps the warning visible while unblocking
+  the build until a patched native package ships.
+- Tests: tagged the file-based `DocumentReadersIntegrationTests` with `[Trait("Category", "Integration")]` so the
+  `Category!=Integration` CI filter excludes it (it requires external test-data files).
+
 ## [0.10.14] - 2026-06-19
 
 ### Changed
