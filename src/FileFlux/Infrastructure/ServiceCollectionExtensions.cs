@@ -46,8 +46,11 @@ public static class ServiceCollectionExtensions
     /// <returns>Service collection for chaining</returns>
     /// <remarks>
     /// Document readers are always registered as Transient (stateless).
-    /// Converters and normalizers are always registered as Singleton (thread-safe, stateless).
-    /// Only factory and processor services respect the lifetime parameter.
+    /// The Markdown normalizer is always registered as Singleton (thread-safe, stateless, no DI captures).
+    /// Factories, converters, and processors respect the lifetime parameter. In particular the parser
+    /// factory and Markdown converter capture <see cref="IDocumentAnalysisService"/>, which consumers
+    /// commonly register as Scoped; registering them with the shared lifetime keeps the graph scope-valid
+    /// (no captive dependency) so consumers need not disable <c>ValidateScopes</c>.
     /// </remarks>
     public static IServiceCollection AddFileFlux(
         this IServiceCollection services,
@@ -72,17 +75,23 @@ public static class ServiceCollectionExtensions
             provider => new DocumentReaderFactory(provider.GetServices<IDocumentReader>()),
             lifetime));
 
-        // Parser factory (always Singleton - thread-safe, stateless)
-        services.AddSingleton<IDocumentParserFactory>(provider =>
-            new DocumentParserFactory(provider.GetService<IDocumentAnalysisService>()));
+        // Parser factory (configurable lifetime - captures IDocumentAnalysisService, which consumers
+        // commonly register as Scoped; sharing the lifetime avoids a captive dependency)
+        services.Add(new ServiceDescriptor(
+            typeof(IDocumentParserFactory),
+            provider => new DocumentParserFactory(provider.GetService<IDocumentAnalysisService>()),
+            lifetime));
 
         // Basic parser (always Transient - may hold state)
         services.AddTransient<IDocumentParser>(provider =>
             new BasicDocumentParser(provider.GetService<IDocumentAnalysisService>()));
 
-        // === Markdown Converter (always Singleton - thread-safe) ===
-        services.AddSingleton<IMarkdownConverter>(provider =>
-            new MarkdownConverter(provider.GetService<IDocumentAnalysisService>()));
+        // === Markdown Converter (configurable lifetime - captures IDocumentAnalysisService, which
+        // consumers commonly register as Scoped; sharing the lifetime avoids a captive dependency) ===
+        services.Add(new ServiceDescriptor(
+            typeof(IMarkdownConverter),
+            provider => new MarkdownConverter(provider.GetService<IDocumentAnalysisService>()),
+            lifetime));
 
         // === Markdown Normalizer (always Singleton - thread-safe) ===
         services.AddSingleton<IMarkdownNormalizer, MarkdownNormalizer>();

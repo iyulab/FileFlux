@@ -11,6 +11,7 @@ namespace FileFlux.Tests.Integration;
 /// 모든 문서 리더들의 통합 테스트
 /// /test 폴더의 실제 파일들을 사용한 E2E 테스트
 /// </summary>
+[Trait("Category", "Integration")]
 public class DocumentReadersIntegrationTests
 {
     private readonly DocumentReaderFactory _factory;

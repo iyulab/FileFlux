@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.15] - 2026-06-29
+
+### Fixed
+- **Captive dependency (MU-6)**: `AddFileFlux` registered `IDocumentParserFactory` and `IMarkdownConverter`
+  as hardcoded Singletons even though they capture `IDocumentAnalysisService`, which consumers commonly
+  register as Scoped (e.g. FluxIndex's `FluxIndexTextCompletionAdapter`). This captive dependency forced
+  consumers to disable global scope validation (`ValidateScopes=false`), masking other captive bugs. Both are
+  now registered with the method's shared `lifetime` parameter (default Scoped), so the graph validates under
+  `ValidateScopes=true`. The Markdown normalizer remains Singleton (no DI captures). Reported via umbrella MU-6
+  (upstream root fix of AIMS issue 260416).
+
+### Changed
+- Build: NU1903 (CVE-2025-6965 in transitive `SQLitePCLRaw.lib.e_sqlite3`, via the sample app's EFCore.Sqlite)
+  moved to `WarningsNotAsErrors` (matches the FluxIndex convention) — keeps the warning visible while unblocking
+  the build until a patched native package ships.
+- Tests: tagged the file-based `DocumentReadersIntegrationTests` with `[Trait("Category", "Integration")]` so the
+  `Category!=Integration` CI filter excludes it (it requires external test-data files).
+
+## [0.10.14] - 2026-06-19
+
+### Changed
+- **Native reader dependency bump**: deliver accumulated extraction-quality
+  improvements that were stranded behind stale NuGet pins.
+  - `Undoc` 0.3.0 → 0.5.2: XLSX "Place in Cell" rich-value image extraction,
+    DOCX VML legacy image extraction, bare CR/CRLF newline normalization,
+    PPTX slide layout/master text inheritance, DOCX streaming for large files
+  - `Unhwp` 0.3.2 → 0.5.1: tab/leader (`hp:tab`) rendering, floating image
+    (stamp/signature) handling, `<hp:t>` whitespace-loss fix, stronger image
+    extraction
+  - `Unpdf` 0.6.4 → 0.7.0: WebAssembly target support
+  - Now that native self-update is opt-in/off-by-default (NuGet-pinned binaries
+    are what actually loads), keeping these pins current is structurally required.
+
 ## [0.10.0] - 2025-01-28
 
 ### Added
