@@ -370,6 +370,95 @@ public class StatefulDocumentProcessorTests
 
     #region Helper Methods
 
+    [Fact]
+    public async Task ChunkAsync_AutoStrategy_ResolvesByContentInsteadOfSentenceFallback()
+    {
+        // Arrange — regression guard: Auto used to silently degrade to the factory's Sentence
+        // fallback on the ProcessAsync path. A long multi-paragraph document must resolve to
+        // Paragraph via content analysis (same behavior as the IFluxCurator orchestrator).
+        var content = string.Join("\n\n", Enumerable.Range(1, 6).Select(p =>
+            string.Join(" ", Enumerable.Range(1, 6).Select(s =>
+                $"Paragraph number {p} sentence number {s} carries distinct wording about topic {p * 10 + s}."))));
+        var tempFile = CreateTempTextFile(content, ".md");
+
+        try
+        {
+            using var processor = CreateProcessor(tempFile);
+
+            // Act
+            await processor.ChunkAsync(new ChunkingOptions
+            {
+                Strategy = ChunkingStrategies.Auto,
+                MaxChunkSize = 200,
+                MinChunkSize = 30
+            });
+
+            // Assert
+            var chunks = processor.Result.Chunks;
+            Assert.NotNull(chunks);
+            Assert.NotEmpty(chunks);
+            Assert.All(chunks, c => Assert.Equal("Paragraph", c.Strategy));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task ChunkAsync_MarkdownWithHeadings_PopulatesHeadingPathAndSection()
+    {
+        // Arrange — regression guard: the ProcessAsync (stateful) path used to leave
+        // Location.HeadingPath/Section empty even though the schema advertises them.
+        var intro = string.Join(" ", Enumerable.Repeat("Intro paragraph text under the root heading with enough length.", 5));
+        var body = string.Join(" ", Enumerable.Repeat("Body sentence living under the sub section heading with detail.", 5));
+        var content = $"""
+            # Root Title
+
+            {intro}
+
+            ## Sub Section
+
+            {body}
+            """;
+        var tempFile = CreateTempTextFile(content, ".md");
+
+        try
+        {
+            using var processor = CreateProcessor(tempFile);
+
+            // Act — small MaxChunkSize forces multiple chunks so that chunks start inside sections
+            await processor.ChunkAsync(new ChunkingOptions
+            {
+                Strategy = ChunkingStrategies.Paragraph,
+                MaxChunkSize = 150,
+                MinChunkSize = 30
+            });
+
+            // Assert
+            var chunks = processor.Result.Chunks;
+            Assert.NotNull(chunks);
+            Assert.NotEmpty(chunks);
+
+            var withHeading = chunks.Where(c => c.Location.HeadingPath.Count > 0).ToList();
+            Assert.NotEmpty(withHeading);
+            Assert.All(withHeading, c =>
+            {
+                Assert.Equal(c.Location.HeadingPath[^1], c.Location.Section);
+                Assert.Equal(string.Join(" > ", c.Location.HeadingPath), c.Props[ChunkPropsKeys.HierarchyPath]);
+            });
+
+            // The deepest chunk must carry the full hierarchical path
+            Assert.Contains(chunks, c =>
+                c.Location.HeadingPath.Contains("Sub Section") &&
+                c.Location.HeadingPath.Contains("Root Title"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     private IDocumentProcessor CreateProcessor(string filePath)
     {
         var factory = new DocumentProcessorFactory(

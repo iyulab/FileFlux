@@ -809,7 +809,7 @@ public sealed partial class FluxDocumentProcessor
         Dictionary<int, (int Start, int End)>? pageRanges = null)
     {
         // Build flattened section list for heading path calculation
-        var allSections = FlattenSections(parsed.Sections);
+        var allSections = SectionPathCalculator.Flatten(parsed.Sections);
 
         foreach (var chunk in chunks)
         {
@@ -825,7 +825,7 @@ public sealed partial class FluxDocumentProcessor
                 chunk.Props[ChunkPropsKeys.DocumentKeywords] = parsed.Keywords;
 
             // Calculate heading path based on chunk position
-            var headingPath = CalculateHeadingPath(allSections, chunk.Location.StartChar, chunk.Location.EndChar);
+            var headingPath = SectionPathCalculator.CalculateHeadingPath(allSections, chunk.Location.StartChar, chunk.Location.EndChar);
             if (headingPath.Count > 0)
             {
                 chunk.Location.HeadingPath = headingPath;
@@ -895,38 +895,6 @@ public sealed partial class FluxDocumentProcessor
         }
 
         return (startPage, endPage);
-    }
-
-    /// <summary>
-    /// Flatten nested sections into a single list for efficient lookup
-    /// </summary>
-    private static List<Section> FlattenSections(List<Section> sections)
-    {
-        var result = new List<Section>();
-        foreach (var section in sections)
-        {
-            result.Add(section);
-            if (section.Children.Count > 0)
-            {
-                result.AddRange(FlattenSections(section.Children));
-            }
-        }
-        return result;
-    }
-
-    /// <summary>
-    /// Calculate heading path for a chunk based on its character position
-    /// </summary>
-    private static List<string> CalculateHeadingPath(List<Section> sections, int startChar, int endChar)
-    {
-        // Find all sections that contain this chunk's start position
-        var containingSections = sections
-            .Where(s => s.Start <= startChar && s.End >= startChar && !string.IsNullOrEmpty(s.Title))
-            .OrderBy(s => s.Level)
-            .ThenBy(s => s.Start)
-            .ToList();
-
-        return containingSections.Select(s => s.Title).ToList();
     }
 
     private static bool ShouldEnhance(ChunkingOptions options)

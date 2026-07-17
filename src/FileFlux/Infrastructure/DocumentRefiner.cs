@@ -846,34 +846,10 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
 
     /// <summary>
     /// Builds hierarchical sections from heading markers in text.
+    /// Delegates to <see cref="SectionPathCalculator.BuildSections"/> (single source of truth).
     /// </summary>
-    private static List<Section> BuildSections(string text)
-    {
-        var sections = new List<Section>();
-        var headingPattern = @"^(#{1,6})\s+(.+)$";
-        var matches = Regex.Matches(text, headingPattern, RegexOptions.Multiline);
-
-        for (int i = 0; i < matches.Count; i++)
-        {
-            var match = matches[i];
-            var level = match.Groups[1].Value.Length;
-            var title = match.Groups[2].Value.Trim();
-
-            var endPos = i + 1 < matches.Count ? matches[i + 1].Index : text.Length;
-
-            sections.Add(new Section
-            {
-                Id = $"section_{i}",
-                Title = title,
-                Level = level,
-                Start = match.Index,
-                End = endPos,
-                Content = text.Substring(match.Index, endPos - match.Index).Trim()
-            });
-        }
-
-        return sections;
-    }
+    private static List<Section> BuildSections(string text) =>
+        SectionPathCalculator.BuildSections(text);
 
     #endregion
 

@@ -469,9 +469,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             }
 
             // Execute chunking via FluxCurator
-            var fcStrategy = MapToFluxCuratorStrategy(options.Strategy);
-            var chunker = _chunkerFactory.CreateChunker(fcStrategy);
-
             var fcOptions = new FluxCuratorChunkOptions
             {
                 MaxChunkSize = options.MaxChunkSize,
@@ -482,6 +479,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
                 PreserveSentences = options.PreserveSentences,
                 EnableChunkBalancing = options.EnableChunkBalancing
             };
+            var chunker = CreateChunkerFor(options.Strategy, refined.Text, fcOptions);
 
             var fcChunks = await chunker.ChunkAsync(refined.Text, fcOptions, cancellationToken).ConfigureAwait(false);
 
@@ -490,9 +488,15 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             // then strip all internal markers so consumers receive clean content. This must use the
             // same single-source-of-truth helpers as FluxCuratorChunkAdapter so every chunk-producing
             // path (native IDocumentProcessor included) yields marker-free Content.
+            // Section offsets are computed over refined.Text (DocumentRefiner.BuildSections), the
+            // same text the chunker ran on, so chunk char offsets align with section offsets.
+            var flatSections = SectionPathCalculator.Flatten(refined.Sections);
+
             var chunks = fcChunks.Select((fc, idx) =>
             {
                 var headingLevel = FluxCuratorChunkAdapter.TryExtractHeadingLevel(fc.Content);
+                var headingPath = SectionPathCalculator.CalculateHeadingPath(
+                    flatSections, fc.Location.StartPosition, fc.Location.EndPosition);
                 var chunk = new FileFlux.Core.DocumentChunk
                 {
                     RawId = Result.Raw!.Id,
@@ -503,7 +507,9 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
                     Location = new SourceLocation
                     {
                         StartChar = fc.Location.StartPosition,
-                        EndChar = fc.Location.EndPosition
+                        EndChar = fc.Location.EndPosition,
+                        HeadingPath = headingPath,
+                        Section = headingPath.Count > 0 ? headingPath[^1] : null
                     },
                     Metadata = refined.Metadata,
                     SourceInfo = new SourceMetadataInfo
@@ -517,6 +523,10 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
                 if (headingLevel is int level)
                 {
                     chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel] = level;
+                }
+                if (headingPath.Count > 0)
+                {
+                    chunk.Props[ChunkPropsKeys.HierarchyPath] = string.Join(" > ", headingPath);
                 }
                 return chunk;
             }).ToList();
@@ -563,15 +573,13 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             yield break;
         }
 
-        var fcStrategy = MapToFluxCuratorStrategy(options.Strategy);
-        var chunker = _chunkerFactory.CreateChunker(fcStrategy);
-
         var fcOptions = new FluxCuratorChunkOptions
         {
             MaxChunkSize = options.MaxChunkSize,
             MinChunkSize = options.MinChunkSize,
             OverlapSize = options.OverlapSize
         };
+        var chunker = CreateChunkerFor(options.Strategy, refined.Text, fcOptions);
 
         // Use ChunkAsync and yield results (IChunker doesn't have streaming)
         var fcChunks = await chunker.ChunkAsync(refined.Text, fcOptions, cancellationToken).ConfigureAwait(false);
@@ -934,33 +942,8 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         return rows;
     }
 
-    private static List<Section> BuildSections(string text)
-    {
-        var sections = new List<Section>();
-        var headingPattern = @"^(#{1,6})\s+(.+)$";
-        var matches = System.Text.RegularExpressions.Regex.Matches(text, headingPattern, System.Text.RegularExpressions.RegexOptions.Multiline);
-
-        for (int i = 0; i < matches.Count; i++)
-        {
-            var match = matches[i];
-            var level = match.Groups[1].Value.Length;
-            var title = match.Groups[2].Value.Trim();
-
-            var endPos = i + 1 < matches.Count ? matches[i + 1].Index : text.Length;
-
-            sections.Add(new Section
-            {
-                Id = $"section_{i}",
-                Title = title,
-                Level = level,
-                Start = match.Index,
-                End = endPos,
-                Content = text.Substring(match.Index, endPos - match.Index).Trim()
-            });
-        }
-
-        return sections;
-    }
+    private static List<Section> BuildSections(string text) =>
+        SectionPathCalculator.BuildSections(text);
 
     private static DocumentMetadata BuildMetadata(RawContent raw)
     {
@@ -1037,6 +1020,25 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         };
     }
 
+    /// <summary>
+    /// Creates the chunker for the requested strategy, resolving <c>Auto</c> to a concrete
+    /// strategy by content analysis (FluxCurator's ChunkingStrategyResolver — same behavior
+    /// as the IFluxCurator orchestrator path). Without this, Auto silently degraded to the
+    /// factory's Sentence fallback.
+    /// </summary>
+    private IChunker CreateChunkerFor(string strategy, string text, FluxCuratorChunkOptions fcOptions)
+    {
+        var fcStrategy = MapToFluxCuratorStrategy(strategy);
+        if (fcStrategy == FluxCuratorStrategy.Auto)
+        {
+            fcOptions.Strategy = FluxCuratorStrategy.Auto;
+            fcStrategy = FluxCurator.Core.Infrastructure.Chunking.ChunkingStrategyResolver.Resolve(text, fcOptions);
+            LogAutoStrategyResolved(_logger, fcStrategy);
+        }
+
+        return _chunkerFactory.CreateChunker(fcStrategy);
+    }
+
     private static FluxCuratorStrategy MapToFluxCuratorStrategy(string strategy)
     {
         return strategy?.ToLowerInvariant() switch
@@ -1093,6 +1095,9 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Starting chunking: {FilePath}, Strategy: {Strategy}")]
     private static partial void LogStartingChunking(ILogger logger, string filePath, string strategy);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Auto strategy resolved to {ResolvedStrategy} by content analysis")]
+    private static partial void LogAutoStrategyResolved(ILogger logger, FluxCuratorStrategy resolvedStrategy);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Created {ChunkCount} chunks, {TotalTokens} tokens in {Duration:F2}s")]
     private static partial void LogCreatedChunks(ILogger logger, int chunkCount, int totalTokens, double duration);

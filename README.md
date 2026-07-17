@@ -286,14 +286,19 @@ FileFlux uses layout-based table detection with confidence scoring:
 
 ## Chunking Strategies
 
-| Strategy | Use Case |
-|----------|----------|
-| Auto | Automatic selection based on document type (recommended) |
-| Smart | Legal, medical, academic documents |
-| Intelligent | Technical documentation, API docs |
-| Semantic | General documents, papers |
-| Paragraph | Markdown, blogs |
-| FixedSize | When uniform size is required |
+| Strategy | Output characteristics | Prerequisites |
+|----------|------------------------|---------------|
+| `Auto` (default) | Resolved to a concrete strategy by content analysis: short text → Sentence, 4+ paragraphs → Paragraph, sentence-structured → Sentence, otherwise Token. The resolved strategy is logged and recorded in each chunk's `Strategy`. | — |
+| `Sentence` | Sentence-boundary chunks, language-aware | — |
+| `Paragraph` | Paragraph-boundary chunks; best for Markdown/blogs; oversized paragraphs fall back to sentence splits | — |
+| `Token` | Token-budget chunks for unstructured text | — |
+| `Hierarchical` | Heading-structure-aware chunks | — |
+| `Semantic` | Embedding-similarity boundaries | Requires an `IEmbedder` registered **before** `AddFileFlux()` — otherwise chunker creation throws `ArgumentException` |
+
+Structural metadata: every `ProcessAsync`/`ChunkAsync` chunk carries `Location.StartChar/EndChar`
+(offsets into the refined text), `Location.HeadingPath`/`Section` (hierarchical heading context,
+e.g. `Root Title > Sub Section`), and `Props["HierarchyPath"]`. `Location.StartPage/EndPage` are
+currently populated only on the legacy batch path for PDF page ranges.
 
 ## AI Service Integration
 
