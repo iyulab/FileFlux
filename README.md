@@ -395,7 +395,7 @@ FileFlux/
 │   │   └── Domain/                  # DocumentGraph, RefinedContent, StructuredElement
 │   └── FileFlux/                    # Full RAG pipeline (interface-driven)
 │       └── Infrastructure/          # StatefulDocumentProcessor, DocumentRefiner, DocumentEnricher
-├── cli/                             # CLI with LMSupply integration (not published)
+├── cli/                             # CLI with LMSupply integration (published: `dotnet tool install -g FileFlux.CLI`)
 │   └── FileFlux.CLI/
 │       └── Services/LMSupply/       # LMSupply service implementations
 ├── tests/
