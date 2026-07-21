@@ -51,6 +51,10 @@
   </ItemGroup>
   <ItemGroup Label="Database">
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.8" />
+    <!-- Explicit lift: EFCore.Sqlite 10.0.8 pulls SQLitePCLRaw 2.1.11 (NU1903, CVE-2025-6965).
+         Direct pin in the sample app raises the resolved graph to the patched 2.1.12 —
+         replaces the former repo-wide WarningsNotAsErrors;NU1903 suppression. -->
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
   </ItemGroup>
   <ItemGroup Label="Testing Framework">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />

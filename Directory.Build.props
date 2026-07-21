@@ -16,11 +16,6 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <!-- NU1903 (CVE-2025-6965 in SQLitePCLRaw.lib.e_sqlite3 <=2.1.11, transitive via Microsoft.Data.Sqlite /
-         EntityFrameworkCore.Sqlite in the sample app): no patched native package published upstream yet.
-         Keep the warning VISIBLE (not NoWarn) so the vulnerability stays on the radar, but stop it from
-         failing the build until a fixed e_sqlite3 ships. Remove once SQLitePCLRaw bundles SQLite >= 3.50.2. -->
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1903</WarningsNotAsErrors>
   </PropertyGroup>
 
   <!-- Common Package Information -->
