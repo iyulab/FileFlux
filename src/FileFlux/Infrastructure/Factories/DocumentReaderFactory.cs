@@ -170,6 +170,7 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         RegisterReader(new TextDocumentReader());
         RegisterReader(new MarkdownDocumentReader());
         RegisterReader(new HtmlDocumentReader());
+        RegisterReader(new CsvDocumentReader());
 
         // Office document Readers (DocumentFormat.OpenXml based)
         RegisterReader(new WordDocumentReader());

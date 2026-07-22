@@ -51,7 +51,7 @@ public enum DocumentType
     Json,
 
     /// <summary>
-    /// CSV file (.csv).
+    /// CSV/TSV file (.csv, .tsv).
     /// </summary>
     Csv,
 
@@ -79,7 +79,7 @@ public static class DocumentTypeExtensions
         DocumentType.Html => [".html", ".htm"],
         DocumentType.Text => [".txt"],
         DocumentType.Json => [".json"],
-        DocumentType.Csv => [".csv"],
+        DocumentType.Csv => [".csv", ".tsv"],
         DocumentType.Hwp => [".hwp", ".hwpx"],
         _ => []
     };
@@ -103,7 +103,7 @@ public static class DocumentTypeExtensions
             ".html" or ".htm" => DocumentType.Html,
             ".txt" => DocumentType.Text,
             ".json" => DocumentType.Json,
-            ".csv" => DocumentType.Csv,
+            ".csv" or ".tsv" => DocumentType.Csv,
             ".hwp" or ".hwpx" => DocumentType.Hwp,
             _ => DocumentType.Unknown
         };

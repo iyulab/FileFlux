@@ -63,8 +63,9 @@ public class DocumentReaderFactoryExtensionTests
     [InlineData(".md", true)]
     [InlineData(".html", true)]
     [InlineData(".htm", true)]
-    [InlineData(".json", false)]  // JSON은 아직 지원하지 않음
-    [InlineData(".csv", false)]   // CSV는 아직 지원하지 않음
+    [InlineData(".json", true)]   // 0.12.0: TextDocumentReader 라우팅
+    [InlineData(".csv", true)]    // 0.12.0: CsvDocumentReader
+    [InlineData(".tsv", true)]    // 0.12.0: CsvDocumentReader
     [InlineData(".xml", false)]   // XML은 지원하지 않음
     [InlineData("", false)]       // 빈 문자열
     [InlineData(null, false)]     // null

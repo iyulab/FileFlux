@@ -263,7 +263,8 @@ services.AddFileFlux();
 | HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
 | Markdown | .md | Built-in | Structure preservation |
 | HTML | .html, .htm | Built-in | Web content extraction |
-| Text | .txt, .json, .csv | Built-in | Basic text processing |
+| CSV/TSV | .csv, .tsv | Built-in (CsvHelper) | Header-aware markdown table serialization; UTF-8/BOM + CP949 (EUC-KR) fallback decoding |
+| Text | .txt, .json | Built-in | Basic text processing |
 
 ## Known Limitations
 

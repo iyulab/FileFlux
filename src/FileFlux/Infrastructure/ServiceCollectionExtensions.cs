@@ -60,6 +60,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentReader, TextDocumentReader>();
         services.AddTransient<IDocumentReader, MarkdownDocumentReader>();
         services.AddTransient<IDocumentReader, HtmlDocumentReader>();
+        services.AddTransient<IDocumentReader, CsvDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalPdfDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalPowerPointDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalWordDocumentReader>();

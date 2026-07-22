@@ -11,7 +11,9 @@ namespace FileFlux.Core.Infrastructure.Readers;
 /// </summary>
 public class TextDocumentReader : IDocumentReader
 {
-    public IEnumerable<string> SupportedExtensions => new[] { ".txt", ".md", ".tmp" };
+    // .json: DocumentType.Json is advertised in the enum; JSON is a plain-text format,
+    // so text extraction is faithful (no structure loss unlike tabular formats).
+    public IEnumerable<string> SupportedExtensions => new[] { ".txt", ".md", ".tmp", ".json" };
 
     public string ReaderType => "TextReader";
     private static readonly string[] separator = new[] { "\n\n", "\r\n\r\n" };
