@@ -179,5 +179,9 @@ public class DocumentReaderFactory : IDocumentReaderFactory
 
         // PDF Reader (PdfPig based)
         RegisterReader(new PdfDocumentReader());
+
+        // HWP Reader (Unhwp Rust FFI based) - present in the AddFileFlux() DI set,
+        // was missing here so DI-less consumers got 'No reader found' for .hwp/.hwpx
+        RegisterReader(new HwpDocumentReader());
     }
 }

@@ -15,7 +15,7 @@ namespace FileFlux.Tests.Conventions;
 public class DocumentTypeReaderConsistencyTests
 {
     [Fact]
-    public void EveryAdvertisedExtension_ShouldHaveRegisteredReader()
+    public void EveryAdvertisedExtension_ShouldHaveRegisteredReader_DiSet()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -28,18 +28,36 @@ public class DocumentTypeReaderConsistencyTests
             .Select(e => e.ToLowerInvariant())
             .ToHashSet();
 
+        // Act & Assert
+        AssertAllAdvertisedExtensionsHandled(handledExtensions, "AddFileFlux() DI set");
+    }
+
+    [Fact]
+    public void EveryAdvertisedExtension_ShouldHaveRegisteredReader_DefaultFactory()
+    {
+        // Arrange - DI-less consumers use the parameterless factory
+        var factory = new FileFlux.Infrastructure.Factories.DocumentReaderFactory();
+
+        var handledExtensions = factory.GetSupportedExtensions()
+            .Select(e => e.ToLowerInvariant())
+            .ToHashSet();
+
+        // Act & Assert
+        AssertAllAdvertisedExtensionsHandled(handledExtensions, "DocumentReaderFactory default set");
+    }
+
+    private static void AssertAllAdvertisedExtensionsHandled(HashSet<string> handledExtensions, string registrationPath)
+    {
         var advertisedExtensions = Enum.GetValues<DocumentType>()
             .Where(t => t != DocumentType.Unknown)
             .SelectMany(t => t.GetExtensions())
             .ToHashSet();
 
-        // Act
         var unhandled = advertisedExtensions.Except(handledExtensions).ToList();
 
-        // Assert
         Assert.True(unhandled.Count == 0,
-            $"DocumentType advertises extensions with no registered reader: {string.Join(", ", unhandled)}. " +
-            "Either add a reader or remove the enum mapping - advertised-but-unimplemented " +
-            "extensions fail at runtime with 'No reader found'.");
+            $"DocumentType advertises extensions with no registered reader in {registrationPath}: " +
+            $"{string.Join(", ", unhandled)}. Either add a reader or remove the enum mapping - " +
+            "advertised-but-unimplemented extensions fail at runtime with 'No reader found'.");
     }
 }
