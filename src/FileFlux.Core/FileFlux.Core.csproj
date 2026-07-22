@@ -25,6 +25,7 @@
     <PackageReference Include="Markdig" />
     <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="CsvHelper" />
+    <PackageReference Include="ExcelDataReader" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
 
     <!-- Native Document Readers (Rust FFI) -->

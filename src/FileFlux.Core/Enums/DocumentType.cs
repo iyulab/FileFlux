@@ -21,7 +21,7 @@ public enum DocumentType
     Word,
 
     /// <summary>
-    /// Microsoft Excel spreadsheet (.xlsx).
+    /// Microsoft Excel spreadsheet (.xlsx, legacy .xls).
     /// </summary>
     Excel,
 
@@ -73,7 +73,7 @@ public static class DocumentTypeExtensions
     {
         DocumentType.Pdf => [".pdf"],
         DocumentType.Word => [".docx"],
-        DocumentType.Excel => [".xlsx"],
+        DocumentType.Excel => [".xlsx", ".xls"],
         DocumentType.PowerPoint => [".pptx"],
         DocumentType.Markdown => [".md", ".markdown"],
         DocumentType.Html => [".html", ".htm"],
@@ -97,7 +97,7 @@ public static class DocumentTypeExtensions
         {
             ".pdf" => DocumentType.Pdf,
             ".docx" => DocumentType.Word,
-            ".xlsx" => DocumentType.Excel,
+            ".xlsx" or ".xls" => DocumentType.Excel,
             ".pptx" => DocumentType.PowerPoint,
             ".md" or ".markdown" => DocumentType.Markdown,
             ".html" or ".htm" => DocumentType.Html,

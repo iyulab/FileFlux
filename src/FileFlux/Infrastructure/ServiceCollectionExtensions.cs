@@ -65,6 +65,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentReader, MultiModalPowerPointDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalWordDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalExcelDocumentReader>();
+        services.AddTransient<IDocumentReader, LegacyExcelDocumentReader>();
         services.AddTransient<IDocumentReader, HwpDocumentReader>();
 
         // Language profile for multilingual support (always Singleton - thread-safe)

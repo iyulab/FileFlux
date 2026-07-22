@@ -177,6 +177,9 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         RegisterReader(new ExcelDocumentReader());
         RegisterReader(new PowerPointDocumentReader());
 
+        // Legacy Office binary Reader (ExcelDataReader based)
+        RegisterReader(new LegacyExcelDocumentReader());
+
         // PDF Reader (PdfPig based)
         RegisterReader(new PdfDocumentReader());
 

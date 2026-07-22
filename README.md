@@ -259,6 +259,7 @@ services.AddFileFlux();
 | PDF | .pdf | Unpdf (Rust FFI) | Text, tables, image extraction |
 | Word | .docx | Undoc (Rust FFI) | Style and structure preservation |
 | Excel | .xlsx | Undoc (Rust FFI) | Multi-sheet and table structure |
+| Excel (legacy) | .xls | Built-in (ExcelDataReader) | BIFF binary workbooks; per-sheet markdown tables; CP949 (EUC-KR) fallback for codepage-less BIFF5/7 |
 | PowerPoint | .pptx | Undoc (Rust FFI) | Slide and notes extraction |
 | HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
 | Markdown | .md | Built-in | Structure preservation |
