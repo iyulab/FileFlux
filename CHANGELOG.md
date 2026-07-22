@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-23
+
+### Added
+- **Legacy `.xls` (BIFF) reader**: `LegacyExcelDocumentReader` based on ExcelDataReader (MIT,
+  read-only) — per-sheet markdown tables (same serialization contract as the CSV/xlsx readers),
+  empty-sheet skip with warning, CP949 (EUC-KR) fallback for codepage-less BIFF5/7 files.
+  `DocumentType.Excel` now advertises `[".xlsx", ".xls"]`; registered in both the `AddFileFlux()`
+  DI set and the DI-less `DocumentReaderFactory` default set. Reported by SMI.AIMS field data
+  (current-business Korean `.xls` quotations failing with "No reader found").
+- **PDF no-text-layer classification**: a PDF that parses but yields no text (image-only/scanned
+  or blank) now returns empty content with `Hints["extraction_failure_reason"] = "no_text_layer"`
+  and an explanatory warning instead of a silently-empty result. The all-pages-failed exception
+  message now carries the first per-page parse error plus scanned-document guidance.
+
+## [0.12.0] - 2026-07-22
+
+### Added
+- Structure-aware `CsvDocumentReader` (`.csv`/`.tsv`): header-aware markdown table serialization,
+  UTF-8/BOM + CP949 (EUC-KR) fallback decoding; closed advertised-format drift (`.json` routing,
+  Hwp default-factory registration) with `DocumentTypeReaderConsistencyTests` teeth (`5eefb64`).
+
+## [0.11.0] - 2026-07-17
+
+### Added
+- Populate `HeadingPath`/`Section` on the `ProcessAsync` path + real `Auto` chunking strategy
+  resolution (`1c10b02`).
+
 ## [0.10.15] - 2026-06-29
 
 ### Fixed
