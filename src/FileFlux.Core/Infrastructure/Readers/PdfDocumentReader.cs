@@ -232,6 +232,20 @@ public partial class PdfDocumentReader : IDocumentReader
         // Remove null bytes
         markdown = TextSanitizer.RemoveNullBytes(markdown);
 
+        // Classify the no-text outcome: the document parsed fine but yielded no
+        // text at all — typical for image-only/scanned PDFs (no text layer) or
+        // genuinely blank pages. Surface the classification as structured
+        // metadata instead of returning a silently-empty Completed result.
+        if (string.IsNullOrWhiteSpace(markdown) && status == ProcessingStatus.Completed)
+        {
+            structuralHints["extraction_failure_reason"] = "no_text_layer";
+            structuralHints["resource_count"] = doc.ResourceCount;
+            warnings.Add(
+                "PDF parsed successfully but contains no extractable text " +
+                "(image-only/scanned document or blank pages). " +
+                "Text extraction requires OCR, which is outside the text extractor's scope.");
+        }
+
         if (!string.IsNullOrWhiteSpace(doc.Title))
             structuralHints["document_title"] = doc.Title;
         if (!string.IsNullOrWhiteSpace(doc.Author))
@@ -335,9 +349,17 @@ public partial class PdfDocumentReader : IDocumentReader
             }
         }
 
-        // If all pages failed, throw to let caller handle
+        // If all pages failed, throw to let caller handle. Carry the first
+        // per-page parse error so the failure cause is diagnosable — the bare
+        // "All N pages failed" phrasing read like a parser defect and gave
+        // consumers nothing to classify on (AIMS field report, 2026-07-22).
         if (parts.Count == 0 && failedPages.Count > 0)
-            throw new UnpdfException($"All {pageCount} pages failed extraction");
+        {
+            var firstError = errors.Count > 0 ? errors[0].Message : "unknown error";
+            throw new UnpdfException(
+                $"All {pageCount} page(s) failed extraction (parse error; first: {firstError}). " +
+                "If this is a scanned/image-only PDF, it has no text layer to extract (OCR required).");
+        }
 
         if (failedPages.Count > 0)
             warnings.Add($"Skipped {failedPages.Count} page(s): [{string.Join(", ", failedPages)}]");
