@@ -12,14 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Legacy `.xls` (BIFF) reader**: `LegacyExcelDocumentReader` based on ExcelDataReader (MIT,
   read-only) — per-sheet markdown tables (same serialization contract as the CSV/xlsx readers),
-  empty-sheet skip with warning, CP949 (EUC-KR) fallback for codepage-less BIFF5/7 files.
+  empty-sheet skip with warning, CP949 (EUC-KR) `FallbackEncoding` configured for codepage-less
+  BIFF5/7 files (defensive convention-alignment with `CsvDocumentReader`; fixture teeth cover the
+  BIFF8 Korean path, where strings are Unicode and the fallback is not exercised).
   `DocumentType.Excel` now advertises `[".xlsx", ".xls"]`; registered in both the `AddFileFlux()`
   DI set and the DI-less `DocumentReaderFactory` default set. Reported by SMI.AIMS field data
   (current-business Korean `.xls` quotations failing with "No reader found").
 - **PDF no-text-layer classification**: a PDF that parses but yields no text (image-only/scanned
   or blank) now returns empty content with `Hints["extraction_failure_reason"] = "no_text_layer"`
   and an explanatory warning instead of a silently-empty result. The all-pages-failed exception
-  message now carries the first per-page parse error plus scanned-document guidance.
+  message now carries the first per-page parse error plus scanned-document guidance. Note: PDFs
+  whose pages fail with genuine parse errors still throw (fail-loud) — non-throwing
+  classification for that path needs unpdf page introspection (upstream proposal filed).
 
 ## [0.12.0] - 2026-07-22
 
