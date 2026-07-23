@@ -272,7 +272,7 @@ services.AddFileFlux();
 ### PDF Processing
 - **Vector Graphics Tables**: Tables created with drawing primitives (lines/rectangles) instead of text layout may not be detected. These are rendered as images in most PDF viewers.
 - **Complex Multi-column Layouts**: Documents with intricate multi-column arrangements may have suboptimal text ordering.
-- **Scanned Documents**: OCR is not included; scanned PDFs require pre-processing with external OCR tools. When a PDF parses but yields no text at all (image-only/scanned or blank), the reader returns empty content with `Hints["extraction_failure_reason"] = "no_text_layer"` and an explanatory warning instead of failing, so consumers can classify it distinctly from parse errors.
+- **Scanned Documents**: OCR is not included; scanned PDFs require pre-processing with external OCR tools. When a PDF parses but yields no text at all, the reader returns empty content with `Hints["extraction_failure_reason"]` set to `"no_text_layer"` (image-only/scanned — pages draw images without a readable text layer, via Unpdf page introspection) or `"blank_page"` (no text or image content at all), plus an explanatory warning — so consumers can classify these distinctly from parse errors.
 - **Partial Extraction**: When whole-document extraction fails, FileFlux automatically falls back to per-page extraction. Pages that cannot be extracted are skipped and recorded in `RawContent.Errors`. `RawContent.Status` is set to `ProcessingStatus.Partial` when some pages fail, allowing RAG pipelines to use the successfully extracted content rather than losing the entire document.
 
 ### Table Extraction

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-23
+
+### Changed
+- **PDF empty-document classification refined via Unpdf 0.9.0 page introspection**
+  (`GetPageStats`): `Hints["extraction_failure_reason"]` now distinguishes
+  `"no_text_layer"` (a page draws images without a readable text layer — scanned;
+  searchable scans whose unreadable OCR layer was discarded count via
+  `OcrTextSuppressed`) from `"blank_page"` (no text or image content at all).
+  Introspection failure falls back to the 0.13.0 single-label behavior. The
+  misleading `resource_count` hint is removed (always 0 on the FFI parse path,
+  per upstream semantics documentation). Closes the FileFlux-side acceptance (AC4)
+  of the unpdf introspection proposal; Unpdf pin 0.7.0 → 0.9.0.
+
 ## [0.13.0] - 2026-07-23
 
 ### Added

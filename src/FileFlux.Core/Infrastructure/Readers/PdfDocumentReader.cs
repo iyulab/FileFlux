@@ -233,17 +233,17 @@ public partial class PdfDocumentReader : IDocumentReader
         markdown = TextSanitizer.RemoveNullBytes(markdown);
 
         // Classify the no-text outcome: the document parsed fine but yielded no
-        // text at all — typical for image-only/scanned PDFs (no text layer) or
-        // genuinely blank pages. Surface the classification as structured
-        // metadata instead of returning a silently-empty Completed result.
+        // text at all. Unpdf 0.9.0 page introspection (GetPageStats) separates
+        // image-only/scanned pages (no readable text layer, OCR required) from
+        // genuinely blank pages, instead of returning a silently-empty result.
         if (string.IsNullOrWhiteSpace(markdown) && status == ProcessingStatus.Completed)
         {
-            structuralHints["extraction_failure_reason"] = "no_text_layer";
-            structuralHints["resource_count"] = doc.ResourceCount;
-            warnings.Add(
-                "PDF parsed successfully but contains no extractable text " +
-                "(image-only/scanned document or blank pages). " +
-                "Text extraction requires OCR, which is outside the text extractor's scope.");
+            var reason = ClassifyEmptyDocument(doc);
+            structuralHints["extraction_failure_reason"] = reason;
+            warnings.Add(reason == "no_text_layer"
+                ? "PDF contains no extractable text (image-only/scanned document). " +
+                  "Text extraction requires OCR, which is outside the text extractor's scope."
+                : "PDF parsed successfully but every page is blank (no text or image content).");
         }
 
         if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -291,6 +291,36 @@ public partial class PdfDocumentReader : IDocumentReader
             Status = status,
             ReaderType = "PdfReader"
         };
+    }
+
+    /// <summary>
+    /// Classifies a parsed-but-empty document via Unpdf page introspection:
+    /// "no_text_layer" when any page draws images without a readable text layer
+    /// (scanned document — searchable scans whose OCR layer was discarded
+    /// surface as OcrTextSuppressed), "blank_page" when no page has text or
+    /// image content. Introspection failures fall back to "no_text_layer"
+    /// (the pre-0.14.0 single-label behavior).
+    /// </summary>
+    private static string ClassifyEmptyDocument(UnpdfDocument doc)
+    {
+        try
+        {
+            var sawContent = false;
+            for (var page = 1; page <= doc.SectionCount; page++)
+            {
+                var stats = doc.GetPageStats(page);
+                if (stats.ImageOpCount > 0 && (stats.TextOpCount == 0 || stats.OcrTextSuppressed))
+                    return "no_text_layer";
+                if (stats.TextOpCount > 0 || stats.ImageOpCount > 0)
+                    sawContent = true;
+            }
+
+            return sawContent ? "no_text_layer" : "blank_page";
+        }
+        catch (UnpdfException)
+        {
+            return "no_text_layer";
+        }
     }
 
     /// <summary>

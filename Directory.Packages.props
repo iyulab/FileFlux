@@ -27,7 +27,7 @@
     <!-- Native Document Readers (Rust FFI) -->
     <PackageVersion Include="Undoc" Version="0.5.2" />
     <PackageVersion Include="Unhwp" Version="0.5.1" />
-    <PackageVersion Include="Unpdf" Version="0.7.0" />
+    <PackageVersion Include="Unpdf" Version="0.9.0" />
     <!-- Test-only: Used for programmatic test file generation -->
     <PackageVersion Include="DocumentFormat.OpenXml" Version="3.5.1" />
   </ItemGroup>
