@@ -45,6 +45,9 @@
 
   <ItemGroup>
     <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Reuse the committed real-world PDF (tests/test-pdf) as the Pdf reader extraction
+         fixture without duplicating the 3 MB binary into Fixtures/. -->
+    <None Include="..\test-pdf\oai_gpt-oss_model_card.pdf" Link="Fixtures\oai_gpt-oss_model_card.pdf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

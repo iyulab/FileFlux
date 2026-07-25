@@ -1,304 +1,185 @@
-﻿using FileFlux.Core.Infrastructure.Readers;
-using FileFlux;
 using FileFlux.Core;
-using FileFlux.Domain;
-using Microsoft.Extensions.Logging;
+using FileFlux.Core.Infrastructure.Readers;
 using Xunit;
 using System.Text;
 
 namespace FileFlux.Tests.Readers;
 
 /// <summary>
-/// PowerPointDocumentReader 단위 테스트
-/// TDD 방식으로 구현된 테스트 케이스
+/// PowerPointDocumentReader unit tests — modern .pptx (OOXML) extraction via Undoc (Rust FFI).
+///
+/// Fixture: Fixtures/sample-slides.pptx (python-pptx-generated, deterministic — see scratchpad
+/// gen_docx_pptx_fixtures.py): 3 slides (title + body each), with a unique token on the last
+/// slide for the slide-loss guard.
+///
+/// Replaces the previous tests that pointed at a hardcoded absolute path outside the repo
+/// (always self-skipped) and four vacuous always-pass placeholders. First test exercising the
+/// Undoc native .pptx path for real (CI ubuntu-latest resolves runtimes/linux-x64/native). No exact
+/// character-count assertion (Undoc formatting shifts on bump).
 /// </summary>
 public class PowerPointDocumentReaderTests
 {
-    private readonly PowerPointDocumentReader _reader;
-    private readonly ILogger<PowerPointDocumentReaderTests> _logger;
+    private static readonly string SampleSlidesFixture =
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample-slides.pptx");
 
-    public PowerPointDocumentReaderTests()
-    {
-        _reader = new PowerPointDocumentReader();
-        using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        _logger = loggerFactory.CreateLogger<PowerPointDocumentReaderTests>();
-    }
+    private readonly PowerPointDocumentReader _reader = new();
 
     [Fact]
     public void ReaderType_ShouldReturnPowerPointReader()
     {
-        // Act
-        var readerType = _reader.ReaderType;
-
-        // Assert
-        Assert.Equal("PowerPointReader", readerType);
+        Assert.Equal("PowerPointReader", _reader.ReaderType);
     }
 
     [Fact]
     public void SupportedExtensions_ShouldIncludePptx()
     {
-        // Act
-        var supportedExtensions = _reader.SupportedExtensions;
-
-        // Assert
-        Assert.Contains(".pptx", supportedExtensions);
+        Assert.Contains(".pptx", _reader.SupportedExtensions);
     }
 
     [Theory]
     [InlineData("presentation.pptx", true)]
     [InlineData("TEST.PPTX", true)]
     [InlineData("slides.pptx", true)]
-    [InlineData("presentation.ppt", false)] // Old format not supported
+    [InlineData("presentation.ppt", false)]
     [InlineData("test.pdf", false)]
     [InlineData("test.docx", false)]
     [InlineData("", false)]
     [InlineData(null, false)]
     public void CanRead_ShouldReturnCorrectResult(string? fileName, bool expected)
     {
-        // Act
-        var canRead = _reader.CanRead(fileName!);
-
-        // Assert
-        Assert.Equal(expected, canRead);
+        Assert.Equal(expected, _reader.CanRead(fileName!));
     }
+
+    // ----- Argument / guard behavior -----
 
     [Fact]
     public async Task ExtractAsync_WithNullFilePath_ShouldThrowArgumentException()
     {
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
-            _reader.ExtractAsync(null!, null, CancellationToken.None));
-        
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _reader.ExtractAsync((string)null!, null, CancellationToken.None));
         Assert.Contains("File path cannot be null or empty", exception.Message);
     }
 
     [Fact]
     public async Task ExtractAsync_WithEmptyFilePath_ShouldThrowArgumentException()
     {
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
             _reader.ExtractAsync("", null, CancellationToken.None));
-        
         Assert.Contains("File path cannot be null or empty", exception.Message);
     }
 
     [Fact]
     public async Task ExtractAsync_WithNonExistentFile_ShouldThrowFileNotFoundException()
     {
-        // Arrange
-        var nonExistentFile = "non-existent-file.pptx";
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<FileNotFoundException>(() => 
-            _reader.ExtractAsync(nonExistentFile, null, CancellationToken.None));
-        
+        var exception = await Assert.ThrowsAsync<FileNotFoundException>(() =>
+            _reader.ExtractAsync("non-existent-file.pptx", null, CancellationToken.None));
         Assert.Contains("PowerPoint document not found", exception.Message);
     }
 
     [Fact]
     public async Task ExtractAsync_WithUnsupportedExtension_ShouldThrowArgumentException()
     {
-        // Arrange - Create a temporary file with wrong extension
         var tempFile = Path.GetTempFileName();
         var wrongExtFile = Path.ChangeExtension(tempFile, ".pdf");
         File.Move(tempFile, wrongExtFile);
-
         try
         {
-            // Act & Assert
-            var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
                 _reader.ExtractAsync(wrongExtFile, null, CancellationToken.None));
-            
             Assert.Contains("File format not supported", exception.Message);
         }
         finally
         {
-            // Cleanup
-            if (File.Exists(wrongExtFile))
-                File.Delete(wrongExtFile);
+            if (File.Exists(wrongExtFile)) File.Delete(wrongExtFile);
         }
-    }
-
-    [Fact]
-    public async Task ExtractAsync_WithRealPowerPointDocument_ShouldExtractContent()
-    {
-        // Arrange
-        var testFile = @"D:\data\FileFlux\tests\test-pptx\samplepptx.pptx";
-        
-        // Skip test if file doesn't exist
-        if (!File.Exists(testFile))
-        {
-            _logger.LogWarning("Test file not found: {TestFile}. Skipping test.", testFile);
-            return;
-        }
-
-        // Act
-        var result = await _reader.ExtractAsync(testFile, null, CancellationToken.None);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.NotNull(result.Text);
-        Assert.NotNull(result.File);
-        Assert.NotNull(result.Hints);
-        Assert.NotNull(result.Warnings);
-
-        // FileInfo 검증
-        Assert.Equal("samplepptx.pptx", result.File.Name);
-        Assert.Equal(".pptx", result.File.Extension);
-        Assert.Equal("PowerPointReader", result.ReaderType);
-        Assert.True(result.File.Size > 0);
-
-        // StructuralHints 검증
-        Assert.Equal("powerpoint_presentation", result.Hints["file_type"]);
-        Assert.True((int)result.Hints["character_count"] >= 0);
-        Assert.True((int)result.Hints["slide_count"] >= 0);
-
-        // 슬라이드와 관련된 힌트들 확인
-        if (result.Hints.TryGetValue("slide_count", out object? value))
-        {
-            var slideCount = (int)value;
-            _logger.LogInformation("Slide count: {Count}", slideCount);
-            Assert.True(slideCount >= 0);
-        }
-
-        if (result.Hints.TryGetValue("total_shapes", out object? shapeValue))
-        {
-            var totalShapes = (int)shapeValue;
-            _logger.LogInformation("Total shapes: {Count}", totalShapes);
-        }
-
-        _logger.LogInformation("Extracted text length: {Length}", result.Text.Length);
-        
-        if (result.Text.Length > 0)
-        {
-            _logger.LogInformation("First 400 characters: {Preview}", 
-                result.Text.Length > 400 ? string.Concat(result.Text.AsSpan(0, 400), "...") : result.Text);
-            
-            // PowerPoint 구조 확인 - 슬라이드 헤더가 있는지
-            if (result.Text.Contains("## Slide"))
-            {
-                _logger.LogInformation("✅ Slide structure detected in extracted text");
-                Assert.Contains("## Slide", result.Text);
-            }
-        }
-    }
-
-    [Fact]
-    public async Task ExtractAsync_WithStream_ShouldExtractContent()
-    {
-        // Arrange
-        var testFile = @"D:\data\FileFlux\tests\test-pptx\samplepptx.pptx";
-        
-        // Skip test if file doesn't exist
-        if (!File.Exists(testFile))
-        {
-            _logger.LogWarning("Test file not found: {TestFile}. Skipping test.", testFile);
-            return;
-        }
-
-        using var fileStream = File.OpenRead(testFile);
-
-        // Act
-        var result = await _reader.ExtractAsync(fileStream, "samplepptx.pptx", null, CancellationToken.None);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.NotNull(result.Text);
-        Assert.NotNull(result.File);
-        
-        Assert.Equal("samplepptx.pptx", result.File.Name);
-        Assert.Equal(".pptx", result.File.Extension);
-        Assert.Equal("PowerPointReader", result.ReaderType);
-
-        _logger.LogInformation("Stream extraction - Text length: {Length}", result.Text.Length);
     }
 
     [Fact]
     public async Task ExtractAsync_WithNullStream_ShouldThrowArgumentNullException()
     {
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() => 
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _reader.ExtractAsync((Stream)null!, "test.pptx", null, CancellationToken.None));
-        
         Assert.Equal("stream", exception.ParamName);
     }
 
     [Fact]
     public async Task ExtractAsync_StreamWithUnsupportedExtension_ShouldThrowArgumentException()
     {
-        // Arrange
         using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes("test content"));
-
-        // Act & Assert
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
             _reader.ExtractAsync(memoryStream, "test.pdf", null, CancellationToken.None));
-        
         Assert.Contains("File format not supported", exception.Message);
     }
 
     [Fact]
-    public async Task ExtractAsync_WithCancellation_ShouldRespectCancellationToken()
+    public async Task ExtractAsync_InvalidPptxPayload_ShouldThrowDocumentProcessingException()
     {
-        // Arrange
-        var testFile = @"D:\data\FileFlux\tests\test-pptx\samplepptx.pptx";
-        
-        // Skip test if file doesn't exist
-        if (!File.Exists(testFile))
-        {
-            _logger.LogWarning("Test file not found: {TestFile}. Skipping test.", testFile);
-            return;
-        }
-
-        using var cts = new CancellationTokenSource();
-        cts.Cancel(); // Cancel immediately
-
-        // Act & Assert
-        await Assert.ThrowsAsync<DocumentProcessingException>(() => 
-            _reader.ExtractAsync(testFile, null, cts.Token));
+        using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes("this is not an OOXML package"));
+        await Assert.ThrowsAsync<DocumentProcessingException>(() =>
+            _reader.ExtractAsync(memoryStream, "broken.pptx", null, CancellationToken.None));
     }
 
-    [Fact]
-    public void ExtractedContent_ShouldPreserveSlideStructure()
-    {
-        // This test ensures that extracted content maintains PowerPoint structure
-        // like slide numbers, content hierarchy, and speaker notes
-        
-        // The structure should include:
-        // - Slide headers (## Slide 1, ## Slide 2, etc.)
-        // - Slide content with proper text extraction
-        // - Speaker notes section (### Speaker Notes)
-        // - Proper line breaks and formatting between slides
-        
-        Assert.True(true, "Structure preservation is validated in real PowerPoint document test");
-    }
+    // ----- Read stage: slides → pages -----
 
     [Fact]
-    public void ShouldExtract_SpeakerNotes()
+    public async Task ReadAsync_ShouldReportEachSlideAsPage()
     {
-        // Test specification for speaker notes extraction
-        // Notes should be included in the output with proper labeling
-        // and should be associated with the correct slides
-        
-        Assert.True(true, "Speaker notes extraction is tested with real files");
+        var result = await _reader.ReadAsync(SampleSlidesFixture);
+
+        Assert.Equal("PowerPointReader", result.ReaderType);
+        Assert.Equal(3, result.Pages.Count);
+        Assert.Equal(3, result.DocumentProps["slide_count"]);
+        Assert.All(result.Pages, p => Assert.Equal("powerpoint_slide", p.Props["file_type"]));
     }
 
-    [Fact]
-    public void ShouldHandle_EmptySlides()
-    {
-        // Test specification for empty slide handling
-        // Empty slides should not cause errors
-        // and should be handled gracefully with appropriate structure markers
-        
-        Assert.True(true, "Empty slide handling is covered in implementation");
-    }
+    // ----- Extract stage: FileFlux managed contract -----
 
     [Fact]
-    public void ShouldExtract_TextFromShapes()
+    public async Task ExtractAsync_ShouldFollowPowerPointReaderContract()
     {
-        // Test specification for text shape extraction
-        // All text boxes, titles, and other text-containing shapes
-        // should have their text content extracted and included
-        
-        Assert.True(true, "Text shape extraction is validated in real document test");
+        var content = await _reader.ExtractAsync(SampleSlidesFixture);
+
+        Assert.Equal("PowerPointReader", content.ReaderType);
+        Assert.Equal(".pptx", content.File.Extension);
+        Assert.Equal("powerpoint_presentation", content.Hints["file_type"]);
+        Assert.Equal("undoc_native", content.Hints["conversion_method"]);
+        Assert.Equal(3, content.Hints["slide_count"]);
+        Assert.True((int)content.Hints["character_count"] >= 0);
+
+        Assert.Equal(content.Text.Trim(), content.Text);
+        Assert.NotEmpty(content.Text);
+    }
+
+    // ----- Extract stage: delegated Undoc serialization (slide-loss guard) -----
+
+    [Fact]
+    public async Task ExtractAsync_ShouldPreserveEverySlide()
+    {
+        var content = await _reader.ExtractAsync(SampleSlidesFixture);
+
+        // Every slide marker is present — the reader emits "## Slide N" per section.
+        Assert.Contains("## Slide 1", content.Text);
+        Assert.Contains("## Slide 2", content.Text);
+        Assert.Contains("## Slide 3", content.Text);
+
+        // First slide content, and the LAST slide's unique token — a truncated extraction
+        // that dropped trailing slides fails the last assertion.
+        Assert.Contains("수행사 선정 발표", content.Text);            // slide 1 title
+        Assert.Contains("선정업체 에이비씨소프트", content.Text);     // slide 3 body
+        Assert.Contains("SLIDE3-마감표식", content.Text);            // last slide unique token
+    }
+
+    // ----- File vs stream parity (two copy-paste extraction paths) -----
+
+    [Fact]
+    public async Task ExtractAsync_FromStream_ShouldMatchFileExtraction()
+    {
+        var fromFile = await _reader.ExtractAsync(SampleSlidesFixture);
+
+        await using var stream = File.OpenRead(SampleSlidesFixture);
+        var fromStream = await _reader.ExtractAsync(stream, "sample-slides.pptx");
+
+        Assert.Equal(fromFile.Text, fromStream.Text);
+        Assert.Equal(fromFile.Hints["slide_count"], fromStream.Hints["slide_count"]);
     }
 }
