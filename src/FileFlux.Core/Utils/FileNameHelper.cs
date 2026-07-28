@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 
 namespace FileFlux.Core;
@@ -70,7 +71,12 @@ public static class FileNameHelper
         if (string.IsNullOrEmpty(filePath))
             return string.Empty;
 
-        var fileName = Path.GetFileName(filePath);
+        // Both separators are stripped regardless of host OS. Path.GetFileName alone is host-relative:
+        // on Linux it does not treat '\' as a separator, so a Windows-authored path arrives intact and
+        // this helper would hand back "C:\dir\file.txt" as if it were a file name. Document paths
+        // routinely cross platforms, so the answer must not depend on where the library happens to run.
+        var cut = filePath.LastIndexOfAny(['/', '\\']);
+        var fileName = cut >= 0 ? filePath[(cut + 1)..] : filePath;
         return NormalizeFileName(fileName);
     }
 
@@ -84,8 +90,29 @@ public static class FileNameHelper
         if (string.IsNullOrEmpty(fileName))
             return false;
 
-        var invalidChars = Path.GetInvalidFileNameChars();
-        return !fileName.Any(c => invalidChars.Contains(c));
+        return !fileName.Any(PortablyInvalidFileNameChars.Contains);
+    }
+
+    /// <summary>
+    /// Characters rejected by <see cref="IsValidFileName"/>, on every host OS.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <see cref="Path.GetInvalidFileNameChars"/>, which is host-relative: on Linux it
+    /// reports only '/' and NUL, so <c>a&lt;b&gt;c|d.txt</c> validates there and then breaks the moment the
+    /// document set is opened on Windows. A library that answers "is this name usable?" differently
+    /// depending on which machine it runs on cannot be relied on, so the union is used everywhere.
+    /// </remarks>
+    private static readonly SearchValues<char> PortablyInvalidFileNameChars =
+        SearchValues.Create(BuildPortablyInvalidFileNameChars());
+
+    private static string BuildPortablyInvalidFileNameChars()
+    {
+        // Windows' reserved set (a superset of Linux's, which is only '/' and NUL) plus every control
+        // character, which no platform handles well in a file name.
+        var chars = new StringBuilder("<>:\"/\\|?*");
+        for (char c = '\0'; c < ' '; c++)
+            chars.Append(c);
+        return chars.ToString();
     }
 
     /// <summary>
