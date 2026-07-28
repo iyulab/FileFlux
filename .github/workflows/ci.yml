@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore FileFlux.slnx
+
+      - name: Build
+        run: dotnet build FileFlux.slnx --no-restore -c Release
+
+      - name: Test
+        # Ecosystem CI convention: exclude externally-dependent categories. FileFlux currently
+        # declares only Category=Integration, but the other two are kept so a future
+        # RequiresApiKey/Performance test does not silently start gating CI.
+        # --blame-hang turns a silent 20-minute timeout-cancel into a 5-minute dump naming the
+        # hung test — the reader tests exercise native FFI (Undoc/Unpdf), where a hang is the
+        # plausible failure mode rather than an assertion failure.
+        run: dotnet test FileFlux.slnx --no-build -c Release --verbosity normal --filter "Category!=Integration&Category!=RequiresApiKey&Category!=Performance" --blame-hang --blame-hang-timeout 5m
