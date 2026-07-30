@@ -659,7 +659,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
                 {
                     Id = $"img_{imageIndex++:D3}",
                     Caption = resourceInfo.AltText,
-                    MimeType = resourceInfo.MimeType ?? "image/png",
+                    MimeType = resourceInfo.MimeType ?? ImageMimeTypeDetector.Detect(data, resourceInfo.Filename ?? id),
                     Data = data,
                     SourceUrl = $"embedded:{id}",
                     OriginalSize = resourceInfo.Size,

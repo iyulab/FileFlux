@@ -234,7 +234,7 @@ public partial class WordDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = resourceId,
-                    MimeType = GuessMimeType(resourceId),
+                    MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
                     SourceUrl = $"embedded:{resourceId}"
@@ -323,7 +323,7 @@ public partial class WordDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = resourceId,
-                    MimeType = GuessMimeType(resourceId),
+                    MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
                     SourceUrl = $"embedded:{resourceId}"
@@ -373,19 +373,6 @@ public partial class WordDocumentReader : IDocumentReader
             Images = extractedImages,
             ReaderType = "WordReader"
         };
-    }
-
-    private static string GuessMimeType(string resourceId)
-    {
-        var lower = resourceId.ToLowerInvariant();
-        if (lower.EndsWith(".png")) return "image/png";
-        if (lower.EndsWith(".jpg") || lower.EndsWith(".jpeg")) return "image/jpeg";
-        if (lower.EndsWith(".gif")) return "image/gif";
-        if (lower.EndsWith(".webp")) return "image/webp";
-        if (lower.EndsWith(".svg")) return "image/svg+xml";
-        if (lower.EndsWith(".emf")) return "image/emf";
-        if (lower.EndsWith(".wmf")) return "image/wmf";
-        return "application/octet-stream";
     }
 
     private static int CountWords(string text)

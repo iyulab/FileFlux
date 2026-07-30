@@ -230,7 +230,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = id,
-                    MimeType = GuessMimeType(id),
+                    MimeType = ImageMimeTypeDetector.Detect(data, id),
                     Data = data,
                     OriginalSize = data.Length,
                     SourceUrl = $"embedded:{id}"
@@ -310,7 +310,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = id,
-                    MimeType = GuessMimeType(id),
+                    MimeType = ImageMimeTypeDetector.Detect(data, id),
                     Data = data,
                     OriginalSize = data.Length,
                     SourceUrl = $"embedded:{id}"
@@ -356,17 +356,6 @@ public sealed partial class HwpDocumentReader : IDocumentReader
             Images = extractedImages,
             ReaderType = "HwpReader"
         };
-    }
-
-    private static string GuessMimeType(string resourceId)
-    {
-        var lower = resourceId.ToLowerInvariant();
-        if (lower.EndsWith(".png")) return "image/png";
-        if (lower.EndsWith(".jpg") || lower.EndsWith(".jpeg")) return "image/jpeg";
-        if (lower.EndsWith(".gif")) return "image/gif";
-        if (lower.EndsWith(".webp")) return "image/webp";
-        if (lower.EndsWith(".bmp")) return "image/bmp";
-        return "application/octet-stream";
     }
 
     private static int CountWords(string text)
