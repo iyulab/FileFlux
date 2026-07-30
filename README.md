@@ -274,6 +274,23 @@ services.AddFileFlux();
 - **Complex Multi-column Layouts**: Documents with intricate multi-column arrangements may have suboptimal text ordering.
 - **Scanned Documents**: OCR is not included; scanned PDFs require pre-processing with external OCR tools. When a PDF parses but yields no text at all, the reader returns empty content with `Hints["extraction_failure_reason"]` set to `"no_text_layer"` (image-only/scanned — pages draw images without a readable text layer, via Unpdf page introspection) or `"blank_page"` (no text or image content at all), plus an explanatory warning — so consumers can classify these distinctly from parse errors.
 - **Partial Extraction**: When whole-document extraction fails, FileFlux automatically falls back to per-page extraction. Pages that cannot be extracted are skipped and recorded in `RawContent.Errors`. `RawContent.Status` is set to `ProcessingStatus.Partial` when some pages fail, allowing RAG pipelines to use the successfully extracted content rather than losing the entire document.
+- **Parse Failures**: `extraction_failure_reason` above covers documents that parse but yield no text; `extraction_error_kind` covers documents that fail to parse, naming Unpdf's structured failure classification (`PdfParse`, `UnknownFormat`, `Encrypted`, `Corrupted`, `Io`, `MissingObject`, …) so consumers can classify without matching on message prose. On partial extraction it arrives as `Hints["extraction_error_kind"]`, listing every distinct kind seen across the skipped pages (`"PdfParse+MissingObject"`). When extraction fails entirely there is no `RawContent` to carry hints, so the same value is embedded in the thrown `DocumentProcessingException.Message` as a `extraction_error_kind=<kind>` token:
+
+```csharp
+try
+{
+    var content = await reader.ExtractAsync("scan.pdf");
+    if (content.Hints.TryGetValue("extraction_error_kind", out var kind))
+        logger.LogWarning("Some pages unreadable: {Kind}", kind);   // e.g. "PdfParse"
+}
+catch (DocumentProcessingException ex)
+{
+    // ex.Message contains "... [extraction_error_kind=Corrupted]"
+    logger.LogError(ex, "PDF could not be parsed");
+}
+```
+
+A value from a newer native build passes through as its number rather than being dropped, so unknown kinds stay reportable.
 
 ### Table Extraction
 FileFlux uses layout-based table detection with confidence scoring:

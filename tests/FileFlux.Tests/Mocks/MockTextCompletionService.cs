@@ -165,9 +165,9 @@ public class MockTextCompletionService : IDocumentAnalysisService
 
         if (hasRequirements && hasStack)
         {
-            topic = "AIMS MVP 시스템 요구사항 분석";
+            topic = "MVP 시스템 요구사항 분석";
             keywords.AddRange(s_requirementsStackKeywords);
-            summary = "AIMS MVP 프로젝트의 기술 스택 구성과 기능/비기능 요구사항을 정의한 기술 문서입니다.";
+            summary = "MVP 프로젝트의 기술 스택 구성과 기능/비기능 요구사항을 정의한 기술 문서입니다.";
         }
         else if (hasStack)
         {

@@ -230,9 +230,13 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         }
         catch (Exception ex)
         {
-            // On image processing failure, use base result with warning
+            // On image processing failure, use base result with warning. Name the Unpdf
+            // error kind when the native layer is the one that failed — the message alone
+            // cannot be classified programmatically.
             var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
-            warnings.Add($"Image processing failed: {ex.Message}");
+            warnings.Add(ex is UnpdfException unpdfEx
+                ? $"Image processing failed: {ex.Message} [extraction_error_kind={unpdfEx.Kind}]"
+                : $"Image processing failed: {ex.Message}");
 
             return new RawContent
             {

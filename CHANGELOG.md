@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-07-30
+
+### Added
+- **`extraction_error_kind` diagnostic for PDF parse failures.** `extraction_failure_reason`
+  already explains the non-exception outcomes (`no_text_layer` / `blank_page`); this is the missing
+  half — it names *why the parse itself failed*, using the structured error classification
+  Unpdf 0.10.0 exposes (`UnpdfException.Kind`: `PdfParse`, `UnknownFormat`, `Encrypted`,
+  `Corrupted`, `Io`, `MissingObject`, …). It reaches consumers on two channels:
+  - **Partial extraction** (some pages readable): `Hints["extraction_error_kind"]`, listing every
+    distinct kind observed across the skipped pages (`PdfParse+MissingObject`).
+  - **Total failure** (the reader throws): a `extraction_error_kind=<kind>` token inside
+    `DocumentProcessingException.Message`. The throwing path has no `RawContent` to carry hints,
+    and consumers persist only the message, so the kind travels as a producer-emitted `key=value`
+    token rather than as prose to be pattern-matched.
+  Per-page failures additionally record the kind in `ProcessingError.Details`, and a document
+  whose whole-document extraction failed before the per-page retry now says so in a warning
+  naming the kind — previously that kind was discarded without a trace.
+- Values from a newer native build pass through as their number instead of collapsing to null,
+  since Unpdf's ABI assigns new reasons new numbers and never reuses old ones.
+
+### Fixed
+- **Aggregate page-failure exception carried no usable classification.** When every page failed,
+  the reader fabricated an `UnpdfException` from a message-only constructor — which assigns
+  `Other`, erasing the classification for precisely the case that most needs it. The aggregate is
+  now an internal signal carrying the kinds actually observed on the failed pages.
+- Korean (and other non-ASCII) file paths in parse-error messages are no longer mangled: Unpdf
+  0.10.0 fixes the error-message decoding on the managed side, and those messages are what
+  FileFlux propagates to consumers. Unpdf pin 0.9.0 → 0.10.0.
+- `PdfNoTextLayerClassificationTests` reference case probed a directory that does not exist and
+  early-returned, so it passed without ever running; it now uses the committed real-world PDF.
+
+### Changed
+- Public-facing sources, tests and changelog entries no longer name the private consumer
+  application that reported individual defects; the conditions are described in library terms.
+
 ## [0.14.0] - 2026-07-23
 
 ### Changed
@@ -29,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   BIFF5/7 files (defensive convention-alignment with `CsvDocumentReader`; fixture teeth cover the
   BIFF8 Korean path, where strings are Unicode and the fallback is not exercised).
   `DocumentType.Excel` now advertises `[".xlsx", ".xls"]`; registered in both the `AddFileFlux()`
-  DI set and the DI-less `DocumentReaderFactory` default set. Reported by SMI.AIMS field data
+  DI set and the DI-less `DocumentReaderFactory` default set. Reported from consumer field data
   (current-business Korean `.xls` quotations failing with "No reader found").
 - **PDF no-text-layer classification**: a PDF that parses but yields no text (image-only/scanned
   or blank) now returns empty content with `Hints["extraction_failure_reason"] = "no_text_layer"`
@@ -60,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   consumers to disable global scope validation (`ValidateScopes=false`), masking other captive bugs. Both are
   now registered with the method's shared `lifetime` parameter (default Scoped), so the graph validates under
   `ValidateScopes=true`. The Markdown normalizer remains Singleton (no DI captures). Reported via umbrella MU-6
-  (upstream root fix of AIMS issue 260416).
+  (upstream root fix of a downstream consumer report).
 
 ### Changed
 - Build: NU1903 (CVE-2025-6965 in transitive `SQLitePCLRaw.lib.e_sqlite3`, via the sample app's EFCore.Sqlite)

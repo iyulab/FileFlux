@@ -13,7 +13,7 @@ namespace FileFlux.Tests.Readers;
 ///   (both counts 0) → "blank_page"
 /// Both parse fine and yield empty text; before 0.13.0 this was a silently
 /// empty Completed result, and 0.13.0 could not distinguish the two cases
-/// (AIMS field report 2026-07-22 / unpdf introspection issue follow-up AC4).
+/// (consumer field report 2026-07-22 / unpdf introspection follow-up AC4).
 /// </summary>
 public class PdfNoTextLayerClassificationTests
 {
@@ -22,6 +22,9 @@ public class PdfNoTextLayerClassificationTests
 
     private static readonly string BlankPagePath =
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "blank-page.pdf");
+
+    private static readonly string TextPdfPath =
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "oai_gpt-oss_model_card.pdf");
 
     private readonly PdfDocumentReader _reader = new();
 
@@ -57,22 +60,13 @@ public class PdfNoTextLayerClassificationTests
     [Fact]
     public async Task ExtractAsync_TextPdf_ShouldNotCarryFailureReason()
     {
-        // Reference behavior: a PDF with a real text layer must not be tagged
-        var textPdfPath = FindAnyTextPdf();
-        if (textPdfPath is null)
-            return; // no text-bearing sample available in this environment
+        // Reference behavior: a PDF with a real text layer must not be tagged.
+        // Uses the committed real-world PDF; the previous probe looked in a
+        // "Resources" directory that does not exist and early-returned, so this
+        // reference case passed without ever running.
+        var content = await _reader.ExtractAsync(TextPdfPath);
 
-        var content = await _reader.ExtractAsync(textPdfPath);
-
+        Assert.NotEqual(string.Empty, content.Text);
         Assert.False(content.Hints.ContainsKey("extraction_failure_reason"));
-    }
-
-    private static string? FindAnyTextPdf()
-    {
-        // Reuse any repository sample PDF with actual text if present
-        var candidates = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "Resources"))
-            ? Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Resources"), "*.pdf")
-            : [];
-        return candidates.FirstOrDefault();
     }
 }

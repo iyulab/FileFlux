@@ -77,7 +77,7 @@ public class CsvDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_Cp949EncodedStream_ShouldDecodeKorean()
     {
-        // Arrange - CP949(EUC-KR) encoded Korean CSV (AIMS field case: legacy Excel export)
+        // Arrange - CP949(EUC-KR) encoded Korean CSV (field case: legacy Excel export)
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         var cp949 = Encoding.GetEncoding(949);
         var csv = "이름,부서\n김철수,영업팀\n";
@@ -192,7 +192,7 @@ public class CsvDocumentReaderTests
     [Fact]
     public void DocumentReaderFactory_DefaultRegistration_ShouldResolveCsvAndTsv()
     {
-        // Regression for AIMS "No reader found for: *.csv"
+        // Regression for the reported "No reader found for: *.csv"
         var factory = new DocumentReaderFactory();
 
         Assert.NotNull(factory.GetReader("report.csv"));

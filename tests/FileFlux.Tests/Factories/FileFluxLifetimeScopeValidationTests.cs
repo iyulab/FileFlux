@@ -10,7 +10,7 @@ namespace FileFlux.Tests.Factories;
 /// Regression tests for MU-6: the parser factory and Markdown converter must not capture a
 /// Scoped <see cref="IDocumentAnalysisService"/> as a Singleton (captive dependency). With the
 /// default Scoped lifetime the resolved graph must validate under <c>ValidateScopes:true</c>,
-/// so consumers (e.g. AIMS) need not disable global scope validation.
+/// so consumers need not disable global scope validation.
 /// </summary>
 public class FileFluxLifetimeScopeValidationTests
 {

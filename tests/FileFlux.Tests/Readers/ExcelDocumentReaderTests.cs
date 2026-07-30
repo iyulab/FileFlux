@@ -13,7 +13,7 @@ namespace FileFlux.Tests.Readers;
 /// - Fixtures/list-offset-multisheet.xlsx — sheet1 "수행사목록" (2 leading blank rows +
 ///   offset title + header + 8 rows) and sheet2 "요약" (summary table).
 ///
-/// These pin the AIMS field report (`ISSUE-FileFlux-20260724-xlsx-extraction-near-empty`):
+/// These pin a consumer field report on near-empty .xlsx extraction:
 /// modern .xlsx serialization delegates 100% to Undoc's ToMarkdown, and the reported
 /// "near-empty / 1-chunk" symptom was NOT reproducible — a multi-row list extracts in full.
 /// The row-loss guard below (asserting the FIRST, a MID, and the LAST data row) is what makes

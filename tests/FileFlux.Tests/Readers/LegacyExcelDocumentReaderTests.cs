@@ -8,7 +8,7 @@ namespace FileFlux.Tests.Readers;
 /// LegacyExcelDocumentReader unit tests — BIFF (.xls) extraction to markdown tables.
 /// Fixture: Fixtures/legacy-korean.xls (BIFF8, NPOI-generated) — Korean sheet name
 /// ("견적서") and cell values, numeric/date/pipe-escape cases, plus an empty sheet.
-/// Pins the Korean legacy-document acceptance criterion from the AIMS field report
+/// Pins the Korean legacy-document acceptance criterion from a consumer field report
 /// (2023-2026 era .xls quotations failing with "No reader found").
 /// </summary>
 public class LegacyExcelDocumentReaderTests

@@ -14,6 +14,53 @@ public partial class PdfDocumentReader : IDocumentReader
 
     public IEnumerable<string> SupportedExtensions => [".pdf"];
 
+    /// <summary>
+    /// Diagnostic key naming the Unpdf error kind behind a failed extraction.
+    /// The exception path has no <see cref="RawContent"/> to hang hints on and
+    /// consumers persist only <see cref="Exception.Message"/>, so on that path the
+    /// kind travels as a producer-emitted <c>key=value</c> token inside the message.
+    /// On the partial path it is a real hint. Complements
+    /// <c>extraction_failure_reason</c>, which explains the non-exception outcomes.
+    /// </summary>
+    internal const string ErrorKindKey = "extraction_error_kind";
+
+    /// <summary>
+    /// Formats an Unpdf error kind for diagnostics. Deliberately
+    /// <see cref="Enum.ToString()"/> and not <see cref="Enum.GetName(Type, object)"/>:
+    /// Unpdf's ABI assigns new reasons new numbers and never reuses old ones, so a
+    /// value minted by a newer native build must round-trip as its number rather
+    /// than collapse to null.
+    /// </summary>
+    internal static string FormatErrorKind(UnpdfErrorKind kind) => kind.ToString();
+
+    private static string WithErrorKind(string message, UnpdfErrorKind kind)
+        => $"{message} [{ErrorKindKey}={FormatErrorKind(kind)}]";
+
+    /// <summary>
+    /// Joins the distinct kinds observed across failed pages. Mixed causes stay
+    /// visible (<c>PdfParse+MissingObject</c>) instead of being flattened to one label.
+    /// </summary>
+    internal static string SummarizeErrorKinds(IEnumerable<UnpdfErrorKind> kinds)
+    {
+        var distinct = kinds.Select(FormatErrorKind).Distinct(StringComparer.Ordinal).ToArray();
+        return distinct.Length == 0
+            ? FormatErrorKind(UnpdfErrorKind.Other)
+            : string.Join("+", distinct);
+    }
+
+    /// <summary>
+    /// Internal control signal: every page failed extraction. Carries the kinds
+    /// observed on those pages — a fabricated <see cref="UnpdfException"/> cannot,
+    /// because its message-only constructor assigns <see cref="UnpdfErrorKind.Other"/>
+    /// and would erase the one diagnostic the consumer receives. Never escapes the
+    /// reader; the <c>ExtractAsync</c> overloads translate it into
+    /// <see cref="DocumentProcessingException"/>.
+    /// </summary>
+    private sealed class PdfPagesExhaustedException(string message, string kindSummary) : Exception(message)
+    {
+        public string KindSummary { get; } = kindSummary;
+    }
+
     public bool CanRead(string fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;
@@ -81,7 +128,8 @@ public partial class PdfDocumentReader : IDocumentReader
         }
         catch (UnpdfException ex)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to read PDF document: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                filePath, WithErrorKind($"Failed to read PDF document: {ex.Message}", ex.Kind), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -147,9 +195,15 @@ public partial class PdfDocumentReader : IDocumentReader
         {
             return await Task.Run(() => ExtractPdfContent(filePath, options, cancellationToken), cancellationToken).ConfigureAwait(false);
         }
+        catch (PdfPagesExhaustedException ex)
+        {
+            throw new DocumentProcessingException(
+                filePath, $"Failed to extract PDF document: {ex.Message} [{ErrorKindKey}={ex.KindSummary}]", ex);
+        }
         catch (UnpdfException ex)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to extract PDF document: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                filePath, WithErrorKind($"Failed to extract PDF document: {ex.Message}", ex.Kind), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -187,9 +241,17 @@ public partial class PdfDocumentReader : IDocumentReader
 
             return result;
         }
+        catch (PdfPagesExhaustedException ex)
+        {
+            throw new DocumentProcessingException(
+                fileName,
+                $"Failed to extract PDF document from stream: {ex.Message} [{ErrorKindKey}={ex.KindSummary}]",
+                ex);
+        }
         catch (UnpdfException ex)
         {
-            throw new DocumentProcessingException(fileName, $"Failed to extract PDF document from stream: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                fileName, WithErrorKind($"Failed to extract PDF document from stream: {ex.Message}", ex.Kind), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -223,10 +285,15 @@ public partial class PdfDocumentReader : IDocumentReader
         {
             markdown = doc.ToMarkdown();
         }
-        catch (UnpdfException)
+        catch (UnpdfException ex)
         {
+            // The whole-document kind is the first thing upstream needs when a file
+            // reaches the slow path at all — before 0.15.0 it was discarded here.
+            warnings.Add($"Whole-document extraction failed " +
+                         $"({ErrorKindKey}={FormatErrorKind(ex.Kind)}); retrying page by page");
+
             // Slow path: per-page extraction with error accumulation
-            (markdown, status) = ExtractPerPage(doc, errors, warnings, cancellationToken);
+            (markdown, status) = ExtractPerPage(doc, errors, warnings, structuralHints, cancellationToken);
         }
 
         // Remove null bytes
@@ -326,20 +393,28 @@ public partial class PdfDocumentReader : IDocumentReader
     /// <summary>
     /// Per-page extraction with error accumulation.
     /// Tries markdown per page, falls back to plaintext per page, skips completely failed pages.
+    /// Every Unpdf error kind seen along the way is retained: page-level kinds are the only
+    /// evidence available for documents that open cleanly but yield no page content, and no
+    /// synthesizable corruption reaches this path (crude damage fails at parse time instead),
+    /// so nothing here can be reconstructed after the fact.
     /// </summary>
     private static (string markdown, ProcessingStatus status) ExtractPerPage(
         UnpdfDocument doc,
         List<ProcessingError> errors,
         List<string> warnings,
+        Dictionary<string, object> structuralHints,
         CancellationToken cancellationToken)
     {
         var pageCount = doc.SectionCount;
         var parts = new List<string>(pageCount);
         var failedPages = new List<int>();
+        var failedKinds = new List<UnpdfErrorKind>();
 
         for (int page = 1; page <= pageCount; page++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            UnpdfErrorKind markdownKind;
 
             // Try markdown first
             try
@@ -349,9 +424,10 @@ public partial class PdfDocumentReader : IDocumentReader
                     parts.Add(pageMarkdown);
                 continue;
             }
-            catch (UnpdfException)
+            catch (UnpdfException ex)
             {
                 // Markdown failed for this page — try plaintext
+                markdownKind = ex.Kind;
             }
 
             // Try plaintext fallback
@@ -361,7 +437,8 @@ public partial class PdfDocumentReader : IDocumentReader
                 if (!string.IsNullOrWhiteSpace(pageText))
                 {
                     parts.Add(pageText);
-                    warnings.Add($"Page {page}: using plaintext fallback");
+                    warnings.Add($"Page {page}: using plaintext fallback " +
+                                 $"(markdown {ErrorKindKey}={FormatErrorKind(markdownKind)})");
                 }
                 continue;
             }
@@ -369,12 +446,17 @@ public partial class PdfDocumentReader : IDocumentReader
             {
                 // Both failed — record error and skip page
                 failedPages.Add(page);
+                failedKinds.Add(ex.Kind);
                 errors.Add(new ProcessingError
                 {
                     Code = "PDF_PAGE_EXTRACTION_FAILED",
                     Message = $"Page {page}: {ex.Message}",
                     Stage = "extraction",
-                    Details = new Dictionary<string, object> { ["page"] = page }
+                    Details = new Dictionary<string, object>
+                    {
+                        ["page"] = page,
+                        [ErrorKindKey] = FormatErrorKind(ex.Kind)
+                    }
                 });
             }
         }
@@ -382,17 +464,23 @@ public partial class PdfDocumentReader : IDocumentReader
         // If all pages failed, throw to let caller handle. Carry the first
         // per-page parse error so the failure cause is diagnosable — the bare
         // "All N pages failed" phrasing read like a parser defect and gave
-        // consumers nothing to classify on (AIMS field report, 2026-07-22).
+        // consumers nothing to classify on (consumer field report, 2026-07-22).
         if (parts.Count == 0 && failedPages.Count > 0)
         {
             var firstError = errors.Count > 0 ? errors[0].Message : "unknown error";
-            throw new UnpdfException(
+            throw new PdfPagesExhaustedException(
                 $"All {pageCount} page(s) failed extraction (parse error; first: {firstError}). " +
-                "If this is a scanned/image-only PDF, it has no text layer to extract (OCR required).");
+                "If this is a scanned/image-only PDF, it has no text layer to extract (OCR required).",
+                SummarizeErrorKinds(failedKinds));
         }
 
         if (failedPages.Count > 0)
+        {
             warnings.Add($"Skipped {failedPages.Count} page(s): [{string.Join(", ", failedPages)}]");
+            // Partial results do carry a RawContent, so here the kind is a real hint
+            // rather than a token smuggled through an exception message.
+            structuralHints[ErrorKindKey] = SummarizeErrorKinds(failedKinds);
+        }
 
         var status = failedPages.Count > 0 ? ProcessingStatus.Partial : ProcessingStatus.Completed;
         return (string.Join("\n\n", parts), status);
