@@ -235,7 +235,8 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             // cannot be classified programmatically.
             var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
             warnings.Add(ex is UnpdfException unpdfEx
-                ? $"Image processing failed: {ex.Message} [extraction_error_kind={unpdfEx.Kind}]"
+                ? $"Image processing failed: {ex.Message} " +
+                  $"[{PdfDocumentReader.ErrorKindKey}={PdfDocumentReader.FormatErrorKind(unpdfEx.Kind)}]"
                 : $"Image processing failed: {ex.Message}");
 
             return new RawContent

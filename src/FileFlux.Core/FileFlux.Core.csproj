@@ -18,6 +18,9 @@
   <ItemGroup>
     <!-- Expose internal native self-update seams to the test assembly -->
     <InternalsVisibleTo Include="FileFlux.Tests" />
+    <!-- Let the reader implementations in FileFlux share diagnostic vocabulary
+         (e.g. PdfDocumentReader.ErrorKindKey) instead of re-spelling the keys -->
+    <InternalsVisibleTo Include="FileFlux" />
   </ItemGroup>
 
   <ItemGroup>

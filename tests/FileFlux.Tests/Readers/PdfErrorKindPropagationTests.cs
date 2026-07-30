@@ -1,5 +1,7 @@
+using FileFlux;
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
+using Microsoft.Extensions.DependencyInjection;
 using Unpdf;
 using Xunit;
 
@@ -84,6 +86,29 @@ public class PdfErrorKindPropagationTests : IDisposable
 
         Assert.False(content.Hints.ContainsKey("extraction_error_kind"));
         Assert.DoesNotContain(content.Warnings, w => w.Contains("extraction_error_kind", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Consumers do not call the reader — they call the processor, whose stage wrapper
+    /// re-throws with its own message. The token has to survive that hop, because the
+    /// wrapped message is the only thing a consumer persists on the failure path.
+    /// </summary>
+    [Fact]
+    public async Task ProcessAsync_ThroughTheProcessorFactory_ShouldStillCarryTheKind()
+    {
+        var path = WriteTempPdf("%PDF-1.7\ngarbage\n"u8.ToArray());
+
+        var services = new ServiceCollection();
+        services.AddFileFlux();
+        using var provider = services.BuildServiceProvider();
+
+        var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+        await using var processor = factory.Create(path);
+
+        var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
+            () => processor.ProcessAsync());
+
+        Assert.Contains($"extraction_error_kind={UnpdfErrorKind.PdfParse}", ex.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
