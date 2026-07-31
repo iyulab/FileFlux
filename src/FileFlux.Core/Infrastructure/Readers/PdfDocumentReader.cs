@@ -160,6 +160,22 @@ public partial class PdfDocumentReader : IDocumentReader
             var pageCount = doc.SectionCount;
             result.DocumentProps["page_count"] = pageCount;
 
+            // Stage 0 states the page count, so it is the surface where a short page set is
+            // most easily mistaken for a whole document. The same signal the extract stage
+            // publishes has to reach here too.
+            var (pagesIncomplete, declaredPageCount) = ReadPageIntegrity(doc);
+            if (pagesIncomplete)
+            {
+                result.DocumentProps[PagesIncompleteKey] = true;
+                if (declaredPageCount is long declared)
+                    result.DocumentProps[DeclaredPageCountKey] = declared;
+
+                result.Warnings.Add("Pages are missing from this document: the PDF is damaged and only " +
+                                    "part of its page tree could be read. The page count below is not " +
+                                    "the document's own.");
+                result.Status = ProcessingStatus.Partial;
+            }
+
             // Add page info
             for (int i = 1; i <= pageCount; i++)
             {

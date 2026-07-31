@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carries the count the document declares, for comparison against the extracted `page_count`.
   The flag is a boolean, never a loss count: one unresolved page-tree node can cost a single page
   or an entire subtree, so no number of lost pages is knowable — and one asserted here would be
-  reported onward to users as fact.
+  reported onward to users as fact. `ReadAsync` (stage 0) carries the same signal in
+  `DocumentProps` with `ReadResult.Status = Partial`; that stage is the one that reports the page
+  count, so it is where a short page set most easily passes for a whole document.
 
 ### Changed
 - **Unpdf 0.10.0 → 0.11.0.** Text extraction no longer fails on documents whose text contains

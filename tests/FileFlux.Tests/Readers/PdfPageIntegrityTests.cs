@@ -92,6 +92,32 @@ public class PdfPageIntegrityTests : IDisposable
     }
 
     [Fact]
+    public async Task ReadAsync_DamagedPageTree_ShouldCarryTheSameSignal()
+    {
+        // Stage 0 is where the page count is stated, so it is the surface where a short
+        // page set most easily passes for a whole document.
+        var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: true));
+
+        var result = await _reader.ReadAsync(path);
+
+        Assert.Equal(true, result.DocumentProps["pages_incomplete"]);
+        Assert.Equal(2L, result.DocumentProps["declared_page_count"]);
+        Assert.Equal(ProcessingStatus.Partial, result.Status);
+        Assert.False(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task ReadAsync_IntactPdf_ShouldNotFlagIncompleteness()
+    {
+        var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: false));
+
+        var result = await _reader.ReadAsync(path);
+
+        Assert.False(result.DocumentProps.ContainsKey("pages_incomplete"));
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
     public async Task ExtractAsync_RealWorldPdf_ShouldNotFlagIncompleteness()
     {
         // A synthetic control cannot rule out false positives on real generator output.

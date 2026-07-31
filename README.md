@@ -297,9 +297,16 @@ A value from a newer native build passes through as its number rather than being
 ```csharp
 var content = await reader.ExtractAsync("damaged.pdf");
 if (content.Hints.ContainsKey("pages_incomplete"))
+{
+    // declared_page_count is absent when the document's own declaration was unreadable —
+    // itself a damage signal, so the flag can be set without a number to compare against.
+    content.Hints.TryGetValue("declared_page_count", out var declared);
     logger.LogWarning("Indexing an incomplete document: declared {Declared}, extracted {Extracted}",
-        content.Hints["declared_page_count"], content.Hints["page_count"]);
+        declared ?? "unknown", content.Hints["page_count"]);
+}
 ```
+
+`ReadAsync` (stage 0) carries the same signal in `DocumentProps`, with `ReadResult.Status` set to `Partial` — that stage reports the page count, so it is where a short page set most easily passes for a whole document.
 
 ### Table Extraction
 FileFlux uses layout-based table detection with confidence scoring:
