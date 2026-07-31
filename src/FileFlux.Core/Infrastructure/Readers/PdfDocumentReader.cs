@@ -25,6 +25,22 @@ public partial class PdfDocumentReader : IDocumentReader
     internal const string ErrorKindKey = "extraction_error_kind";
 
     /// <summary>
+    /// Diagnostic key stating that pages are missing from an extraction that otherwise
+    /// succeeded. A damaged document whose page tree only partly resolves still parses,
+    /// so without this flag a two-thirds document is indistinguishable from a whole one.
+    /// It is a boolean, never a count: one unresolved node can cost a single page or an
+    /// entire subtree, so the number of lost pages is not knowable here.
+    /// </summary>
+    internal const string PagesIncompleteKey = "pages_incomplete";
+
+    /// <summary>
+    /// Page count the document itself declares, published alongside
+    /// <see cref="PagesIncompleteKey"/> so consumers can see how far the extracted
+    /// <c>page_count</c> falls short without the reader asserting a loss figure.
+    /// </summary>
+    internal const string DeclaredPageCountKey = "declared_page_count";
+
+    /// <summary>
     /// Formats an Unpdf error kind for diagnostics. Deliberately
     /// <see cref="Enum.ToString()"/> and not <see cref="Enum.GetName(Type, object)"/>:
     /// Unpdf's ABI assigns new reasons new numbers and never reuses old ones, so a
@@ -46,6 +62,38 @@ public partial class PdfDocumentReader : IDocumentReader
         return distinct.Length == 0
             ? FormatErrorKind(UnpdfErrorKind.Other)
             : string.Join("+", distinct);
+    }
+
+    /// <summary>
+    /// True for error kinds raised at the interop boundary. Unpdf's ABI reserves 100 and
+    /// above for failures that have no library-side counterpart, so such a kind is not a
+    /// statement about the document — it says the call could not be completed.
+    /// </summary>
+    internal static bool IsInteropBoundaryKind(UnpdfErrorKind kind) => (int)kind >= 100;
+
+    /// <summary>
+    /// Wording for the every-page-failed outcome.
+    /// <para>
+    /// It names no cause of its own. The previous wording filed every such failure under
+    /// "parse error" and appended "OCR required" unconditionally, which pointed readers of
+    /// the message at parser robustness and OCR even when the cause was neither (consumer
+    /// field report, 2026-07-31). Scanned documents never reach this path anyway: a page
+    /// with no text layer extracts as empty rather than throwing, and is classified as
+    /// <c>extraction_failure_reason=no_text_layer</c> instead. The kind itself travels
+    /// separately, as the <see cref="ErrorKindKey"/> token the callers append.
+    /// </para>
+    /// </summary>
+    internal static string DescribePagesExhausted(
+        int pageCount, string firstError, IEnumerable<UnpdfErrorKind> kinds)
+    {
+        var message = $"All {pageCount} page(s) failed extraction (first: {firstError}).";
+
+        return kinds.Any(IsInteropBoundaryKind)
+            ? message + " At least one failure was raised at the library's interop boundary " +
+              "(error kind 100 or above) rather than by the document itself: that band means the " +
+              "call could not be completed, and is worth reporting upstream rather than treated " +
+              "as a defect in the file."
+            : message;
     }
 
     /// <summary>
@@ -313,6 +361,25 @@ public partial class PdfDocumentReader : IDocumentReader
                 : "PDF parsed successfully but every page is blank (no text or image content).");
         }
 
+        // Damage does not always fail: the parser recovers what it can from a broken page
+        // tree and returns a shorter document, successfully. Unpdf 0.11.0 reports that as
+        // PagesIncomplete. Without it, a page that never arrived is indistinguishable from
+        // a page that never existed, and downstream indexing treats the surviving fraction
+        // as the whole document — a silent deletion of answers rather than a wrong one.
+        // Placed after the empty-document classification, which only runs while the status
+        // is still Completed: both facts can hold at once and neither may mask the other.
+        var (pagesIncomplete, declaredPageCount) = ReadPageIntegrity(doc);
+        if (pagesIncomplete)
+        {
+            structuralHints[PagesIncompleteKey] = true;
+            if (declaredPageCount is long declared)
+                structuralHints[DeclaredPageCountKey] = declared;
+
+            warnings.Add("Pages are missing from this extraction: the PDF is damaged and only part " +
+                         "of its page tree could be read. The extracted text is not the whole document.");
+            status = ProcessingStatus.Partial;
+        }
+
         if (!string.IsNullOrWhiteSpace(doc.Title))
             structuralHints["document_title"] = doc.Title;
         if (!string.IsNullOrWhiteSpace(doc.Author))
@@ -358,6 +425,26 @@ public partial class PdfDocumentReader : IDocumentReader
             Status = status,
             ReaderType = "PdfReader"
         };
+    }
+
+    /// <summary>
+    /// Reads Unpdf's page-tree integrity signals. <c>PagesIncomplete</c> is the primary
+    /// fact — the parser's own account of whether every page reached the output — and the
+    /// declared page count is supporting evidence, absent when the declaration itself was
+    /// unreadable. Introspection failure is reported as "no known damage": the reader must
+    /// not invent an incompleteness warning it has no evidence for.
+    /// </summary>
+    private static (bool PagesIncomplete, long? DeclaredPageCount) ReadPageIntegrity(UnpdfDocument doc)
+    {
+        try
+        {
+            var quality = doc.GetExtractionQuality();
+            return (quality.PagesIncomplete, quality.DeclaredPageCount);
+        }
+        catch (UnpdfException)
+        {
+            return (false, null);
+        }
     }
 
     /// <summary>
@@ -462,15 +549,14 @@ public partial class PdfDocumentReader : IDocumentReader
         }
 
         // If all pages failed, throw to let caller handle. Carry the first
-        // per-page parse error so the failure cause is diagnosable — the bare
+        // per-page error so the failure cause is diagnosable — the bare
         // "All N pages failed" phrasing read like a parser defect and gave
         // consumers nothing to classify on (consumer field report, 2026-07-22).
         if (parts.Count == 0 && failedPages.Count > 0)
         {
             var firstError = errors.Count > 0 ? errors[0].Message : "unknown error";
             throw new PdfPagesExhaustedException(
-                $"All {pageCount} page(s) failed extraction (parse error; first: {firstError}). " +
-                "If this is a scanned/image-only PDF, it has no text layer to extract (OCR required).",
+                DescribePagesExhausted(pageCount, firstError, failedKinds),
                 SummarizeErrorKinds(failedKinds));
         }
 

@@ -290,7 +290,16 @@ catch (DocumentProcessingException ex)
 }
 ```
 
-A value from a newer native build passes through as its number rather than being dropped, so unknown kinds stay reportable.
+A value from a newer native build passes through as its number rather than being dropped, so unknown kinds stay reportable. Kinds numbered 100 and above are raised at the native library's interop boundary rather than by the document, so a failure carrying one is a library-side problem to report upstream, not a defect in the file — the thrown message says so instead of filing it under parse failure.
+
+- **Incomplete Extraction**: A damaged PDF does not always fail. If part of its page tree cannot be read, the parser recovers the rest and extraction succeeds over a *shorter* document. FileFlux flags that with `Hints["pages_incomplete"] = true` and `RawContent.Status = ProcessingStatus.Partial`, plus a warning — so a page that never arrived is not indexed as a page that never existed. `Hints["declared_page_count"]` carries the count the document declares, to compare against the extracted `page_count`. The flag is deliberately a boolean and never a loss figure: one unresolved page-tree node can cost a single page or a whole subtree, so the number of lost pages is not knowable.
+
+```csharp
+var content = await reader.ExtractAsync("damaged.pdf");
+if (content.Hints.ContainsKey("pages_incomplete"))
+    logger.LogWarning("Indexing an incomplete document: declared {Declared}, extracted {Extracted}",
+        content.Hints["declared_page_count"], content.Hints["page_count"]);
+```
 
 ### Table Extraction
 FileFlux uses layout-based table detection with confidence scoring:

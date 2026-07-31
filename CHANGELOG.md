@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-07-31
+
+### Added
+- **`pages_incomplete` diagnostic for PDFs that extract successfully but not entirely.**
+  A damaged page tree does not fail the parse — the parser recovers what it can and returns a
+  shorter document, so a page that never arrived was indistinguishable from a page that never
+  existed and the surviving fraction was indexed as the whole. Unpdf 0.11.0 reports the shortfall,
+  and the PDF reader now publishes it as `Hints["pages_incomplete"] = true` with
+  `RawContent.Status = ProcessingStatus.Partial` and a warning. `Hints["declared_page_count"]`
+  carries the count the document declares, for comparison against the extracted `page_count`.
+  The flag is a boolean, never a loss count: one unresolved page-tree node can cost a single page
+  or an entire subtree, so no number of lost pages is knowable — and one asserted here would be
+  reported onward to users as fact.
+
+### Changed
+- **Unpdf 0.10.0 → 0.11.0.** Text extraction no longer fails on documents whose text contains
+  control bytes: control characters are removed from every text surface at the source instead of
+  aborting the page. PDF string literals may legitimately contain them (`\000` is a valid octal
+  escape), so this was an output-normalization gap, not invalid input. The release also stops
+  promoting bullet and enumeration items to headings (bullet-glyph coverage widened, enclosed
+  enumerators added), which changes chunk boundaries for documents that use them.
+- **The every-page-failed message no longer asserts a cause it cannot support.** It used to file
+  every such failure under `parse error` and append "If this is a scanned/image-only PDF … (OCR
+  required)" regardless of the actual kind, pointing consumers at parser robustness and OCR when
+  neither was involved. Scanned documents never reach that path anyway — a page with no text layer
+  extracts as empty and is classified as `extraction_failure_reason=no_text_layer`. The message now
+  reports the failure and leaves the cause to the `extraction_error_kind` token; when the kind is
+  in the interop-boundary band (100+), it says the boundary raised it and that this is worth
+  reporting upstream rather than treating as a defect in the file.
+
 ## [0.15.0] - 2026-07-30
 
 ### Added

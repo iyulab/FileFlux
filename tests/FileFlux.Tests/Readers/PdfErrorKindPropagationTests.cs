@@ -135,6 +135,61 @@ public class PdfErrorKindPropagationTests : IDisposable
         Assert.Equal($"{UnpdfErrorKind.PdfParse}+{UnpdfErrorKind.MissingObject}", summary);
     }
 
+    /// <summary>
+    /// The every-page-failed message used to file every such failure under "parse error"
+    /// and to append "OCR required" regardless of cause. A consumer whose failure was an
+    /// interop-boundary error read that prose and was steered toward parser robustness and
+    /// OCR — neither of which was involved (field report, 2026-07-31). The message must
+    /// state what happened and leave the cause to the kind.
+    /// </summary>
+    [Fact]
+    public void DescribePagesExhausted_ShouldNotAssertACauseTheKindDoesNotSupport()
+    {
+        var message = PdfDocumentReader.DescribePagesExhausted(
+            3, "Page 1: output contains null byte", [UnpdfErrorKind.TextExtract]);
+
+        Assert.Contains("All 3 page(s) failed extraction", message, StringComparison.Ordinal);
+        Assert.Contains("Page 1: output contains null byte", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("parse error", message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("OCR", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void DescribePagesExhausted_InteropBoundaryKind_ShouldSayTheBoundaryRaisedIt()
+    {
+        // 100+ has no library-side counterpart, so it is not a statement about the file.
+        var message = PdfDocumentReader.DescribePagesExhausted(
+            1, "Page 1: output contains null byte", [UnpdfErrorKind.InvalidOutput]);
+
+        Assert.Contains("interop boundary", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("OCR", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void DescribePagesExhausted_DocumentSideKind_ShouldNotBlameTheBoundary()
+    {
+        var message = PdfDocumentReader.DescribePagesExhausted(
+            1, "Page 1: corrupted content stream", [UnpdfErrorKind.Corrupted]);
+
+        Assert.DoesNotContain("interop boundary", message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The band, not the individual names, is the contract: Unpdf reserves 100+ for
+    /// boundary failures and never renumbers, so a value minted by a newer native build
+    /// must classify correctly without this assembly knowing its name.
+    /// </summary>
+    [Theory]
+    [InlineData(UnpdfErrorKind.InvalidArgument, true)]
+    [InlineData(UnpdfErrorKind.Panic, true)]
+    [InlineData(UnpdfErrorKind.InvalidOutput, true)]
+    [InlineData((UnpdfErrorKind)150, true)]
+    [InlineData(UnpdfErrorKind.PdfParse, false)]
+    [InlineData(UnpdfErrorKind.Corrupted, false)]
+    [InlineData(UnpdfErrorKind.Other, false)]
+    public void IsInteropBoundaryKind_ShouldSplitOnTheAbiBand(UnpdfErrorKind kind, bool expected)
+        => Assert.Equal(expected, PdfDocumentReader.IsInteropBoundaryKind(kind));
+
     [Fact]
     public void SummarizeErrorKinds_NoKindsObserved_ShouldFallBackToOther()
     {
