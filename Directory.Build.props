@@ -150,6 +150,15 @@
     <PackageReference Include="FluentAssertions" />
   </ItemGroup>
 
+  <!-- Ship the README inside the package so the gallery page is not blank.
+       Placed after the project-specific overrides so IsPackable is already set. -->
+  <PropertyGroup Condition="'$(IsPackable)' == 'true' AND Exists('$(MSBuildThisFileDirectory)README.md')">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(IsPackable)' == 'true' AND Exists('$(MSBuildThisFileDirectory)README.md')">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
   <!-- Global AssemblyInfo -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
