@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-08-02
+
+### Changed
+- `Flux.Abstractions` re-pinned to `0.24.0`. The contract package now ships from its own
+  repository with an independent version line; previously it was produced inside a package that
+  consumes this one, which made the graph cyclic and kept this pin frozen several releases back.
+  No API change — the types are identical to the pinned `0.13.14`.
+
 ## [0.16.0] - 2026-07-31
 
 ### Added
