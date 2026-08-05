@@ -93,11 +93,14 @@ public partial class WordDocumentReader : IDocumentReader
 
         var startTime = DateTime.UtcNow;
 
+        // Hoisted so the catch blocks can classify the container they were handed.
+        byte[] bytes = [];
+
         try
         {
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
-            var bytes = memoryStream.ToArray();
+            bytes = memoryStream.ToArray();
 
             var result = new ReadResult
             {
@@ -163,11 +166,17 @@ public partial class WordDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to extract Word document: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                filePath,
+                ContainerSignature.AnnotateFailure($"Failed to extract Word document: {ex.Message}", ContainerSignature.DetectFile(filePath), OfficeContainer.Zip),
+                ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to extract Word document: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                filePath,
+                ContainerSignature.AnnotateFailure($"Failed to extract Word document: {ex.Message}", ContainerSignature.DetectFile(filePath), OfficeContainer.Zip),
+                ex);
         }
     }
 
@@ -178,21 +187,30 @@ public partial class WordDocumentReader : IDocumentReader
         if (!CanRead(fileName))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
 
+        // Hoisted so the catch blocks can classify the container they were handed.
+        byte[] bytes = [];
+
         try
         {
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
-            var bytes = memoryStream.ToArray();
+            bytes = memoryStream.ToArray();
 
             return await Task.Run(() => ExtractWordContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false);
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(fileName, $"Failed to extract Word document from stream: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                fileName,
+                ContainerSignature.AnnotateFailure($"Failed to extract Word document from stream: {ex.Message}", ContainerSignature.Detect(bytes), OfficeContainer.Zip),
+                ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
-            throw new DocumentProcessingException(fileName, $"Failed to extract Word document from stream: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                fileName,
+                ContainerSignature.AnnotateFailure($"Failed to extract Word document from stream: {ex.Message}", ContainerSignature.Detect(bytes), OfficeContainer.Zip),
+                ex);
         }
     }
 

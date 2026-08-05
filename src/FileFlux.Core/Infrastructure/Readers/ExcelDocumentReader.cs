@@ -186,20 +186,15 @@ public class ExcelDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// Names the container when it is neither of the two Excel containers, so a caller can tell a
-    /// mislabelled file from a damaged one.
+    /// Tells a mislabelled file apart from a damaged one, so the message does not send its reader
+    /// after corruption that is not there.
     /// </summary>
-    /// <remarks>
-    /// Both used to arrive as the parser's own complaint about a ZIP archive, which sends the reader
-    /// of that message looking for corruption. Content that is neither ZIP nor compound file is
-    /// usually not a workbook at all — an error page or a placeholder saved under the name.
-    /// </remarks>
     private static string DescribeExtractionFailure(OfficeContainer container, string message)
-        => container == OfficeContainer.Unknown
-            ? $"Failed to extract Excel document: {message} " +
-              "The content is neither an OOXML package nor a compound file, so despite the extension " +
-              "it is not a workbook this reader can route. [extraction_failure_reason=container_mismatch]"
-            : $"Failed to extract Excel document: {message}";
+        => ContainerSignature.AnnotateFailure(
+            $"Failed to extract Excel document: {message}",
+            container,
+            OfficeContainer.Zip,
+            OfficeContainer.CompoundFile);
 
     public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {

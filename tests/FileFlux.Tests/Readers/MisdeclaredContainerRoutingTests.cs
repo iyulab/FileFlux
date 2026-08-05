@@ -141,6 +141,42 @@ public class MisdeclaredContainerRoutingTests : IDisposable
         Assert.Contains("container_mismatch", ex.Message);
     }
 
+    /// <summary>
+    /// Word and PowerPoint get the diagnosis but not the routing: there is no legacy .doc/.ppt
+    /// reader to hand off to, so the honest outcome is to say what the file is rather than to
+    /// borrow the OOXML parser's complaint about a ZIP archive.
+    /// </summary>
+    [Theory]
+    [InlineData("renamed.docx")]
+    [InlineData("renamed.pptx")]
+    public async Task LegacyCompoundFileUnderAnOoxmlName_IsReportedAsAMismatch_NotAsCorruption(string name)
+    {
+        var path = CopyAs(LegacyFixture, name);
+
+        var ex = await Assert.ThrowsAsync<DocumentProcessingException>(() => name.EndsWith(".docx")
+            ? new WordDocumentReader().ExtractAsync(path)
+            : new PowerPointDocumentReader().ExtractAsync(path));
+
+        Assert.Contains("container_mismatch", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("valid.docx")]
+    [InlineData("valid.pptx")]
+    public async Task RealOoxmlDocuments_AreStillReadWithoutAMismatchNote(string name)
+    {
+        // Guards the annotation against firing on documents that are simply fine - a note that
+        // appears everywhere carries no information.
+        var fixture = name.EndsWith(".docx") ? "sample-doc.docx" : "sample-slides.pptx";
+        var path = CopyAs(Path.Combine(AppContext.BaseDirectory, "Fixtures", fixture), name);
+
+        var content = name.EndsWith(".docx")
+            ? await new WordDocumentReader().ExtractAsync(path)
+            : await new PowerPointDocumentReader().ExtractAsync(path);
+
+        Assert.False(string.IsNullOrWhiteSpace(content.Text));
+    }
+
     [Fact]
     public async Task DamagedPackage_KeepsTheParsersOwnDiagnosis()
     {
