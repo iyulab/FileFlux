@@ -168,15 +168,21 @@ public class LegacyExcelDocumentReader : IDocumentReader
 
         try
         {
+            // The mirror of the .xlsx-named compound file: an OOXML package saved with a .xls name.
+            // Renaming happens in both directions, so trusting the extension fails both ways.
+            if (ContainerSignature.DetectFile(filePath) == OfficeContainer.Zip)
+            {
+                return await Task.Run(
+                    () => ExcelDocumentReader.ExtractExcelContent(filePath, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             var fileInfo = new FileInfo(filePath);
             var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-            var extraction = ExtractWorkbook(bytes, cancellationToken);
-
-            return new RawContent
-            {
-                Text = extraction.Markdown,
-                File = new SourceFileInfo
+            return ExtractRawFromBytes(
+                bytes,
+                new SourceFileInfo
                 {
                     Name = FileNameHelper.ExtractSafeFileName(fileInfo),
                     Extension = ".xls",
@@ -184,10 +190,7 @@ public class LegacyExcelDocumentReader : IDocumentReader
                     CreatedAt = fileInfo.CreationTimeUtc,
                     ModifiedAt = fileInfo.LastWriteTimeUtc
                 },
-                Hints = extraction.Hints,
-                Warnings = extraction.Warnings,
-                ReaderType = ReaderType
-            };
+                cancellationToken);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -208,12 +211,17 @@ public class LegacyExcelDocumentReader : IDocumentReader
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             var bytes = memoryStream.ToArray();
 
-            var extraction = ExtractWorkbook(bytes, cancellationToken);
-
-            return new RawContent
+            // Same routing as the file path above.
+            if (ContainerSignature.Detect(bytes) == OfficeContainer.Zip)
             {
-                Text = extraction.Markdown,
-                File = new SourceFileInfo
+                return await Task.Run(
+                    () => ExcelDocumentReader.ExtractExcelContentFromBytes(bytes, fileName, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return ExtractRawFromBytes(
+                bytes,
+                new SourceFileInfo
                 {
                     Name = fileName,
                     Extension = ".xls",
@@ -221,10 +229,7 @@ public class LegacyExcelDocumentReader : IDocumentReader
                     CreatedAt = DateTime.UtcNow,
                     ModifiedAt = DateTime.UtcNow
                 },
-                Hints = extraction.Hints,
-                Warnings = extraction.Warnings,
-                ReaderType = ReaderType
-            };
+                cancellationToken);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -235,6 +240,28 @@ public class LegacyExcelDocumentReader : IDocumentReader
     // ========================================
     // Internals
     // ========================================
+
+    /// <summary>
+    /// Extracts without checking the declared extension, for use when the caller has already
+    /// established from the content that this is a compound-file workbook. The public entry points
+    /// keep their extension check so direct callers still get told when they picked the wrong reader.
+    /// </summary>
+    internal static RawContent ExtractRawFromBytes(
+        byte[] bytes,
+        SourceFileInfo file,
+        CancellationToken cancellationToken)
+    {
+        var extraction = ExtractWorkbook(bytes, cancellationToken);
+
+        return new RawContent
+        {
+            Text = extraction.Markdown,
+            File = file,
+            Hints = extraction.Hints,
+            Warnings = extraction.Warnings,
+            ReaderType = "LegacyExcelReader"
+        };
+    }
 
     private sealed record WorkbookExtraction(string Markdown, Dictionary<string, object> Hints, List<string> Warnings);
 

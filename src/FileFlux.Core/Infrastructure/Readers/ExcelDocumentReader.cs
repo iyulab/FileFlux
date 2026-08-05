@@ -175,13 +175,31 @@ public class ExcelDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to extract Excel document: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                filePath, DescribeExtractionFailure(ContainerSignature.DetectFile(filePath), ex.Message), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to extract Excel document: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                filePath, DescribeExtractionFailure(ContainerSignature.DetectFile(filePath), ex.Message), ex);
         }
     }
+
+    /// <summary>
+    /// Names the container when it is neither of the two Excel containers, so a caller can tell a
+    /// mislabelled file from a damaged one.
+    /// </summary>
+    /// <remarks>
+    /// Both used to arrive as the parser's own complaint about a ZIP archive, which sends the reader
+    /// of that message looking for corruption. Content that is neither ZIP nor compound file is
+    /// usually not a workbook at all — an error page or a placeholder saved under the name.
+    /// </remarks>
+    private static string DescribeExtractionFailure(OfficeContainer container, string message)
+        => container == OfficeContainer.Unknown
+            ? $"Failed to extract Excel document: {message} " +
+              "The content is neither an OOXML package nor a compound file, so despite the extension " +
+              "it is not a workbook this reader can route. [extraction_failure_reason=container_mismatch]"
+            : $"Failed to extract Excel document: {message}";
 
     public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -208,9 +226,44 @@ public class ExcelDocumentReader : IDocumentReader
         }
     }
 
-    private static RawContent ExtractExcelContent(string filePath, CancellationToken cancellationToken)
+    /// <summary>
+    /// Routes on the container the bytes actually are, not on the declared extension.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A legacy compound-file workbook saved with an <c>.xlsx</c> name reaches this reader, and the
+    /// OOXML parser reports "could not find EOCD" — an accurate statement about a ZIP package that
+    /// reads to a user as "your file is corrupt". The file is valid and a reader for it already
+    /// exists, so the only thing wrong is which reader was chosen.
+    /// </para>
+    /// <para>
+    /// The routing lives here rather than in the reader factory because the factory selects from a
+    /// file name alone, and several call paths hand it only an extension. Deciding between the two
+    /// Excel containers is also this reader's own subject matter: both are Excel.
+    /// </para>
+    /// </remarks>
+    internal static RawContent ExtractExcelContent(string filePath, CancellationToken cancellationToken)
     {
         var fileInfo = new FileInfo(filePath);
+
+        if (ContainerSignature.DetectFile(filePath) == OfficeContainer.CompoundFile)
+        {
+            var bytes = File.ReadAllBytes(filePath);
+            return LegacyExcelDocumentReader.ExtractRawFromBytes(
+                bytes,
+                new SourceFileInfo
+                {
+                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
+                    // The container, not the file name: a consumer routing on this must see what was
+                    // actually parsed, or it inherits the same mislabelling.
+                    Extension = ".xls",
+                    Size = fileInfo.Length,
+                    CreatedAt = fileInfo.CreationTimeUtc,
+                    ModifiedAt = fileInfo.LastWriteTimeUtc
+                },
+                cancellationToken);
+        }
+
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
 
@@ -258,8 +311,24 @@ public class ExcelDocumentReader : IDocumentReader
         };
     }
 
-    private static RawContent ExtractExcelContentFromBytes(byte[] bytes, string fileName, CancellationToken cancellationToken)
+    internal static RawContent ExtractExcelContentFromBytes(byte[] bytes, string fileName, CancellationToken cancellationToken)
     {
+        // Same routing as the file path — see ExtractExcelContent.
+        if (ContainerSignature.Detect(bytes) == OfficeContainer.CompoundFile)
+        {
+            return LegacyExcelDocumentReader.ExtractRawFromBytes(
+                bytes,
+                new SourceFileInfo
+                {
+                    Name = fileName,
+                    Extension = ".xls",
+                    Size = bytes.Length,
+                    CreatedAt = DateTime.UtcNow,
+                    ModifiedAt = DateTime.UtcNow
+                },
+                cancellationToken);
+        }
+
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
 

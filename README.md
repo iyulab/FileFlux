@@ -260,6 +260,14 @@ services.AddFileFlux();
 | Word | .docx | Undoc (Rust FFI) | Style and structure preservation |
 | Excel | .xlsx | Undoc (Rust FFI) | Multi-sheet and table structure |
 | Excel (legacy) | .xls | Built-in (ExcelDataReader) | BIFF binary workbooks; per-sheet markdown tables; CP949 (EUC-KR) fallback for codepage-less BIFF5/7 |
+
+> **Mislabelled workbooks (since 0.17.0)** — the two Excel readers route on the container's magic
+> bytes rather than the declared extension, in both directions: a compound-file (`.xls`) workbook
+> named `.xlsx` extracts through the legacy reader, and an OOXML package named `.xls` extracts
+> through the OOXML one. `RawContent.File.Extension` reports the container that was actually parsed,
+> not the name the file arrived under. Content that is neither container fails with
+> `extraction_failure_reason=container_mismatch` instead of the ZIP parser's "could not find EOCD",
+> which reads as corruption when the file is simply not a workbook.
 | PowerPoint | .pptx | Undoc (Rust FFI) | Slide and notes extraction |
 | HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
 | Markdown | .md | Built-in | Structure preservation |
