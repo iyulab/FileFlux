@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-08-05
+
+### Added
+- **`container_mismatch` diagnostic when a Word or PowerPoint file is not what its extension says.**
+  There is no reader for the legacy CFB formats (`.doc`, `.ppt`), so a file carrying one of those
+  containers under a modern extension cannot be routed anywhere useful. It now says which container
+  was actually found instead of failing with an error about the format it was assumed to be.
+
+## [0.17.0] - 2026-08-05
+
+### Fixed
+- **Excel readers route on the container, not on the declared extension.** A workbook saved as
+  legacy CFB (`D0CF11E0`) but named `.xlsx` — or the reverse — was handed to the reader for the
+  name rather than for the bytes, and failed hard on a file the other reader would have read.
+  Routing now inspects the container signature.
+
+  The check lives inside the reader rather than in the factory: the factory receives only a name,
+  and both of its call sites pass an extension, so a signature check placed there would have left
+  a path that silently kept the old behavior.
+
 ## [0.16.2] - 2026-08-02
 
 ### Changed
