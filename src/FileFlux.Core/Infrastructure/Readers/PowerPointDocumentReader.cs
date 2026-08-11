@@ -82,7 +82,8 @@ public class PowerPointDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to read PowerPoint document: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                filePath, UndocErrorKindFormatting.WithErrorKind($"Failed to read PowerPoint document: {ex.Message}", ex.Kind), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -149,7 +150,8 @@ public class PowerPointDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(fileName, $"Failed to read PowerPoint document from stream: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                fileName, UndocErrorKindFormatting.WithErrorKind($"Failed to read PowerPoint document from stream: {ex.Message}", ex.Kind), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -180,7 +182,9 @@ public class PowerPointDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(
                 filePath,
-                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), OfficeContainer.Zip),
+                UndocErrorKindFormatting.WithErrorKind(
+                    ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), OfficeContainer.Zip),
+                    ex.Kind),
                 ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
@@ -214,7 +218,9 @@ public class PowerPointDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(
                 fileName,
-                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), OfficeContainer.Zip),
+                UndocErrorKindFormatting.WithErrorKind(
+                    ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), OfficeContainer.Zip),
+                    ex.Kind),
                 ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)

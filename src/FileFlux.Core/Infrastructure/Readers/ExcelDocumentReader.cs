@@ -82,7 +82,8 @@ public class ExcelDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to read Excel document: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                filePath, UndocErrorKindFormatting.WithErrorKind($"Failed to read Excel document: {ex.Message}", ex.Kind), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -146,7 +147,8 @@ public class ExcelDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(fileName, $"Failed to read Excel document from stream: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                fileName, UndocErrorKindFormatting.WithErrorKind($"Failed to read Excel document from stream: {ex.Message}", ex.Kind), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -176,7 +178,10 @@ public class ExcelDocumentReader : IDocumentReader
         catch (UndocException ex)
         {
             throw new DocumentProcessingException(
-                filePath, DescribeExtractionFailure(ContainerSignature.DetectFile(filePath), ex.Message), ex);
+                filePath,
+                UndocErrorKindFormatting.WithErrorKind(
+                    DescribeExtractionFailure(ContainerSignature.DetectFile(filePath), ex.Message), ex.Kind),
+                ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -213,7 +218,10 @@ public class ExcelDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(fileName, $"Failed to extract Excel document from stream: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                fileName,
+                UndocErrorKindFormatting.WithErrorKind($"Failed to extract Excel document from stream: {ex.Message}", ex.Kind),
+                ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {

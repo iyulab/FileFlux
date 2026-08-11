@@ -76,7 +76,8 @@ public partial class WordDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(filePath, $"Failed to read Word document: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                filePath, UndocErrorKindFormatting.WithErrorKind($"Failed to read Word document: {ex.Message}", ex.Kind), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -137,7 +138,8 @@ public partial class WordDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(fileName, $"Failed to read Word document from stream: {ex.Message}", ex);
+            throw new DocumentProcessingException(
+                fileName, UndocErrorKindFormatting.WithErrorKind($"Failed to read Word document from stream: {ex.Message}", ex.Kind), ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -168,7 +170,9 @@ public partial class WordDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(
                 filePath,
-                ContainerSignature.AnnotateFailure($"Failed to extract Word document: {ex.Message}", ContainerSignature.DetectFile(filePath), OfficeContainer.Zip),
+                UndocErrorKindFormatting.WithErrorKind(
+                    ContainerSignature.AnnotateFailure($"Failed to extract Word document: {ex.Message}", ContainerSignature.DetectFile(filePath), OfficeContainer.Zip),
+                    ex.Kind),
                 ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
@@ -202,7 +206,9 @@ public partial class WordDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(
                 fileName,
-                ContainerSignature.AnnotateFailure($"Failed to extract Word document from stream: {ex.Message}", ContainerSignature.Detect(bytes), OfficeContainer.Zip),
+                UndocErrorKindFormatting.WithErrorKind(
+                    ContainerSignature.AnnotateFailure($"Failed to extract Word document from stream: {ex.Message}", ContainerSignature.Detect(bytes), OfficeContainer.Zip),
+                    ex.Kind),
                 ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)

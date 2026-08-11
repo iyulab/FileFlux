@@ -4,22 +4,19 @@ using Xunit;
 namespace FileFlux.Tests.Readers;
 
 /// <summary>
-/// Characterization tests for multi-row (merged-cell) spreadsheet headers.
+/// Regression contract for multi-row (merged-cell) spreadsheet headers.
 ///
 /// <para>
-/// These pin behavior that is <b>known to be wrong</b>. Modern <c>.xlsx</c> serialization is
-/// delegated in full to Undoc, and a workbook whose header spans two rows — one merged row of
-/// group labels above a row of column labels, a shape common in real reporting spreadsheets —
-/// comes back with its structure collapsed. No error, no warning: the output is simply a table
-/// that does not match the input.
-/// </para>
-///
-/// <para>
-/// The point of pinning a defect is the reversal. When the upstream fix lands, these tests fail,
-/// and the failure is the signal that the expectations here should be inverted into a real
-/// contract. Without them an Undoc bump could fix this quietly and nobody would know to remove
-/// the consumer-side caveats that exist because of it — or, worse, could change the shape of the
-/// breakage in a way no test would notice.
+/// Modern <c>.xlsx</c> serialization is delegated in full to Undoc. Before Undoc 0.8.0, a
+/// workbook whose header spans two rows — one merged row of group labels above a row of column
+/// labels, a shape common in real reporting spreadsheets — came back with its structure
+/// collapsed: group labels shifted to the far right, a fabricated <c>#</c> cell injected, no
+/// error or warning. Undoc 0.8.0 fixed this by anchoring merged cells to their start column
+/// (<c>render/grid.rs</c>) — see
+/// <c>claudedocs/FileFlux/upstream-issues/closed/ISSUE-undoc-20260805-merged-multirow-header-table-collapse.md</c>
+/// in the umbrella workspace. These tests used to pin the defect (see git history for the
+/// characterization-test form); they now pin the fixed contract so a future Undoc bump cannot
+/// regress it silently.
 /// </para>
 ///
 /// <para>
@@ -30,7 +27,7 @@ namespace FileFlux.Tests.Readers;
 /// <item><c>Fixtures/flat-header.xlsx</c> — control: identical data under one header row.</item>
 /// </list>
 /// The control is what makes the finding attributable: the same data extracts correctly when the
-/// header is flat, so the defect is in header handling and not in the data path.
+/// header is flat, so the defect was in header handling and not in the data path.
 /// </para>
 /// </summary>
 public class MergedHeaderCharacterizationTests
@@ -60,11 +57,12 @@ public class MergedHeaderCharacterizationTests
     }
 
     /// <summary>
-    /// CHARACTERIZATION — the merged group labels do not keep their columns.
-    /// Expected once fixed: each group label sits above the span it labels.
+    /// Each merged group label sits at its own start column — not shifted to the far right of the
+    /// row. The input places the four group-label merges starting at cell indices 1, 5, 10 and 14
+    /// (index 0 is the leading empty split before the first pipe).
     /// </summary>
     [Fact]
-    public async Task MergedHeader_GroupLabels_DoNotKeepTheirColumns()
+    public async Task MergedHeader_GroupLabels_KeepTheirColumns()
     {
         var content = await _reader.ExtractAsync(MergedHeaderFixture);
 
@@ -74,30 +72,21 @@ public class MergedHeaderCharacterizationTests
 
         Assert.NotNull(groupLabelLine);
 
-        // In the input the four labels start at columns 1, 5, 10 and 14 — a span of 13 cells.
-        // Observed output puts all four adjacent at the far right of the row.
         var cells = groupLabelLine!.Split('|');
-        var firstLabelCell = Array.FindIndex(cells, c => c.Contains("기본 정보"));
-        var lastLabelCell = Array.FindLastIndex(cells, c => c.Contains("담당자"));
 
-        // Both must be present, or the assertion below would pass on an output that dropped them:
-        // a span of zero between two absent labels is not evidence of anything.
-        Assert.True(firstLabelCell >= 0 && lastLabelCell >= 0, "both group labels appear in the row");
-
-        Assert.True(
-            lastLabelCell - firstLabelCell < 13,
-            $"the four group labels span 13 cells in the input; they occupy {lastLabelCell - firstLabelCell} " +
-            "in the output. If this now fails because the span is correct, the upstream defect " +
-            "is fixed — invert this test into a positional contract and drop the consumer caveats.");
+        Assert.Equal(1, Array.FindIndex(cells, c => c.Contains("기본 정보")));
+        Assert.Equal(5, Array.FindIndex(cells, c => c.Contains("장비 현황")));
+        Assert.Equal(10, Array.FindIndex(cells, c => c.Contains("유지보수 계약")));
+        Assert.Equal(14, Array.FindIndex(cells, c => c.Contains("담당자")));
     }
 
     /// <summary>
-    /// CHARACTERIZATION — a <c>#</c> appears in the first column of the group-label row, and no
-    /// cell of the input contains one. Expected once fixed: nothing is present that was not in the
-    /// source. A fabricated cell is worse than a lost one: it reads as data.
+    /// No cell appears in the output that was not in the source workbook. Undoc 0.5.2 fabricated a
+    /// <c>#</c> in the first column of the group-label row to pad a short header row; a fabricated
+    /// cell is worse than a lost one because it reads as data.
     /// </summary>
     [Fact]
-    public async Task MergedHeader_InjectsACellTheInputNeverHad()
+    public async Task MergedHeader_DoesNotInjectACellTheInputNeverHad()
     {
         var content = await _reader.ExtractAsync(MergedHeaderFixture);
 
@@ -106,15 +95,20 @@ public class MergedHeaderCharacterizationTests
             .FirstOrDefault(line => line.Contains("기본 정보"));
 
         Assert.NotNull(groupLabelLine);
-        Assert.Contains("| # |", groupLabelLine!);
+        Assert.DoesNotContain("| # |", groupLabelLine!);
     }
 
     /// <summary>
-    /// CHARACTERIZATION — the column-label row is not emitted as the table's header row.
-    /// Expected once fixed: row 2's labels form the markdown header, above the separator.
+    /// Confirmed intentional (not a defect): row 2's column labels (연번/이메일/...) render as the
+    /// first data row, not as the markdown table header. Markdown cannot express a two-row header
+    /// natively, so Undoc promotes row 1 (the group labels, now correctly column-anchored) to the
+    /// header and flattens row 2 into data — see the undoc maintainer's response in
+    /// <c>ISSUE-undoc-20260805-merged-multirow-header-table-collapse.md</c> §"다단 헤더 → 헤더1행 +
+    /// 데이터N행 평탄화는 결함으로 접수하지 않는다". Content is not lost (asserted by
+    /// <see cref="MergedHeader_LosesNoDataRows"/>), only relocated.
     /// </summary>
     [Fact]
-    public async Task MergedHeader_ColumnLabelRow_IsNotTheTableHeader()
+    public async Task MergedHeader_ColumnLabelRow_IsFlattenedIntoData_ByDesign()
     {
         var content = await _reader.ExtractAsync(MergedHeaderFixture);
 
@@ -123,15 +117,8 @@ public class MergedHeaderCharacterizationTests
         var labelRowIndex = Array.FindIndex(lines, l => l.Contains("연번") && l.Contains("이메일"));
 
         Assert.True(separatorIndex >= 0, "a markdown table is produced at all");
-
-        // The label row must be found. "Absent" would also satisfy "not the header", and pinning a
-        // defect on an absence proves nothing about where the labels went.
         Assert.True(labelRowIndex >= 0, "the column labels survive somewhere in the output");
-
-        Assert.True(
-            labelRowIndex > separatorIndex,
-            "the column labels are demoted below the separator, i.e. rendered as data rather than as " +
-            "the header. If this now fails, the header row is being emitted correctly — invert the test.");
+        Assert.True(labelRowIndex > separatorIndex, "the column labels render as the first data row");
     }
 
     /// <summary>

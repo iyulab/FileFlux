@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-08-11
+
+### Fixed
+- **Spreadsheets with a merged-cell, multi-row header no longer collapse into a malformed table.**
+  A workbook whose header spans two or more rows — one merged row of group labels above a row of
+  column labels, a shape common in real reporting spreadsheets — used to come back with its group
+  labels shifted to the far right of the row and a fabricated `#` cell injected into the first
+  column, with no error or warning. Undoc 0.8.0 anchors merged cells to their start column instead.
+  Content was never lost, only misplaced; a workbook with a flat (single-row) header was never
+  affected. The column-label row still renders as the table's first data row rather than as the
+  markdown header — Markdown cannot express a two-row header natively, and this flattening is
+  unchanged, intentional behavior, not a defect.
+
+### Added
+- **`extraction_error_kind` diagnostic for the Excel, Word, and PowerPoint readers.** These readers
+  delegate parsing to Undoc; a parse failure now carries the underlying `UndocErrorKind` (e.g.
+  `ZipArchive`, `UnknownFormat`, `Encrypted`) as a `[extraction_error_kind=<value>]` token on the
+  thrown exception's message, matching the channel the PDF reader already exposes for Unpdf. A
+  consumer can distinguish a damaged file from an unsupported one without parsing prose.
+
+### Changed
+- `Undoc` dependency raised `0.5.2` → `0.8.0`. Also fixes a legacy binary Office file (`.doc`/`.xls`)
+  being misreported as a corrupted ZIP archive (now correctly classified as an unsupported format),
+  and a plain-text output path silently dropping cells beyond the declared column count.
+
 ## [0.17.1] - 2026-08-05
 
 ### Added

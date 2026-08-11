@@ -25,7 +25,7 @@
     <PackageVersion Include="ExcelDataReader" Version="3.7.0" />
     <PackageVersion Include="Markdig" Version="1.2.0" />
     <!-- Native Document Readers (Rust FFI) -->
-    <PackageVersion Include="Undoc" Version="0.5.2" />
+    <PackageVersion Include="Undoc" Version="0.8.0" />
     <PackageVersion Include="Unhwp" Version="0.5.1" />
     <PackageVersion Include="Unpdf" Version="0.11.0" />
     <!-- Test-only: Used for programmatic test file generation -->
