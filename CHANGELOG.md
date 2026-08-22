@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-08-22
+
+### Added
+- **`suppressed_text_runs` diagnostic for the PDF reader.** Some PDFs use a font whose
+  character codes the decoder cannot resolve; emitting the raw bytes would produce
+  mojibake, so Unpdf discards the run instead — previously that loss was invisible,
+  reported as a plain successful (possibly empty) extraction. `Hints["suppressed_text_runs"]`
+  now carries the discarded-run count and `RawContent.Status` becomes
+  `ProcessingStatus.Partial`. When every run in the document was discarded, the
+  empty-document classification returns `extraction_failure_reason=text_runs_suppressed`
+  instead of `no_text_layer` — this case is not a scanned document and does not need OCR,
+  which the `no_text_layer` wording would incorrectly imply. `ReadAsync` (stage 0) carries
+  the same signal in `DocumentProps`.
+
+### Changed
+- `Unpdf` dependency raised `0.11.0` → `0.13.0`. Also fixes: a batch-rendered document with
+  images previously emitted only an HTML comment placeholder instead of a real image link
+  (0.12.1); the streaming renderer now honors `table_fallback` for merged-cell tables,
+  matching the batch renderer instead of silently losing the merge structure (0.12.1); a
+  link/image destination containing a space now round-trips as valid CommonMark instead of
+  being read as literal brackets and parentheses by downstream consumers (0.12.2).
+
 ## [0.18.0] - 2026-08-11
 
 ### Fixed

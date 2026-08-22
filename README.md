@@ -316,6 +316,16 @@ if (content.Hints.ContainsKey("pages_incomplete"))
 
 `ReadAsync` (stage 0) carries the same signal in `DocumentProps`, with `ReadResult.Status` set to `Partial` — that stage reports the page count, so it is where a short page set most easily passes for a whole document.
 
+- **Suppressed Text Runs**: Some PDFs use fonts whose character codes the decoder cannot resolve — emitting the raw bytes would produce mojibake rather than text, so the decoder discards the run instead. FileFlux surfaces that with `Hints["suppressed_text_runs"]` (the discarded run count) and `RawContent.Status = ProcessingStatus.Partial`, plus a warning. When every run in the document was discarded, the empty result gets `Hints["extraction_failure_reason"] = "text_runs_suppressed"` instead of `"no_text_layer"` — this is not a scanned document, and does not need OCR.
+
+```csharp
+var content = await reader.ExtractAsync("broken-font.pdf");
+if (content.Hints.TryGetValue("suppressed_text_runs", out var runs))
+    logger.LogWarning("Document lost {Runs} text run(s) to an unresolvable font", runs);
+```
+
+`ReadAsync` (stage 0) carries the same signal in `DocumentProps`, with `ReadResult.Status` set to `Partial`.
+
 ### Table Extraction
 FileFlux uses layout-based table detection with confidence scoring:
 - Tables with confidence score ≥ 0.5 are converted to Markdown format

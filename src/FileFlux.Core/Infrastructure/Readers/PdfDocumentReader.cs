@@ -41,6 +41,18 @@ public partial class PdfDocumentReader : IDocumentReader
     internal const string DeclaredPageCountKey = "declared_page_count";
 
     /// <summary>
+    /// Diagnostic key stating how many text runs the font decoder could not resolve and
+    /// discarded (Unpdf 0.12.0 <c>ExtractionQuality.SuppressedTextRuns</c>). A run is one
+    /// text string handed to the decoder (a <c>Tj</c> operand); the decoder drops it rather
+    /// than emit mojibake when the font's character codes cannot be mapped, so the content
+    /// is gone from the output with no exception raised. Never folded into
+    /// <c>extraction_failure_reason=no_text_layer</c>: that reason's wording asserts "OCR
+    /// required", which is wrong for this case — the document is not scanned, it lost text
+    /// at decode time.
+    /// </summary>
+    internal const string SuppressedTextRunsKey = "suppressed_text_runs";
+
+    /// <summary>
     /// Formats an Unpdf error kind for diagnostics. Deliberately
     /// <see cref="Enum.ToString()"/> and not <see cref="Enum.GetName(Type, object)"/>:
     /// Unpdf's ABI assigns new reasons new numbers and never reuses old ones, so a
@@ -173,6 +185,16 @@ public partial class PdfDocumentReader : IDocumentReader
                 result.Warnings.Add("Pages are missing from this document: the PDF is damaged and only " +
                                     "part of its page tree could be read. The page count below is not " +
                                     "the document's own.");
+                result.Status = ProcessingStatus.Partial;
+            }
+
+            var suppressedTextRuns = ReadSuppressedTextRunCount(doc);
+            if (suppressedTextRuns > 0)
+            {
+                result.DocumentProps[SuppressedTextRunsKey] = suppressedTextRuns;
+                result.Warnings.Add($"{suppressedTextRuns} text run(s) in this document could not be " +
+                                    "decoded and were silently dropped by the parser (the font's " +
+                                    "character codes could not be resolved).");
                 result.Status = ProcessingStatus.Partial;
             }
 
@@ -363,18 +385,43 @@ public partial class PdfDocumentReader : IDocumentReader
         // Remove null bytes
         markdown = TextSanitizer.RemoveNullBytes(markdown);
 
+        // Unpdf 0.12.0 ExtractionQuality.SuppressedTextRuns: text runs the font decoder
+        // could not resolve and discarded. Read before the empty-document classification
+        // below, which needs it to tell "no readable text layer" (scanned, OCR required)
+        // apart from "text was here and got dropped at decode time" (not scanned).
+        var suppressedTextRuns = ReadSuppressedTextRunCount(doc);
+
         // Classify the no-text outcome: the document parsed fine but yielded no
         // text at all. Unpdf 0.9.0 page introspection (GetPageStats) separates
         // image-only/scanned pages (no readable text layer, OCR required) from
         // genuinely blank pages, instead of returning a silently-empty result.
         if (string.IsNullOrWhiteSpace(markdown) && status == ProcessingStatus.Completed)
         {
-            var reason = ClassifyEmptyDocument(doc);
+            var reason = ClassifyEmptyDocument(doc, suppressedTextRuns);
             structuralHints["extraction_failure_reason"] = reason;
-            warnings.Add(reason == "no_text_layer"
-                ? "PDF contains no extractable text (image-only/scanned document). " +
-                  "Text extraction requires OCR, which is outside the text extractor's scope."
-                : "PDF parsed successfully but every page is blank (no text or image content).");
+            warnings.Add(reason switch
+            {
+                "no_text_layer" => "PDF contains no extractable text (image-only/scanned document). " +
+                    "Text extraction requires OCR, which is outside the text extractor's scope.",
+                "text_runs_suppressed" => $"PDF text could not be fully decoded and was silently dropped " +
+                    $"by the parser ({suppressedTextRuns} text run(s) discarded — the font's character " +
+                    "codes could not be resolved). This is not a scanned document and does not need OCR.",
+                _ => "PDF parsed successfully but every page is blank (no text or image content)."
+            });
+        }
+        else if (suppressedTextRuns > 0)
+        {
+            // Partial loss: some text survived, but not all of it. The empty-document
+            // branch above already explains the all-lost case; this covers the rest.
+            warnings.Add($"{suppressedTextRuns} text run(s) in this document could not be decoded and " +
+                         "were silently dropped by the parser (the font's character codes could not be " +
+                         "resolved). The extracted text is not complete.");
+        }
+
+        if (suppressedTextRuns > 0)
+        {
+            structuralHints[SuppressedTextRunsKey] = suppressedTextRuns;
+            status = ProcessingStatus.Partial;
         }
 
         // Damage does not always fail: the parser recovers what it can from a broken page
@@ -464,14 +511,37 @@ public partial class PdfDocumentReader : IDocumentReader
     }
 
     /// <summary>
+    /// Reads Unpdf's decode-loss counter. <c>SuppressedTextRuns</c> is a document-level
+    /// total (the C# binding does not expose the Rust core's per-page breakdown), counted
+    /// in runs rather than characters since the discarded text was never decoded. Kept as
+    /// its own independent fact rather than folded into <see cref="ReadPageIntegrity"/>:
+    /// a document can lose pages, lose text runs, both, or neither, and collapsing them
+    /// into one tuple would make "only one is true" branch on the caller. Introspection
+    /// failure is reported as "no known suppression" — zero, not a guess.
+    /// </summary>
+    private static long ReadSuppressedTextRunCount(UnpdfDocument doc)
+    {
+        try
+        {
+            return doc.GetExtractionQuality().SuppressedTextRuns;
+        }
+        catch (UnpdfException)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>
     /// Classifies a parsed-but-empty document via Unpdf page introspection:
     /// "no_text_layer" when any page draws images without a readable text layer
     /// (scanned document — searchable scans whose OCR layer was discarded
-    /// surface as OcrTextSuppressed), "blank_page" when no page has text or
+    /// surface as OcrTextSuppressed), "text_runs_suppressed" when text operators were
+    /// present but the whole-document decoder discarded every run it saw (not scanned —
+    /// see <paramref name="suppressedTextRuns"/>), "blank_page" when no page has text or
     /// image content. Introspection failures fall back to "no_text_layer"
     /// (the pre-0.14.0 single-label behavior).
     /// </summary>
-    private static string ClassifyEmptyDocument(UnpdfDocument doc)
+    private static string ClassifyEmptyDocument(UnpdfDocument doc, long suppressedTextRuns)
     {
         try
         {
@@ -485,7 +555,13 @@ public partial class PdfDocumentReader : IDocumentReader
                     sawContent = true;
             }
 
-            return sawContent ? "no_text_layer" : "blank_page";
+            if (!sawContent)
+                return "blank_page";
+
+            // Text operators were present but none of them matched the scanned-page
+            // pattern above. If the document-level decoder also discarded runs, that is
+            // the precise explanation for the empty output — not a scanned document.
+            return suppressedTextRuns > 0 ? "text_runs_suppressed" : "no_text_layer";
         }
         catch (UnpdfException)
         {
