@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-08-23
+
+### Changed
+- `LMSupply.Core`/`.Embedder`/`.Generator`/`.Captioner`/`.Ocr` dependencies raised `0.34.17` →
+  `0.42.1` (dependency-freshness gate, no FileFlux API surface change).
+
 ## [0.19.0] - 2026-08-22
 
 ### Added
