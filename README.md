@@ -227,30 +227,36 @@ var provider = services.BuildServiceProvider();
 var processor = provider.GetRequiredService<IDocumentProcessor>();
 ```
 
-#### Local AI with LMSupply (CLI Example)
+#### Local AI with LMSupply (v0.20.0+)
 
-For local AI processing without external API calls, see [LMSupply](https://github.com/iyulab/lm-supply). The FileFlux CLI demonstrates LMSupply integration:
+For local AI processing without external API calls or keys, reference the
+[`FileFlux.Providers.LMSupply`](https://github.com/iyulab/FileFlux) package (built on
+[LMSupply](https://github.com/iyulab/lm-supply)) — it mirrors the
+`FluxIndex.Providers.LMSupply` convention used elsewhere in the ecosystem:
+
+```bash
+dotnet add package FileFlux.Providers.LMSupply
+```
 
 ```csharp
-// Example from FileFlux.CLI - local AI processing
-var lmSupplyOptions = new LMSupplyOptions
-{
-    UseGpuAcceleration = true,
-    EmbeddingModel = "default",
-    GeneratorModel = "microsoft/Phi-4-mini-instruct-onnx"
-};
+using FileFlux.Providers.LMSupply.Extensions;
 
-// Create LMSupply service implementations
-var embedder = await LMSupplyEmbedderService.CreateAsync(lmSupplyOptions);
-var generator = await LMSupplyGeneratorService.CreateAsync(lmSupplyOptions);
+var services = new ServiceCollection();
 
-// Register as AI service implementations
-services.AddSingleton<IEmbeddingService>(embedder);
-services.AddSingleton<IDocumentAnalysisService>(generator);
+services.AddLMSupplyDocumentAnalysis("microsoft/Phi-4-mini-instruct-onnx");
+services.AddLMSupplyEmbedding("default");
+services.AddLMSupplyCaptioner();   // or AddLMSupplyOcr() for scanned/text-bearing images
+
 services.AddFileFlux();
 ```
 
-**Note**: LMSupply is not a direct dependency of FileFlux. Consumer applications that need local AI should reference LMSupply packages directly.
+`LMSupplyServiceFactory` (also in this package) offers lazy/cached service creation with
+download-progress reporting for interactive apps like the FileFlux CLI, which consumes this
+package the same way rather than carrying its own copy.
+
+**Note**: `FileFlux.Providers.LMSupply` is a separate, optional package — `FileFlux` itself has no
+LMSupply dependency. Fully custom providers (Example above) remain the way to integrate any other
+AI backend.
 
 ## Supported Document Formats
 
@@ -447,19 +453,19 @@ services.AddFileFlux();
 ```
 FileFlux/
 ├── src/
-│   ├── FileFlux.Core/               # Extraction only (zero AI dependencies)
-│   │   ├── Contracts/               # IDocumentProcessor, ProcessingResult
-│   │   ├── Core/                    # IDocumentRefiner, IDocumentEnricher
-│   │   └── Domain/                  # DocumentGraph, RefinedContent, StructuredElement
-│   └── FileFlux/                    # Full RAG pipeline (interface-driven)
-│       └── Infrastructure/          # StatefulDocumentProcessor, DocumentRefiner, DocumentEnricher
-├── cli/                             # CLI with LMSupply integration (published: `dotnet tool install -g FileFlux.CLI`)
+│   ├── FileFlux.Core/                 # Extraction only (zero AI dependencies)
+│   │   ├── Contracts/                 # IDocumentProcessor, ProcessingResult
+│   │   ├── Core/                      # IDocumentRefiner, IDocumentEnricher
+│   │   └── Domain/                    # DocumentGraph, RefinedContent, StructuredElement
+│   ├── FileFlux/                      # Full RAG pipeline (interface-driven)
+│   │   └── Infrastructure/            # StatefulDocumentProcessor, DocumentRefiner, DocumentEnricher
+│   └── FileFlux.Providers.LMSupply/   # Optional local-AI provider package (v0.20.0+)
+├── cli/                               # CLI (published: `dotnet tool install -g FileFlux.CLI`)
 │   └── FileFlux.CLI/
-│       └── Services/LMSupply/       # LMSupply service implementations
 ├── tests/
-│   └── FileFlux.Tests/              # Test suite (343+ tests)
+│   └── FileFlux.Tests/                # Test suite (343+ tests)
 └── samples/
-    └── FileFlux.SampleApp/          # Usage examples
+    └── FileFlux.SampleApp/            # Usage examples
 ```
 
 ## Contributing

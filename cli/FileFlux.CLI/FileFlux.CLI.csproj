@@ -24,8 +24,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileFlux\FileFlux.csproj" />
+    <ProjectReference Include="..\..\src\FileFlux.Providers.LMSupply\FileFlux.Providers.LMSupply.csproj" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <!-- CLI Framework -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
@@ -38,12 +39,11 @@
     <PackageReference Include="OpenAI" />
     <!-- Anthropic: Using HttpClient for direct REST API calls instead of SDK -->
 
-    <!-- LMSupply Modules -->
+    <!-- LMSupply.Generator: used directly by Services/Providers/FluxImprover/LMSupplyCompletionService.cs.
+         Embedder/Captioner/Ocr no longer referenced here directly, since they now come transitively
+         through the FileFlux.Providers.LMSupply reference above. -->
     <PackageReference Include="LMSupply.Core" />
-    <PackageReference Include="LMSupply.Embedder" />
     <PackageReference Include="LMSupply.Generator" />
-    <PackageReference Include="LMSupply.Captioner" />
-    <PackageReference Include="LMSupply.Ocr" />
   </ItemGroup>
   
 </Project>

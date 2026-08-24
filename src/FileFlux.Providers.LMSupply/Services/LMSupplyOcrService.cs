@@ -4,7 +4,7 @@ using FileFlux.Infrastructure.Services;
 using LMSupply;
 using LMSupply.Ocr;
 
-namespace FileFlux.CLI.Services.LMSupply;
+namespace FileFlux.Providers.LMSupply.Services;
 
 /// <summary>
 /// IImageToTextService implementation using LMSupply.Ocr.

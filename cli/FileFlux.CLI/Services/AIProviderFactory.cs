@@ -1,6 +1,6 @@
-using FileFlux.CLI.Services.LMSupply;
 using FileFlux.CLI.Services.Providers;
 using FileFlux.Core;
+using FileFlux.Providers.LMSupply;
 using FluxImprover;
 using LMSupply;
 using Microsoft.Extensions.DependencyInjection;

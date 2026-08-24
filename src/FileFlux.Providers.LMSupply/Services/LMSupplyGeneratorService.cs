@@ -1,11 +1,10 @@
 using FileFlux.Core;
-using FileFlux.Domain;
 using LMSupply;
 using LMSupply.Generator;
 using LMSupply.Generator.Abstractions;
 using LMSupply.Generator.Models;
 
-namespace FileFlux.CLI.Services.LMSupply;
+namespace FileFlux.Providers.LMSupply.Services;
 
 /// <summary>
 /// IDocumentAnalysisService implementation using LMSupply.Generator.

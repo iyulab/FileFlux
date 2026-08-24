@@ -3,7 +3,7 @@ using FileFlux.Core;
 using LMSupply;
 using LMSupply.Captioner;
 
-namespace FileFlux.CLI.Services.LMSupply;
+namespace FileFlux.Providers.LMSupply.Services;
 
 /// <summary>
 /// IImageToTextService implementation using LMSupply.Captioner.

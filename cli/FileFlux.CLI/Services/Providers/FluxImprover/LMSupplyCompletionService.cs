@@ -1,4 +1,4 @@
-using FileFlux.CLI.Services.LMSupply;
+using FileFlux.Providers.LMSupply;
 using LMSupply;
 using LMSupply.Generator;
 using LMSupply.Generator.Abstractions;

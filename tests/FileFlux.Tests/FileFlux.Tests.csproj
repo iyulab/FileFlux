@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileFlux\FileFlux.csproj" />
+    <ProjectReference Include="..\..\src\FileFlux.Providers.LMSupply\FileFlux.Providers.LMSupply.csproj" />
     <ProjectReference Include="..\..\cli\FileFlux.CLI\FileFlux.CLI.csproj" />
   </ItemGroup>
 

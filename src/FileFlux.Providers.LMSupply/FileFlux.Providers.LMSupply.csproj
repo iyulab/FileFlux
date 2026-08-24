@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- All common properties inherited from Directory.Build.props -->
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>FileFlux.Providers.LMSupply</PackageId>
+    <Title>FileFlux.Providers.LMSupply - Local AI Provider for FileFlux</Title>
+    <Description>LMSupply local ONNX model provider for FileFlux: document analysis (summarization, metadata extraction), embeddings, OCR, and image captioning — no API key required.</Description>
+    <PackageTags>rag;document;fileflux;lmsupply;local;onnx;ocr;captioning;embedding</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LMSupply.Embedder" />
+    <PackageReference Include="LMSupply.Generator" />
+    <PackageReference Include="LMSupply.Ocr" />
+    <PackageReference Include="LMSupply.Captioner" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FileFlux\FileFlux.csproj" />
+  </ItemGroup>
+
+</Project>

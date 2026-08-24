@@ -2,7 +2,7 @@ using FileFlux.Core;
 using LMSupply;
 using LMSupply.Embedder;
 
-namespace FileFlux.CLI.Services.LMSupply;
+namespace FileFlux.Providers.LMSupply.Services;
 
 /// <summary>
 /// IEmbeddingService implementation using LMSupply.Embedder.

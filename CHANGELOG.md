@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-08-24
+
+### Added
+- **New package `FileFlux.Providers.LMSupply`.** Local LMSupply-based adapters for
+  `IDocumentAnalysisService`/`IEmbeddingService`/`IImageToTextService` (document analysis, embedding,
+  OCR, and image captioning) — previously these existed only inside `FileFlux.CLI` (a `dotnet tool`
+  executable, not a reusable library reference), so a FileFlux library consumer wanting local-model
+  document analysis had to reimplement the same adapter code. This mirrors the
+  `FluxIndex.Providers.LMSupply` package's convention: `AddLMSupplyDocumentAnalysis()`,
+  `AddLMSupplyEmbedding()`, `AddLMSupplyOcr()`, `AddLMSupplyCaptioner()` extension methods on
+  `IServiceCollection`, plus a `LMSupplyServiceFactory` for lazy/cached multi-service access with
+  download-progress reporting. `FileFlux.CLI` itself now consumes this package instead of carrying
+  its own copy — no behavior change for CLI users.
+
 ## [0.19.1] - 2026-08-23
 
 ### Changed

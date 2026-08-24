@@ -1,5 +1,6 @@
-using FileFlux.CLI.Services.LMSupply;
 using FileFlux.Core;
+using FileFlux.Providers.LMSupply;
+using FileFlux.Providers.LMSupply.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -13,11 +14,12 @@ namespace FileFlux.Tests.Integration;
 /// <c>Substitute.For&lt;IGeneratorModel&gt;()</c>, never a real model.
 /// </summary>
 /// <remarks>
-/// Uses <see cref="LMSupplyGeneratorService"/> (FileFlux.CLI's own local-generator adapter over
-/// <c>LMSupply.Generator</c>) as the <see cref="IDocumentAnalysisService"/>, wired through
-/// <c>ServiceCollectionExtensions.AddFileFlux(IServiceCollection, IDocumentAnalysisService,
-/// ServiceLifetime)</c> — the same public composition path a consumer would use, not FileFlux's
-/// internal <c>FluxImproverTextCompletionAdapter</c> directly.
+/// Uses <see cref="LMSupplyGeneratorService"/> (from the <c>FileFlux.Providers.LMSupply</c> package,
+/// as of ISSUE-FileFlux-20260824-000000 no longer trapped inside FileFlux.CLI) as the
+/// <see cref="IDocumentAnalysisService"/>, wired through <c>ServiceCollectionExtensions.AddFileFlux(
+/// IServiceCollection, IDocumentAnalysisService, ServiceLifetime)</c> — the same public composition
+/// path a consumer would use, not FileFlux's internal <c>FluxImproverTextCompletionAdapter</c>
+/// directly.
 /// </remarks>
 [Trait("Category", "Integration")]
 public sealed class LMSupplyFluxImproverWiringTests
