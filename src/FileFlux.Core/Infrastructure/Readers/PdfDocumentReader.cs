@@ -511,13 +511,15 @@ public partial class PdfDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// Reads Unpdf's decode-loss counter. <c>SuppressedTextRuns</c> is a document-level
-    /// total (the C# binding does not expose the Rust core's per-page breakdown), counted
-    /// in runs rather than characters since the discarded text was never decoded. Kept as
-    /// its own independent fact rather than folded into <see cref="ReadPageIntegrity"/>:
-    /// a document can lose pages, lose text runs, both, or neither, and collapsing them
-    /// into one tuple would make "only one is true" branch on the caller. Introspection
-    /// failure is reported as "no known suppression" — zero, not a guess.
+    /// Reads Unpdf's decode-loss counter. <c>SuppressedTextRuns</c> is the document-level
+    /// total, counted in runs rather than characters since the discarded text was never
+    /// decoded. Unpdf 0.14.0 also exposes the per-page breakdown via
+    /// <c>PageStats.SuppressedTextRuns</c> (see <see cref="ClassifyEmptyDocument"/>), but
+    /// the document total is kept as its own independent fact for the document-level
+    /// structural hint and the partial-loss warning — a document can lose pages, lose text
+    /// runs, both, or neither, and collapsing them into one tuple would make "only one is
+    /// true" branch on the caller. Introspection failure is reported as "no known
+    /// suppression" — zero, not a guess.
     /// </summary>
     private static long ReadSuppressedTextRunCount(UnpdfDocument doc)
     {
@@ -535,11 +537,12 @@ public partial class PdfDocumentReader : IDocumentReader
     /// Classifies a parsed-but-empty document via Unpdf page introspection:
     /// "no_text_layer" when any page draws images without a readable text layer
     /// (scanned document — searchable scans whose OCR layer was discarded
-    /// surface as OcrTextSuppressed), "text_runs_suppressed" when text operators were
-    /// present but the whole-document decoder discarded every run it saw (not scanned —
-    /// see <paramref name="suppressedTextRuns"/>), "blank_page" when no page has text or
-    /// image content. Introspection failures fall back to "no_text_layer"
-    /// (the pre-0.14.0 single-label behavior).
+    /// surface as OcrTextSuppressed), "text_runs_suppressed" when a page's own text runs
+    /// were discarded by the decoder (Unpdf 0.14.0 per-page <c>PageStats.SuppressedTextRuns</c>,
+    /// checked before falling back to the whole-document total for introspection paths that
+    /// only see the aggregate), "blank_page" when no page has text or image content.
+    /// Introspection failures fall back to "no_text_layer" (the pre-0.14.0 single-label
+    /// behavior).
     /// </summary>
     private static string ClassifyEmptyDocument(UnpdfDocument doc, long suppressedTextRuns)
     {
@@ -551,6 +554,8 @@ public partial class PdfDocumentReader : IDocumentReader
                 var stats = doc.GetPageStats(page);
                 if (stats.ImageOpCount > 0 && (stats.TextOpCount == 0 || stats.OcrTextSuppressed))
                     return "no_text_layer";
+                if (stats.SuppressedTextRuns > 0)
+                    return "text_runs_suppressed";
                 if (stats.TextOpCount > 0 || stats.ImageOpCount > 0)
                     sawContent = true;
             }
@@ -558,9 +563,9 @@ public partial class PdfDocumentReader : IDocumentReader
             if (!sawContent)
                 return "blank_page";
 
-            // Text operators were present but none of them matched the scanned-page
-            // pattern above. If the document-level decoder also discarded runs, that is
-            // the precise explanation for the empty output — not a scanned document.
+            // No page individually reported suppression, but the whole-document total
+            // did — keep the aggregate as a fallback for introspection gaps the per-page
+            // loop above did not catch.
             return suppressedTextRuns > 0 ? "text_runs_suppressed" : "no_text_layer";
         }
         catch (UnpdfException)

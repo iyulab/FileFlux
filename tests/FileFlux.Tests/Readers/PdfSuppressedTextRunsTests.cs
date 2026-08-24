@@ -1,6 +1,7 @@
 using System.Text;
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
+using Unpdf;
 using Xunit;
 
 namespace FileFlux.Tests.Readers;
@@ -118,6 +119,35 @@ public class PdfSuppressedTextRunsTests : IDisposable
 
         Assert.False(result.DocumentProps.ContainsKey("suppressed_text_runs"));
         Assert.True(result.IsSuccess);
+    }
+
+    /// <summary>
+    /// Teeth for the Unpdf 0.14.0 binding upgrade itself: before this version, <c>PageStats</c>
+    /// had no field for the native core's per-page breakdown, so the only signal reachable from
+    /// C# was <c>ExtractionQuality.SuppressedTextRuns</c> — the whole-document total. This
+    /// asserts the binding now surfaces the page attributed to the loss, not just that
+    /// classification (already covered above) still lands correctly.
+    /// </summary>
+    [Fact]
+    public void GetPageStats_UnresolvableCompositeFont_ShouldReportPerPageSuppressedTextRunCount()
+    {
+        var path = WriteTempPdf(BuildUnresolvableCompositeFontPdf());
+        using var doc = UnpdfDocument.ParseFile(path);
+
+        var stats = doc.GetPageStats(1);
+
+        Assert.True(stats.SuppressedTextRuns > 0);
+    }
+
+    [Fact]
+    public void GetPageStats_ReadableDocument_ShouldNotReportSuppressedTextRuns()
+    {
+        var path = WriteTempPdf(BuildReadableFontPdf());
+        using var doc = UnpdfDocument.ParseFile(path);
+
+        var stats = doc.GetPageStats(1);
+
+        Assert.Equal(0, stats.SuppressedTextRuns);
     }
 
     /// <summary>

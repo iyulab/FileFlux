@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-08-24
+
+### Changed
+- **PDF empty-document classification now uses Unpdf 0.14.0's per-page `PageStats.SuppressedTextRuns`**
+  instead of relying solely on the whole-document `ExtractionQuality.SuppressedTextRuns` total to infer
+  `text_runs_suppressed`. The document-level total is still read and still reported (unchanged
+  behavior for the `suppressed_text_runs` hint), but classification during the empty-document path now
+  checks each page's own count first, alongside the existing `OcrTextSuppressed` check — falling back
+  to the document total only when no single page reported it.
+- Bumped `Unpdf` 0.13.0 → 0.14.0, `FluxCurator` 0.8.0 → 0.8.1, `FluxImprover` 0.9.1 → 0.11.0,
+  `LMSupply.*` 0.42.1 → 0.42.2 (dependency freshness, no known breaking changes consumed).
+
 ## [0.20.0] - 2026-08-24
 
 ### Added
