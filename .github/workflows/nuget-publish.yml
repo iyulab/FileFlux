@@ -55,50 +55,42 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: 📦 Create FileFlux.Core NuGet Package
+      # Pack every packable project in the solution, not just the two named after the repository.
+      # Packing individual csproj files by name left FileFlux.Providers.LMSupply — packable, and in
+      # the solution since it was added (cycle-307) — never published at any version. Nothing failed:
+      # a package that is never produced cannot fail to push. Same defect class, same fix, as
+      # FluxImprover's publish.yml (iyulab/FluxImprover@4f01b46).
+      - name: 📦 Create NuGet Packages
         run: |
-          dotnet pack src/FileFlux.Core/FileFlux.Core.csproj \
+          dotnet pack FileFlux.slnx \
             --configuration Release \
             --output nupkg/ \
             -p:PackageVersion=${{ needs.detect-version.outputs.version }} \
             -p:AssemblyVersion=${{ needs.detect-version.outputs.version }} \
             -p:FileVersion=${{ needs.detect-version.outputs.version }}
 
-      - name: 📦 Create FileFlux NuGet Package
+      - name: 📋 Verify Generated Packages
         run: |
-          dotnet pack src/FileFlux/FileFlux.csproj \
-            --configuration Release \
-            --output nupkg/ \
-            -p:PackageVersion=${{ needs.detect-version.outputs.version }} \
-            -p:AssemblyVersion=${{ needs.detect-version.outputs.version }} \
-            -p:FileVersion=${{ needs.detect-version.outputs.version }}
-
-      - name: 📋 List Generated Packages
-        run: ls -la nupkg/
-
-      - name: 🚀 Publish FileFlux.Core to NuGet.org
-        run: |
-          for package in nupkg/FileFlux.Core.*.nupkg; do
-            echo "Publishing Core: $package..."
-            dotnet nuget push "$package" \
-              --api-key ${{ secrets.NUGET_API_KEY }} \
-              --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate \
-              --no-symbols
+          ls -la nupkg/
+          version="${{ needs.detect-version.outputs.version }}"
+          missing=0
+          # Assumes PackageId matches the csproj filename, which holds in this repository (verified).
+          for csproj in $(grep -oP '(?<=Path=")src/[^"]+\.csproj' FileFlux.slnx); do
+            id=$(basename "$csproj" .csproj)
+            if [ ! -f "nupkg/${id}.${version}.nupkg" ]; then
+              echo "::error::${id}.${version}.nupkg was not produced"
+              missing=1
+            fi
           done
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          [ "$missing" -eq 0 ]
 
-      - name: 🚀 Publish FileFlux SDK to NuGet.org
+      - name: 🚀 Publish to NuGet.org
         run: |
-          for package in nupkg/FileFlux.[0-9]*.nupkg; do
-            echo "Publishing SDK: $package..."
-            dotnet nuget push "$package" \
-              --api-key ${{ secrets.NUGET_API_KEY }} \
-              --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate \
-              --no-symbols
-          done
+          dotnet nuget push nupkg/*.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate \
+            --no-symbols
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
 
@@ -106,8 +98,13 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git tag "v${{ needs.detect-version.outputs.version }}"
-          git push origin "v${{ needs.detect-version.outputs.version }}"
+          TAG="v${{ needs.detect-version.outputs.version }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists on origin (e.g. from a prior partial run) — skipping."
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -124,6 +121,7 @@ jobs:
           echo "🎉 Successfully published FileFlux v${{ needs.detect-version.outputs.version }} to NuGet.org!"
           echo "📦 Core: https://www.nuget.org/packages/FileFlux.Core/${{ needs.detect-version.outputs.version }}"
           echo "📦 SDK: https://www.nuget.org/packages/FileFlux/${{ needs.detect-version.outputs.version }}"
+          echo "📦 LMSupply: https://www.nuget.org/packages/FileFlux.Providers.LMSupply/${{ needs.detect-version.outputs.version }}"
 
       - name: ❌ Failure Notification
         if: needs.publish.result != 'success'
