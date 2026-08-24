@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-08-24
+
+### Changed
+- Bumped `FluxImprover` 0.11.0 → 0.11.1 (dependency freshness, no known breaking changes consumed).
+
 ## [0.20.1] - 2026-08-24
 
 ### Changed
