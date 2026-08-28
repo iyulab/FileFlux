@@ -1,6 +1,6 @@
 using FileFlux.Core;
 using FileFlux.Infrastructure.Caching;
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace FileFlux.Tests.Caching;
 

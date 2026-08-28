@@ -147,7 +147,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="AwesomeAssertions" />
   </ItemGroup>
 
   <!-- Ship the README inside the package so the gallery page is not blank.
@@ -180,7 +180,7 @@
   <!-- Test-specific global usings -->
   <ItemGroup Condition="$(MSBuildProjectName.Contains('Tests'))">
     <Using Include="Xunit" />
-    <Using Include="FluentAssertions" />
+    <Using Include="AwesomeAssertions" />
   </ItemGroup>
 
   <!-- Performance and optimization settings -->

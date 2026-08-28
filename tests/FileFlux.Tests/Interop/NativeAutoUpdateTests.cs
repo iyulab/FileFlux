@@ -1,5 +1,5 @@
 using FileFlux.Core.Infrastructure.Interop;
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace FileFlux.Tests.Interop;
 

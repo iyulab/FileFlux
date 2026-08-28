@@ -1,6 +1,6 @@
 using FileFlux.Core;
 using FileFlux.Infrastructure.Services;
-using FluentAssertions;
+using AwesomeAssertions;
 
 namespace FileFlux.Tests.Services;
 
@@ -266,7 +266,7 @@ public class RuleBasedMetadataExtractorTests
         var content = """
             using System.Text.Json;
             using Microsoft.Extensions.DependencyInjection;
-            using FluentAssertions;
+            using AwesomeAssertions;
             """;
 
         var result = await _extractor.ExtractAsync(content, MetadataSchema.TechnicalDoc);

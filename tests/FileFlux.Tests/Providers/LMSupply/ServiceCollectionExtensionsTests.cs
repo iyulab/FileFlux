@@ -1,6 +1,6 @@
 using FileFlux.Core;
 using FileFlux.Providers.LMSupply.Extensions;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 

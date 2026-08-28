@@ -1,6 +1,6 @@
 using FileFlux.Core;
 using FileFlux.Infrastructure.Adapters;
-using FluentAssertions;
+using AwesomeAssertions;
 using FluxCuratorChunk = FluxCurator.Core.Domain.DocumentChunk;
 using FluxCuratorLocation = FluxCurator.Core.Domain.ChunkLocation;
 using FluxCuratorMetadata = FluxCurator.Core.Domain.ChunkMetadata;
