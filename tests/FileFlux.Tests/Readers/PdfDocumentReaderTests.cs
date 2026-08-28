@@ -145,9 +145,8 @@ public class PdfDocumentReaderTests
         Assert.NotEmpty(content.Text);
     }
 
-    // ----- Extract stage: embedded image extraction (docket iyulab/ironhive-umbrella #124,
-    // unblocked by Unpdf 0.15.0's ParseOptions.ExtractResources opt-in, docket iyulab/unpdf #125)
-    // -----
+    // ----- Extract stage: embedded image extraction, unblocked by Unpdf 0.15.0's
+    // ParseOptions.ExtractResources opt-in -----
 
     [Fact]
     public async Task ExtractAsync_ModelCardFixture_ExtractsEmbeddedImages()

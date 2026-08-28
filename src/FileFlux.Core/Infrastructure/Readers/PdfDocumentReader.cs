@@ -362,10 +362,10 @@ public partial class PdfDocumentReader : IDocumentReader
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Parse using Unpdf native library. ExtractResources opts into the embedded-image
-        // resource inventory (off by default upstream to bound peak memory on large PDFs —
-        // Unpdf 0.15.0, see docket iyulab/unpdf#125): without it, GetResourceIds() always
-        // returns empty and the docx/pptx/hwp readers' image parity (below) is unreachable.
+        // Parse using Unpdf native library. ExtractResources (Unpdf 0.15.0+) opts into the
+        // embedded-image resource inventory, off by default upstream to bound peak memory on
+        // large PDFs: without it, GetResourceIds() always returns empty and the docx/pptx/hwp
+        // readers' image parity (below) is unreachable.
         using var doc = UnpdfDocument.ParseFile(filePath, new ParseOptions { ExtractResources = true });
         string markdown;
 

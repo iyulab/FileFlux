@@ -8,7 +8,7 @@ namespace FileFlux.Tests.Readers;
 /// <summary>
 /// <see cref="MultiModalPdfDocumentReader"/> calls <c>UnpdfDocument.GetResourceIds</c> to feed its
 /// image-captioning pipeline, but until Unpdf 0.15.0 that call always returned an empty inventory
-/// (resource extraction was off with no opt-in — docket iyulab/unpdf#125) — so this reader had
+/// (resource extraction was off with no opt-in prior to 0.15.0) — so this reader had
 /// never actually processed an image, regardless of an <see cref="IImageToTextService"/> being
 /// configured. Fixed by passing <c>ParseOptions.ExtractResources = true</c> at parse time
 /// (mirrors the same fix in the base <c>PdfDocumentReader</c>).
