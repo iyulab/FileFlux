@@ -145,6 +145,36 @@ public class PdfDocumentReaderTests
         Assert.NotEmpty(content.Text);
     }
 
+    // ----- Extract stage: embedded image extraction (docket iyulab/ironhive-umbrella #124,
+    // unblocked by Unpdf 0.15.0's ParseOptions.ExtractResources opt-in, docket iyulab/unpdf #125)
+    // -----
+
+    [Fact]
+    public async Task ExtractAsync_ModelCardFixture_ExtractsEmbeddedImages()
+    {
+        // The fixture is a real-world PDF exported with embedded screenshots/diagrams — same
+        // shape as the docx/pptx/hwp parity gap this closes. 14 is the fixture's actual resource
+        // count (confirmed against Unpdf 0.15.0 directly); a regression that breaks extraction
+        // entirely would report 0, not a partial count, so this is not a brittle exact-count test
+        // in the sense the class's other tests deliberately avoid — it is the whole point here.
+        var content = await _reader.ExtractAsync(ModelCardFixture);
+
+        Assert.Equal(14, content.Images.Count);
+        Assert.True((int)content.Hints["image_count"] == 14);
+        Assert.True((bool)content.Hints["has_images"]);
+
+        foreach (var image in content.Images)
+        {
+            Assert.NotEmpty(image.Id);
+            Assert.False(string.IsNullOrEmpty(image.MimeType));
+            Assert.NotNull(image.Data);
+            Assert.True(image.Data.Length > 0);
+            Assert.Equal(image.Data.Length, image.OriginalSize);
+            Assert.NotNull(image.SourceUrl);
+            Assert.StartsWith("embedded:", image.SourceUrl, StringComparison.Ordinal);
+        }
+    }
+
     // ----- Extract stage: delegated Unpdf serialization (structural truncation guard) -----
 
     [Fact]
@@ -177,5 +207,6 @@ public class PdfDocumentReaderTests
         Assert.Equal(fromFile.Text, fromStream.Text);
         Assert.Equal(fromFile.Hints["page_count"], fromStream.Hints["page_count"]);
         Assert.Equal(fromFile.Hints["conversion_method"], fromStream.Hints["conversion_method"]);
+        Assert.Equal(fromFile.Images.Count, fromStream.Images.Count);
     }
 }

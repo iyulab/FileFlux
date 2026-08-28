@@ -99,8 +99,11 @@ public class MultiModalPdfDocumentReader : IDocumentReader
 
         try
         {
-            // Extract images using Unpdf native library
-            using var doc = UnpdfDocument.ParseFile(filePath);
+            // Extract images using Unpdf native library. ExtractResources opts into the
+            // resource inventory (Unpdf 0.15.0, docket iyulab/unpdf#125) — without it
+            // GetResourceIds() always returns empty, which is why this path has never actually
+            // produced an image before now despite calling these APIs.
+            using var doc = UnpdfDocument.ParseFile(filePath, new ParseOptions { ExtractResources = true });
             var resourceIds = doc.GetResourceIds();
 
             var imageCount = 0;

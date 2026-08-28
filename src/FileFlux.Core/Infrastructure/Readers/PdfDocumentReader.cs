@@ -362,8 +362,11 @@ public partial class PdfDocumentReader : IDocumentReader
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Parse using Unpdf native library
-        using var doc = UnpdfDocument.ParseFile(filePath);
+        // Parse using Unpdf native library. ExtractResources opts into the embedded-image
+        // resource inventory (off by default upstream to bound peak memory on large PDFs —
+        // Unpdf 0.15.0, see docket iyulab/unpdf#125): without it, GetResourceIds() always
+        // returns empty and the docx/pptx/hwp readers' image parity (below) is unreachable.
+        using var doc = UnpdfDocument.ParseFile(filePath, new ParseOptions { ExtractResources = true });
         string markdown;
 
         // Fast path: try whole-document extraction
@@ -471,6 +474,18 @@ public partial class PdfDocumentReader : IDocumentReader
         if (hasLinks) structuralHints["has_links"] = true;
         if (hasImages) structuralHints["has_images"] = true;
 
+        // Embedded raster images (XObject resources — screenshots/diagrams a Word/PowerPoint
+        // export carries into the PDF), extracted now that ParseOptions.ExtractResources is set
+        // above. Parity with the docx/pptx/hwp readers, which have always populated this. Inline
+        // images (BI/ID/EI content-stream operators, no resource-dictionary entry) and scanned
+        // full-page rasterizations are out of scope — GetResourceIds() does not surface either.
+        var extractedImages = ExtractEmbeddedImages(doc, warnings);
+        if (extractedImages.Count > 0)
+        {
+            structuralHints["has_images"] = true;
+            structuralHints["image_count"] = extractedImages.Count;
+        }
+
         return new RawContent
         {
             Text = markdown.Trim(),
@@ -486,8 +501,47 @@ public partial class PdfDocumentReader : IDocumentReader
             Warnings = warnings,
             Errors = errors,
             Status = status,
+            Images = extractedImages,
             ReaderType = "PdfReader"
         };
+    }
+
+    /// <summary>
+    /// Reads the embedded-image resource inventory <see cref="UnpdfDocument.GetResourceIds"/>
+    /// exposes once <see cref="ParseOptions.ExtractResources"/> is set. Failure here degrades to
+    /// zero images with a warning rather than failing the whole extraction — the document's text
+    /// already extracted successfully by this point, and losing images is a lesser outcome than
+    /// losing the document.
+    /// </summary>
+    private static List<ImageInfo> ExtractEmbeddedImages(UnpdfDocument doc, List<string> warnings)
+    {
+        var images = new List<ImageInfo>();
+
+        try
+        {
+            foreach (var resourceId in doc.GetResourceIds())
+            {
+                var resourceData = doc.GetResourceData(resourceId);
+                if (resourceData is not { Length: > 0 })
+                    continue;
+
+                images.Add(new ImageInfo
+                {
+                    Id = resourceId,
+                    MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
+                    Data = resourceData,
+                    OriginalSize = resourceData.Length,
+                    SourceUrl = $"embedded:{resourceId}"
+                });
+            }
+        }
+        catch (UnpdfException ex)
+        {
+            warnings.Add($"Embedded image extraction failed: {ex.Message} " +
+                         $"[{ErrorKindKey}={FormatErrorKind(ex.Kind)}]");
+        }
+
+        return images;
     }
 
     /// <summary>
