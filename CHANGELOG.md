@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-08-28
+
+### Added
+- **`PdfDocumentReader` now extracts embedded raster images into `RawContent.Images`**, matching the
+  existing docx/pptx/hwp readers' parity. Previously PDFs never populated `Images` at all — the
+  underlying Unpdf resource inventory (`GetResourceIds`/`GetResourceData`) was permanently off with
+  no opt-in until Unpdf 0.15.0 added `ParseOptions.ExtractResources`. Inline images
+  (content-stream `BI`/`ID`/`EI` operators with no resource-dictionary entry) and full-page
+  rasterizations of scanned documents are out of scope — the resource inventory does not surface
+  either.
+- `MultiModalPdfDocumentReader`'s image-captioning pipeline (`IImageToTextService`) now actually
+  receives images — it already called the resource APIs, but without the same opt-in they always
+  returned an empty inventory, so the pipeline had never processed a real image regardless of
+  configuration.
+
+### Changed
+- Bumped `Unpdf` 0.14.0 → 0.15.0 (adds the `ParseOptions.ExtractResources` opt-in above, plus a
+  `/FlateDecode`-filtered image XObject fix on the native side).
+
 ## [0.20.2] - 2026-08-24
 
 ### Changed
