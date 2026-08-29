@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-08-29
+
+### Removed
+- **`LMSupplyImageToTextService`** (main `FileFlux` package) — a combined OCR+captioning
+  `IImageToTextService` implementation that was never wired into any `AddFileFlux...()` DI
+  extension, so it was unreachable by consumers except through direct instantiation. The same
+  capability is available, DI-wireable, via `FileFlux.Providers.LMSupply`'s
+  `AddLMSupplyOcr()`/`AddLMSupplyCaptioner()`. Removing the unreachable duplicate also drops the
+  main package's direct `LMSupply.Ocr`/`LMSupply.Captioner` dependencies, shrinking its surface
+  toward the package's "thin core" direction. Consumers using the removed class directly should
+  migrate to `FileFlux.Providers.LMSupply`.
+
 ## [0.21.0] - 2026-08-28
 
 ### Added

@@ -30,8 +30,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="OpenAI" />
     <PackageReference Include="NSubstitute" />
-    <PackageReference Include="LMSupply.Ocr" />
-    <PackageReference Include="LMSupply.Captioner" />
     <PackageReference Include="DocumentFormat.OpenXml" />
     <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="CsvHelper" />
