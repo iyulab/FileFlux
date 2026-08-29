@@ -32,7 +32,7 @@ public class DocumentRefinerTests
         var raw = CreateRawContent("This is basic test content.");
 
         // Act
-        var result = await _refiner.RefineAsync(raw);
+        var result = await _refiner.RefineAsync(raw, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -48,7 +48,7 @@ public class DocumentRefinerTests
         var raw = CreateRawContent(content);
 
         // Act
-        var result = await _refiner.RefineAsync(raw, new RefineOptions { BuildSections = true });
+        var result = await _refiner.RefineAsync(raw, new RefineOptions { BuildSections = true }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEmpty(result.Sections);
@@ -62,7 +62,7 @@ public class DocumentRefinerTests
         var raw = CreateRawContent(content);
 
         // Act
-        var result = await _refiner.RefineAsync(raw, new RefineOptions { ExtractStructures = true });
+        var result = await _refiner.RefineAsync(raw, new RefineOptions { ExtractStructures = true }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEmpty(result.Structures);
@@ -78,7 +78,7 @@ public class DocumentRefinerTests
         var raw = CreateRawContent(content);
 
         // Act
-        var result = await _refiner.RefineAsync(raw, new RefineOptions { ExtractStructures = true });
+        var result = await _refiner.RefineAsync(raw, new RefineOptions { ExtractStructures = true }, TestContext.Current.CancellationToken);
 
         // Assert
         var tableStructure = result.Structures.FirstOrDefault(s => s.Type == StructureType.Table);
@@ -93,7 +93,7 @@ public class DocumentRefinerTests
         var raw = CreateRawContent(content);
 
         // Act
-        var result = await _refiner.RefineAsync(raw, new RefineOptions { CleanNoise = true });
+        var result = await _refiner.RefineAsync(raw, new RefineOptions { CleanNoise = true }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.DoesNotContain("\n\n\n", result.Text);
@@ -106,7 +106,7 @@ public class DocumentRefinerTests
         var raw = CreateRawContent("Test content", fileName: "test-document.md");
 
         // Act
-        var result = await _refiner.RefineAsync(raw);
+        var result = await _refiner.RefineAsync(raw, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Metadata);
@@ -120,7 +120,7 @@ public class DocumentRefinerTests
         var raw = CreateRawContent("This is test content with enough text to calculate quality scores.");
 
         // Act
-        var result = await _refiner.RefineAsync(raw);
+        var result = await _refiner.RefineAsync(raw, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Quality);
@@ -135,7 +135,7 @@ public class DocumentRefinerTests
         var raw = CreateRawContent("Test content");
 
         // Act
-        var result = await _refiner.RefineAsync(raw);
+        var result = await _refiner.RefineAsync(raw, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Info);
@@ -149,7 +149,7 @@ public class DocumentRefinerTests
         var raw = CreateRawContent("");
 
         // Act
-        var result = await _refiner.RefineAsync(raw);
+        var result = await _refiner.RefineAsync(raw, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);

@@ -24,7 +24,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = "" };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -39,7 +39,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = null! };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -54,7 +54,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = text };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -76,7 +76,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = input };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -91,7 +91,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = "INTRODUCTION\nSome content here" };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -106,7 +106,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = "1. Introduction\nContent\n2.1 Background\nMore content" };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -125,7 +125,7 @@ public class MarkdownConverterTests
         };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent, options);
+        var result = await _converter.ConvertAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -150,7 +150,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = input };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -168,7 +168,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = input };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -185,7 +185,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = input };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -204,7 +204,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = tableText };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -221,7 +221,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = tableText };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -238,7 +238,7 @@ public class MarkdownConverterTests
         var options = new MarkdownConversionOptions { ConvertTables = false };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent, options);
+        var result = await _converter.ConvertAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -257,7 +257,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = codeText };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -274,7 +274,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = codeText };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -296,7 +296,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = input };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -312,7 +312,7 @@ public class MarkdownConverterTests
         var options = new MarkdownConversionOptions { IncludeImagePlaceholders = false };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent, options);
+        var result = await _converter.ConvertAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -331,7 +331,7 @@ public class MarkdownConverterTests
         var rawContent = new RawContent { Text = text };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -362,7 +362,7 @@ public class MarkdownConverterTests
         var options = new MarkdownConversionOptions { NormalizeWhitespace = false };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent, options);
+        var result = await _converter.ConvertAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -386,7 +386,7 @@ public class MarkdownConverterTests
         var options = new MarkdownConversionOptions { UseLLMInference = true };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent, options);
+        var result = await _converter.ConvertAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -419,7 +419,7 @@ example
         var rawContent = new RawContent { Text = content };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -438,7 +438,7 @@ example
         var rawContent = new RawContent { Text = text };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(text.Length, result.OriginalLength);
@@ -484,7 +484,7 @@ example
         };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent, options);
+        var result = await _converter.ConvertAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -513,7 +513,7 @@ example
         };
 
         // Act
-        var result = await _converter.ConvertAsync(rawContent);
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);

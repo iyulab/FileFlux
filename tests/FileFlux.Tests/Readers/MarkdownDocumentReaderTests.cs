@@ -64,7 +64,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "test.md");
+        var result = await _reader.ExtractAsync(stream, "test.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var content = result.Text;
@@ -92,7 +92,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "test.md");
+        var result = await _reader.ExtractAsync(stream, "test.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var content = result.Text;
@@ -114,7 +114,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "test.md");
+        var result = await _reader.ExtractAsync(stream, "test.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var content = result.Text;
@@ -145,7 +145,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "test.md");
+        var result = await _reader.ExtractAsync(stream, "test.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var content = result.Text;
@@ -172,7 +172,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "doc.md");
+        var result = await _reader.ExtractAsync(stream, "doc.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — definition line and trailing []: gone, inline link text/target preserved
         Assert.DoesNotContain("[]:", result.Text);
@@ -190,7 +190,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "tcp.md");
+        var result = await _reader.ExtractAsync(stream, "tcp.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — no leaked definition or placeholder, table content intact
         Assert.DoesNotContain("[]:", result.Text);
@@ -206,7 +206,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "refs.md");
+        var result = await _reader.ExtractAsync(stream, "refs.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.DoesNotContain("[]:", result.Text);
@@ -232,7 +232,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "tcp-vs-udp.md");
+        var result = await _reader.ExtractAsync(stream, "tcp-vs-udp.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — empty group must not leak a trailing []:, table content intact
         Assert.DoesNotContain("[]:", result.Text);
@@ -250,7 +250,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "osi-model.md");
+        var result = await _reader.ExtractAsync(stream, "osi-model.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.DoesNotContain("[]:", result.Text);
@@ -272,7 +272,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "doc.md");
+        var result = await _reader.ExtractAsync(stream, "doc.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — full image syntax retained, no `!`-stripped link form
         Assert.Contains("![Architecture diagram](images/arch.png)", result.Text);
@@ -286,7 +286,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "doc.md");
+        var result = await _reader.ExtractAsync(stream, "doc.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — url preserved, no bare empty bracket token
         Assert.Contains("https://example.com", result.Text);
@@ -302,7 +302,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "doc.md");
+        var result = await _reader.ExtractAsync(stream, "doc.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert — image marker + path retained, never the `!`-stripped link form
         Assert.Contains("![](images/x.png)", result.Text);
@@ -317,7 +317,7 @@ This document covers:
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "doc.md");
+        var result = await _reader.ExtractAsync(stream, "doc.md", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("[the site](https://example.com/page)", result.Text);

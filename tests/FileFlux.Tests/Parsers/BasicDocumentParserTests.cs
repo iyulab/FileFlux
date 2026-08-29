@@ -40,7 +40,7 @@ public class BasicDocumentParserTests
         var options = new DocumentParsingOptions { UseLlmParsing = false };
 
         // Act
-        var result = await _parser.ParseAsync(rawContent, options);
+        var result = await _parser.ParseAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEmpty(result.Sections);
@@ -84,7 +84,7 @@ public class BasicDocumentParserTests
         var options = new DocumentParsingOptions { UseLlmParsing = false };
 
         // Act
-        var result = await _parser.ParseAsync(rawContent, options);
+        var result = await _parser.ParseAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         // Should have 2 top-level sections (Chapter 1 and Chapter 2)
@@ -136,7 +136,7 @@ public class BasicDocumentParserTests
         var options = new DocumentParsingOptions { UseLlmParsing = false };
 
         // Act
-        var result = await _parser.ParseAsync(rawContent, options);
+        var result = await _parser.ParseAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result.Sections); // Only Main Title at root
@@ -172,7 +172,7 @@ public class BasicDocumentParserTests
         var options = new DocumentParsingOptions { UseLlmParsing = false };
 
         // Act
-        var result = await _parser.ParseAsync(rawContent, options);
+        var result = await _parser.ParseAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, result.Sections.Count);
@@ -202,7 +202,7 @@ public class BasicDocumentParserTests
         var options = new DocumentParsingOptions { UseLlmParsing = false };
 
         // Act
-        var result = await _parser.ParseAsync(rawContent, options);
+        var result = await _parser.ParseAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result.Sections);
@@ -230,7 +230,7 @@ public class BasicDocumentParserTests
         var options = new DocumentParsingOptions { UseLlmParsing = false };
 
         // Act
-        var result = await _parser.ParseAsync(rawContent, options);
+        var result = await _parser.ParseAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result.Sections);
@@ -261,7 +261,7 @@ public class BasicDocumentParserTests
         var options = new DocumentParsingOptions { UseLlmParsing = false };
 
         // Act
-        var result = await _parser.ParseAsync(rawContent, options);
+        var result = await _parser.ParseAsync(rawContent, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, result.Sections.Count);

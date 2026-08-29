@@ -20,7 +20,7 @@ public class EmbeddingServiceTests
         var text = "This is a test document about machine learning.";
 
         // Act
-        var embedding = await _embeddingService.GenerateEmbeddingAsync(text);
+        var embedding = await _embeddingService.GenerateEmbeddingAsync(text, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(embedding);
@@ -35,8 +35,8 @@ public class EmbeddingServiceTests
         var text = "Consistent text should produce consistent embeddings.";
 
         // Act
-        var embedding1 = await _embeddingService.GenerateEmbeddingAsync(text);
-        var embedding2 = await _embeddingService.GenerateEmbeddingAsync(text);
+        var embedding1 = await _embeddingService.GenerateEmbeddingAsync(text, cancellationToken: TestContext.Current.CancellationToken);
+        var embedding2 = await _embeddingService.GenerateEmbeddingAsync(text, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(embedding1, embedding2);
@@ -54,7 +54,7 @@ public class EmbeddingServiceTests
         };
 
         // Act
-        var embeddings = await _embeddingService.GenerateBatchEmbeddingsAsync(texts);
+        var embeddings = await _embeddingService.GenerateBatchEmbeddingsAsync(texts, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var embeddingArray = embeddings.ToArray();
@@ -97,12 +97,9 @@ public class EmbeddingServiceTests
         var text = "This text will be embedded with different purposes.";
 
         // Act
-        var analysisEmbedding = await _embeddingService.GenerateEmbeddingAsync(
-            text, EmbeddingPurpose.Analysis);
-        var searchEmbedding = await _embeddingService.GenerateEmbeddingAsync(
-            text, EmbeddingPurpose.SemanticSearch);
-        var storageEmbedding = await _embeddingService.GenerateEmbeddingAsync(
-            text, EmbeddingPurpose.Storage);
+        var analysisEmbedding = await _embeddingService.GenerateEmbeddingAsync(text, EmbeddingPurpose.Analysis, TestContext.Current.CancellationToken);
+        var searchEmbedding = await _embeddingService.GenerateEmbeddingAsync(text, EmbeddingPurpose.SemanticSearch, TestContext.Current.CancellationToken);
+        var storageEmbedding = await _embeddingService.GenerateEmbeddingAsync(text, EmbeddingPurpose.Storage, TestContext.Current.CancellationToken);
 
         // Assert
         // Embeddings should be different based on purpose
@@ -119,8 +116,8 @@ public class EmbeddingServiceTests
         var normalText = "This is normal text without code.";
 
         // Act
-        var codeEmbedding = await _embeddingService.GenerateEmbeddingAsync(codeText);
-        var normalEmbedding = await _embeddingService.GenerateEmbeddingAsync(normalText);
+        var codeEmbedding = await _embeddingService.GenerateEmbeddingAsync(codeText, cancellationToken: TestContext.Current.CancellationToken);
+        var normalEmbedding = await _embeddingService.GenerateEmbeddingAsync(normalText, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         // Code detection feature should be different
@@ -135,8 +132,8 @@ public class EmbeddingServiceTests
         var casualText = "The weather today is nice and sunny.";
 
         // Act
-        var techEmbedding = await _embeddingService.GenerateEmbeddingAsync(technicalText);
-        var casualEmbedding = await _embeddingService.GenerateEmbeddingAsync(casualText);
+        var techEmbedding = await _embeddingService.GenerateEmbeddingAsync(technicalText, cancellationToken: TestContext.Current.CancellationToken);
+        var casualEmbedding = await _embeddingService.GenerateEmbeddingAsync(casualText, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         // Technical topic feature should be higher
@@ -150,7 +147,7 @@ public class EmbeddingServiceTests
     public async Task GenerateEmbedding_ShouldHandleEmptyInput(string? text, int expectedNonZero)
     {
         // Act
-        var embedding = await _embeddingService.GenerateEmbeddingAsync(text ?? string.Empty);
+        var embedding = await _embeddingService.GenerateEmbeddingAsync(text ?? string.Empty, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(embedding);

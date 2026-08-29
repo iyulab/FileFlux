@@ -46,7 +46,9 @@ jobs:
         # Ecosystem CI convention: exclude externally-dependent categories. FileFlux currently
         # declares only Category=Integration, but the other two are kept so a future
         # RequiresApiKey/Performance test does not silently start gating CI.
-        # --blame-hang turns a silent 20-minute timeout-cancel into a 5-minute dump naming the
-        # hung test — the reader tests exercise native FFI (Undoc/Unpdf), where a hang is the
-        # plausible failure mode rather than an assertion failure.
-        run: dotnet test FileFlux.slnx --no-build -c Release --verbosity normal --filter "Category!=Integration&Category!=RequiresApiKey&Category!=Performance" --blame-hang --blame-hang-timeout 5m
+        # --hangdump/--hangdump-timeout is MTP's equivalent of VSTest's --blame-hang — turns a
+        # silent 20-minute timeout-cancel into a 5-minute dump naming the hung test — the reader
+        # tests exercise native FFI (Undoc/Unpdf), where a hang is the plausible failure mode
+        # rather than an assertion failure. --filter-not-trait (repeated, ANDs together) is MTP's
+        # equivalent of VSTest's compound "Category!=A&Category!=B" filter syntax.
+        run: dotnet test FileFlux.slnx --no-build -c Release --verbosity normal --filter-not-trait "Category=Integration" --filter-not-trait "Category=RequiresApiKey" --filter-not-trait "Category=Performance" --hangdump --hangdump-timeout 5m

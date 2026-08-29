@@ -124,7 +124,7 @@ public class PowerPointDocumentReaderTests
     [Fact]
     public async Task ReadAsync_ShouldReportEachSlideAsPage()
     {
-        var result = await _reader.ReadAsync(SampleSlidesFixture);
+        var result = await _reader.ReadAsync(SampleSlidesFixture, TestContext.Current.CancellationToken);
 
         Assert.Equal("PowerPointReader", result.ReaderType);
         Assert.Equal(3, result.Pages.Count);
@@ -137,7 +137,7 @@ public class PowerPointDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_ShouldFollowPowerPointReaderContract()
     {
-        var content = await _reader.ExtractAsync(SampleSlidesFixture);
+        var content = await _reader.ExtractAsync(SampleSlidesFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("PowerPointReader", content.ReaderType);
         Assert.Equal(".pptx", content.File.Extension);
@@ -155,7 +155,7 @@ public class PowerPointDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_ShouldPreserveEverySlide()
     {
-        var content = await _reader.ExtractAsync(SampleSlidesFixture);
+        var content = await _reader.ExtractAsync(SampleSlidesFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         // Every slide marker is present — the reader emits "## Slide N" per section.
         Assert.Contains("## Slide 1", content.Text);
@@ -174,10 +174,10 @@ public class PowerPointDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_FromStream_ShouldMatchFileExtraction()
     {
-        var fromFile = await _reader.ExtractAsync(SampleSlidesFixture);
+        var fromFile = await _reader.ExtractAsync(SampleSlidesFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         await using var stream = File.OpenRead(SampleSlidesFixture);
-        var fromStream = await _reader.ExtractAsync(stream, "sample-slides.pptx");
+        var fromStream = await _reader.ExtractAsync(stream, "sample-slides.pptx", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(fromFile.Text, fromStream.Text);
         Assert.Equal(fromFile.Hints["slide_count"], fromStream.Hints["slide_count"]);

@@ -31,7 +31,7 @@ public class PdfPageIntegrityTests : IDisposable
     {
         var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: true));
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(true, content.Hints["pages_incomplete"]);
         Assert.Equal(ProcessingStatus.Partial, content.Status);
@@ -44,7 +44,7 @@ public class PdfPageIntegrityTests : IDisposable
         // The point of the signal is to qualify a partial result, not to discard it.
         var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: true));
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains("PAGE ONE", content.Text, StringComparison.Ordinal);
         Assert.DoesNotContain("PAGE TWO", content.Text, StringComparison.Ordinal);
@@ -57,7 +57,7 @@ public class PdfPageIntegrityTests : IDisposable
         // and asserts neither as a loss figure.
         var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: true));
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2L, content.Hints["declared_page_count"]);
         Assert.Equal(1, content.Hints["page_count"]);
@@ -71,7 +71,7 @@ public class PdfPageIntegrityTests : IDisposable
         // would then report to users.
         var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: true));
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         var warning = Assert.Single(content.Warnings, w => w.Contains("missing", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotMatch(new Regex(@"\d+\s+page", RegexOptions.IgnoreCase), warning);
@@ -83,7 +83,7 @@ public class PdfPageIntegrityTests : IDisposable
         // Same builder, no damage: the signal must not fire on healthy documents.
         var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: false));
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(content.Hints.ContainsKey("pages_incomplete"));
         Assert.False(content.Hints.ContainsKey("declared_page_count"));
@@ -98,7 +98,7 @@ public class PdfPageIntegrityTests : IDisposable
         // page set most easily passes for a whole document.
         var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: true));
 
-        var result = await _reader.ReadAsync(path);
+        var result = await _reader.ReadAsync(path, TestContext.Current.CancellationToken);
 
         Assert.Equal(true, result.DocumentProps["pages_incomplete"]);
         Assert.Equal(2L, result.DocumentProps["declared_page_count"]);
@@ -111,7 +111,7 @@ public class PdfPageIntegrityTests : IDisposable
     {
         var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: false));
 
-        var result = await _reader.ReadAsync(path);
+        var result = await _reader.ReadAsync(path, TestContext.Current.CancellationToken);
 
         Assert.False(result.DocumentProps.ContainsKey("pages_incomplete"));
         Assert.True(result.IsSuccess);
@@ -121,8 +121,7 @@ public class PdfPageIntegrityTests : IDisposable
     public async Task ExtractAsync_RealWorldPdf_ShouldNotFlagIncompleteness()
     {
         // A synthetic control cannot rule out false positives on real generator output.
-        var content = await _reader.ExtractAsync(
-            Path.Combine(AppContext.BaseDirectory, "Fixtures", "oai_gpt-oss_model_card.pdf"));
+        var content = await _reader.ExtractAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "oai_gpt-oss_model_card.pdf"), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(content.Hints.ContainsKey("pages_incomplete"));
         Assert.Equal(ProcessingStatus.Completed, content.Status);

@@ -35,7 +35,7 @@ public class DocumentEnricherTests
         var refined = CreateRefinedContent("Test");
 
         // Act
-        var result = await _enricher.EnrichAsync(chunks, refined);
+        var result = await _enricher.EnrichAsync(chunks, refined, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -51,7 +51,7 @@ public class DocumentEnricherTests
         var refined = CreateRefinedContent("Test document content");
 
         // Act
-        var result = await _enricher.EnrichAsync(chunks, refined);
+        var result = await _enricher.EnrichAsync(chunks, refined, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -71,7 +71,7 @@ public class DocumentEnricherTests
         var options = new EnrichOptions { BuildGraph = true };
 
         // Act
-        var result = await _enricher.EnrichAsync(chunks, refined, options);
+        var result = await _enricher.EnrichAsync(chunks, refined, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Graph);
@@ -87,7 +87,7 @@ public class DocumentEnricherTests
         var options = new EnrichOptions { BuildGraph = false };
 
         // Act
-        var result = await _enricher.EnrichAsync(chunks, refined, options);
+        var result = await _enricher.EnrichAsync(chunks, refined, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result.Graph);
@@ -101,7 +101,7 @@ public class DocumentEnricherTests
         var refined = CreateRefinedContent("Test");
 
         // Act
-        var result = await _enricher.EnrichAsync(chunks, refined);
+        var result = await _enricher.EnrichAsync(chunks, refined, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Stats);
@@ -127,7 +127,7 @@ public class DocumentEnricherTests
         };
 
         // Act
-        var graph = await _enricher.BuildGraphAsync(enrichedChunks, options);
+        var graph = await _enricher.BuildGraphAsync(enrichedChunks, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(graph);
@@ -147,7 +147,7 @@ public class DocumentEnricherTests
         }).ToList();
 
         // Act
-        var graph = await _enricher.BuildGraphAsync(enrichedChunks, GraphBuildOptions.Minimal);
+        var graph = await _enricher.BuildGraphAsync(enrichedChunks, GraphBuildOptions.Minimal, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(graph);
@@ -163,7 +163,7 @@ public class DocumentEnricherTests
 
         // Act
         var enrichedChunks = new List<EnrichedDocumentChunk>();
-        await foreach (var chunk in _enricher.EnrichStreamAsync(chunks, refined))
+        await foreach (var chunk in _enricher.EnrichStreamAsync(chunks, refined, cancellationToken: TestContext.Current.CancellationToken))
         {
             enrichedChunks.Add(chunk);
         }

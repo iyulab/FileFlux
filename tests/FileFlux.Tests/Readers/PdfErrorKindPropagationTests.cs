@@ -36,7 +36,7 @@ public class PdfErrorKindPropagationTests : IDisposable
         var path = WriteTempPdf("%PDF-1.7\ngarbage\n"u8.ToArray());
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => _reader.ExtractAsync(path));
+            () => _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UnpdfErrorKind.PdfParse}", ex.Message, StringComparison.Ordinal);
     }
@@ -48,7 +48,7 @@ public class PdfErrorKindPropagationTests : IDisposable
         var path = WriteTempPdf("this is definitely not a pdf file at all\n"u8.ToArray());
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => _reader.ExtractAsync(path));
+            () => _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UnpdfErrorKind.UnknownFormat}", ex.Message, StringComparison.Ordinal);
         Assert.DoesNotContain($"extraction_error_kind={UnpdfErrorKind.PdfParse}", ex.Message, StringComparison.Ordinal);
@@ -61,7 +61,7 @@ public class PdfErrorKindPropagationTests : IDisposable
         var path = WriteTempPdf("this is definitely not a pdf file at all\n"u8.ToArray());
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => _reader.ReadAsync(path));
+            () => _reader.ReadAsync(path, TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UnpdfErrorKind.UnknownFormat}", ex.Message, StringComparison.Ordinal);
     }
@@ -72,7 +72,7 @@ public class PdfErrorKindPropagationTests : IDisposable
         using var stream = new MemoryStream("%PDF-1.7\ngarbage\n"u8.ToArray());
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => _reader.ExtractAsync(stream, "broken.pdf"));
+            () => _reader.ExtractAsync(stream, "broken.pdf", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UnpdfErrorKind.PdfParse}", ex.Message, StringComparison.Ordinal);
     }
@@ -81,8 +81,7 @@ public class PdfErrorKindPropagationTests : IDisposable
     public async Task ExtractAsync_ValidPdf_ShouldNotCarryAnErrorKind()
     {
         // Reference behavior: a healthy document must not be tagged with a failure kind.
-        var content = await _reader.ExtractAsync(
-            Path.Combine(AppContext.BaseDirectory, "Fixtures", "oai_gpt-oss_model_card.pdf"));
+        var content = await _reader.ExtractAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "oai_gpt-oss_model_card.pdf"), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(content.Hints.ContainsKey("extraction_error_kind"));
         Assert.DoesNotContain(content.Warnings, w => w.Contains("extraction_error_kind", StringComparison.Ordinal));
@@ -106,7 +105,7 @@ public class PdfErrorKindPropagationTests : IDisposable
         await using var processor = factory.Create(path);
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => processor.ProcessAsync());
+            () => processor.ProcessAsync(cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UnpdfErrorKind.PdfParse}", ex.Message, StringComparison.Ordinal);
     }

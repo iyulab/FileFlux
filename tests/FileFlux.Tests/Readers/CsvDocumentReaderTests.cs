@@ -50,7 +50,7 @@ public class CsvDocumentReaderTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "people.csv");
+        var result = await _reader.ExtractAsync(stream, "people.csv", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - header row + separator + data rows as markdown table
         Assert.Contains("| Name | Age | City |", result.Text);
@@ -67,7 +67,7 @@ public class CsvDocumentReaderTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(tsv));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "data.tsv");
+        var result = await _reader.ExtractAsync(stream, "data.tsv", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("| Col1 | Col2 |", result.Text);
@@ -84,7 +84,7 @@ public class CsvDocumentReaderTests
         using var stream = new MemoryStream(cp949.GetBytes(csv));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "직원.csv");
+        var result = await _reader.ExtractAsync(stream, "직원.csv", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - decoded via CP949 fallback, not mojibake
         Assert.Contains("| 이름 | 부서 |", result.Text);
@@ -99,7 +99,7 @@ public class CsvDocumentReaderTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "products.csv");
+        var result = await _reader.ExtractAsync(stream, "products.csv", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - embedded comma preserved inside a single cell,
         // embedded newline must not break the markdown table row
@@ -114,7 +114,7 @@ public class CsvDocumentReaderTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "pipes.csv");
+        var result = await _reader.ExtractAsync(stream, "pipes.csv", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains(@"| a\|b | c |", result.Text);
@@ -128,7 +128,7 @@ public class CsvDocumentReaderTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "hints.csv");
+        var result = await _reader.ExtractAsync(stream, "hints.csv", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("CsvReader", result.ReaderType);
@@ -144,7 +144,7 @@ public class CsvDocumentReaderTests
         using var stream = new MemoryStream();
 
         // Act
-        var result = await _reader.ExtractAsync(stream, "empty.csv");
+        var result = await _reader.ExtractAsync(stream, "empty.csv", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(string.Empty, result.Text);
@@ -156,12 +156,12 @@ public class CsvDocumentReaderTests
     {
         // Arrange
         var path = Path.Combine(Path.GetTempPath(), $"fileflux-csv-test-{Guid.NewGuid():N}.csv");
-        await File.WriteAllTextAsync(path, "H1,H2\nv1,v2\n", Encoding.UTF8);
+        await File.WriteAllTextAsync(path, "H1,H2\nv1,v2\n", Encoding.UTF8, TestContext.Current.CancellationToken);
 
         try
         {
             // Act
-            var result = await _reader.ExtractAsync(path);
+            var result = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Contains("| H1 | H2 |", result.Text);
@@ -181,7 +181,7 @@ public class CsvDocumentReaderTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
 
         // Act
-        var result = await _reader.ReadAsync(stream, "read.csv");
+        var result = await _reader.ReadAsync(stream, "read.csv", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("CsvReader", result.ReaderType);

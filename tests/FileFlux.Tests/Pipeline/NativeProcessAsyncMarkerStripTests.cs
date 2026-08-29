@@ -44,14 +44,14 @@ public class NativeProcessAsyncMarkerStripTests
     {
         // Arrange — mirror Filer: factory.Create(".md") -> ProcessAsync default (Auto) -> Result.Chunks
         var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-marker-{Guid.NewGuid():N}.md");
-        await File.WriteAllTextAsync(tempFile, MarkdownWithAllStructures);
+        await File.WriteAllTextAsync(tempFile, MarkdownWithAllStructures, TestContext.Current.CancellationToken);
 
         try
         {
             using var processor = CreateProcessor(tempFile);
 
             // Act
-            await processor.ProcessAsync();
+            await processor.ProcessAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert — no chunk content may contain any internal HTML-comment marker
             Assert.NotNull(processor.Result.Chunks);
@@ -99,14 +99,14 @@ public class NativeProcessAsyncMarkerStripTests
         // while the referencing link's display text survives (no content loss). Regression for the
         // reference-definition-group leak (Filer upstream issue 20260607).
         var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-refdef-{Guid.NewGuid():N}.md");
-        await File.WriteAllTextAsync(tempFile, MarkdownWithReferenceDefinition);
+        await File.WriteAllTextAsync(tempFile, MarkdownWithReferenceDefinition, TestContext.Current.CancellationToken);
 
         try
         {
             using var processor = CreateProcessor(tempFile);
 
             // Act
-            await processor.ProcessAsync();
+            await processor.ProcessAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(processor.Result.Chunks);
@@ -142,14 +142,14 @@ public class NativeProcessAsyncMarkerStripTests
         // an empty LinkReferenceDefinitionGroup appended by Markdig, which used to render a bare
         // []: onto the tail. Verify the native chunk path Filer indexes stays clean.
         var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-norefdef-{Guid.NewGuid():N}.md");
-        await File.WriteAllTextAsync(tempFile, MarkdownWithoutReferenceDefinitions);
+        await File.WriteAllTextAsync(tempFile, MarkdownWithoutReferenceDefinitions, TestContext.Current.CancellationToken);
 
         try
         {
             using var processor = CreateProcessor(tempFile);
 
             // Act
-            await processor.ProcessAsync();
+            await processor.ProcessAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(processor.Result.Chunks);
@@ -185,14 +185,14 @@ public class NativeProcessAsyncMarkerStripTests
         // LinkInline image/empty-link fix (issue 20260607-linkinline-image-marker-lost); the
         // refdef leak showed reader-unit coverage alone can miss the path Filer actually indexes.
         var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-image-{Guid.NewGuid():N}.md");
-        await File.WriteAllTextAsync(tempFile, MarkdownWithImagesAndEmptyLink);
+        await File.WriteAllTextAsync(tempFile, MarkdownWithImagesAndEmptyLink, TestContext.Current.CancellationToken);
 
         try
         {
             using var processor = CreateProcessor(tempFile);
 
             // Act
-            await processor.ProcessAsync();
+            await processor.ProcessAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(processor.Result.Chunks);
@@ -220,7 +220,7 @@ public class NativeProcessAsyncMarkerStripTests
     {
         // Arrange
         var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-marker-stream-{Guid.NewGuid():N}.md");
-        await File.WriteAllTextAsync(tempFile, MarkdownWithAllStructures);
+        await File.WriteAllTextAsync(tempFile, MarkdownWithAllStructures, TestContext.Current.CancellationToken);
 
         try
         {
@@ -228,7 +228,7 @@ public class NativeProcessAsyncMarkerStripTests
 
             // Act — streaming chunk path must strip markers identically to the batch path
             var streamed = new List<DocumentChunk>();
-            await foreach (var chunk in processor.ChunkStreamAsync())
+            await foreach (var chunk in processor.ChunkStreamAsync(cancellationToken: TestContext.Current.CancellationToken))
             {
                 streamed.Add(chunk);
             }

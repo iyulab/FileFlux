@@ -30,8 +30,7 @@ public sealed class LMSupplyFluxImproverWiringTests
         // MaxGenerationTokens trimmed from the 1024 default — this test only needs to prove the
         // pipeline runs end to end, not produce a long summary, and the default made this test take
         // 10+ minutes of CPU-bound ONNX Runtime GenAI inference per run.
-        await using var analysisService = await LMSupplyGeneratorService.CreateAsync(
-            new LMSupplyOptions { MaxGenerationTokens = 64 });
+        await using var analysisService = await LMSupplyGeneratorService.CreateAsync(new LMSupplyOptions { MaxGenerationTokens = 64 }, cancellationToken: TestContext.Current.CancellationToken);
 
         var services = new ServiceCollection();
         services.AddLogging();
@@ -69,10 +68,7 @@ public sealed class LMSupplyFluxImproverWiringTests
             Info = new RefinementInfo { RefinerType = "Test" }
         };
 
-        var result = await enricher.EnrichAsync(
-            chunks,
-            refined,
-            new EnrichOptions { GenerateSummaries = true, ExtractKeywords = true });
+        var result = await enricher.EnrichAsync(chunks, refined, new EnrichOptions { GenerateSummaries = true, ExtractKeywords = true }, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Single(result.Chunks);

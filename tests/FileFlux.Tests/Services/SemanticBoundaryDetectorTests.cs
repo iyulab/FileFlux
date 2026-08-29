@@ -23,7 +23,7 @@ public class SemanticBoundaryDetectorTests
         var segment2 = "The weather today is sunny and warm. Perfect for outdoor activities.";
 
         // Act
-        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService);
+        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsBoundary);
@@ -41,7 +41,7 @@ public class SemanticBoundaryDetectorTests
         _detector.SimilarityThreshold = 0.2; // Very low threshold to ensure related content passes
 
         // Act
-        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService);
+        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService, TestContext.Current.CancellationToken);
 
         // Assert
         // With MockEmbeddingService, we expect some similarity but it may be low
@@ -66,7 +66,7 @@ public class SemanticBoundaryDetectorTests
         var segment2 = "Some content here";
 
         // Act
-        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService);
+        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsBoundary);
@@ -83,7 +83,7 @@ public class SemanticBoundaryDetectorTests
         var segment2 = "```python\ndef hello():\n    print('Hello')\n```";
 
         // Act
-        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService);
+        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -106,7 +106,7 @@ public class SemanticBoundaryDetectorTests
         };
 
         // Act
-        var boundaries = await _detector.DetectBoundariesAsync(segments, _embeddingService);
+        var boundaries = await _detector.DetectBoundariesAsync(segments, _embeddingService, TestContext.Current.CancellationToken);
 
         // Assert
         var boundaryList = boundaries.ToList();
@@ -151,7 +151,7 @@ public class SemanticBoundaryDetectorTests
         _detector.SimilarityThreshold = 0.8; // High threshold to trigger many boundaries
 
         // Act
-        var boundaries = await _detector.DetectBoundariesAsync(segments, _embeddingService);
+        var boundaries = await _detector.DetectBoundariesAsync(segments, _embeddingService, TestContext.Current.CancellationToken);
 
         // Assert
         var boundaryList = boundaries.ToList();
@@ -173,7 +173,7 @@ public class SemanticBoundaryDetectorTests
         var segment2 = "| Column1 | Column2 |\n|---------|---------|";
 
         // Act
-        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService);
+        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(BoundaryType.Table, result.Type);
@@ -189,7 +189,7 @@ public class SemanticBoundaryDetectorTests
         var segment2 = "- First point\n- Second point\n- Third point";
 
         // Act
-        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService);
+        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(BoundaryType.List, result.Type);
@@ -213,7 +213,7 @@ public class SemanticBoundaryDetectorTests
         var segment2 = similarity < 0.5 ? "Completely different content" : "Test content two";
 
         // Act
-        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService);
+        var result = await _detector.DetectBoundaryAsync(segment1, segment2, _embeddingService, TestContext.Current.CancellationToken);
 
         // Assert
         // Note: This is a simplified assertion since MockEmbeddingService

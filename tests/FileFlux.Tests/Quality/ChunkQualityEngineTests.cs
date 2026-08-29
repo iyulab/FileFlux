@@ -25,7 +25,7 @@ public class ChunkQualityEngineTests
         var chunks = CreateSampleChunks();
 
         // Act
-        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
+        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -44,7 +44,7 @@ public class ChunkQualityEngineTests
         var chunks = new List<DocumentChunk>();
 
         // Act
-        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
+        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -69,7 +69,7 @@ public class ChunkQualityEngineTests
         }
 
         // Act
-        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
+        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -104,7 +104,7 @@ public class ChunkQualityEngineTests
         };
 
         // Act
-        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
+        var result = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);

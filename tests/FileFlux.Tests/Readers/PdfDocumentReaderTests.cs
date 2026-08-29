@@ -119,7 +119,7 @@ public class PdfDocumentReaderTests
     [Fact]
     public async Task ReadAsync_ShouldReportMultiplePages()
     {
-        var result = await _reader.ReadAsync(ModelCardFixture);
+        var result = await _reader.ReadAsync(ModelCardFixture, TestContext.Current.CancellationToken);
 
         Assert.Equal("PdfReader", result.ReaderType);
         Assert.True(result.Pages.Count > 1, "model card is a multi-page document");
@@ -131,7 +131,7 @@ public class PdfDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_ShouldFollowPdfReaderContract()
     {
-        var content = await _reader.ExtractAsync(ModelCardFixture);
+        var content = await _reader.ExtractAsync(ModelCardFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("PdfReader", content.ReaderType);
         Assert.Equal(".pdf", content.File.Extension);
@@ -156,7 +156,7 @@ public class PdfDocumentReaderTests
         // count (confirmed against Unpdf 0.15.0 directly); a regression that breaks extraction
         // entirely would report 0, not a partial count, so this is not a brittle exact-count test
         // in the sense the class's other tests deliberately avoid — it is the whole point here.
-        var content = await _reader.ExtractAsync(ModelCardFixture);
+        var content = await _reader.ExtractAsync(ModelCardFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(14, content.Images.Count);
         Assert.True((int)content.Hints["image_count"] == 14);
@@ -179,7 +179,7 @@ public class PdfDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_ShouldExtractSubstantialTextWithoutTruncation()
     {
-        var content = await _reader.ExtractAsync(ModelCardFixture);
+        var content = await _reader.ExtractAsync(ModelCardFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         // Structural truncation guard, independent of the document's editorial text: a
         // multi-page text PDF extracted in full yields a large character count. A truncated
@@ -198,10 +198,10 @@ public class PdfDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_FromStream_ShouldMatchFileExtraction()
     {
-        var fromFile = await _reader.ExtractAsync(ModelCardFixture);
+        var fromFile = await _reader.ExtractAsync(ModelCardFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         await using var stream = File.OpenRead(ModelCardFixture);
-        var fromStream = await _reader.ExtractAsync(stream, "oai_gpt-oss_model_card.pdf");
+        var fromStream = await _reader.ExtractAsync(stream, "oai_gpt-oss_model_card.pdf", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(fromFile.Text, fromStream.Text);
         Assert.Equal(fromFile.Hints["page_count"], fromStream.Hints["page_count"]);

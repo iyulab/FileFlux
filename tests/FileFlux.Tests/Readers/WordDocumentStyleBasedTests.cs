@@ -4,7 +4,6 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using FileFlux.Core.Infrastructure.Readers;
 using System.Text;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace FileFlux.Tests.Readers;
 
@@ -35,7 +34,7 @@ public class WordDocumentStyleBasedTests : IDisposable
         var testFile = await CreateWordDocumentWithHeadingStylesAsync();
 
         // Act
-        var result = await _reader.ExtractAsync(testFile);
+        var result = await _reader.ExtractAsync(testFile, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -89,7 +88,7 @@ public class WordDocumentStyleBasedTests : IDisposable
         var testFile = await CreateWordDocumentWithTablesAndCaptionsAsync();
 
         // Act
-        var result = await _reader.ExtractAsync(testFile);
+        var result = await _reader.ExtractAsync(testFile, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -126,7 +125,7 @@ public class WordDocumentStyleBasedTests : IDisposable
         var testFile = await CreateWordDocumentWithComplexFormattingAsync();
 
         // Act
-        var result = await _reader.ExtractAsync(testFile);
+        var result = await _reader.ExtractAsync(testFile, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -165,7 +164,7 @@ public class WordDocumentStyleBasedTests : IDisposable
         var testFile = await CreateWordDocumentWithNotesAsync();
 
         // Act
-        var result = await _reader.ExtractAsync(testFile);
+        var result = await _reader.ExtractAsync(testFile, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -197,7 +196,7 @@ public class WordDocumentStyleBasedTests : IDisposable
         var testFile = await CreateWordDocumentWithPropertiesAsync();
 
         // Act
-        var result = await _reader.ExtractAsync(testFile);
+        var result = await _reader.ExtractAsync(testFile, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);

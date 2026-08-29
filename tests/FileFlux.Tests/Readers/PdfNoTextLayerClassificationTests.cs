@@ -31,7 +31,7 @@ public class PdfNoTextLayerClassificationTests
     [Fact]
     public async Task ExtractAsync_ImageOnlyPdf_ShouldClassifyNoTextLayer()
     {
-        var content = await _reader.ExtractAsync(ImageOnlyPath);
+        var content = await _reader.ExtractAsync(ImageOnlyPath, cancellationToken: TestContext.Current.CancellationToken);
 
         // No exception: the document is valid — just has no readable text layer
         Assert.Equal(string.Empty, content.Text);
@@ -42,7 +42,7 @@ public class PdfNoTextLayerClassificationTests
     [Fact]
     public async Task ExtractAsync_BlankPagePdf_ShouldClassifyBlankPage()
     {
-        var content = await _reader.ExtractAsync(BlankPagePath);
+        var content = await _reader.ExtractAsync(BlankPagePath, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(string.Empty, content.Text);
         Assert.Equal("blank_page", content.Hints["extraction_failure_reason"]);
@@ -52,7 +52,7 @@ public class PdfNoTextLayerClassificationTests
     [Fact]
     public async Task ExtractAsync_ImageOnlyPdf_ShouldStillReportPageCount()
     {
-        var content = await _reader.ExtractAsync(ImageOnlyPath);
+        var content = await _reader.ExtractAsync(ImageOnlyPath, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, content.Hints["page_count"]);
     }
@@ -64,7 +64,7 @@ public class PdfNoTextLayerClassificationTests
         // Uses the committed real-world PDF; the previous probe looked in a
         // "Resources" directory that does not exist and early-returned, so this
         // reference case passed without ever running.
-        var content = await _reader.ExtractAsync(TextPdfPath);
+        var content = await _reader.ExtractAsync(TextPdfPath, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotEqual(string.Empty, content.Text);
         Assert.False(content.Hints.ContainsKey("extraction_failure_reason"));

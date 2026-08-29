@@ -139,7 +139,7 @@ public class ExcelDocumentReaderTests
     [Fact]
     public async Task ReadAsync_ShouldReportEachSheetAsPage()
     {
-        var result = await _reader.ReadAsync(MultiSheetFixture);
+        var result = await _reader.ReadAsync(MultiSheetFixture, TestContext.Current.CancellationToken);
 
         Assert.Equal("ExcelReader", result.ReaderType);
         Assert.Equal(2, result.Pages.Count);
@@ -152,7 +152,7 @@ public class ExcelDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_SimpleList_ShouldFollowExcelReaderContract()
     {
-        var content = await _reader.ExtractAsync(SimpleListFixture);
+        var content = await _reader.ExtractAsync(SimpleListFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("ExcelReader", content.ReaderType);
         Assert.Equal(".xlsx", content.File.Extension);
@@ -172,7 +172,7 @@ public class ExcelDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_SimpleList_ShouldPreserveEveryDataRow()
     {
-        var content = await _reader.ExtractAsync(SimpleListFixture);
+        var content = await _reader.ExtractAsync(SimpleListFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         // Sheet heading + header row
         Assert.Contains("## 유지보수수행사", content.Text);
@@ -188,7 +188,7 @@ public class ExcelDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_MultiSheetWithOffset_ShouldExtractAllSheets()
     {
-        var content = await _reader.ExtractAsync(MultiSheetFixture);
+        var content = await _reader.ExtractAsync(MultiSheetFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         // Both worksheets are surfaced (section_count → worksheet_count hint).
         Assert.Equal(2, content.Hints["worksheet_count"]);
@@ -216,10 +216,10 @@ public class ExcelDocumentReaderTests
     {
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", fixtureName);
 
-        var fromFile = await _reader.ExtractAsync(fixturePath);
+        var fromFile = await _reader.ExtractAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
 
         await using var stream = File.OpenRead(fixturePath);
-        var fromStream = await _reader.ExtractAsync(stream, fixtureName);
+        var fromStream = await _reader.ExtractAsync(stream, fixtureName, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(fromFile.Text, fromStream.Text);
         Assert.Equal(fromFile.Hints["worksheet_count"], fromStream.Hints["worksheet_count"]);

@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using FileFlux.Tests.Helpers;
 using Xunit;
 
@@ -9,7 +10,10 @@ namespace FileFlux.Tests.Attributes;
 /// </summary>
 public class RequiresApiAttribute : FactAttribute
 {
-    public RequiresApiAttribute()
+    public RequiresApiAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         if (!EnvLoader.IsOpenAiConfigured())
         {

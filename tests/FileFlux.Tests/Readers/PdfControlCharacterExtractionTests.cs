@@ -32,7 +32,7 @@ public class PdfControlCharacterExtractionTests : IDisposable
     {
         var path = WriteTempPdf(BuildSinglePagePdf(@"HELLO\000WORLD"));
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains("HELLO", content.Text, StringComparison.Ordinal);
         Assert.Contains("WORLD", content.Text, StringComparison.Ordinal);
@@ -47,7 +47,7 @@ public class PdfControlCharacterExtractionTests : IDisposable
         // Control: the same document without the escape must read the same way.
         var path = WriteTempPdf(BuildSinglePagePdf("HELLO WORLD"));
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains("HELLO WORLD", content.Text, StringComparison.Ordinal);
         Assert.Equal(ProcessingStatus.Completed, content.Status);

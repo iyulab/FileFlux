@@ -125,7 +125,7 @@ public class WordDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_ShouldFollowWordReaderContract()
     {
-        var content = await _reader.ExtractAsync(SampleDocFixture);
+        var content = await _reader.ExtractAsync(SampleDocFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("WordReader", content.ReaderType);
         Assert.Equal(".docx", content.File.Extension);
@@ -144,7 +144,7 @@ public class WordDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_ShouldPreserveHeadingParagraphsAndTable()
     {
-        var content = await _reader.ExtractAsync(SampleDocFixture);
+        var content = await _reader.ExtractAsync(SampleDocFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         // Heading and body paragraphs.
         Assert.Contains("유지보수 계약 개요", content.Text);
@@ -168,10 +168,10 @@ public class WordDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_FromStream_ShouldMatchFileExtraction()
     {
-        var fromFile = await _reader.ExtractAsync(SampleDocFixture);
+        var fromFile = await _reader.ExtractAsync(SampleDocFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         await using var stream = File.OpenRead(SampleDocFixture);
-        var fromStream = await _reader.ExtractAsync(stream, "sample-doc.docx");
+        var fromStream = await _reader.ExtractAsync(stream, "sample-doc.docx", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(fromFile.Text, fromStream.Text);
         Assert.Equal(fromFile.Hints["conversion_method"], fromStream.Hints["conversion_method"]);

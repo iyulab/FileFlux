@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Text;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace FileFlux.Tests.Readers;
 
@@ -81,7 +80,7 @@ public class HtmlDocumentTests
         {
             // Act
             var reader = new HtmlDocumentReader();
-            var result = await reader.ExtractAsync(tempFile);
+            var result = await reader.ExtractAsync(tempFile, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -152,7 +151,7 @@ public class HtmlDocumentTests
         {
             // Act
             var reader = new HtmlDocumentReader();
-            var result = await reader.ExtractAsync(tempFile);
+            var result = await reader.ExtractAsync(tempFile, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -248,7 +247,7 @@ public class HtmlDocumentTests
         {
             // Act
             var reader = new HtmlDocumentReader();
-            var result = await reader.ExtractAsync(tempFile);
+            var result = await reader.ExtractAsync(tempFile, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -327,7 +326,7 @@ public class HtmlDocumentTests
         {
             // Act
             var reader = new HtmlDocumentReader();
-            var result = await reader.ExtractAsync(tempFile);
+            var result = await reader.ExtractAsync(tempFile, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -408,7 +407,7 @@ public class HtmlDocumentTests
         {
             // Act
             var reader = new HtmlDocumentReader();
-            var result = await reader.ExtractAsync(tempFile);
+            var result = await reader.ExtractAsync(tempFile, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -470,7 +469,7 @@ public class HtmlDocumentTests
         {
             // Act
             var reader = new HtmlDocumentReader();
-            var result = await reader.ExtractAsync(tempFile);
+            var result = await reader.ExtractAsync(tempFile, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -560,8 +559,8 @@ public class HtmlDocumentTests
         {
             // Act
             var reader = new HtmlDocumentReader();
-            var resultWithBase64 = await reader.ExtractAsync(tempFileWithBase64);
-            var resultWithoutBase64 = await reader.ExtractAsync(tempFileWithoutBase64);
+            var resultWithBase64 = await reader.ExtractAsync(tempFileWithBase64, cancellationToken: TestContext.Current.CancellationToken);
+            var resultWithoutBase64 = await reader.ExtractAsync(tempFileWithoutBase64, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert - Text size should be similar (base64 replaced with small placeholder)
             var textWithExtraction = resultWithBase64.Text;
@@ -619,7 +618,7 @@ public class HtmlDocumentTests
         {
             // Act
             var reader = new HtmlDocumentReader();
-            var result = await reader.ExtractAsync(tempFile);
+            var result = await reader.ExtractAsync(tempFile, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert — heading 감지 → has_headers + header_count 설정
             Assert.True(result.Hints.ContainsKey("has_headers"));
@@ -649,7 +648,7 @@ public class HtmlDocumentTests
         {
             // Act
             var reader = new HtmlDocumentReader();
-            var result = await reader.ExtractAsync(tempFile);
+            var result = await reader.ExtractAsync(tempFile, cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result.Hints.ContainsKey("has_headers"));

@@ -63,7 +63,7 @@ public class StatefulDocumentProcessorTests
             using var processor = CreateProcessor(tempFile);
 
             // Act
-            await processor.ExtractAsync();
+            await processor.ExtractAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ProcessorState.Extracted, processor.State);
@@ -86,10 +86,10 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync();
+            await processor.ExtractAsync(TestContext.Current.CancellationToken);
 
             // Act
-            await processor.RefineAsync();
+            await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ProcessorState.Refined, processor.State);
@@ -114,7 +114,7 @@ public class StatefulDocumentProcessorTests
             using var processor = CreateProcessor(tempFile);
 
             // Act - call Refine without Extract
-            await processor.RefineAsync();
+            await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert - should have auto-run Extract
             Assert.Equal(ProcessorState.Refined, processor.State);
@@ -139,11 +139,11 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync();
-            await processor.RefineAsync();
+            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Act
-            await processor.ChunkAsync(new ChunkingOptions { MaxChunkSize = 200 });
+            await processor.ChunkAsync(new ChunkingOptions { MaxChunkSize = 200 }, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ProcessorState.Chunked, processor.State);
@@ -168,7 +168,7 @@ public class StatefulDocumentProcessorTests
             using var processor = CreateProcessor(tempFile);
 
             // Act - call Chunk directly
-            await processor.ChunkAsync();
+            await processor.ChunkAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert - should have auto-run Extract and Refine
             Assert.Equal(ProcessorState.Chunked, processor.State);
@@ -193,12 +193,12 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync();
-            await processor.RefineAsync();
-            await processor.ChunkAsync();
+            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
+            await processor.ChunkAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Act
-            await processor.EnrichAsync(new EnrichOptions { BuildGraph = true });
+            await processor.EnrichAsync(new EnrichOptions { BuildGraph = true }, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ProcessorState.Enriched, processor.State);
@@ -226,7 +226,7 @@ public class StatefulDocumentProcessorTests
             {
                 IncludeEnrich = true,
                 Enrich = new EnrichOptions { BuildGraph = true }
-            });
+            }, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ProcessorState.Enriched, processor.State);
@@ -253,7 +253,7 @@ public class StatefulDocumentProcessorTests
             using var processor = CreateProcessor(tempFile);
 
             // Act
-            await processor.ProcessAsync(new ProcessingOptions { IncludeEnrich = false });
+            await processor.ProcessAsync(new ProcessingOptions { IncludeEnrich = false }, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ProcessorState.Chunked, processor.State);
@@ -276,12 +276,12 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync();
-            await processor.RefineAsync();
+            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Act
             var chunks = new List<DocumentChunk>();
-            await foreach (var chunk in processor.ChunkStreamAsync())
+            await foreach (var chunk in processor.ChunkStreamAsync(cancellationToken: TestContext.Current.CancellationToken))
             {
                 chunks.Add(chunk);
             }
@@ -308,7 +308,7 @@ public class StatefulDocumentProcessorTests
             using var processor = CreateProcessor(tempFile);
 
             // Act
-            await processor.ProcessAsync();
+            await processor.ProcessAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(processor.Result.Metrics.ExtractDuration > TimeSpan.Zero);
@@ -331,11 +331,11 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync();
+            await processor.ExtractAsync(TestContext.Current.CancellationToken);
             var firstRawText = processor.Result.Raw!.Text;
 
             // Act - call Extract again
-            await processor.ExtractAsync();
+            await processor.ExtractAsync(TestContext.Current.CancellationToken);
 
             // Assert - should be same result (not re-extracted)
             Assert.Equal(firstRawText, processor.Result.Raw!.Text);
@@ -391,7 +391,7 @@ public class StatefulDocumentProcessorTests
                 Strategy = ChunkingStrategies.Auto,
                 MaxChunkSize = 200,
                 MinChunkSize = 30
-            });
+            }, TestContext.Current.CancellationToken);
 
             // Assert
             var chunks = processor.Result.Chunks;
@@ -433,7 +433,7 @@ public class StatefulDocumentProcessorTests
                 Strategy = ChunkingStrategies.Paragraph,
                 MaxChunkSize = 150,
                 MinChunkSize = 30
-            });
+            }, TestContext.Current.CancellationToken);
 
             // Assert
             var chunks = processor.Result.Chunks;

@@ -25,7 +25,7 @@ public class MultiModalPdfDocumentReaderTests
         services.AddSingleton<IImageToTextService>(new StubImageToTextService());
         var reader = new MultiModalPdfDocumentReader(services.BuildServiceProvider());
 
-        var content = await reader.ExtractAsync(ModelCardFixture);
+        var content = await reader.ExtractAsync(ModelCardFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         // Regression guard: before the ExtractResources fix, HasImages/TotalImageCount never
         // appeared because GetResourceIds() always returned an empty array.
@@ -39,7 +39,7 @@ public class MultiModalPdfDocumentReaderTests
         var services = new ServiceCollection();
         var reader = new MultiModalPdfDocumentReader(services.BuildServiceProvider());
 
-        var content = await reader.ExtractAsync(ModelCardFixture);
+        var content = await reader.ExtractAsync(ModelCardFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(content.Hints.ContainsKey("HasImages"));
     }

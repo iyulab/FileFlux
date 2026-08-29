@@ -13,7 +13,7 @@ public class RuleBasedMetadataExtractorTests
     [Fact]
     public async Task ExtractAsync_General_EmptyContent_ReturnsMinimalMetadata()
     {
-        var result = await _extractor.ExtractAsync("", MetadataSchema.General);
+        var result = await _extractor.ExtractAsync("", MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("confidence");
         result.Should().ContainKey("extractionMethod");
@@ -23,7 +23,7 @@ public class RuleBasedMetadataExtractorTests
     [Fact]
     public async Task ExtractAsync_General_WhitespaceContent_ReturnsMinimalMetadata()
     {
-        var result = await _extractor.ExtractAsync("   \n\t  ", MetadataSchema.General);
+        var result = await _extractor.ExtractAsync("   \n\t  ", MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("confidence");
     }
@@ -45,7 +45,7 @@ public class RuleBasedMetadataExtractorTests
             Unsupervised learning finds patterns in unlabeled data.
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.General);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("topics");
         var topics = (string[])result["topics"];
@@ -62,7 +62,7 @@ public class RuleBasedMetadataExtractorTests
             Neural networks power many machine learning applications.
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.General);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("keywords");
         var keywords = (string[])result["keywords"];
@@ -75,7 +75,7 @@ public class RuleBasedMetadataExtractorTests
     {
         var content = "This is a test document written in English with enough content for detection.";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.General);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("language");
         result["language"].Should().Be("en");
@@ -86,7 +86,7 @@ public class RuleBasedMetadataExtractorTests
     {
         var content = "이것은 한국어로 작성된 테스트 문서입니다. 언어 감지를 위한 충분한 내용이 포함되어 있습니다.";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.General);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("language");
         result["language"].Should().Be("ko");
@@ -97,7 +97,7 @@ public class RuleBasedMetadataExtractorTests
     {
         var content = "这是一个用中文编写的测试文档。它包含足够的内容用于语言检测。";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.General);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result["language"].Should().Be("zh");
     }
@@ -108,7 +108,7 @@ public class RuleBasedMetadataExtractorTests
         // Use only hiragana/katakana to avoid CJK kanji matching Chinese first
         var content = "これはてすとです。ひらがなだけのてきすとです。カタカナもあります。";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.General);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result["language"].Should().Be("ja");
     }
@@ -129,7 +129,7 @@ public class RuleBasedMetadataExtractorTests
         // Need to pad content to meet description extraction thresholds
         var paddedContent = content + new string(' ', 100);
 
-        var result = await _extractor.ExtractAsync(paddedContent, MetadataSchema.General);
+        var result = await _extractor.ExtractAsync(paddedContent, MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("documentType");
         result["documentType"].Should().Be(expectedType);
@@ -144,7 +144,7 @@ public class RuleBasedMetadataExtractorTests
     {
         var content = "Galaxy S24 User Guide\n\nWelcome to your new device.";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("productName");
         result.Should().ContainKey("documentType");
@@ -156,7 +156,7 @@ public class RuleBasedMetadataExtractorTests
     {
         var content = "Copyright 2024 Samsung Electronics Inc. All rights reserved.";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("company");
         ((string)result["company"]).Should().Contain("Samsung");
@@ -167,7 +167,7 @@ public class RuleBasedMetadataExtractorTests
     {
         var content = "Version 2.5.1\nProduct Manual for Device X";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("version");
         result["version"].Should().Be("2.5.1");
@@ -178,7 +178,7 @@ public class RuleBasedMetadataExtractorTests
     {
         var content = "Release date: 2024-06-15\nProduct: Widget Pro";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("releaseDate");
         result["releaseDate"].Should().Be("2024-06-15");
@@ -187,7 +187,7 @@ public class RuleBasedMetadataExtractorTests
     [Fact]
     public async Task ExtractAsync_ProductManual_EmptyContent_ReturnsMinimal()
     {
-        var result = await _extractor.ExtractAsync("", MetadataSchema.ProductManual);
+        var result = await _extractor.ExtractAsync("", MetadataSchema.ProductManual, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("confidence");
         result.Should().ContainKey("extractionMethod");
@@ -213,7 +213,7 @@ public class RuleBasedMetadataExtractorTests
             Common issues and solutions.
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("topics");
         var topics = (string[])result["topics"];
@@ -233,7 +233,7 @@ public class RuleBasedMetadataExtractorTests
             Deployed on Docker containers managed by Kubernetes.
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.TechnicalDoc);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.TechnicalDoc, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("frameworks");
         var frameworks = (string[])result["frameworks"];
@@ -251,7 +251,7 @@ public class RuleBasedMetadataExtractorTests
             Frontend uses HTML and CSS with Tailwind.
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.TechnicalDoc);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.TechnicalDoc, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("technologies");
         var tech = (string[])result["technologies"];
@@ -269,7 +269,7 @@ public class RuleBasedMetadataExtractorTests
             using AwesomeAssertions;
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.TechnicalDoc);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.TechnicalDoc, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("libraries");
         var libs = (string[])result["libraries"];
@@ -285,7 +285,7 @@ public class RuleBasedMetadataExtractorTests
             import tensorflow as tf
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.TechnicalDoc);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.TechnicalDoc, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("libraries");
         var libs = (string[])result["libraries"];
@@ -296,7 +296,7 @@ public class RuleBasedMetadataExtractorTests
     [Fact]
     public async Task ExtractAsync_TechnicalDoc_EmptyContent_ReturnsMinimal()
     {
-        var result = await _extractor.ExtractAsync("", MetadataSchema.TechnicalDoc);
+        var result = await _extractor.ExtractAsync("", MetadataSchema.TechnicalDoc, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("confidence");
         result.Should().NotContainKey("libraries");
@@ -311,7 +311,7 @@ public class RuleBasedMetadataExtractorTests
     {
         var content = "This is a general document with some content for testing the custom schema fallback.";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.Custom);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.Custom, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("extractionMethod");
         result["extractionMethod"].Should().Be("rule-based");
@@ -338,7 +338,7 @@ public class RuleBasedMetadataExtractorTests
             Follow these steps to set up your device.
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual, TestContext.Current.CancellationToken);
 
         var confidence = (double)result["confidence"];
         confidence.Should().BeGreaterThan(0.5);
@@ -349,7 +349,7 @@ public class RuleBasedMetadataExtractorTests
     {
         var content = "Just a simple sentence.";
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.ProductManual, TestContext.Current.CancellationToken);
 
         var confidence = (double)result["confidence"];
         confidence.Should().BeLessThanOrEqualTo(1.0);
@@ -370,7 +370,7 @@ public class RuleBasedMetadataExtractorTests
             Additional paragraphs follow.
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.General);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("description");
         var description = (string)result["description"];
@@ -395,7 +395,7 @@ public class RuleBasedMetadataExtractorTests
             Available settings and defaults.
             """;
 
-        var result = await _extractor.ExtractAsync(content, MetadataSchema.General);
+        var result = await _extractor.ExtractAsync(content, MetadataSchema.General, TestContext.Current.CancellationToken);
 
         result.Should().ContainKey("topics");
         var topics = (string[])result["topics"];

@@ -39,7 +39,7 @@ public class PdfSuppressedTextRunsTests : IDisposable
     {
         var path = WriteTempPdf(BuildUnresolvableCompositeFontPdf());
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(content.Hints.TryGetValue("suppressed_text_runs", out var count));
         Assert.True((long)count! > 0);
@@ -53,7 +53,7 @@ public class PdfSuppressedTextRunsTests : IDisposable
         // "no_text_layer" fallback it would otherwise default to.
         var path = WriteTempPdf(BuildUnresolvableCompositeFontPdf());
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(string.Empty, content.Text);
         Assert.Equal("text_runs_suppressed", content.Hints["extraction_failure_reason"]);
@@ -67,7 +67,7 @@ public class PdfSuppressedTextRunsTests : IDisposable
         // that misattributed this class of loss before (2026-07-31 field report).
         var path = WriteTempPdf(BuildUnresolvableCompositeFontPdf());
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain(content.Warnings, w => w.Contains("requires OCR", StringComparison.OrdinalIgnoreCase));
     }
@@ -77,7 +77,7 @@ public class PdfSuppressedTextRunsTests : IDisposable
     {
         var path = WriteTempPdf(BuildUnresolvableCompositeFontPdf());
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ProcessingStatus.Partial, content.Status);
     }
@@ -88,7 +88,7 @@ public class PdfSuppressedTextRunsTests : IDisposable
         // Control: an ordinary Type1 font that decodes cleanly must not false-positive.
         var path = WriteTempPdf(BuildReadableFontPdf());
 
-        var content = await _reader.ExtractAsync(path);
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(content.Hints.ContainsKey("suppressed_text_runs"));
         Assert.False(content.Hints.ContainsKey("extraction_failure_reason"));
@@ -103,7 +103,7 @@ public class PdfSuppressedTextRunsTests : IDisposable
         // has to reach there too — mirrors PagesIncomplete's stage-0 wiring.
         var path = WriteTempPdf(BuildUnresolvableCompositeFontPdf());
 
-        var result = await _reader.ReadAsync(path);
+        var result = await _reader.ReadAsync(path, TestContext.Current.CancellationToken);
 
         Assert.True(result.DocumentProps.TryGetValue("suppressed_text_runs", out var count));
         Assert.True((long)count! > 0);
@@ -115,7 +115,7 @@ public class PdfSuppressedTextRunsTests : IDisposable
     {
         var path = WriteTempPdf(BuildReadableFontPdf());
 
-        var result = await _reader.ReadAsync(path);
+        var result = await _reader.ReadAsync(path, TestContext.Current.CancellationToken);
 
         Assert.False(result.DocumentProps.ContainsKey("suppressed_text_runs"));
         Assert.True(result.IsSuccess);

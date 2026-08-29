@@ -37,7 +37,7 @@ public class LegacyExcelDocumentReaderTests
     [Fact]
     public async Task ReadAsync_ShouldReportSheetsAsPages()
     {
-        var result = await _reader.ReadAsync(FixturePath);
+        var result = await _reader.ReadAsync(FixturePath, TestContext.Current.CancellationToken);
 
         Assert.Equal("LegacyExcelReader", result.ReaderType);
         Assert.Equal(2, result.Pages.Count);
@@ -48,7 +48,7 @@ public class LegacyExcelDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_ShouldSerializeKoreanWorkbookAsMarkdownTable()
     {
-        var content = await _reader.ExtractAsync(FixturePath);
+        var content = await _reader.ExtractAsync(FixturePath, cancellationToken: TestContext.Current.CancellationToken);
 
         // Sheet heading + header row + data preserved (Korean acceptance criterion)
         Assert.Contains("## 견적서", content.Text);
@@ -70,7 +70,7 @@ public class LegacyExcelDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_ShouldSkipEmptySheetsWithWarning()
     {
-        var content = await _reader.ExtractAsync(FixturePath);
+        var content = await _reader.ExtractAsync(FixturePath, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain("## 빈시트", content.Text);
         Assert.Contains(content.Warnings, w => w.Contains("1 of 2 worksheet"));
@@ -79,10 +79,10 @@ public class LegacyExcelDocumentReaderTests
     [Fact]
     public async Task ExtractAsync_FromStream_ShouldMatchFileExtraction()
     {
-        var fromFile = await _reader.ExtractAsync(FixturePath);
+        var fromFile = await _reader.ExtractAsync(FixturePath, cancellationToken: TestContext.Current.CancellationToken);
 
         await using var stream = File.OpenRead(FixturePath);
-        var fromStream = await _reader.ExtractAsync(stream, "legacy-korean.xls");
+        var fromStream = await _reader.ExtractAsync(stream, "legacy-korean.xls", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(fromFile.Text, fromStream.Text);
     }
@@ -91,12 +91,12 @@ public class LegacyExcelDocumentReaderTests
     public async Task ExtractAsync_NonBiffPayload_ShouldThrowDocumentProcessingException()
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"not-biff-{Guid.NewGuid():N}.xls");
-        await File.WriteAllTextAsync(tempPath, "this is not a BIFF workbook");
+        await File.WriteAllTextAsync(tempPath, "this is not a BIFF workbook", TestContext.Current.CancellationToken);
 
         try
         {
             await Assert.ThrowsAsync<DocumentProcessingException>(
-                () => _reader.ExtractAsync(tempPath));
+                () => _reader.ExtractAsync(tempPath, cancellationToken: TestContext.Current.CancellationToken));
         }
         finally
         {

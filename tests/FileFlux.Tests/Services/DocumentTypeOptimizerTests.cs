@@ -16,7 +16,7 @@ public class DocumentTypeOptimizerTests
                       "The API method handles the system software implementation. " +
                       "Debug the class syntax and compile the code.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Technical);
         result.Confidence.Should().BeGreaterThan(0);
@@ -29,7 +29,7 @@ public class DocumentTypeOptimizerTests
                       "The court statute regulation requires compliance. " +
                       "The attorney shall act pursuant to the law.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Legal);
     }
@@ -41,7 +41,7 @@ public class DocumentTypeOptimizerTests
                       "The abstract describes the conclusion and literature review. " +
                       "Citation reference analysis supports the findings.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Academic);
     }
@@ -53,7 +53,7 @@ public class DocumentTypeOptimizerTests
                       "Profit from asset equity dividend earnings exceeded expectations. " +
                       "The fiscal budget and market performance are strong.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Financial);
     }
@@ -65,7 +65,7 @@ public class DocumentTypeOptimizerTests
                       "Clinical symptom assessment and disease therapy are needed. " +
                       "The physician prescribed medication for the health condition.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Medical);
     }
@@ -77,7 +77,7 @@ public class DocumentTypeOptimizerTests
                       "Creative artistic design with aesthetic inspiration drives imagination. " +
                       "The expression of the story and character is remarkable.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Creative);
     }
@@ -87,7 +87,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "Hello world. This is a simple sentence. Nothing special here.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.General);
         result.Confidence.Should().Be(0.5);
@@ -102,7 +102,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "This is an English document about many topics and things.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Language.Should().Be("en");
     }
@@ -112,7 +112,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "이것은 한국어 문서입니다. 여러 주제에 대해 다룹니다.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Language.Should().Be("ko");
     }
@@ -123,7 +123,7 @@ public class DocumentTypeOptimizerTests
         // Korean range [\u3131-\uD79D] overlaps CJK unified ideographs, so Chinese may detect as "ko"
         var content = "这是一个中文文档，涵盖了许多主题。";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         // Due to detection order (ko checked first with wide range), CJK content detects as "ko"
         result.Language.Should().BeOneOf("zh", "ko");
@@ -135,7 +135,7 @@ public class DocumentTypeOptimizerTests
         // Korean range [\u3131-\uD79D] may overlap some katakana, so Japanese may detect as "ko"
         var content = "これは日本語のドキュメントです。さまざまなトピックについて説明します。";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Language.Should().BeOneOf("ja", "ko");
     }
@@ -149,7 +149,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "# Title\n\nSome content here.\n\n## Section One\n\nMore content.\n\n### Sub Section\n\nDetails.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.StructuralElements.Should().Contain(e => e.Type == "Header" && e.Count == 3);
     }
@@ -159,7 +159,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "Introduction text.\n\n```csharp\nvar x = 1;\n```\n\nMore text.\n\n```python\nprint('hello')\n```";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.StructuralElements.Should().Contain(e => e.Type == "CodeBlock" && e.Count == 2);
     }
@@ -169,7 +169,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "Items:\n- First item\n- Second item\n* Third item\n+ Fourth item";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.StructuralElements.Should().Contain(e => e.Type == "List" && e.Count == 4);
     }
@@ -179,7 +179,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "Data table:\n| Col1 | Col2 |\n| --- | --- |\n| A | B |\n| C | D |";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.StructuralElements.Should().Contain(e => e.Type == "Table");
     }
@@ -190,7 +190,7 @@ public class DocumentTypeOptimizerTests
         // Only 2 rows, need >3 for table detection
         var content = "| Col1 | Col2 |\n| A | B |";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.StructuralElements.Should().NotContain(e => e.Type == "Table");
     }
@@ -204,7 +204,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "# Header\n\nSome text with ```code``` blocks.\n- List item\n| table |";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Characteristics.Should().ContainKey("WordCount");
         result.Characteristics.Should().ContainKey("LineCount");
@@ -219,7 +219,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "Here is some code:\n```python\nprint('hello')\n```";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Characteristics["HasCode"].Should().Be(true);
     }
@@ -233,7 +233,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "This is a relatively simple sentence. Another short sentence here.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.ComplexityScore.Should().BeInRange(0, 1);
     }
@@ -243,7 +243,7 @@ public class DocumentTypeOptimizerTests
     {
         var content = "First sentence. Second sentence.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.AverageSentenceLength.Should().BeGreaterThan(0);
     }
@@ -259,7 +259,7 @@ public class DocumentTypeOptimizerTests
                       "This implementation handles the software system compilation. " +
                       "The API method debug syntax compile class code.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Technical);
         result.SubType.Should().Be("API Documentation");
@@ -272,7 +272,7 @@ public class DocumentTypeOptimizerTests
                       "The court statute regulation compliance requires the attorney. " +
                       "Pursuant to law and contract agreement terms.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Legal);
         result.SubType.Should().Be("Contract");
@@ -285,7 +285,7 @@ public class DocumentTypeOptimizerTests
                       "The hypothesis analysis and literature citation support the findings. " +
                       "Reference conclusion methodology abstract research.";
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, null);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Academic);
         result.SubType.Should().Be("Research Paper");
@@ -303,7 +303,7 @@ public class DocumentTypeOptimizerTests
                       "The system software function processes customer strategy data.";
         var metadata = new DocumentMetadata { FileType = ".cs" };
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, metadata);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, metadata, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Technical);
     }
@@ -317,7 +317,7 @@ public class DocumentTypeOptimizerTests
                       "Business customer management strategy performance.";
         var metadata = new DocumentMetadata { FileType = ".docx" };
 
-        var result = await _optimizer.DetectDocumentTypeAsync(content, metadata);
+        var result = await _optimizer.DetectDocumentTypeAsync(content, metadata, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.Business);
     }
@@ -495,7 +495,7 @@ public class DocumentTypeOptimizerTests
                       "The API method handles the system software implementation. " +
                       "Debug the class syntax and compile the code.";
 
-        var options = await _optimizer.GetOptimalOptionsAsync(content, null);
+        var options = await _optimizer.GetOptimalOptionsAsync(content, null, TestContext.Current.CancellationToken);
 
         options.Should().NotBeNull();
         options.MaxChunkSize.Should().BeGreaterThan(0);
@@ -553,7 +553,7 @@ public class DocumentTypeOptimizerTests
     [Fact]
     public async Task DetectDocumentTypeAsync_EmptyContent_HandlesGracefully()
     {
-        var result = await _optimizer.DetectDocumentTypeAsync("", null);
+        var result = await _optimizer.DetectDocumentTypeAsync("", null, TestContext.Current.CancellationToken);
 
         result.Category.Should().Be(DocumentCategory.General);
         result.ComplexityScore.Should().Be(0);
@@ -562,7 +562,7 @@ public class DocumentTypeOptimizerTests
     [Fact]
     public async Task DetectDocumentTypeAsync_SingleWord_HandlesGracefully()
     {
-        var result = await _optimizer.DetectDocumentTypeAsync("hello", null);
+        var result = await _optimizer.DetectDocumentTypeAsync("hello", null, TestContext.Current.CancellationToken);
 
         result.Should().NotBeNull();
         result.Language.Should().Be("en");

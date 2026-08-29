@@ -114,7 +114,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
     {
         _handler.SetResponse(CreateChatCompletionResponse("Hello, world!"));
 
-        var result = await _sut.GenerateAsync("Say hello");
+        var result = await _sut.GenerateAsync("Say hello", TestContext.Current.CancellationToken);
 
         result.Should().Be("Hello, world!");
     }
@@ -124,7 +124,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
     {
         _handler.SetResponse(CreateChatCompletionResponse("response"));
 
-        await _sut.GenerateAsync("test prompt");
+        await _sut.GenerateAsync("test prompt", TestContext.Current.CancellationToken);
 
         _handler.LastRequestUri.Should().Contain("chat/completions");
         var body = _handler.LastRequestBody;
@@ -137,7 +137,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
     {
         _handler.SetResponse("""{"choices": []}""");
 
-        var result = await _sut.GenerateAsync("test");
+        var result = await _sut.GenerateAsync("test", TestContext.Current.CancellationToken);
 
         result.Should().BeEmpty();
     }
@@ -184,7 +184,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
         """;
         _handler.SetResponse(CreateChatCompletionResponse(json));
 
-        var result = await _sut.AnalyzeStructureAsync("analyze this", DocumentType.Text);
+        var result = await _sut.AnalyzeStructureAsync("analyze this", DocumentType.Text, TestContext.Current.CancellationToken);
 
         result.DocumentType.Should().Be(DocumentType.Text);
         result.Confidence.Should().Be(0.92);
@@ -199,7 +199,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
     {
         _handler.SetResponse(CreateChatCompletionResponse("not valid json"));
 
-        var result = await _sut.AnalyzeStructureAsync("analyze", DocumentType.Pdf);
+        var result = await _sut.AnalyzeStructureAsync("analyze", DocumentType.Pdf, TestContext.Current.CancellationToken);
 
         result.DocumentType.Should().Be(DocumentType.Pdf);
         result.Confidence.Should().Be(0.5);
@@ -219,7 +219,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
         """;
         _handler.SetResponse(CreateChatCompletionResponse(json));
 
-        var result = await _sut.AnalyzeStructureAsync("analyze", DocumentType.Markdown);
+        var result = await _sut.AnalyzeStructureAsync("analyze", DocumentType.Markdown, TestContext.Current.CancellationToken);
 
         result.Confidence.Should().Be(0.85);
     }
@@ -240,7 +240,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
         """;
         _handler.SetResponse(CreateChatCompletionResponse(json));
 
-        var result = await _sut.SummarizeContentAsync("some long text content", 200);
+        var result = await _sut.SummarizeContentAsync("some long text content", 200, TestContext.Current.CancellationToken);
 
         result.Summary.Should().Be("A short summary of the document.");
         result.Keywords.Should().Contain("test");
@@ -253,7 +253,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
     {
         _handler.SetResponse(CreateChatCompletionResponse("plain text fallback"));
 
-        var result = await _sut.SummarizeContentAsync("content", 200);
+        var result = await _sut.SummarizeContentAsync("content", 200, TestContext.Current.CancellationToken);
 
         result.Summary.Should().Be("plain text fallback");
         result.Confidence.Should().Be(0.5);
@@ -282,7 +282,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
         """;
         _handler.SetResponse(CreateChatCompletionResponse(json));
 
-        var result = await _sut.ExtractMetadataAsync("text", DocumentType.Text);
+        var result = await _sut.ExtractMetadataAsync("text", DocumentType.Text, TestContext.Current.CancellationToken);
 
         result.Keywords.Should().Contain("AI");
         result.Language.Should().Be("en");
@@ -297,7 +297,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
     {
         _handler.SetResponse(CreateChatCompletionResponse("not json"));
 
-        var result = await _sut.ExtractMetadataAsync("text", DocumentType.Text);
+        var result = await _sut.ExtractMetadataAsync("text", DocumentType.Text, TestContext.Current.CancellationToken);
 
         result.Confidence.Should().Be(0.5);
     }
@@ -326,7 +326,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
         """;
         _handler.SetResponse(CreateChatCompletionResponse(json));
 
-        var result = await _sut.AssessQualityAsync("assess this");
+        var result = await _sut.AssessQualityAsync("assess this", TestContext.Current.CancellationToken);
 
         result.ConfidenceScore.Should().Be(0.85);
         result.CompletenessScore.Should().Be(0.9);
@@ -342,7 +342,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
     {
         _handler.SetResponse(CreateChatCompletionResponse("broken"));
 
-        var result = await _sut.AssessQualityAsync("text");
+        var result = await _sut.AssessQualityAsync("text", TestContext.Current.CancellationToken);
 
         result.ConfidenceScore.Should().Be(0.8);
         result.Explanation.Should().Contain("JSON parsing failed");
@@ -357,7 +357,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
     {
         _handler.SetResponse(CreateChatCompletionResponse("ok"));
 
-        var result = await _sut.IsAvailableAsync();
+        var result = await _sut.IsAvailableAsync(TestContext.Current.CancellationToken);
 
         result.Should().BeTrue();
     }
@@ -367,7 +367,7 @@ public sealed class OpenAICompatibleDocumentAnalysisServiceTests : IDisposable
     {
         _handler.SetStatusCode(HttpStatusCode.ServiceUnavailable);
 
-        var result = await _sut.IsAvailableAsync();
+        var result = await _sut.IsAvailableAsync(TestContext.Current.CancellationToken);
 
         result.Should().BeFalse();
     }

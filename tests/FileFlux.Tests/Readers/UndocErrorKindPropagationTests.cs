@@ -32,7 +32,7 @@ public class UndocErrorKindPropagationTests : IDisposable
         var path = WriteTemp([0x50, 0x4B, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08], ".xlsx");
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new ExcelDocumentReader().ExtractAsync(path));
+            () => new ExcelDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UndocErrorKind.ZipArchive}", ex.Message, StringComparison.Ordinal);
     }
@@ -43,7 +43,7 @@ public class UndocErrorKindPropagationTests : IDisposable
         var path = WriteTemp("this is definitely not an xlsx file at all\n"u8.ToArray(), ".xlsx");
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new ExcelDocumentReader().ExtractAsync(path));
+            () => new ExcelDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UndocErrorKind.UnknownFormat}", ex.Message, StringComparison.Ordinal);
         Assert.DoesNotContain($"extraction_error_kind={UndocErrorKind.ZipArchive}", ex.Message, StringComparison.Ordinal);
@@ -56,7 +56,7 @@ public class UndocErrorKindPropagationTests : IDisposable
         var path = WriteTemp("this is definitely not an xlsx file at all\n"u8.ToArray(), ".xlsx");
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new ExcelDocumentReader().ReadAsync(path));
+            () => new ExcelDocumentReader().ReadAsync(path, TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UndocErrorKind.UnknownFormat}", ex.Message, StringComparison.Ordinal);
     }
@@ -67,7 +67,7 @@ public class UndocErrorKindPropagationTests : IDisposable
         using var stream = new MemoryStream([0x50, 0x4B, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new ExcelDocumentReader().ExtractAsync(stream, "broken.xlsx"));
+            () => new ExcelDocumentReader().ExtractAsync(stream, "broken.xlsx", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UndocErrorKind.ZipArchive}", ex.Message, StringComparison.Ordinal);
     }
@@ -75,8 +75,7 @@ public class UndocErrorKindPropagationTests : IDisposable
     [Fact]
     public async Task Excel_ExtractAsync_ValidWorkbook_ShouldNotCarryAnErrorKind()
     {
-        var content = await new ExcelDocumentReader().ExtractAsync(
-            Path.Combine(AppContext.BaseDirectory, "Fixtures", "flat-header.xlsx"));
+        var content = await new ExcelDocumentReader().ExtractAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "flat-header.xlsx"), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain("extraction_error_kind", content.Text, StringComparison.Ordinal);
         Assert.DoesNotContain(content.Warnings, w => w.Contains("extraction_error_kind", StringComparison.Ordinal));
@@ -88,7 +87,7 @@ public class UndocErrorKindPropagationTests : IDisposable
         var path = WriteTemp([0x50, 0x4B, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08], ".docx");
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new WordDocumentReader().ExtractAsync(path));
+            () => new WordDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UndocErrorKind.ZipArchive}", ex.Message, StringComparison.Ordinal);
     }
@@ -99,7 +98,7 @@ public class UndocErrorKindPropagationTests : IDisposable
         var path = WriteTemp("nope"u8.ToArray(), ".docx");
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new WordDocumentReader().ExtractAsync(path));
+            () => new WordDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UndocErrorKind.UnknownFormat}", ex.Message, StringComparison.Ordinal);
     }
@@ -110,7 +109,7 @@ public class UndocErrorKindPropagationTests : IDisposable
         var path = WriteTemp([0x50, 0x4B, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08], ".pptx");
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new PowerPointDocumentReader().ExtractAsync(path));
+            () => new PowerPointDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UndocErrorKind.ZipArchive}", ex.Message, StringComparison.Ordinal);
     }
@@ -121,7 +120,7 @@ public class UndocErrorKindPropagationTests : IDisposable
         var path = WriteTemp("nope"u8.ToArray(), ".pptx");
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new PowerPointDocumentReader().ExtractAsync(path));
+            () => new PowerPointDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains($"extraction_error_kind={UndocErrorKind.UnknownFormat}", ex.Message, StringComparison.Ordinal);
     }

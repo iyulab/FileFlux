@@ -48,7 +48,7 @@ public class MergedHeaderCharacterizationTests
     [Fact]
     public async Task FlatHeader_ExtractsTheHeaderAndTheDataIntact()
     {
-        var content = await _reader.ExtractAsync(FlatHeaderFixture);
+        var content = await _reader.ExtractAsync(FlatHeaderFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains("연번", content.Text);
         Assert.Contains("이메일", content.Text);      // last column survives
@@ -64,7 +64,7 @@ public class MergedHeaderCharacterizationTests
     [Fact]
     public async Task MergedHeader_GroupLabels_KeepTheirColumns()
     {
-        var content = await _reader.ExtractAsync(MergedHeaderFixture);
+        var content = await _reader.ExtractAsync(MergedHeaderFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         var groupLabelLine = content.Text
             .Split('\n')
@@ -88,7 +88,7 @@ public class MergedHeaderCharacterizationTests
     [Fact]
     public async Task MergedHeader_DoesNotInjectACellTheInputNeverHad()
     {
-        var content = await _reader.ExtractAsync(MergedHeaderFixture);
+        var content = await _reader.ExtractAsync(MergedHeaderFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         var groupLabelLine = content.Text
             .Split('\n')
@@ -110,7 +110,7 @@ public class MergedHeaderCharacterizationTests
     [Fact]
     public async Task MergedHeader_ColumnLabelRow_IsFlattenedIntoData_ByDesign()
     {
-        var content = await _reader.ExtractAsync(MergedHeaderFixture);
+        var content = await _reader.ExtractAsync(MergedHeaderFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         var lines = content.Text.Split('\n');
         var separatorIndex = Array.FindIndex(lines, l => l.TrimStart().StartsWith("| ---", StringComparison.Ordinal));
@@ -129,7 +129,7 @@ public class MergedHeaderCharacterizationTests
     [Fact]
     public async Task MergedHeader_LosesNoDataRows()
     {
-        var content = await _reader.ExtractAsync(MergedHeaderFixture);
+        var content = await _reader.ExtractAsync(MergedHeaderFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains("한국기관00", content.Text);
         Assert.Contains("한국기관10", content.Text);

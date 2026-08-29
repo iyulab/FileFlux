@@ -125,7 +125,7 @@ The results support our hypothesis that transformer architectures provide superi
 
         // Act
         await using var processor = _processorFactory.Create(_technicalTestFile);
-        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, TestContext.Current.CancellationToken);
         var chunks = processor.Result.Chunks ?? [];
 
         // Assert
@@ -167,7 +167,7 @@ The results support our hypothesis that transformer architectures provide superi
 
         // Act
         await using var processor = _processorFactory.Create(_businessTestFile);
-        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, TestContext.Current.CancellationToken);
         var chunks = processor.Result.Chunks ?? [];
 
         // Assert
@@ -205,7 +205,7 @@ The results support our hypothesis that transformer architectures provide superi
 
         // Act
         await using var processor = _processorFactory.Create(_academicTestFile);
-        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, TestContext.Current.CancellationToken);
         var chunks = processor.Result.Chunks ?? [];
 
         // Assert
@@ -239,11 +239,11 @@ The results support our hypothesis that transformer architectures provide superi
 
         // Act
         await using var smartProcessor = _processorFactory.Create(_technicalTestFile);
-        await smartProcessor.ProcessAsync(new ProcessingOptions { Chunking = smartOptions });
+        await smartProcessor.ProcessAsync(new ProcessingOptions { Chunking = smartOptions }, TestContext.Current.CancellationToken);
         var smartChunks = smartProcessor.Result.Chunks ?? [];
 
         await using var basicProcessor = _processorFactory.Create(_technicalTestFile);
-        await basicProcessor.ProcessAsync(new ProcessingOptions { Chunking = basicOptions });
+        await basicProcessor.ProcessAsync(new ProcessingOptions { Chunking = basicOptions }, TestContext.Current.CancellationToken);
         var basicChunks = basicProcessor.Result.Chunks ?? [];
 
         // Assert - Smart chunks should have richer metadata
@@ -276,7 +276,7 @@ The results support our hypothesis that transformer architectures provide superi
 
         // Act
         await using var processor = _processorFactory.Create(_technicalTestFile);
-        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, TestContext.Current.CancellationToken);
         var chunks = processor.Result.Chunks ?? [];
 
         // Assert
@@ -321,7 +321,7 @@ The results support our hypothesis that transformer architectures provide superi
 
         // Act
         await using var processor = _processorFactory.Create(testFile);
-        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, TestContext.Current.CancellationToken);
         var chunks = processor.Result.Chunks ?? [];
 
         // Assert
@@ -359,7 +359,7 @@ The results support our hypothesis that transformer architectures provide superi
 
         // Act
         await using var processor = _processorFactory.Create(_technicalTestFile);
-        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, TestContext.Current.CancellationToken);
         var chunks = processor.Result.Chunks ?? [];
 
         // Assert
@@ -387,7 +387,7 @@ The results support our hypothesis that transformer architectures provide superi
 
         // Act
         await using var processor = _processorFactory.Create(_technicalTestFile);
-        await processor.ProcessAsync(new ProcessingOptions { Chunking = options });
+        await processor.ProcessAsync(new ProcessingOptions { Chunking = options }, TestContext.Current.CancellationToken);
         var chunks = processor.Result.Chunks ?? [];
 
         // Assert

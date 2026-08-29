@@ -49,12 +49,5 @@
     <None Include="..\test-pdf\oai_gpt-oss_model_card.pdf" Link="Fixtures\oai_gpt-oss_model_card.pdf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Test packages are automatically included from Directory.Build.props -->
-    <PackageReference Include="coverlet.collector">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-  </ItemGroup>
 
 </Project>

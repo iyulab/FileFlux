@@ -37,7 +37,7 @@ public class OutputWriterTests : IDisposable
         var chunks = CreateTestChunks(3);
 
         // Act
-        await writer.WriteAsync(chunks, outputDir);
+        await writer.WriteAsync(chunks, outputDir, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(Directory.Exists(outputDir));
@@ -52,7 +52,7 @@ public class OutputWriterTests : IDisposable
         var chunks = CreateTestChunks(3);
 
         // Act
-        await writer.WriteAsync(chunks, outputDir);
+        await writer.WriteAsync(chunks, outputDir, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(File.Exists(Path.Combine(outputDir, "chunk_1.md")));
@@ -69,10 +69,10 @@ public class OutputWriterTests : IDisposable
         var chunks = CreateTestChunks(3);
 
         // Act
-        await writer.WriteAsync(chunks, outputDir);
+        await writer.WriteAsync(chunks, outputDir, TestContext.Current.CancellationToken);
 
         // Assert
-        var chunk1 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_1.md"));
+        var chunk1 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_1.md"), TestContext.Current.CancellationToken);
         Assert.Contains("---", chunk1);
         Assert.Contains("chunk: 1", chunk1);
         Assert.Contains("total: 3", chunk1);
@@ -87,12 +87,12 @@ public class OutputWriterTests : IDisposable
         var chunks = CreateTestChunks(3);
 
         // Act
-        await writer.WriteAsync(chunks, outputDir);
+        await writer.WriteAsync(chunks, outputDir, TestContext.Current.CancellationToken);
 
         // Assert
-        var chunk1 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_1.md"));
-        var chunk2 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_2.md"));
-        var chunk3 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_3.md"));
+        var chunk1 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_1.md"), TestContext.Current.CancellationToken);
+        var chunk2 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_2.md"), TestContext.Current.CancellationToken);
+        var chunk3 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_3.md"), TestContext.Current.CancellationToken);
 
         // First chunk has no prev
         Assert.DoesNotContain("prev:", chunk1);
@@ -116,10 +116,10 @@ public class OutputWriterTests : IDisposable
         var chunks = CreateTestChunks(3);
 
         // Act
-        await writer.WriteAsync(chunks, outputDir);
+        await writer.WriteAsync(chunks, outputDir, TestContext.Current.CancellationToken);
 
         // Assert
-        var chunk2 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_2.md"));
+        var chunk2 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_2.md"), TestContext.Current.CancellationToken);
         Assert.Contains("[← Previous](chunk_1.md)", chunk2);
         Assert.Contains("[Next →](chunk_3.md)", chunk2);
         Assert.Contains("[Info](info.json)", chunk2);
@@ -134,10 +134,10 @@ public class OutputWriterTests : IDisposable
         var chunks = CreateTestChunks(3);
 
         // Act
-        await writer.WriteAsync(chunks, outputDir);
+        await writer.WriteAsync(chunks, outputDir, TestContext.Current.CancellationToken);
 
         // Assert
-        var chunk2 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_2.json"));
+        var chunk2 = await File.ReadAllTextAsync(Path.Combine(outputDir, "chunk_2.json"), TestContext.Current.CancellationToken);
         Assert.Contains("\"navigation\"", chunk2);
         Assert.Contains("chunk_1.json", chunk2);
         Assert.Contains("chunk_3.json", chunk2);
@@ -166,16 +166,16 @@ public class OutputWriterTests : IDisposable
 
         // Create a test input file
         var testInputPath = Path.Combine(_testDir, "test.docx");
-        await File.WriteAllTextAsync(testInputPath, "test content");
+        await File.WriteAllTextAsync(testInputPath, "test content", TestContext.Current.CancellationToken);
 
         // Act
-        await ProcessingInfoWriter.WriteChunkedInfoAsync(outputDir, testInputPath, chunks, info);
+        await ProcessingInfoWriter.WriteChunkedInfoAsync(outputDir, testInputPath, chunks, info, TestContext.Current.CancellationToken);
 
         // Assert
         var infoPath = Path.Combine(outputDir, "info.json");
         Assert.True(File.Exists(infoPath));
 
-        var json = await File.ReadAllTextAsync(infoPath);
+        var json = await File.ReadAllTextAsync(infoPath, TestContext.Current.CancellationToken);
         Assert.Contains("\"command\": \"chunk\"", json);
         Assert.Contains("\"totalChunks\": 3", json);
         Assert.Contains("chunk_1.md", json);

@@ -78,7 +78,7 @@ public class MisdeclaredContainerRoutingTests : IDisposable
     {
         var path = CopyAs(LegacyFixture, "quotation.xlsx");
 
-        var content = await new ExcelDocumentReader().ExtractAsync(path);
+        var content = await new ExcelDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(string.IsNullOrWhiteSpace(content.Text));
         Assert.Contains("견적서", content.Text);
@@ -93,7 +93,7 @@ public class MisdeclaredContainerRoutingTests : IDisposable
     {
         var path = CopyAs(OoxmlFixture, "list.xls");
 
-        var content = await new LegacyExcelDocumentReader().ExtractAsync(path);
+        var content = await new LegacyExcelDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(string.IsNullOrWhiteSpace(content.Text));
         Assert.Equal("ExcelReader", content.ReaderType);
@@ -107,7 +107,7 @@ public class MisdeclaredContainerRoutingTests : IDisposable
         // behind, which is the "fixed everywhere except one path" shape.
         await using var stream = File.OpenRead(LegacyFixture);
 
-        var content = await new ExcelDocumentReader().ExtractAsync(stream, "quotation.xlsx");
+        var content = await new ExcelDocumentReader().ExtractAsync(stream, "quotation.xlsx", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains("견적서", content.Text);
         Assert.Equal("LegacyExcelReader", content.ReaderType);
@@ -118,8 +118,8 @@ public class MisdeclaredContainerRoutingTests : IDisposable
     [Fact]
     public async Task CorrectlyNamedWorkbooks_AreUnaffected()
     {
-        var ooxml = await new ExcelDocumentReader().ExtractAsync(OoxmlFixture);
-        var legacy = await new LegacyExcelDocumentReader().ExtractAsync(LegacyFixture);
+        var ooxml = await new ExcelDocumentReader().ExtractAsync(OoxmlFixture, cancellationToken: TestContext.Current.CancellationToken);
+        var legacy = await new LegacyExcelDocumentReader().ExtractAsync(LegacyFixture, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("ExcelReader", ooxml.ReaderType);
         Assert.Equal("LegacyExcelReader", legacy.ReaderType);
@@ -133,10 +133,10 @@ public class MisdeclaredContainerRoutingTests : IDisposable
     public async Task ContentThatIsNoWorkbookAtAll_SaysSo_RatherThanBlamingTheZipHeader()
     {
         var path = Path.Combine(_tempDir, "error-page.xlsx");
-        await File.WriteAllTextAsync(path, "<html><body>Sign in to download this file</body></html>");
+        await File.WriteAllTextAsync(path, "<html><body>Sign in to download this file</body></html>", TestContext.Current.CancellationToken);
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new ExcelDocumentReader().ExtractAsync(path));
+            () => new ExcelDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("container_mismatch", ex.Message);
     }
@@ -154,8 +154,7 @@ public class MisdeclaredContainerRoutingTests : IDisposable
         var path = CopyAs(LegacyFixture, name);
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(() => name.EndsWith(".docx")
-            ? new WordDocumentReader().ExtractAsync(path)
-            : new PowerPointDocumentReader().ExtractAsync(path));
+            ? new WordDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken) : new PowerPointDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("container_mismatch", ex.Message);
     }
@@ -171,8 +170,7 @@ public class MisdeclaredContainerRoutingTests : IDisposable
         var path = CopyAs(Path.Combine(AppContext.BaseDirectory, "Fixtures", fixture), name);
 
         var content = name.EndsWith(".docx")
-            ? await new WordDocumentReader().ExtractAsync(path)
-            : await new PowerPointDocumentReader().ExtractAsync(path);
+            ? await new WordDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken) : await new PowerPointDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(string.IsNullOrWhiteSpace(content.Text));
     }
@@ -182,12 +180,12 @@ public class MisdeclaredContainerRoutingTests : IDisposable
     {
         // Truncating after the ZIP magic keeps it classifiable as a package, so this is a damaged
         // workbook rather than a mislabelled one and must not be reported as a container mismatch.
-        var bytes = await File.ReadAllBytesAsync(OoxmlFixture);
+        var bytes = await File.ReadAllBytesAsync(OoxmlFixture, TestContext.Current.CancellationToken);
         var path = Path.Combine(_tempDir, "truncated.xlsx");
-        await File.WriteAllBytesAsync(path, bytes[..(bytes.Length / 2)]);
+        await File.WriteAllBytesAsync(path, bytes[..(bytes.Length / 2)], TestContext.Current.CancellationToken);
 
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new ExcelDocumentReader().ExtractAsync(path));
+            () => new ExcelDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.DoesNotContain("container_mismatch", ex.Message);
     }
