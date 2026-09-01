@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-09-01
+
+### Changed
+- Re-pinned `LMSupply.*` (`Core`/`Embedder`/`Generator`/`Captioner`/`Ocr`) from `0.42.2` to
+  `0.42.10` — patch/minor re-consumption of an already-consumed sibling package, not a new
+  dependency. No source changes.
+
 ## [0.22.0] - 2026-08-29
 
 ### Removed
