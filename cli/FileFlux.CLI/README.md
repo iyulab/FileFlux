@@ -13,7 +13,7 @@ dotnet tool install --global FileFlux.CLI
 ### 소스에서 빌드
 
 ```bash
-cd src/FileFlux.CLI
+cd cli/FileFlux.CLI
 dotnet build
 dotnet run -- --help
 ```
