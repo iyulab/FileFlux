@@ -16,15 +16,23 @@ public class LanguageDetectorTests
         // Act
         var (language, confidence) = LanguageDetector.Detect(text);
 
-        // Skip if NTextCat profiles are not available
-        if (language == "unknown" && confidence == 0.0)
-        {
-            // NTextCat profiles not loaded, skip test
-            return;
-        }
-
-        // Assert
+        // Assert - the NTextCat language profile is now embedded in FileFlux itself, so it is
+        // always available; a silent "unknown" here is a real regression, not an environment gap.
         Assert.Equal(expectedLanguage, language);
+        Assert.True(confidence > 0.3, $"Confidence {confidence} should be > 0.3");
+    }
+
+    [Fact]
+    public void Detect_KnownEnglishSample_NeverReturnsUnknown()
+    {
+        // Regression test for the Core14.profile.xml load failure: NTextCat ships that file as
+        // legacy NuGet "content/", which SDK-style PackageReference projects never copy to output,
+        // so the profile silently failed to load and every call returned ("unknown", 0.0) with no
+        // error. FileFlux now embeds its own copy of the profile.
+        var (language, confidence) = LanguageDetector.Detect(
+            "The quarterly report shows steady revenue growth across all regional markets.");
+
+        Assert.Equal("en", language);
         Assert.True(confidence > 0.3, $"Confidence {confidence} should be > 0.3");
     }
 
@@ -62,12 +70,7 @@ public class LanguageDetectorTests
         // Assert
         Assert.NotEmpty(results);
         Assert.True(results.Count <= 3);
-
-        // Skip detailed assertion if profiles not loaded
-        if (results[0].Language != "unknown")
-        {
-            Assert.Equal("en", results[0].Language);
-        }
+        Assert.Equal("en", results[0].Language);
     }
 
     [Theory]
@@ -78,11 +81,6 @@ public class LanguageDetectorTests
     {
         // Act
         var result = LanguageDetector.IsLanguage(text, language, 0.3);
-
-        // Skip if profiles not loaded
-        var (detected, _) = LanguageDetector.Detect(text);
-        if (detected == "unknown")
-            return;
 
         // Assert
         Assert.Equal(expected, result);
@@ -98,10 +96,6 @@ public class LanguageDetectorTests
 
         // Act
         var (language, confidence) = LanguageDetector.Detect(text);
-
-        // Skip if profiles not loaded
-        if (language == "unknown")
-            return;
 
         // Assert
         Assert.Equal("en", language);

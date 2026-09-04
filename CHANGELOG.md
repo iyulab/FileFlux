@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.3] - 2026-09-04
+
+### Fixed
+- `LanguageDetector` always returned `("unknown", 0.0)` for every input, silently. NTextCat ships
+  its `Core14.profile.xml` language profile as a legacy NuGet `content/` file (pre-PackageReference
+  convention), which SDK-style projects never copy to the output directory - so the profile never
+  actually loaded, and the failure was swallowed with no exception, log, or warning. FileFlux now
+  embeds its own copy of the profile as a resource, and logs a warning via `Trace.TraceWarning` if
+  no profile can be found from any source. Also fixed the CLI README's "build from source" path
+  (`src/FileFlux.CLI` -> `cli/FileFlux.CLI`).
+
 ## [0.22.2] - 2026-09-01
 
 ### Changed

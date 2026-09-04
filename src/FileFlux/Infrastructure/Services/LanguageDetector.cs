@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Reflection;
 using NTextCat;
 
 namespace FileFlux.Infrastructure.Services;
@@ -14,22 +16,21 @@ public static class LanguageDetector
         {
             var factory = new RankedLanguageIdentifierFactory();
 
-            // Try to load from embedded resource first
-            var assembly = typeof(RankedLanguageIdentifierFactory).Assembly;
-            var resourceNames = assembly.GetManifestResourceNames();
-            var profileResource = resourceNames.FirstOrDefault(n => n.Contains("Core14") || n.Contains("profile"));
+            // Prefer FileFlux's own embedded copy first: NTextCat ships Core14.profile.xml as a
+            // legacy NuGet "content/" file (pre-PackageReference convention), which SDK-style
+            // projects never copy to output - so it is never actually present in NTextCat's own
+            // assembly at runtime. Still check NTextCat's assembly second in case a future
+            // version embeds it properly.
+            using var stream = FindProfileResourceStream(typeof(LanguageDetector).Assembly)
+                ?? FindProfileResourceStream(typeof(RankedLanguageIdentifierFactory).Assembly);
 
-            if (profileResource != null)
+            if (stream != null)
             {
-                using var stream = assembly.GetManifestResourceStream(profileResource);
-                if (stream != null)
-                {
-                    return factory.Load(stream);
-                }
+                return factory.Load(stream);
             }
 
-            // Fallback: try to load from file
-            var assemblyPath = Path.GetDirectoryName(assembly.Location);
+            // Fallback: try to load from a loose file alongside NTextCat's assembly
+            var assemblyPath = Path.GetDirectoryName(typeof(RankedLanguageIdentifierFactory).Assembly.Location);
             if (assemblyPath != null)
             {
                 var profilePath = Path.Combine(assemblyPath, "Core14.profile.xml");
@@ -39,13 +40,25 @@ public static class LanguageDetector
                 }
             }
 
+            Trace.TraceWarning(
+                "FileFlux.LanguageDetector: Core14.profile.xml language profile could not be " +
+                "loaded from any source (embedded resource or file) - language detection will " +
+                "return \"unknown\" for all input.");
             return null;
         }
-        catch
+        catch (Exception ex)
         {
+            Trace.TraceWarning($"FileFlux.LanguageDetector: failed to initialize language identifier - {ex.Message}");
             return null;
         }
     });
+
+    private static Stream? FindProfileResourceStream(Assembly assembly)
+    {
+        var resourceNames = assembly.GetManifestResourceNames();
+        var profileResource = resourceNames.FirstOrDefault(n => n.Contains("Core14") || n.Contains("profile"));
+        return profileResource != null ? assembly.GetManifestResourceStream(profileResource) : null;
+    }
 
     /// <summary>
     /// Detect language of the given text

@@ -6,6 +6,14 @@
     <Using Include="FileFlux.Core" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- NTextCat ships Core14.profile.xml as a legacy NuGet "content/" file (pre-PackageReference
+         convention) which SDK-style projects never copy to output - so it is never actually present
+         at runtime. Bundle FileFlux's own copy as an embedded resource instead.
+         Source: https://github.com/ivanakcheurov/ntextcat (MIT), NTextCat 0.3.65 content/Core14.profile.xml. -->
+    <EmbeddedResource Include="Infrastructure\Services\Resources\Core14.profile.xml" />
+  </ItemGroup>
+
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <PackageId>FileFlux</PackageId>
