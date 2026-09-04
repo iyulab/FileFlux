@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.4] - 2026-09-04
+
+### Changed
+- Re-pinned `LMSupply.Core`/`.Embedder`/`.Generator`/`.Captioner`/`.Ocr` from `0.42.10` to `0.54.0`
+  — patch re-consumption of already-consumed sibling packages (cold-GPU-kernel-hang protection
+  propagated to all ONNX-backed lm-supply modules). No source changes.
+
 ## [0.22.3] - 2026-09-04
 
 ### Fixed
