@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.5] - 2026-09-05
+
+### Fixed
+- Re-pinned `LMSupply.Core`/`.Embedder`/`.Generator`/`.Captioner`/`.Ocr` from `0.54.0` to `0.55.0`
+  — `0.54.0` was never actually published to nuget.org for these packages (their published history
+  jumps `0.45.0` -> `0.55.0`), so `0.22.4`'s restore failed with NU1603 escalated to error and no
+  nupkg for `0.22.4` was ever produced.
+
 ## [0.22.4] - 2026-09-04
 
 ### Changed
