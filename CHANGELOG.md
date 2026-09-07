@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.7] - 2026-09-07
+
+### Changed
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.55.0 -> 0.55.4, `LMSupply.Core` 0.55.0 -> 0.55.4, `LMSupply.Embedder` 0.55.0 -> 0.55.4, `LMSupply.Generator` 0.55.0 -> 0.55.4, `LMSupply.Ocr` 0.55.0 -> 0.55.4 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+
 ## [0.22.6] - 2026-09-06
 
 ### Changed
