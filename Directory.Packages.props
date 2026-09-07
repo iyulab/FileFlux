@@ -23,7 +23,7 @@
     <PackageVersion Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
     <PackageVersion Include="ExcelDataReader" Version="3.7.0" />
-    <PackageVersion Include="Markdig" Version="1.2.0" />
+    <PackageVersion Include="Markdig" Version="1.3.2" />
     <!-- Native Document Readers (Rust FFI) -->
     <PackageVersion Include="Undoc" Version="0.8.0" />
     <PackageVersion Include="Unhwp" Version="0.5.1" />
@@ -32,7 +32,7 @@
     <PackageVersion Include="DocumentFormat.OpenXml" Version="3.5.1" />
   </ItemGroup>
   <ItemGroup Label="AI Providers">
-    <PackageVersion Include="OpenAI" Version="2.10.0" />
+    <PackageVersion Include="OpenAI" Version="2.12.0" />
   </ItemGroup>
   <ItemGroup Label="Flux Packages">
     <PackageVersion Include="Flux.Abstractions" Version="0.24.0" />
