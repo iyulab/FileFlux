@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.13] - 2026-09-09
+
+### Changed
+- Re-pinned sibling package(s) `FluxImprover` 0.11.8 -> 0.12.0, `LMSupply.Captioner` 0.59.1 -> 0.60.0, `LMSupply.Core` 0.59.1 -> 0.60.0, `LMSupply.Embedder` 0.59.1 -> 0.60.0, `LMSupply.Generator` 0.59.1 -> 0.60.0, `LMSupply.Ocr` 0.59.1 -> 0.60.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Bumped `Microsoft.SourceLink.GitHub` 10.0.103 -> 10.0.112: its `Microsoft.Build.Tasks.Git` dependency 10.0.102..10.0.110 is flagged by CVE-2026-62900 (GHSA-23fw-v26w-5fgq, moderate; NuGet audit NU1902 fails the build under `TreatWarningsAsErrors`). Build-time only (`PrivateAssets=All`); no runtime surface change.
+
 ## [0.22.12] - 2026-09-09
 
 ### Fixed
