@@ -127,20 +127,37 @@ public static class ServiceCollectionExtensions
         services.AddFluxCurator();
 
         // === FluxImprover: Enhancement (optional, configurable lifetime) ===
-        // FluxImproverServices is registered if IDocumentAnalysisService is available
-        services.Add(new ServiceDescriptor(
+        // FluxImproverServices is FluxImprover's own aggregate type, and a consumer may register it
+        // through FluxImprover itself (AddFluxImprover / AddFluxImproverWithLMSupply). This descriptor
+        // therefore (1) yields to an existing registration instead of shadowing it — with services.Add
+        // the later, null-returning factory won and every FluxImprover facade in the same container
+        // failed with "No service for type FluxImproverServices" (ecosystem E2E, 2026-09-09) — and
+        // (2) when FileFlux has no IDocumentAnalysisService of its own, builds from FluxImprover's
+        // ITextGenerationService if the consumer registered one, so the order of AddFileFlux and
+        // AddFluxImprover does not matter. Null only when neither exists (FileFlux's "no LLM" case).
+        services.TryAdd(new ServiceDescriptor(
             typeof(FluxImproverServices),
             provider =>
             {
                 var completionService = provider.GetService<IDocumentAnalysisService>();
-                if (completionService == null)
-                    return null!;
+                if (completionService != null)
+                {
+                    // Adapt FileFlux's IDocumentAnalysisService to FluxImprover's interface
+                    var adapter = new FluxImproverTextCompletionAdapter(completionService);
+                    return new FluxImproverBuilder()
+                        .WithCompletionService(adapter)
+                        .Build();
+                }
 
-                // Adapt FileFlux's IDocumentAnalysisService to FluxImprover's interface
-                var adapter = new FluxImproverTextCompletionAdapter(completionService);
-                return new FluxImproverBuilder()
-                    .WithCompletionService(adapter)
-                    .Build();
+                var improverCompletion = provider.GetService<ITextGenerationService>();
+                if (improverCompletion != null)
+                {
+                    return new FluxImproverBuilder()
+                        .WithCompletionService(improverCompletion)
+                        .Build();
+                }
+
+                return null!;
             },
             lifetime));
 

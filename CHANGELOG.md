@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.12] - 2026-09-09
+
+### Fixed
+- `AddFileFlux` no longer shadows a consumer's own FluxImprover registration. It registered
+  `FluxImproverServices` unconditionally with a factory that returned null when FileFlux had no
+  `IDocumentAnalysisService`; because it used `Add`, that null-returning descriptor won over the one
+  FluxImprover's `AddFluxImprover`/`AddFluxImproverWithLMSupply` had placed earlier, and every
+  FluxImprover facade in the same container (contextual enrichment, summarization, …) failed with
+  "No service for type FluxImproverServices". The descriptor is now `TryAdd`, and when FileFlux has
+  no analysis service of its own it builds `FluxImproverServices` from FluxImprover's
+  `ITextGenerationService` if one is registered — so `AddFileFlux` and `AddFluxImprover` compose in
+  either order. Behaviour with neither service is unchanged (no improver).
+
 ## [0.22.11] - 2026-09-09
 
 ### Changed
