@@ -51,4 +51,4 @@ jobs:
         # tests exercise native FFI (Undoc/Unpdf), where a hang is the plausible failure mode
         # rather than an assertion failure. --filter-not-trait (repeated, ANDs together) is MTP's
         # equivalent of VSTest's compound "Category!=A&Category!=B" filter syntax.
-        run: dotnet test FileFlux.slnx --no-build -c Release --verbosity normal --filter-not-trait "Category=Integration" --filter-not-trait "Category=RequiresApiKey" --filter-not-trait "Category=Performance" --hangdump --hangdump-timeout 5m
+        run: dotnet test --solution FileFlux.slnx --no-build -c Release --verbosity normal --filter-not-trait "Category=Integration" --filter-not-trait "Category=RequiresApiKey" --filter-not-trait "Category=Performance" --hangdump --hangdump-timeout 5m
