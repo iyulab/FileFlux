@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-09-10
+
+### Added
+- `EncryptedDocumentException` — thrown when a document cannot be extracted because it is
+  password-protected. It carries `IsPermanent`, which is what a caller needs to stop retrying: the
+  input cannot succeed on a later attempt, since no retry supplies a password.
+- `CompoundFileEncryption.IsEncryptedDocument` — recognizes an encrypted Office document from the
+  streams its compound-file container holds, before any parse is attempted.
+
+### Fixed
+- **A password-protected `.xlsx` no longer reports itself as a damaged workbook.** An encrypted
+  OOXML document is, on disk, an OLE2 compound file holding `EncryptionInfo`/`EncryptedPackage`
+  rather than the `Workbook`/`Book` streams the legacy reader looks for. Routing it there followed
+  correctly from the magic bytes, but the reader then failed with `Neither stream 'Workbook' nor
+  'Book' was found in file` — which reads as data corruption. The file is not corrupt; it opens with
+  its password. Reported from a production upload where two files failed this way and were each
+  retried three times, because nothing in the failure said it was permanent. Encryption is now
+  detected from the container's directory before dispatch, and reported as
+  `EncryptedDocumentException`.
+
+  > Detection walks the compound-file directory rather than scanning the file for those names, so a
+  > workbook whose cell data happens to contain them is not mislabelled.
+
+
 ## [0.22.14] - 2026-09-10
 
 ### Changed
