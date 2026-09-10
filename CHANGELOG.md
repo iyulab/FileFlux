@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   > Detection walks the compound-file directory rather than scanning the file for those names, so a
   > workbook whose cell data happens to contain them is not mislabelled.
 
+- **A legacy `.xls` protected the old way is reported the same way.** Those carry a BIFF `FILEPASS`
+  record rather than an `EncryptedPackage` stream, so the container probe cannot see them —
+  `ExcelDataReader`'s `InvalidPasswordException` is where it becomes knowable, and it now maps to
+  `EncryptedDocumentException` instead of a generic read failure. Same condition, same answer.
 - **The same applies to `.docx` and `.pptx`.** Those readers have no legacy counterpart, so a
   compound file was always reported as a container mismatch — accurate for a misdeclared legacy
   document, wrong for an encrypted one, and the two have different remedies. Only one of them is a

@@ -89,6 +89,14 @@ public class LegacyExcelDocumentReader : IDocumentReader
             result.Duration = DateTime.UtcNow - startTime;
             return await Task.FromResult(result).ConfigureAwait(false);
         }
+        catch (ExcelDataReader.Exceptions.InvalidPasswordException ex)
+        {
+            // A legacy .xls protected the old way carries a BIFF FILEPASS record rather than an
+            // EncryptedPackage stream, so the container probe cannot see it - ExcelDataReader is
+            // where it becomes knowable. Same condition as the OOXML case, so the same answer:
+            // permanent, and named as encryption rather than as a generic read failure.
+            throw new EncryptedDocumentException(filePath, ex);
+        }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             throw new DocumentProcessingException(filePath, $"Failed to read legacy Excel document: {ex.Message}", ex);
@@ -145,6 +153,14 @@ public class LegacyExcelDocumentReader : IDocumentReader
             result.Duration = DateTime.UtcNow - startTime;
             return result;
         }
+        catch (ExcelDataReader.Exceptions.InvalidPasswordException ex)
+        {
+            // A legacy .xls protected the old way carries a BIFF FILEPASS record rather than an
+            // EncryptedPackage stream, so the container probe cannot see it - ExcelDataReader is
+            // where it becomes knowable. Same condition as the OOXML case, so the same answer:
+            // permanent, and named as encryption rather than as a generic read failure.
+            throw new EncryptedDocumentException(fileName, ex);
+        }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             throw new DocumentProcessingException(fileName, $"Failed to read legacy Excel document from stream: {ex.Message}", ex);
@@ -192,6 +208,14 @@ public class LegacyExcelDocumentReader : IDocumentReader
                 },
                 cancellationToken);
         }
+        catch (ExcelDataReader.Exceptions.InvalidPasswordException ex)
+        {
+            // A legacy .xls protected the old way carries a BIFF FILEPASS record rather than an
+            // EncryptedPackage stream, so the container probe cannot see it - ExcelDataReader is
+            // where it becomes knowable. Same condition as the OOXML case, so the same answer:
+            // permanent, and named as encryption rather than as a generic read failure.
+            throw new EncryptedDocumentException(filePath, ex);
+        }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             throw new DocumentProcessingException(filePath, $"Failed to extract legacy Excel document: {ex.Message}", ex);
@@ -230,6 +254,14 @@ public class LegacyExcelDocumentReader : IDocumentReader
                     ModifiedAt = DateTime.UtcNow
                 },
                 cancellationToken);
+        }
+        catch (ExcelDataReader.Exceptions.InvalidPasswordException ex)
+        {
+            // A legacy .xls protected the old way carries a BIFF FILEPASS record rather than an
+            // EncryptedPackage stream, so the container probe cannot see it - ExcelDataReader is
+            // where it becomes knowable. Same condition as the OOXML case, so the same answer:
+            // permanent, and named as encryption rather than as a generic read failure.
+            throw new EncryptedDocumentException(fileName, ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
