@@ -222,6 +222,12 @@ public partial class WordDocumentReader : IDocumentReader
 
     private static RawContent ExtractWordContent(string filePath, CancellationToken cancellationToken)
     {
+
+        // An encrypted document is a compound file wrapping the real package, so without this it
+        // arrives at the parser looking like an ordinary container mismatch. It is a more specific
+        // condition with a different remedy, and unlike a misdeclared file it is nobody's mistake.
+        if (ContainerSignature.DetectFile(filePath) == OfficeContainer.CompoundFile)
+            CompoundFileEncryption.ThrowIfEncrypted(File.ReadAllBytes(filePath), Path.GetFileName(filePath));
         var fileInfo = new FileInfo(filePath);
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
@@ -312,6 +318,9 @@ public partial class WordDocumentReader : IDocumentReader
 
     private static RawContent ExtractWordContentFromBytes(byte[] bytes, string fileName, CancellationToken cancellationToken)
     {
+
+        // Same check as the file path — see ExtractWordContent / ExtractPowerPointContent.
+        CompoundFileEncryption.ThrowIfEncrypted(bytes, fileName);
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
         var extractedImages = new List<ImageInfo>();

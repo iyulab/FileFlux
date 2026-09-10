@@ -258,7 +258,7 @@ public class ExcelDocumentReader : IDocumentReader
             // holds EncryptionInfo/EncryptedPackage rather than the Workbook stream that reader
             // wants, and the reader's own complaint ("Neither stream 'Workbook' nor 'Book' was
             // found") describes a damaged file. This one is not damaged.
-            ThrowIfEncrypted(bytes, FileNameHelper.ExtractSafeFileName(fileInfo));
+            CompoundFileEncryption.ThrowIfEncrypted(bytes, FileNameHelper.ExtractSafeFileName(fileInfo));
 
             return LegacyExcelDocumentReader.ExtractRawFromBytes(
                 bytes,
@@ -322,27 +322,12 @@ public class ExcelDocumentReader : IDocumentReader
         };
     }
 
-    /// <summary>
-    /// Fails with <see cref="EncryptedDocumentException"/> when the compound-file content is an
-    /// encrypted Office document rather than a legacy workbook.
-    /// </summary>
-    /// <remarks>
-    /// Separate from the reader's other failures on purpose. This one is permanent for the input -
-    /// no retry supplies a password - and a caller that cannot tell it apart burns its retry budget
-    /// on it, which is what a consumer observed: three attempts per file, every time.
-    /// </remarks>
-    private static void ThrowIfEncrypted(ReadOnlySpan<byte> bytes, string fileName)
-    {
-        if (CompoundFileEncryption.IsEncryptedDocument(bytes))
-            throw new EncryptedDocumentException(fileName);
-    }
-
     internal static RawContent ExtractExcelContentFromBytes(byte[] bytes, string fileName, CancellationToken cancellationToken)
     {
         // Same routing as the file path — see ExtractExcelContent.
         if (ContainerSignature.Detect(bytes) == OfficeContainer.CompoundFile)
         {
-            ThrowIfEncrypted(bytes, fileName);
+            CompoundFileEncryption.ThrowIfEncrypted(bytes, fileName);
 
             return LegacyExcelDocumentReader.ExtractRawFromBytes(
                 bytes,

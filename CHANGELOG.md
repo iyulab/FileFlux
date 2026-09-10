@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   > Detection walks the compound-file directory rather than scanning the file for those names, so a
   > workbook whose cell data happens to contain them is not mislabelled.
 
+- **The same applies to `.docx` and `.pptx`.** Those readers have no legacy counterpart, so a
+  compound file was always reported as a container mismatch — accurate for a misdeclared legacy
+  document, wrong for an encrypted one, and the two have different remedies. Only one of them is a
+  mistake somebody made. A genuinely misdeclared file still reports the mismatch it always did.
+
 
 ## [0.22.14] - 2026-09-10
 

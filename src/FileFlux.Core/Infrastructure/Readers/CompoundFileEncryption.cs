@@ -39,6 +39,23 @@ public static class CompoundFileEncryption
     /// </summary>
     private const int MaxDirectorySectors = 512;
 
+    /// <summary>
+    /// Fails with <see cref="FileFlux.Core.EncryptedDocumentException"/> when the content is an
+    /// encrypted Office document, and does nothing otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Shared by every reader that can be handed a compound file rather than repeated in each: the
+    /// condition and its remedy are the same for a workbook, a document and a presentation, and
+    /// three copies of one rule is how two of them end up saying different things.
+    /// </remarks>
+    /// <param name="content">The file's bytes.</param>
+    /// <param name="fileName">Named on the exception so a caller can say which file it was.</param>
+    internal static void ThrowIfEncrypted(ReadOnlySpan<byte> content, string fileName)
+    {
+        if (IsEncryptedDocument(content))
+            throw new FileFlux.Core.EncryptedDocumentException(fileName);
+    }
+
     /// <summary>The stream names that identify an encrypted Office document.</summary>
     private static readonly string[] EncryptionStreams = ["EncryptedPackage", "EncryptionInfo"];
 

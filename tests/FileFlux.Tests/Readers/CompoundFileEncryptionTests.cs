@@ -190,6 +190,51 @@ public class EncryptedWorkbookExtractionTests : IDisposable
             "naming the stream a legacy reader wanted is what sent the investigation after corruption");
     }
 
+    [Fact]
+    public async Task AnEncryptedWordDocument_FailsAsEncrypted_NotAsAContainerMismatch()
+    {
+        // The same condition reaches the Word reader, where a compound file is always a mismatch -
+        // so before this it was reported as one. "Wrong container" and "password-protected" have
+        // different remedies, and only one of them is somebody's mistake.
+        var path = Path.Combine(_dir, "contract.docx");
+        await File.WriteAllBytesAsync(path, EncryptedContainer(), TestContext.Current.CancellationToken);
+
+        var act = async () => await new FileFlux.Core.Infrastructure.Readers.WordDocumentReader()
+            .ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+
+        var ex = (await act.Should().ThrowAsync<FileFlux.Core.EncryptedDocumentException>()).Which;
+        ex.Message.Should().NotContain("container_mismatch");
+    }
+
+    [Fact]
+    public async Task AnEncryptedPresentation_FailsAsEncrypted_NotAsAContainerMismatch()
+    {
+        var path = Path.Combine(_dir, "deck.pptx");
+        await File.WriteAllBytesAsync(path, EncryptedContainer(), TestContext.Current.CancellationToken);
+
+        var act = async () => await new FileFlux.Core.Infrastructure.Readers.PowerPointDocumentReader()
+            .ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<FileFlux.Core.EncryptedDocumentException>();
+    }
+
+    [Fact]
+    public async Task AMisdeclaredLegacyDocument_StillReportsAContainerMismatch()
+    {
+        // The guard must not swallow the case it sits next to: a real .doc saved as .docx is a
+        // mistake somebody made, and saying so is what the mismatch annotation is for.
+        var path = Path.Combine(_dir, "memo.docx");
+        await File.WriteAllBytesAsync(
+            path,
+            CompoundFileEncryptionTests.CompoundFile(["Root Entry", "WordDocument"]),
+            TestContext.Current.CancellationToken);
+
+        var act = async () => await new FileFlux.Core.Infrastructure.Readers.WordDocumentReader()
+            .ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<FileFlux.Core.DocumentProcessingException>();
+    }
+
     private static byte[] EncryptedContainer() =>
         CompoundFileEncryptionTests.CompoundFile(["Root Entry", "EncryptionInfo", "EncryptedPackage"]);
 }
