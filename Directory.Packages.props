@@ -66,6 +66,6 @@
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
   </ItemGroup>
   <ItemGroup Label="Build Tools">
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.112" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
   </ItemGroup>
 </Project>
