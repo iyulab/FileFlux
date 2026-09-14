@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.8] - 2026-09-14
+
+### Fixed
+- `AddFileFlux` no longer calls `AddMemoryCache(o => o.SizeLimit = 100)`. `MemoryCacheOptions` configuration accumulates regardless of registration order, so the limit applied to the host's shared `IMemoryCache`, and every other component in the same container that stored an entry without a `Size` threw `InvalidOperationException: Cache entry must specify a value for Size when SizeLimit is set`. Nothing `AddFileFlux` registers resolves `IMemoryCache`, so the call had no effect inside FileFlux.
+
+### Changed
+- `AddFileFlux` registers no `IMemoryCache`. A host that resolved one without calling `AddMemoryCache()` itself must now register it; the shared cache and its size policy belong to the host.
+
 ## [0.23.7] - 2026-09-14
 
 ### Changed
