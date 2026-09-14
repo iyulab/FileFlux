@@ -207,8 +207,9 @@ public static class ServiceCollectionExtensions
 
         // === Optional Services ===
 
-        // Memory cache for metadata
-        services.AddMemoryCache(options => options.SizeLimit = 100);
+        // No IMemoryCache is registered here: the shared cache and its policy (SizeLimit) belong to
+        // the host. Nothing FileFlux registers resolves IMemoryCache; AIMetadataEnricher takes one
+        // from its caller.
 
         // Note: IEmbeddingService and IDocumentAnalysisService are not registered by default.
         // Consumer applications should inject their own implementations via DI.
