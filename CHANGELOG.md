@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.10] - 2026-09-15
+
+### Changed
+- Raised `Unhwp` 0.5.1 -> 0.11.0 (HWP/HWPX reader native library; six minor releases behind the published package). No FileFlux source changes.
+
 ## [0.23.9] - 2026-09-15
 
 ### Changed
