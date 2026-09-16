@@ -40,7 +40,10 @@ public sealed class LMSupplyEmbedderService : IEmbeddingService, IAsyncDisposabl
             CacheDirectory = options.CacheDirectory,
             MaxSequenceLength = options.MaxSequenceLength,
             Provider = options.UseGpuAcceleration
-                ? ExecutionProvider.DirectML
+                // Auto lets LMSupply pick the provider for this host (CUDA / CoreML / CPU for ONNX sessions,
+                // Vulkan for llama-server on AMD/Intel GPUs). This used to pin DirectML, which ONNX Runtime
+                // 1.25+ no longer ships -- LMSupply 0.67.0 refuses it.
+                ? ExecutionProvider.Auto
                 : ExecutionProvider.Cpu
         };
 

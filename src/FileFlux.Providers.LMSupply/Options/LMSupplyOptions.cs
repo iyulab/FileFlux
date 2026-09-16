@@ -17,7 +17,9 @@ public class LMSupplyOptions
     public const string DefaultEmbeddingModel = "default";
 
     /// <summary>
-    /// Gets or sets whether to use GPU acceleration if available.
+    /// Gets or sets whether to use GPU acceleration if available. When <see langword="true"/> the provider is
+    /// LMSupply's <c>Auto</c> -- it picks CUDA, CoreML or CPU for ONNX sessions and Vulkan for llama-server on
+    /// AMD/Intel GPUs; <see langword="false"/> pins CPU. No provider is chosen here.
     /// </summary>
     public bool UseGpuAcceleration { get; set; } = true;
 

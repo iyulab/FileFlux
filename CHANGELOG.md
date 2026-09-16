@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.14] - 2026-09-17
+
+### Fixed
+- `LMSupplyOptions.UseGpuAcceleration = true` now asks LMSupply for `ExecutionProvider.Auto` instead of pinning `DirectML` (in `LMSupplyEmbedderService`, `LMSupplyGeneratorService` and the CLI's `LMSupplyCompletionService`). LMSupply 0.67.0 dropped the DirectML provider — ONNX Runtime 1.25+ does not ship it — and refuses an explicit request; on a Windows machine without CUDA the old pin was already landing on CPU after a failed download on every session. `Auto` picks CUDA / CoreML / CPU for ONNX sessions and Vulkan for llama-server on AMD/Intel GPUs.
+
+### Changed
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.66.1 -> 0.67.0, `LMSupply.Core` 0.66.1 -> 0.67.0, `LMSupply.Embedder` 0.66.1 -> 0.67.0, `LMSupply.Generator` 0.66.1 -> 0.67.0, `LMSupply.Ocr` 0.66.1 -> 0.67.0 via `check-pin-drift.ps1 -Fix`.
+
 ## [0.23.13] - 2026-09-16
 
 ### Changed
