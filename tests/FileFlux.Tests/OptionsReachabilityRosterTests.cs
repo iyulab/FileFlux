@@ -15,24 +15,19 @@ public class OptionsReachabilityRosterTests
     [
         Assembly.Load("FileFlux"),
         Assembly.Load("FileFlux.Core"),
+        Assembly.Load("FileFlux.Providers.LMSupply"),
     ];
 
     /// <summary>
     /// Options accepted as unread today. Shrink this list; never grow it silently.
     /// <para>
-    /// Everything below is the roster's opening baseline (2026-09-20), recorded as found rather than
-    /// as judged: this library had no reachability roster, and its first run reported 58 unread public
-    /// options across 14 types. None of them has been investigated yet, so none carries a reason of its
-    /// own — recording them as "known" here is what makes the gate start green and makes the *next*
-    /// unread option a failure instead of silently joining a crowd.
+    /// Opening baseline (2026-09-20): 58 unread public options across 15 types, recorded as found rather than
+    /// as judged - none has been investigated, so none carries a reason of its own. Recording them is what makes
+    /// the gate start green and makes the *next* unread option a failure instead of silently joining a crowd.
     /// </para>
     /// <para>
-    /// Three were spot-checked to confirm the scanner is not producing noise:
-    /// <c>ChunkingOptions.MaxHeadingLevel</c> (declared with a default of 3; the only
-    /// <c>MaxHeadingLevel</c> anything reads belongs to a different type, so the duplicate name hides
-    /// it from a reader), <c>ChunkingOptions.DeduplicateOverlaps</c> and
-    /// <c>DocumentCacheOptions.MinHitRatio</c> (declaration only). Working through the rest — wiring
-    /// each or deleting it — is tracked in the umbrella's issue draft.
+    /// The assembly list above must cover every assembly this repository ships. Scanning only the main one
+    /// reports options that a sibling assembly reads as unread - that mistake inflated an early baseline elsewhere threefold.
     /// </para>
     /// </summary>
     private static readonly Dictionary<string, string[]> KnownUnread = new()
@@ -62,17 +57,36 @@ public class OptionsReachabilityRosterTests
             "CustomInstructions", "DocumentType", "MaxTokens", "PreserveFormatting", "TargetLanguage",
             "Temperature", "VerboseLogging",
         ],
-        ["FileFlux.Core.MetadataEnrichmentOptions"] = ["EnableAdaptiveSampling", "MaxTokens"],
-        ["FileFlux.Core.ParsingOptions"] = ["Extra", "LlmModel", "MaxTokens", "Temperature"],
-        ["FileFlux.Core.RefineOptions"] = ["LlmModel", "MaxLlmTokens", "ProcessImages"],
-        ["FileFlux.Core.RefiningOptions"] = ["UseAIForDescriptions", "UseAIForOCRCorrection"],
+        ["FileFlux.Core.MetadataEnrichmentOptions"] =
+        [
+            "EnableAdaptiveSampling", "MaxTokens",
+        ],
+        ["FileFlux.Core.ParsingOptions"] =
+        [
+            "Extra", "LlmModel", "MaxTokens", "Temperature",
+        ],
+        ["FileFlux.Core.RefineOptions"] =
+        [
+            "LlmModel", "MaxLlmTokens", "ProcessImages",
+        ],
+        ["FileFlux.Core.RefiningOptions"] =
+        [
+            "UseAIForDescriptions", "UseAIForOCRCorrection",
+        ],
         ["FileFlux.DocumentCacheOptions"] = ["MinHitRatio"],
         ["FileFlux.DocumentParsingOptions"] =
         [
             "CustomSettings", "DocumentTypeHint", "ExtractMetadata", "Language", "StructuringLevel",
         ],
-        ["FileFlux.EmbeddingOptions"] = ["Dimensions", "Model", "Normalize", "Pooling"],
-        ["FileFlux.ImageToTextOptions"] = ["CustomOptions", "ExtractMetadata", "Language"],
+        ["FileFlux.EmbeddingOptions"] =
+        [
+            "Dimensions", "Model", "Normalize", "Pooling",
+        ],
+        ["FileFlux.ImageToTextOptions"] =
+        [
+            "CustomOptions", "ExtractMetadata", "Language",
+        ],
+        ["FileFlux.Providers.LMSupply.LMSupplyOptions"] = ["AutoSelectMultilingualModel"],
     };
 
     [Fact]
