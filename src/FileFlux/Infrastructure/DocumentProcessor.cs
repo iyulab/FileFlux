@@ -638,7 +638,6 @@ public sealed partial class FluxDocumentProcessor
                 PreserveParagraphs = options.PreserveParagraphs,
                 PreserveSentences = options.PreserveSentences,
                 PreserveSectionHeaders = true,
-                IncludeMetadata = true,
                 TrimWhitespace = true,
                 EnableChunkBalancing = options.EnableChunkBalancing
             };

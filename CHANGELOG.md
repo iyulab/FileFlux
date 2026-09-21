@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.23.19] - 2026-09-21
 
 ### Changed
+- The FluxCurator chunking path no longer sets `ChunkOptions.IncludeMetadata`, which FluxCurator 0.9.0 removed. The option gated
+  nothing — chunk metadata is always produced — so chunking output is unchanged.
 - Re-pinned sibling package(s) `FluxCurator` 0.8.3 -> 0.9.0, `FluxImprover` 0.12.14 -> 0.12.15, `LMSupply.Captioner` 0.68.3 -> 0.69.0, `LMSupply.Core` 0.68.3 -> 0.69.0, `LMSupply.Embedder` 0.68.3 -> 0.69.0, `LMSupply.Generator` 0.68.3 -> 0.69.0, `LMSupply.Ocr` 0.68.3 -> 0.69.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
 
 ## [0.23.18] - 2026-09-19
