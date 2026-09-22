@@ -45,7 +45,9 @@ public class LlmRefineOptions
     public bool PreserveFormatting { get; set; } = true;
 
     /// <summary>
-    /// Target language for refinement (null = auto-detect).
+    /// Language the refined text is written in (null = the text's own language). Becomes a rule in every refinement
+    /// prompt since 0.25.0 — before that the library's own refiner read it by nothing, while the FluxIndex
+    /// <c>ILlmRefiner</c> implementation already did.
     /// </summary>
     public string? TargetLanguage { get; set; }
 
@@ -67,12 +69,13 @@ public class LlmRefineOptions
     public double Temperature { get; set; } = 0.3;
 
     /// <summary>
-    /// Custom instructions for LLM.
+    /// Extra instructions appended as a rule to every refinement prompt (since 0.25.0; see <see cref="TargetLanguage"/>).
     /// </summary>
     public string? CustomInstructions { get; set; }
 
     /// <summary>
-    /// Document type hint for better refinement.
+    /// Document type hint. Anything but <see cref="DocumentTypeHint.Auto"/> becomes a rule in every refinement prompt
+    /// (since 0.25.0; see <see cref="TargetLanguage"/>). The <c>ForPdf</c>/<c>ForOcr</c> presets set it.
     /// </summary>
     public DocumentTypeHint DocumentType { get; set; } = DocumentTypeHint.Auto;
 

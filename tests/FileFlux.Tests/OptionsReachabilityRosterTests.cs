@@ -45,7 +45,7 @@ public class OptionsReachabilityRosterTests
         // GraphBuildOptions.IncludeReferenceEdges A (three edge builders, none for Reference) — removed.
         // LlmRefineOptions: VerboseLogging A — removed. CustomInstructions/DocumentType/TargetLanguage are CONTRACT
         //   members: FluxIndex.Integrations.FileFlux's LlmRefinerAdapter (an ILlmRefiner) reads all three into its prompt;
-        //   this repository's own LlmRefiner did not (D) — wiring next (kept below until then). MaxTokens/Temperature wired 0.25.0.
+        //   this repository's own LlmRefiner did not (D) — wired in 0.25.0 (ContextRules). MaxTokens/Temperature wired 0.25.0.
         // MetadataEnrichmentOptions.EnableAdaptiveSampling A — removed (ExtractionStrategy is the sampling knob).
         // ParsingOptions.Extra A — removed. RefineOptions.LlmModel/MaxLlmTokens A (DocumentRefiner calls no LLM) — removed.
         // DocumentCacheOptions.MinHitRatio A (no hit ratio is computed) — removed.
@@ -59,8 +59,6 @@ public class OptionsReachabilityRosterTests
         // ExtractOptions.PageRange D — PdfDocumentReader's ExtractPerPage all-pages loop + whole-document fast path;
         //   needs a multi-page PDF fixture to wire with a fact.
         ["FileFlux.Core.ExtractOptions"] = ["PageRange"],
-        // LlmRefineOptions.CustomInstructions/DocumentType/TargetLanguage D — contract members (see above); wiring next.
-        ["FileFlux.Core.LlmRefineOptions"] = ["CustomInstructions", "DocumentType", "TargetLanguage"],
         // ImageToTextOptions.Language D — a contract member the consumer's IImageToTextService reads (the CLI's three
         // vision providers do); the library's five call sites pass the literal "auto" where a pipeline knob would be, and
         // the shipped LMSupply OCR takes its hint from LMSupplyOptions.OcrLanguageHint at load time (knob design open).

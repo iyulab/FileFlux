@@ -63,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `EmbeddingModel = "multilingual"` for non-English corpora.
 
 ### Fixed
+- **`LlmRefineOptions.DocumentType`, `TargetLanguage` and `CustomInstructions` now reach every refinement prompt** of the
+  library's own refiner — one rule each (document type description, output language, extra instructions). The
+  `ForPdf`/`ForOcr` presets, which set `DocumentType`, therefore change the prompt for the first time. The FluxIndex
+  `ILlmRefiner` implementation already honoured all three; the two implementations of the contract now agree.
 - **`LlmRefineOptions.Temperature`/`MaxTokens` and `ParsingOptions.Temperature`/`MaxTokens` now reach the model.**
   They were declared with defaults and read by nothing: every refinement and structuring call used the service's
   literals (temperature 0.7, 1000 tokens for the OpenAI-compatible service, `LMSupplyOptions.MaxGenerationTokens` for

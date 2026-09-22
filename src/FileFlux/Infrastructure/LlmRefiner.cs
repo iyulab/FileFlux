@@ -76,10 +76,14 @@ public sealed partial class LlmRefiner : ILlmRefiner
             // LlmRefineOptions.Temperature / MaxTokens reach every call from here (0.25.0); MaxTokens <= 0 means the
             // service's default, as its documentation says.
             var settings = new GenerationSettings(options.Temperature, options.MaxTokens is > 0 ? options.MaxTokens : null);
+            // DocumentType / TargetLanguage / CustomInstructions become rules in every prompt below (0.25.0) — the same three
+            // the FluxIndex ILlmRefiner implementation already put in its prompt; before this the library's own refiner
+            // ignored them.
+            var context = ContextRules(options);
 
             if (options.RestoreSentences)
             {
-                var (text, improved, tokens) = await RestoreBrokenSentencesAsync(refinedText, settings, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RestoreBrokenSentencesAsync(refinedText, context, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -91,7 +95,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.RemoveNoise)
             {
-                var (text, improved, tokens) = await RemoveNoiseAsync(refinedText, options.PreserveFormatting, settings, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RemoveNoiseAsync(refinedText, options.PreserveFormatting, context, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -103,7 +107,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.CorrectOcrErrors)
             {
-                var (text, improved, tokens) = await CorrectOcrErrorsAsync(refinedText, options.PreserveFormatting, settings, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await CorrectOcrErrorsAsync(refinedText, options.PreserveFormatting, context, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -115,7 +119,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.RestructureSections)
             {
-                var (text, improved, tokens) = await RestructureSectionsAsync(refinedText, options.PreserveFormatting, settings, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RestructureSectionsAsync(refinedText, options.PreserveFormatting, context, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -127,7 +131,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.MergeDuplicates)
             {
-                var (text, improved, tokens) = await MergeDuplicatesAsync(refinedText, settings, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await MergeDuplicatesAsync(refinedText, context, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -203,7 +207,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Restore broken sentences caused by PDF line breaks.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RestoreBrokenSentencesAsync(
-        string text, GenerationSettings settings, CancellationToken cancellationToken)
+        string text, string context, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -221,6 +225,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Preserve actual paragraph breaks (double newlines)
             - Keep headings and bullet points separate
             - Do not add or remove content, only fix line breaks
+            {context}
 
             Text:
             {text}
@@ -245,7 +250,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Remove noise content (ads, legal notices, irrelevant content).
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RemoveNoiseAsync(
-        string text, bool preserveFormatting, GenerationSettings settings, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, string context, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -270,6 +275,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Do not summarize or rephrase content
             - Only remove clearly irrelevant sections
             {FormattingRule(preserveFormatting)}
+            {context}
 
             Text:
             {text}
@@ -294,7 +300,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Correct OCR errors in scanned documents.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> CorrectOcrErrorsAsync(
-        string text, bool preserveFormatting, GenerationSettings settings, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, string context, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -319,6 +325,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             {FormattingRule(preserveFormatting)}
             - Do not change the meaning of content
             - Keep technical terms and proper nouns as-is unless clearly wrong
+            {context}
 
             Text:
             {text}
@@ -343,7 +350,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Restructure document sections for better organization.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RestructureSectionsAsync(
-        string text, bool preserveFormatting, GenerationSettings settings, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, string context, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -367,6 +374,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Keep the same number of sections
             - Do not merge or remove sections
             {FormattingRule(preserveFormatting)}
+            {context}
 
             Text:
             {text}
@@ -391,7 +399,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Merge semantically duplicate content.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> MergeDuplicatesAsync(
-        string text, GenerationSettings settings, CancellationToken cancellationToken)
+        string text, string context, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -413,6 +421,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Keep the better-written version of duplicates
             - Maintain document structure
             - Do not summarize content
+            {context}
 
             Text:
             {text}
@@ -450,6 +459,35 @@ public sealed partial class LlmRefiner : ILlmRefiner
     internal static string FormattingRule(bool preserveFormatting) => preserveFormatting
         ? "- Preserve the original formatting exactly (line breaks, spacing, markdown markers)"
         : "- Formatting (line breaks, spacing) may be normalized where it improves readability";
+
+    /// <summary>
+    /// The rules <c>LlmRefineOptions.DocumentType</c>, <c>TargetLanguage</c> and <c>CustomInstructions</c> add to every
+    /// refinement prompt — one line each, in that order, nothing when all three are unset. Kept as a plain function so a
+    /// test can pin the text and so every prompt gets the same block.
+    /// </summary>
+    internal static string ContextRules(LlmRefineOptions options)
+    {
+        var sb = new StringBuilder();
+        if (options.DocumentType != DocumentTypeHint.Auto)
+            sb.Append("- The document is ").Append(DescribeDocumentType(options.DocumentType)).Append('\n');
+        if (!string.IsNullOrWhiteSpace(options.TargetLanguage))
+            sb.Append("- Write the result in the language '").Append(options.TargetLanguage.Trim())
+              .Append("' (keep passages that are already in it; do not translate technical terms)\n");
+        if (!string.IsNullOrWhiteSpace(options.CustomInstructions))
+            sb.Append("- Additional instructions: ").Append(options.CustomInstructions.Trim()).Append('\n');
+        return sb.ToString().TrimEnd('\n');
+    }
+
+    private static string DescribeDocumentType(DocumentTypeHint hint) => hint switch
+    {
+        DocumentTypeHint.General => "a general document",
+        DocumentTypeHint.Technical => "technical documentation (keep code, identifiers and commands exact)",
+        DocumentTypeHint.Legal => "a legal document (keep clause numbering and defined terms exact)",
+        DocumentTypeHint.Academic => "an academic paper (keep citations, figures and equations exact)",
+        DocumentTypeHint.Pdf => "text extracted from a PDF (line breaks may fall mid-sentence)",
+        DocumentTypeHint.ScannedDocument => "a scanned document (expect OCR errors)",
+        _ => hint.ToString(),
+    };
 
     private static bool HasPotentialOcrErrors(string text)
     {
