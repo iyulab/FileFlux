@@ -49,14 +49,18 @@ public class LlmRefineOptions
     public string? TargetLanguage { get; set; }
 
     /// <summary>
-    /// Maximum tokens to use for LLM (0 = no limit).
+    /// Maximum tokens each refinement call may generate; 0 = the analysis service's own default.
+    /// Reaches <c>IDocumentAnalysisService.GenerateAsync(prompt, GenerationSettings, ct)</c> on every call the refiner
+    /// makes (since 0.25.0 — before that it was read by nothing and the service's literal, 1000 for the
+    /// OpenAI-compatible service, applied).
     /// Default: 0
     /// </summary>
     public int MaxTokens { get; set; }
 
     /// <summary>
-    /// LLM temperature (0.0 - 1.0).
-    /// Lower = more deterministic.
+    /// LLM temperature (0.0 - 1.0) for every refinement call. Lower = more deterministic.
+    /// Reaches the analysis service since 0.25.0 — before that it was read by nothing and the service's literal
+    /// (0.7) applied, so this default now makes refinement more deterministic than it effectively was.
     /// Default: 0.3
     /// </summary>
     public double Temperature { get; set; } = 0.3;

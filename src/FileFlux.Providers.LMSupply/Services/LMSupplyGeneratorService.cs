@@ -85,15 +85,21 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
     }
 
     /// <inheritdoc />
-    public async Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default)
+    public Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default)
+        => GenerateAsync(prompt, GenerationSettings.Default, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<string> GenerateAsync(string prompt, GenerationSettings settings, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(prompt);
+        ArgumentNullException.ThrowIfNull(settings);
 
+        // LMSupplyOptions.MaxGenerationTokens and 0.7 are this service's defaults; a caller's option replaces them (0.25.0).
         var options = new GenerationOptions
         {
-            MaxTokens = _options.MaxGenerationTokens,
-            Temperature = 0.7f
+            MaxTokens = settings.MaxTokens is { } m && m > 0 ? m : _options.MaxGenerationTokens,
+            Temperature = (float)(settings.Temperature ?? 0.7)
         };
 
         return await _model.GenerateCompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false);

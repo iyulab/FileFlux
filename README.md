@@ -203,7 +203,7 @@ FileFlux defines AI service interfaces - consumer applications provide implement
 
 | Interface | Purpose | Example Implementations |
 |-----------|---------|------------------------|
-| `IDocumentAnalysisService` | Text generation, intelligent chunking | OpenAI, Anthropic, LMSupply |
+| `IDocumentAnalysisService` | Text generation, intelligent chunking. Override `GenerateAsync(prompt, GenerationSettings, ct)` so `LlmRefineOptions`/`ParsingOptions` `Temperature`/`MaxTokens` reach your model | OpenAI, Anthropic, LMSupply |
 | `IImageToTextService` | Image captioning, OCR | OpenAI Vision, LMSupply Captioner/OCR |
 | `IEmbeddingService` | Embedding generation | OpenAI, LMSupply Embedder |
 

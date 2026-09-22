@@ -571,7 +571,7 @@ public partial class BasicDocumentParser : IDocumentParser
             }
 
             // 텍스트 완성 서비스 호출
-            var response = await _textCompletionService.GenerateAsync(prompt, cancellationToken);
+            var response = await _textCompletionService.GenerateAsync(prompt, new GenerationSettings(options.Temperature, options.MaxTokens), cancellationToken);
 
             // 응답을 구조화된 데이터로 파싱
             return ParseTextCompletionResponse(response, basicResult);

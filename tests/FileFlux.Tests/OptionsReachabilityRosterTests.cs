@@ -70,12 +70,11 @@ public class OptionsReachabilityRosterTests
             "RespectParagraphBoundaries", "RespectSentenceBoundaries",
         ],
         // LlmRefineOptions: CustomInstructions A · DocumentType A · TargetLanguage A · VerboseLogging A (ILogger level is
-        // the gate) · MaxTokens D / Temperature D (OpenAICompatibleDocumentAnalysisService `maxTokens: 1000`,
-        // `temperature: 0.7f`; needs an IDocumentAnalysisService overload — next). PreserveFormatting wired in 0.24.2.
+        // the gate). PreserveFormatting wired in 0.24.2; MaxTokens / Temperature wired in 0.25.0
+        // (IDocumentAnalysisService.GenerateAsync(prompt, GenerationSettings, ct)).
         ["FileFlux.Core.LlmRefineOptions"] =
         [
-            "CustomInstructions", "DocumentType", "MaxTokens", "TargetLanguage",
-            "Temperature", "VerboseLogging",
+            "CustomInstructions", "DocumentType", "TargetLanguage", "VerboseLogging",
         ],
         // MetadataEnrichmentOptions.EnableAdaptiveSampling A. MaxTokens wired in 0.24.2 (TruncateContent budget).
         ["FileFlux.Core.MetadataEnrichmentOptions"] =
@@ -83,10 +82,10 @@ public class OptionsReachabilityRosterTests
             "EnableAdaptiveSampling",
         ],
         // ParsingOptions: Extra A · LlmModel B (ctor model of OpenAICompatibleDocumentAnalysisService) ·
-        // MaxTokens D / Temperature D (same literals, two hops via DocumentParsingOptions — next).
+        // MaxTokens / Temperature wired in 0.25.0 (DocumentProcessor copies them into DocumentParsingOptions).
         ["FileFlux.Core.ParsingOptions"] =
         [
-            "Extra", "LlmModel", "MaxTokens", "Temperature",
+            "Extra", "LlmModel",
         ],
         // RefineOptions: LlmModel A · MaxLlmTokens A (DocumentRefiner never calls an LLM) · ProcessImages B
         // (RefiningOptions.ProcessImagesToText).

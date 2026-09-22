@@ -150,12 +150,18 @@ public sealed partial class OpenAICompatibleDocumentAnalysisService
     }
 
     /// <inheritdoc />
-    public async Task<string> GenerateAsync(
-        string prompt,
-        CancellationToken cancellationToken = default)
+    public Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default)
+        => GenerateAsync(prompt, GenerationSettings.Default, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<string> GenerateAsync(string prompt, GenerationSettings settings, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(settings);
         LogAnalysis(_logger, "generate", prompt.Length);
-        return await CompleteAsync(null, prompt, temperature: 0.7f, maxTokens: 1000, cancellationToken);
+        // The literals are this service's defaults; a caller's option, when set, replaces them (0.25.0).
+        var temperature = (float)(settings.Temperature ?? 0.7);
+        var maxTokens = settings.MaxTokens is { } m && m > 0 ? m : 1000;
+        return await CompleteAsync(null, prompt, temperature, maxTokens, cancellationToken);
     }
 
     /// <inheritdoc />

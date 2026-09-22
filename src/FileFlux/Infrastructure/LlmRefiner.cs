@@ -73,9 +73,13 @@ public sealed partial class LlmRefiner : ILlmRefiner
             };
 
             // Apply LLM improvements based on options
+            // LlmRefineOptions.Temperature / MaxTokens reach every call from here (0.25.0); MaxTokens <= 0 means the
+            // service's default, as its documentation says.
+            var settings = new GenerationSettings(options.Temperature, options.MaxTokens > 0 ? options.MaxTokens : null);
+
             if (options.RestoreSentences)
             {
-                var (text, improved, tokens) = await RestoreBrokenSentencesAsync(refinedText, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RestoreBrokenSentencesAsync(refinedText, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -87,7 +91,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.RemoveNoise)
             {
-                var (text, improved, tokens) = await RemoveNoiseAsync(refinedText, options.PreserveFormatting, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RemoveNoiseAsync(refinedText, options.PreserveFormatting, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -99,7 +103,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.CorrectOcrErrors)
             {
-                var (text, improved, tokens) = await CorrectOcrErrorsAsync(refinedText, options.PreserveFormatting, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await CorrectOcrErrorsAsync(refinedText, options.PreserveFormatting, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -111,7 +115,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.RestructureSections)
             {
-                var (text, improved, tokens) = await RestructureSectionsAsync(refinedText, options.PreserveFormatting, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RestructureSectionsAsync(refinedText, options.PreserveFormatting, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -123,7 +127,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.MergeDuplicates)
             {
-                var (text, improved, tokens) = await MergeDuplicatesAsync(refinedText, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await MergeDuplicatesAsync(refinedText, settings, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -199,7 +203,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Restore broken sentences caused by PDF line breaks.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RestoreBrokenSentencesAsync(
-        string text, CancellationToken cancellationToken)
+        string text, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -226,7 +230,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
         try
         {
-            var result = await _textCompletionService.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false);
+            var result = await _textCompletionService.GenerateAsync(prompt, settings, cancellationToken).ConfigureAwait(false);
             var improved = !string.IsNullOrWhiteSpace(result) && result != text;
             return (improved ? result : text, improved, EstimateTokens(prompt));
         }
@@ -241,7 +245,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Remove noise content (ads, legal notices, irrelevant content).
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RemoveNoiseAsync(
-        string text, bool preserveFormatting, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -275,7 +279,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
         try
         {
-            var result = await _textCompletionService.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false);
+            var result = await _textCompletionService.GenerateAsync(prompt, settings, cancellationToken).ConfigureAwait(false);
             var improved = !string.IsNullOrWhiteSpace(result) && result.Length < text.Length * 0.95;
             return (improved ? result : text, improved, EstimateTokens(prompt));
         }
@@ -290,7 +294,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Correct OCR errors in scanned documents.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> CorrectOcrErrorsAsync(
-        string text, bool preserveFormatting, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -324,7 +328,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
         try
         {
-            var result = await _textCompletionService.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false);
+            var result = await _textCompletionService.GenerateAsync(prompt, settings, cancellationToken).ConfigureAwait(false);
             var improved = !string.IsNullOrWhiteSpace(result) && result != text;
             return (improved ? result : text, improved, EstimateTokens(prompt));
         }
@@ -339,7 +343,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Restructure document sections for better organization.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RestructureSectionsAsync(
-        string text, bool preserveFormatting, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -372,7 +376,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
         try
         {
-            var result = await _textCompletionService.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false);
+            var result = await _textCompletionService.GenerateAsync(prompt, settings, cancellationToken).ConfigureAwait(false);
             var improved = !string.IsNullOrWhiteSpace(result) && result != text;
             return (improved ? result : text, improved, EstimateTokens(prompt));
         }
@@ -387,7 +391,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Merge semantically duplicate content.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> MergeDuplicatesAsync(
-        string text, CancellationToken cancellationToken)
+        string text, GenerationSettings settings, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -418,7 +422,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
         try
         {
-            var result = await _textCompletionService.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false);
+            var result = await _textCompletionService.GenerateAsync(prompt, settings, cancellationToken).ConfigureAwait(false);
             // Consider improved if text was reduced by more than 5%
             var improved = !string.IsNullOrWhiteSpace(result) && result.Length < text.Length * 0.95;
             return (improved ? result : text, improved, EstimateTokens(prompt));

@@ -82,6 +82,29 @@ public interface IDocumentAnalysisService
     /// <param name="cancellationToken">취소 토큰</param>
     /// <returns>LLM 응답 텍스트</returns>
     Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// <see cref="GenerateAsync(string, CancellationToken)"/> with the sampling settings the caller's options
+    /// declare (<c>LlmRefineOptions.Temperature</c>/<c>MaxTokens</c>, <c>ParsingOptions.Temperature</c>/<c>MaxTokens</c>).
+    /// A null member means the implementation's own default. The default implementation ignores the settings and
+    /// calls the two-argument overload: an implementation outside this library must override it for those options
+    /// to reach the model; the two implementations this library ships do. Before 0.25.0 every call used the
+    /// implementation's literals (0.7 / 1000 tokens) and the four options were read by nothing.
+    /// </summary>
+    Task<string> GenerateAsync(string prompt, GenerationSettings settings, CancellationToken cancellationToken = default)
+        => GenerateAsync(prompt, cancellationToken);
+}
+
+/// <summary>
+/// Sampling settings for one <see cref="IDocumentAnalysisService.GenerateAsync(string, GenerationSettings, CancellationToken)"/>
+/// call. A null member leaves that setting at the implementation's default.
+/// </summary>
+/// <param name="Temperature">Sampling temperature (0.0 to 1.0), or null for the implementation's default.</param>
+/// <param name="MaxTokens">Maximum tokens to generate, or null for the implementation's default.</param>
+public sealed record GenerationSettings(double? Temperature = null, int? MaxTokens = null)
+{
+    /// <summary>No preference: the implementation's defaults.</summary>
+    public static readonly GenerationSettings Default = new();
 }
 
 /// <summary>

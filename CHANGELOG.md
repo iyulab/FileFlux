@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.24.2] - 2026-09-22
+## [0.25.0] - 2026-09-22
+
+### Added
+- **`IDocumentAnalysisService.GenerateAsync(prompt, GenerationSettings, ct)`** — a default-implemented overload that
+  carries the caller's sampling settings (`GenerationSettings(Temperature, MaxTokens)`, null = the service's default).
+  The two shipped implementations honour it; an outside implementation keeps compiling and, until it overrides the
+  overload, ignores the settings (the default forwards to the two-argument method).
 
 ### Fixed
+- **`LlmRefineOptions.Temperature`/`MaxTokens` and `ParsingOptions.Temperature`/`MaxTokens` now reach the model.**
+  They were declared with defaults and read by nothing: every refinement and structuring call used the service's
+  literals (temperature 0.7, 1000 tokens for the OpenAI-compatible service, `LMSupplyOptions.MaxGenerationTokens` for
+  LMSupply). Now the refiner passes them on every call and `DocumentProcessor` copies the parsing pair into
+  `DocumentParsingOptions.Temperature`/`MaxTokens` (new members) for the structuring call. **Effective behaviour
+  change**: with the options' declared defaults (0.3) those calls are now more deterministic than before; set
+  `Temperature = 0.7` to keep the old sampling. `MaxTokens` 0/null still means the service's default.
 - **Six public options that a hard-coded literal stood in for now do what they say.** Of the 58 options the
   reachability roster listed as read by nothing, 12 had the feature implemented with a literal in the option's
   place; these six are wired (defaults reproduce the previous behaviour):
@@ -22,8 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     null keeps the strategy default.
   - `LlmRefineOptions.PreserveFormatting` — a formatting rule in the noise, OCR and restructuring prompts (the OCR
     prompt's fixed "preserve intentional formatting" line is now this rule; the other two gained it).
-  The roster now carries a verdict for each of the remaining 52 (37 with no implementation, 8 driven by another
-  type's member, 1 same-class duplicate, 6 more literals to wire next).
+  The roster now carries a verdict for each of the remaining 48 (37 with no implementation, 8 driven by another
+  type's member, 1 same-class duplicate, 2 more literals to wire).
 
 ## [0.24.1] - 2026-09-22
 

@@ -74,6 +74,17 @@ public class DocumentParsingOptions
     /// 커스텀 파싱 설정
     /// </summary>
     public Dictionary<string, object> CustomSettings { get; } = new();
+
+    /// <summary>
+    /// LLM 구조화 호출의 temperature (0.0~1.0). <c>ParsingOptions.Temperature</c> 가 <c>DocumentProcessor</c> 에서 여기로
+    /// 복사된다. null 이면 분석 서비스의 기본값. 0.25.0 이전에는 읽는 코드가 없었다.
+    /// </summary>
+    public double? Temperature { get; set; }
+
+    /// <summary>
+    /// LLM 구조화 호출의 최대 생성 토큰. <c>ParsingOptions.MaxTokens</c> 가 여기로 복사된다. null 이면 분석 서비스의 기본값.
+    /// </summary>
+    public int? MaxTokens { get; set; }
 }
 
 /// <summary>
