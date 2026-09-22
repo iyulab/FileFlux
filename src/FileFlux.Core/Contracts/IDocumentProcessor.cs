@@ -323,16 +323,6 @@ public class RefineOptions
     public bool NormalizeMarkdownStructure { get; set; } = true;
 
     /// <summary>
-    /// LLM model to use (if UseLlm is true).
-    /// </summary>
-    public string? LlmModel { get; set; }
-
-    /// <summary>
-    /// Maximum tokens for LLM processing per request.
-    /// </summary>
-    public int? MaxLlmTokens { get; set; }
-
-    /// <summary>
     /// Enable PDF header/footer pattern detection and removal.
     /// When enabled, repetitive lines appearing on multiple pages are identified and filtered.
     /// Default: false (opt-in feature).

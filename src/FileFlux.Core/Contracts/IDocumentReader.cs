@@ -63,6 +63,12 @@ public interface IDocumentReader
 /// <summary>
 /// Options for content extraction stage.
 /// </summary>
+/// <remarks>
+/// The readers shipped here produce Markdown text (tables and headings inline) plus images; none of them fills
+/// <see cref="RawContent.Tables"/> or <see cref="RawContent.Blocks"/>. The four switches that promised structured
+/// table/block extraction (<c>ExtractTables</c>, <c>DetectBlockTypes</c>, <c>PreserveCoordinates</c>,
+/// <c>MinTableConfidence</c>) and the <c>CustomOptions</c> bag were read by nothing and were removed in 0.25.0.
+/// </remarks>
 public class ExtractOptions
 {
     /// <summary>
@@ -73,21 +79,6 @@ public class ExtractOptions
     public bool ExtractImages { get; set; } = true;
 
     /// <summary>
-    /// Whether to detect and extract tables.
-    /// </summary>
-    public bool ExtractTables { get; set; } = true;
-
-    /// <summary>
-    /// Whether to preserve coordinate/position information.
-    /// </summary>
-    public bool PreserveCoordinates { get; set; } = true;
-
-    /// <summary>
-    /// Whether to detect text block types (heading, list, etc.).
-    /// </summary>
-    public bool DetectBlockTypes { get; set; } = true;
-
-    /// <summary>
     /// Maximum image size in bytes (null for no limit).
     /// </summary>
     /// <remarks>An image whose data is larger is dropped from the result and named in <c>RawContent.Warnings</c>
@@ -95,20 +86,9 @@ public class ExtractOptions
     public int? MaxImageSize { get; set; }
 
     /// <summary>
-    /// Minimum table confidence threshold (0.0 - 1.0).
-    /// Tables below this threshold will have PlainTextFallback set.
-    /// </summary>
-    public double MinTableConfidence { get; set; } = 0.5;
-
-    /// <summary>
     /// Page range to extract (null for all pages).
     /// </summary>
     public (int Start, int End)? PageRange { get; set; }
-
-    /// <summary>
-    /// Additional extraction options.
-    /// </summary>
-    public Dictionary<string, object> CustomOptions { get; set; } = [];
 
     /// <summary>
     /// Default extraction options.
@@ -116,25 +96,20 @@ public class ExtractOptions
     public static ExtractOptions Default => new();
 
     /// <summary>
-    /// Minimal extraction (text only, no images/tables).
+    /// Minimal extraction (text only, no images). Every reader converts tables it finds to Markdown in the text;
+    /// there is no separate table/block extraction to switch off (see the class remarks).
     /// </summary>
     public static ExtractOptions TextOnly => new()
     {
-        ExtractImages = false,
-        ExtractTables = false,
-        PreserveCoordinates = false,
-        DetectBlockTypes = false
+        ExtractImages = false
     };
 
     /// <summary>
-    /// Full extraction with all features enabled.
+    /// Full extraction (images included).
     /// </summary>
     public static ExtractOptions Full => new()
     {
-        ExtractImages = true,
-        ExtractTables = true,
-        PreserveCoordinates = true,
-        DetectBlockTypes = true
+        ExtractImages = true
     };
 }
 

@@ -52,20 +52,10 @@ public class DocumentParsingOptions
     public bool UseLlmParsing { get; set; } = true;
 
     /// <summary>
-    /// 구조화 세밀도 (Low, Medium, High)
-    /// </summary>
-    public StructuringLevel StructuringLevel { get; set; } = StructuringLevel.Medium;
-
-    /// <summary>
     /// 메타데이터 추출 여부 (기본값: true). false 면 파싱 결과의 <c>Metadata</c> 가 비어 있다(단어·페이지 수, 제목,
     /// 언어 없음); 본문·섹션·키워드는 그대로다. 0.24.2 이전에는 읽는 코드가 없어 항상 추출됐다.
     /// </summary>
     public bool ExtractMetadata { get; set; } = true;
-
-    /// <summary>
-    /// 커스텀 파싱 설정
-    /// </summary>
-    public Dictionary<string, object> CustomSettings { get; } = new();
 
     /// <summary>
     /// LLM 구조화 호출의 temperature (0.0~1.0). <c>ParsingOptions.Temperature</c> 가 <c>DocumentProcessor</c> 에서 여기로
@@ -79,23 +69,3 @@ public class DocumentParsingOptions
     public int? MaxTokens { get; set; }
 }
 
-/// <summary>
-/// 구조화 세밀도 레벨
-/// </summary>
-public enum StructuringLevel
-{
-    /// <summary>
-    /// 기본적인 섹션 분할만
-    /// </summary>
-    Low,
-
-    /// <summary>
-    /// 중간 수준의 구조화 (제목, 단락, 목록)
-    /// </summary>
-    Medium,
-
-    /// <summary>
-    /// 고도의 구조화 (의미적 분석, 관계 추출)
-    /// </summary>
-    High
-}

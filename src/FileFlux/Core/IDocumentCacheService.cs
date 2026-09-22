@@ -138,11 +138,6 @@ public class DocumentCacheOptions
     /// 한 번에 제거할 항목 수 (LRU 정리 시)
     /// </summary>
     public int EvictionBatchSize { get; set; } = 50;
-
-    /// <summary>
-    /// 캐시 히트율 임계값 (성능 모니터링용)
-    /// </summary>
-    public double MinHitRatio { get; set; } = 0.7;
 }
 
 /// <summary>

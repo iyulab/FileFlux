@@ -177,7 +177,6 @@ public sealed partial class FluxDocumentProcessor
             var parsed = await parser.ParseAsync(raw, new DocumentParsingOptions
             {
                 UseLlmParsing = options.UseLlm,
-                StructuringLevel = StructuringLevel.Medium,
                 // ParsingOptions' sampling settings reach the parser's LLM call from here (0.25.0).
                 Temperature = options.Temperature,
                 MaxTokens = options.MaxTokens

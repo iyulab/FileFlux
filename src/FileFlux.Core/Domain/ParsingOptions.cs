@@ -26,9 +26,4 @@ public class ParsingOptions
     /// Default: 0.3
     /// </summary>
     public double Temperature { get; set; } = 0.3;
-
-    /// <summary>
-    /// Custom parsing parameters
-    /// </summary>
-    public Dictionary<string, object> Extra { get; set; } = new();
 }

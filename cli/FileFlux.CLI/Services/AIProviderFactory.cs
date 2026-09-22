@@ -494,8 +494,7 @@ public class AIProviderFactory
         {
             GeneratorModel = _config.LMSupplyModel,
             UseGpuAcceleration = _config.LMSupplyUseGpu,
-            MaxGenerationTokens = 2048,
-            AutoSelectMultilingualModel = true
+            MaxGenerationTokens = 2048
         };
 
         // Register LMSupply service factory as singleton for resource management

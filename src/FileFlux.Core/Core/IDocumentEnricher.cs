@@ -243,14 +243,10 @@ public class GraphBuildOptions
     public int MaxEdgesPerChunk { get; init; } = 10;
 
     /// <summary>
-    /// Include shared entity edges.
+    /// Include shared entity edges. (The three edge kinds the builder produces are sequential, hierarchical and
+    /// shared-entity; a fourth switch, <c>IncludeReferenceEdges</c>, had no builder behind it and was removed in 0.25.0.)
     /// </summary>
     public bool IncludeSharedEntityEdges { get; init; } = true;
-
-    /// <summary>
-    /// Include cross-reference edges.
-    /// </summary>
-    public bool IncludeReferenceEdges { get; init; } = true;
 
     /// <summary>
     /// Default graph build options.
@@ -265,8 +261,7 @@ public class GraphBuildOptions
         IncludeSequentialEdges = true,
         IncludeHierarchicalEdges = true,
         DiscoverSemanticRelationships = false,
-        IncludeSharedEntityEdges = false,
-        IncludeReferenceEdges = false
+        IncludeSharedEntityEdges = false
     };
 
     /// <summary>
@@ -278,7 +273,6 @@ public class GraphBuildOptions
         IncludeHierarchicalEdges = true,
         DiscoverSemanticRelationships = true,
         IncludeSharedEntityEdges = true,
-        IncludeReferenceEdges = true,
         MinRelationshipConfidence = 0.3,
         MaxEdgesPerChunk = 20
     };

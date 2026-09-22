@@ -38,6 +38,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `EmbeddingOptions` (`IEmbeddingService` takes `EmbeddingPurpose`; model and dimensions are the loaded model's
   and `LMSupplyOptions.EmbeddingModel`), plus `PoolingStrategy`. Constructing one of these no longer compiles; there
   is nothing to move the values to.
+- **Twenty-one more options that nothing anywhere read — the rest of the 0.25.0 audit.** Each was declared with a
+  default and a promise, and no code in this repository, in its CLI, or in any sibling package acted on it. An
+  assignment no longer compiles; there is nothing to move the value to unless named here:
+  - `ChunkingOptions.MaxHeadingLevel`, `SeparateDocumentHeader`, `MaxHeaderParagraphs`, `MaxHeaderParagraphLength`
+    (no header-separation or heading-level chunking exists; `MarkdownConversionOptions.MaxHeadingLevel` is a
+    different, live setting) and `StrategyOptions` (`CustomProperties` is the one extension bag).
+  - `ExtractOptions.ExtractTables`, `DetectBlockTypes`, `PreserveCoordinates`, `MinTableConfidence`, `CustomOptions` —
+    no reader fills `RawContent.Tables`/`Blocks`; tables arrive as Markdown in the text. `TextOnly`/`Full` now differ
+    only in `ExtractImages`.
+  - `GraphBuildOptions.IncludeReferenceEdges` (also dropped from `Minimal`/`Full`) — the graph builder has sequential,
+    hierarchical and shared-entity edges and no reference edge.
+  - `LlmRefineOptions.VerboseLogging` — the `ILogger` level is the gate.
+  - `MetadataEnrichmentOptions.EnableAdaptiveSampling` — `ExtractionStrategy`/`MaxTokens` are the sampling knobs.
+  - `ParsingOptions.Extra`, `DocumentParsingOptions.CustomSettings`, `ImageToTextOptions.CustomOptions` — extension
+    bags with no reader.
+  - `DocumentParsingOptions.StructuringLevel` and the `StructuringLevel` enum — the parser has one prompt.
+  - `RefineOptions.LlmModel`, `MaxLlmTokens` — `DocumentRefiner` calls no LLM; the LLM refinement pass is
+    `LlmRefineOptions`.
+  - `DocumentCacheOptions.MinHitRatio` — no hit ratio is computed.
+  - `LMSupplyOptions.AutoSelectMultilingualModel` with `GetEmbeddingModelForLanguage` and the `MultilingualEmbeddingModel`
+    constant — the per-document language switch was never called, so the CLI, which set it to `true`, always
+    embedded with `EmbeddingModel`. That is also the right behaviour: one index is one vector space. Set
+    `EmbeddingModel = "multilingual"` for non-English corpora.
 
 ### Fixed
 - **`LlmRefineOptions.Temperature`/`MaxTokens` and `ParsingOptions.Temperature`/`MaxTokens` now reach the model.**

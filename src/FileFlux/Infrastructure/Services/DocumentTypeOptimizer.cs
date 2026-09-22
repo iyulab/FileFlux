@@ -71,9 +71,6 @@ public class DocumentTypeOptimizer : IDocumentTypeOptimizer
         // 구조적 요소에 따른 전략 조정
         AdjustStrategyByStructure(options, documentType);
 
-        // 전략별 옵션은 향후 구현 예정
-        // TODO: ChunkingOptions에 StrategyOptions 추가 후 구현
-
         return options;
     }
 

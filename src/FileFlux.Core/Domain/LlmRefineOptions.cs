@@ -76,12 +76,6 @@ public class LlmRefineOptions
     /// </summary>
     public DocumentTypeHint DocumentType { get; set; } = DocumentTypeHint.Auto;
 
-    /// <summary>
-    /// Enable verbose logging of LLM operations.
-    /// Default: false
-    /// </summary>
-    public bool VerboseLogging { get; set; }
-
     // ========================================
     // Factory Methods
     // ========================================

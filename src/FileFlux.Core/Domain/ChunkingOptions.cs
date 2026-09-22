@@ -37,34 +37,11 @@ public class ChunkingOptions
     public bool PreserveSentences { get; set; } = true;
 
     /// <summary>
-    /// Maximum heading level for hierarchical chunking (1-6)
-    /// </summary>
-    public int MaxHeadingLevel { get; set; } = 3;
-
-    /// <summary>
-    /// Custom properties for advanced settings
+    /// Custom properties for advanced settings. This is the one extension bag on this type — the read keys are the
+    /// metadata-enrichment ones documented in <c>docs/ARCHITECTURE.md</c>; <c>StrategyOptions</c>, which nothing read,
+    /// was removed in 0.25.0.
     /// </summary>
     public Dictionary<string, object> CustomProperties { get; } = new();
-
-    /// <summary>
-    /// Strategy-specific options (used by Auto strategy)
-    /// </summary>
-    public Dictionary<string, object> StrategyOptions { get; } = new();
-
-    /// <summary>
-    /// Separate document header (title, copyright, etc.) from body content
-    /// </summary>
-    public bool SeparateDocumentHeader { get; set; } = true;
-
-    /// <summary>
-    /// Maximum number of paragraphs to consider as header (default: 5)
-    /// </summary>
-    public int MaxHeaderParagraphs { get; set; } = 5;
-
-    /// <summary>
-    /// Maximum length of header paragraphs (default: 200 chars)
-    /// </summary>
-    public int MaxHeaderParagraphLength { get; set; } = 200;
 
     /// <summary>
     /// ISO 639-1 language code for text segmentation ("auto" = detect). Language-specific section markers (Korean

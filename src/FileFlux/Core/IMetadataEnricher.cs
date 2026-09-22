@@ -117,11 +117,6 @@ public class MetadataEnrichmentOptions
     public MetadataExtractionStrategy ExtractionStrategy { get; set; } = MetadataExtractionStrategy.Smart;
 
     /// <summary>
-    /// Enable adaptive sampling based on document type.
-    /// </summary>
-    public bool EnableAdaptiveSampling { get; set; } = true;
-
-    /// <summary>
     /// Token budget for the content sampled into the extraction prompt (null = the strategy's default:
     /// Fast 2000 / Smart 4000 / Deep 8000 characters). Converted to characters at roughly four per token — a sampling
     /// bound, not a tokenizer. Before 0.24.2 this member was read by nothing.

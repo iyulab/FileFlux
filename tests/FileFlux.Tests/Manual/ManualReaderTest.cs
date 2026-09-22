@@ -54,22 +54,7 @@ public class ManualReaderTest
             _logger.LogInformation("   {Key}: {Value}", hint.Key, hint.Value);
         }
 
-        // Check for table-related hints
-        if (result.Hints.TryGetValue("TableCount", out var tableCount))
-        {
-            _logger.LogInformation("\n📊 Table Detection Summary:");
-            _logger.LogInformation("   Total Tables: {Count}", tableCount);
-        }
-
-        if (result.Hints.TryGetValue("LowConfidenceTables", out var lowConfTables))
-        {
-            _logger.LogInformation("   Low Confidence Tables (using fallback): {Count}", lowConfTables);
-        }
-
-        if (result.Hints.TryGetValue("MinTableConfidence", out var minConf))
-        {
-            _logger.LogInformation("   Minimum Table Confidence: {MinConf}", minConf);
-        }
+        // (No reader writes table hints - tables arrive as Markdown in the text; see ExtractOptions remarks.)
 
         // Output content preview
         _logger.LogInformation("\n📄 Content Preview:");
