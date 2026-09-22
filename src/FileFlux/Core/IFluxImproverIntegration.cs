@@ -150,29 +150,3 @@ public class DocumentContextMetadata
     /// </summary>
     public int TotalChunks { get; init; }
 }
-
-/// <summary>
-/// Options for batch hierarchical enrichment workflow
-/// </summary>
-public class HierarchicalEnrichmentOptions
-{
-    /// <summary>
-    /// Process parent chunks before children (default: true)
-    /// </summary>
-    public bool EnrichParentsFirst { get; init; } = true;
-
-    /// <summary>
-    /// Propagate parent summary to children
-    /// </summary>
-    public bool PropagateParentSummary { get; init; } = true;
-
-    /// <summary>
-    /// Propagate parent keywords to children
-    /// </summary>
-    public bool PropagateParentKeywords { get; init; } = true;
-
-    /// <summary>
-    /// Maximum hierarchy depth to process (default: unlimited)
-    /// </summary>
-    public int? MaxDepth { get; init; }
-}

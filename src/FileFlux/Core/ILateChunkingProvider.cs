@@ -137,39 +137,3 @@ public class ChunkBoundary
     /// </summary>
     public int Length => EndChar - StartChar;
 }
-
-/// <summary>
-/// Options for late chunking boundary detection
-/// </summary>
-public class LateChunkingOptions
-{
-    /// <summary>
-    /// Maximum characters per boundary segment
-    /// </summary>
-    public int MaxBoundarySize { get; set; } = 1500;
-
-    /// <summary>
-    /// Minimum characters per boundary segment
-    /// </summary>
-    public int MinBoundarySize { get; set; } = 100;
-
-    /// <summary>
-    /// Target overlap between adjacent boundaries (in characters)
-    /// </summary>
-    public int OverlapSize { get; set; } = 200;
-
-    /// <summary>
-    /// Whether to respect sentence boundaries
-    /// </summary>
-    public bool RespectSentenceBoundaries { get; set; } = true;
-
-    /// <summary>
-    /// Whether to respect paragraph boundaries
-    /// </summary>
-    public bool RespectParagraphBoundaries { get; set; } = true;
-
-    /// <summary>
-    /// Whether to include section headers in boundaries
-    /// </summary>
-    public bool PreserveSectionHeaders { get; set; } = true;
-}

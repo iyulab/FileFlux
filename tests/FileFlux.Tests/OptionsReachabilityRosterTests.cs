@@ -55,20 +55,8 @@ public class OptionsReachabilityRosterTests
         ],
         // GraphBuildOptions.IncludeReferenceEdges A (four gated edge builders, none for Reference).
         ["FileFlux.Core.GraphBuildOptions"] = ["IncludeReferenceEdges"],
-        // HierarchicalEnrichmentOptions: EnrichParentsFirst D (OrderForHierarchicalEnrichment orders parents first
-        // unconditionally — but the method has no callers) · MaxDepth A · PropagateParentKeywords A · PropagateParentSummary A.
-        // The type reaches no interface method: type-level dead weight.
-        ["FileFlux.Core.HierarchicalEnrichmentOptions"] =
-        [
-            "EnrichParentsFirst", "MaxDepth", "PropagateParentKeywords", "PropagateParentSummary",
-        ],
-        // LateChunkingOptions: all A — ILateChunkingProvider takes ChunkingOptions, this type reaches nothing
-        // (OverlapSize/PreserveSectionHeaders/RespectParagraph|SentenceBoundaries have live twins on ChunkingOptions).
-        ["FileFlux.Core.LateChunkingOptions"] =
-        [
-            "MaxBoundarySize", "MinBoundarySize", "OverlapSize", "PreserveSectionHeaders",
-            "RespectParagraphBoundaries", "RespectSentenceBoundaries",
-        ],
+        // HierarchicalEnrichmentOptions (4) and LateChunkingOptions (6): types no interface method received — removed in
+        // 0.25.0 (ILateChunkingProvider takes ChunkingOptions; the enrichment ordering helper takes only the chunks).
         // LlmRefineOptions: CustomInstructions A · DocumentType A · TargetLanguage A · VerboseLogging A (ILogger level is
         // the gate). PreserveFormatting wired in 0.24.2; MaxTokens / Temperature wired in 0.25.0
         // (IDocumentAnalysisService.GenerateAsync(prompt, GenerationSettings, ct)).
@@ -103,12 +91,8 @@ public class OptionsReachabilityRosterTests
         [
             "CustomSettings", "StructuringLevel",
         ],
-        // EmbeddingOptions: all A — IEmbeddingService takes EmbeddingPurpose, this type reaches nothing (type-level dead weight;
-        // Dimensions/Model live on the loaded model and LMSupplyOptions.EmbeddingModel).
-        ["FileFlux.EmbeddingOptions"] =
-        [
-            "Dimensions", "Model", "Normalize", "Pooling",
-        ],
+        // EmbeddingOptions (4): a type IEmbeddingService never received (it takes EmbeddingPurpose) — removed in 0.25.0
+        // together with the PoolingStrategy enum only it used.
         // ImageToTextOptions: CustomOptions A · Language D — a contract member the consumer's IImageToTextService reads
         // (the CLI's three vision providers do); the library's five call sites pass the literal "auto" where a pipeline
         // knob would be, and the shipped LMSupply OCR takes its hint from LMSupplyOptions.OcrLanguageHint at load time.

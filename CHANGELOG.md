@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `RefiningOptions.UseAIForOCRCorrection` — `LlmRefineOptions.CorrectOcrErrors`.
   - `DocumentParsingOptions.DocumentTypeHint` / `Language` — the parser always infers both (`Metadata` reports them).
   An assignment to one of these no longer compiles; delete it or move the value to the member named above.
+- **Three option types no library method ever received, and the enum only one of them used.** Fourteen more
+  roster entries were properties of types that reach nothing: `LateChunkingOptions` (`ILateChunkingProvider` takes
+  `ChunkingOptions`, whose `OverlapSize`/`PreserveSectionHeaders`/`Respect*Boundaries` are the live twins),
+  `HierarchicalEnrichmentOptions` (the enrichment ordering helper takes only the chunks; parents-first is unconditional)
+  and `EmbeddingOptions` (`IEmbeddingService` takes `EmbeddingPurpose`; model and dimensions are the loaded model's
+  and `LMSupplyOptions.EmbeddingModel`), plus `PoolingStrategy`. Constructing one of these no longer compiles; there
+  is nothing to move the values to.
 
 ### Fixed
 - **`LlmRefineOptions.Temperature`/`MaxTokens` and `ParsingOptions.Temperature`/`MaxTokens` now reach the model.**
@@ -53,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     null keeps the strategy default.
   - `LlmRefineOptions.PreserveFormatting` — a formatting rule in the noise, OCR and restructuring prompts (the OCR
     prompt's fixed "preserve intentional formatting" line is now this rule; the other two gained it).
-  The roster now carries a verdict for each of the remaining 40 (37 with no implementation, 3 literals still to wire).
+  The roster now carries a verdict for each of the remaining 26 (23 with no implementation, 3 literals still to wire).
 
 ## [0.24.1] - 2026-09-22
 
