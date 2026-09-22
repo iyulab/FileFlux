@@ -102,6 +102,9 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
             Temperature = (float)(settings.Temperature ?? 0.7)
         };
 
+        // TODO(upstream: claudedocs/lm-supply/issues/ISSUE-lm-supply-20260923-030000-complete-generation-hides-finish-reason.md)
+        // GenerateCompleteAsync returns only the text, so a response cut off at MaxTokens cannot be told apart and
+        // GenerationTruncatedException is not thrown here. LlmRefiner's text-sized budget and context check still apply.
         return await _model.GenerateCompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false);
     }
 

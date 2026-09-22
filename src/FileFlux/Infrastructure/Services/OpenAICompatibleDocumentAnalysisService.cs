@@ -161,7 +161,13 @@ public sealed partial class OpenAICompatibleDocumentAnalysisService
         // The literals are this service's defaults; a caller's option, when set, replaces them (0.25.0).
         var temperature = (float)(settings.Temperature ?? 0.7);
         var maxTokens = settings.MaxTokens is { } m && m > 0 ? m : 1000;
-        return await CompleteAsync(null, prompt, temperature, maxTokens, cancellationToken);
+        var (content, finishReason) = await CompleteWithReasonAsync(null, prompt, temperature, maxTokens, cancellationToken);
+        // A cut-off answer is not an answer: callers rewrite whole texts with this and cannot tell a truncated rewrite
+        // from one that removed content. The availability probe below shares the HTTP path with a 10-token budget and
+        // is deliberately not subject to this.
+        if (string.Equals(finishReason, "length", StringComparison.OrdinalIgnoreCase))
+            throw new GenerationTruncatedException(maxTokens);
+        return content;
     }
 
     /// <inheritdoc />
@@ -195,6 +201,14 @@ public sealed partial class OpenAICompatibleDocumentAnalysisService
         float temperature,
         int maxTokens,
         CancellationToken cancellationToken)
+        => (await CompleteWithReasonAsync(systemPrompt, userPrompt, temperature, maxTokens, cancellationToken)).Content;
+
+    private async Task<(string Content, string? FinishReason)> CompleteWithReasonAsync(
+        string? systemPrompt,
+        string userPrompt,
+        float temperature,
+        int maxTokens,
+        CancellationToken cancellationToken)
     {
         var messages = new List<MessageDto>();
 
@@ -221,7 +235,8 @@ public sealed partial class OpenAICompatibleDocumentAnalysisService
         var result = await response.Content.ReadFromJsonAsync<ChatCompletionResponse>(
             JsonOptions, cancellationToken);
 
-        return result?.Choices?.FirstOrDefault()?.Message?.Content ?? string.Empty;
+        var choice = result?.Choices?.FirstOrDefault();
+        return (choice?.Message?.Content ?? string.Empty, choice?.FinishReason);
     }
 
     #endregion
@@ -532,6 +547,7 @@ public sealed partial class OpenAICompatibleDocumentAnalysisService
     internal sealed class ChoiceDto
     {
         public MessageDto? Message { get; init; }
+        public string? FinishReason { get; init; }
     }
 
     #endregion

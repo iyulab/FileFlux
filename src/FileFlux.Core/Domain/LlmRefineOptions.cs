@@ -52,10 +52,11 @@ public class LlmRefineOptions
     public string? TargetLanguage { get; set; }
 
     /// <summary>
-    /// Maximum tokens each refinement call may generate; null (or 0) = the analysis service's own default.
-    /// Reaches <c>IDocumentAnalysisService.GenerateAsync(prompt, GenerationSettings, ct)</c> on every call the refiner
-    /// makes (since 0.25.0 — before that it was read by nothing and the service's literal, 1000 for the
-    /// OpenAI-compatible service, applied). Same shape as <c>ParsingOptions.MaxTokens</c>.
+    /// Maximum tokens each refinement call may generate; null (or 0) = sized from the text being refined (half its
+    /// character count plus 256), since every pass returns the whole text. Reaches
+    /// <c>IDocumentAnalysisService.GenerateAsync(prompt, GenerationSettings, ct)</c> on every call the refiner makes.
+    /// Before 0.26.0 null meant the service's default — 1000 tokens for the OpenAI-compatible service, which cut off
+    /// every document past roughly 4 KB, and the cut-off text was adopted as the refinement.
     /// Default: null
     /// </summary>
     public int? MaxTokens { get; set; }

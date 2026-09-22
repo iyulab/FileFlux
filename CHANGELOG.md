@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-09-23
+
+### Fixed
+- **LLM refinement no longer replaces a document with a cut-off copy of it.** Each pass rewrites the whole text, and
+  with `LlmRefineOptions.MaxTokens` unset the OpenAI-compatible service asked for 1000 output tokens, so any document
+  past roughly 4 KB came back truncated — and a truncated rewrite, being shorter, passed the "noise removed" /
+  "duplicates merged" checks and was adopted. A truncated response is now never adopted, the output budget is sized
+  from the text, and a pass that was not applied is reported in `LlmRefinementInfo.Warnings` (previously declared and
+  never filled) and logged at Warning (was Debug).
+- **`LlmRefiner` reads `DocumentAnalysisServiceInfo.MaxContextLength`.** A pass whose prompt and output budget exceed
+  the declared context is not sent (0 = not declared, not checked). The property had no reader before.
+
+### Added
+- **`GenerationTruncatedException`** — thrown by `IDocumentAnalysisService.GenerateAsync(prompt, GenerationSettings, ct)`
+  when the model stopped at the output token limit. The OpenAI-compatible service throws it (`finish_reason = "length"`);
+  the LMSupply service cannot observe the completion reason yet and returns the text as generated. An outside
+  implementation that can observe the reason should throw it too.
+
+### Changed
+- **Breaking**: `LlmRefineOptions.MaxTokens` unset (null or 0) now means a budget sized from the text being refined
+  (half its character count plus 256), not the service's default. Set it explicitly to keep a fixed limit.
+- **Breaking**: `OpenAICompatibleDocumentAnalysisService.GenerateAsync` throws `GenerationTruncatedException` instead of
+  returning a cut-off answer. `LlmRefiner` handles it; a direct caller that relied on partial text must catch it.
+
 ## [0.25.1] - 2026-09-23
 
 ### Changed

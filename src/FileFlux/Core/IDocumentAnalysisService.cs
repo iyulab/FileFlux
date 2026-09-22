@@ -91,6 +91,10 @@ public interface IDocumentAnalysisService
     /// to reach the model; the two implementations this library ships do. Before 0.25.0 every call used the
     /// implementation's literals (0.7 / 1000 tokens) and the four options were read by nothing.
     /// </summary>
+    /// <exception cref="GenerationTruncatedException">
+    /// The model stopped at the output token limit. An implementation that can observe the completion reason throws it
+    /// rather than returning the cut-off text.
+    /// </exception>
     Task<string> GenerateAsync(string prompt, GenerationSettings settings, CancellationToken cancellationToken = default)
         => GenerateAsync(prompt, cancellationToken);
 }
@@ -105,6 +109,40 @@ public sealed record GenerationSettings(double? Temperature = null, int? MaxToke
 {
     /// <summary>No preference: the implementation's defaults.</summary>
     public static readonly GenerationSettings Default = new();
+}
+
+/// <summary>
+/// Thrown by <see cref="IDocumentAnalysisService.GenerateAsync(string, GenerationSettings, CancellationToken)"/> when the
+/// model stopped because it reached the output token limit, so the text it produced is cut off. A cut-off rewrite is
+/// shorter than its input and would otherwise be indistinguishable from an edit that removed content.
+/// </summary>
+/// <remarks>
+/// Only an implementation that can observe the completion reason can throw it. The OpenAI-compatible service this
+/// library ships does (<c>finish_reason = "length"</c>); the LMSupply service cannot observe the reason and returns the
+/// text as generated.
+/// </remarks>
+public sealed class GenerationTruncatedException : Exception
+{
+    private const string DefaultMessage = "The model stopped at the output token limit; the response is truncated.";
+
+    /// <summary>Creates the exception with the default message.</summary>
+    public GenerationTruncatedException() : base(DefaultMessage) { }
+
+    /// <summary>Creates the exception with a message.</summary>
+    public GenerationTruncatedException(string? message) : base(message ?? DefaultMessage) { }
+
+    /// <summary>Creates the exception with a message and an inner exception.</summary>
+    public GenerationTruncatedException(string? message, Exception? innerException) : base(message ?? DefaultMessage, innerException) { }
+
+    /// <summary>Creates the exception for a call that asked for <paramref name="maxTokens"/> output tokens.</summary>
+    public GenerationTruncatedException(int maxTokens)
+        : base($"The model stopped at the output token limit ({maxTokens} tokens); the response is truncated.")
+    {
+        MaxTokens = maxTokens;
+    }
+
+    /// <summary>The output token limit the call ran into, when known.</summary>
+    public int? MaxTokens { get; }
 }
 
 /// <summary>

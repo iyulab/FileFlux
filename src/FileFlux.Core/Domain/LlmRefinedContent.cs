@@ -215,7 +215,9 @@ public class LlmRefinementInfo
     public IReadOnlyList<string> Improvements { get; init; } = [];
 
     /// <summary>
-    /// Warnings during LLM refinement.
+    /// Enabled passes that were not applied, each as <c>"&lt;pass&gt;: &lt;reason&gt;"</c> — a response truncated at the
+    /// output token limit, a prompt that does not fit the model context, or a failed call. The text those passes would
+    /// have rewritten is kept as it was. Empty when every enabled pass ran (whether or not it changed the text).
     /// </summary>
     public IReadOnlyList<string> Warnings { get; init; } = [];
 }

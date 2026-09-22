@@ -27,14 +27,17 @@ public sealed class GenerationSettingsWiringTests
     }
 
     [Fact]
-    public async Task LlmRefineOptions_MaxTokens_zero_means_the_service_default()
+    public async Task LlmRefineOptions_MaxTokens_zero_is_sized_from_the_text()
     {
+        // Each pass rewrites the whole text, so "unset" means a budget the rewrite fits in (0.26.0) — not the service
+        // default, which was 1000 tokens and cut off every document past roughly 4 KB.
         var service = new RecordingService();
         var refiner = new LlmRefiner(service);
+        var options = new LlmRefineOptions { RestoreSentences = false, CorrectOcrErrors = false, RestructureSections = false, MergeDuplicates = false, RemoveNoise = true, MaxTokens = 0 };
 
-        await refiner.RefineAsync(new RefinedContent { Text = OcrLikeText() }, new LlmRefineOptions { RemoveNoise = true, MaxTokens = 0 }, TestContext.Current.CancellationToken);
+        await refiner.RefineAsync(new RefinedContent { Text = OcrLikeText() }, options, TestContext.Current.CancellationToken);
 
-        service.Settings.Should().NotBeEmpty().And.OnlyContain(s => s.MaxTokens == null);
+        service.Settings.Should().ContainSingle().Which.MaxTokens.Should().Be(LlmRefiner.OutputBudget(OcrLikeText()));
     }
 
     [Fact]
