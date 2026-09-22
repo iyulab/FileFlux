@@ -210,9 +210,7 @@ public class RefineCommand : Command
             CleanWhitespace = cleanWhitespace,
             RemoveHeadersFooters = removeHeaders,
             RemovePageNumbers = removePageNumbers,
-            RestructureHeadings = restructure,
-            UseAIForOCRCorrection = enableAI,
-            UseAIForDescriptions = enableAI
+            RestructureHeadings = restructure
         };
 
         if (!quiet)

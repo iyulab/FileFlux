@@ -323,11 +323,6 @@ public class RefineOptions
     public bool NormalizeMarkdownStructure { get; set; } = true;
 
     /// <summary>
-    /// Process images (generate captions with LLM if available).
-    /// </summary>
-    public bool ProcessImages { get; set; }
-
-    /// <summary>
     /// LLM model to use (if UseLlm is true).
     /// </summary>
     public string? LlmModel { get; set; }
@@ -369,12 +364,13 @@ public class RefineOptions
     public static RefineOptions Minimal => new()
     {
         ExtractStructures = false,
-        BuildSections = false,
-        ProcessImages = false
+        BuildSections = false
     };
 
     /// <summary>
-    /// Full refinement with all features including image processing.
+    /// Full refinement with all features. Image-to-text is a pipeline switch, not a refine switch:
+    /// <c>RefiningOptions.ProcessImagesToText</c> (the former <c>ProcessImages</c> here was read by nothing and was
+    /// removed in 0.25.0).
     /// </summary>
     public static RefineOptions Full => new()
     {
@@ -383,8 +379,7 @@ public class RefineOptions
         ConvertTablesToMarkdown = true,
         ConvertBlocksToMarkdown = true,
         BuildSections = true,
-        NormalizeWhitespace = true,
-        ProcessImages = true
+        NormalizeWhitespace = true
     };
 
     /// <summary>

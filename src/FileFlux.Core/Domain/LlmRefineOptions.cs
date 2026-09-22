@@ -25,7 +25,8 @@ public class LlmRefineOptions
     public bool RestructureSections { get; set; } = true;
 
     /// <summary>
-    /// Correct OCR errors.
+    /// Correct OCR errors. This is the AI OCR-correction switch — the former <c>RefiningOptions.UseAIForOCRCorrection</c>
+    /// was read by nothing and was removed in 0.25.0.
     /// Default: true
     /// </summary>
     public bool CorrectOcrErrors { get; set; } = true;
@@ -49,13 +50,13 @@ public class LlmRefineOptions
     public string? TargetLanguage { get; set; }
 
     /// <summary>
-    /// Maximum tokens each refinement call may generate; 0 = the analysis service's own default.
+    /// Maximum tokens each refinement call may generate; null (or 0) = the analysis service's own default.
     /// Reaches <c>IDocumentAnalysisService.GenerateAsync(prompt, GenerationSettings, ct)</c> on every call the refiner
     /// makes (since 0.25.0 — before that it was read by nothing and the service's literal, 1000 for the
-    /// OpenAI-compatible service, applied).
-    /// Default: 0
+    /// OpenAI-compatible service, applied). Same shape as <c>ParsingOptions.MaxTokens</c>.
+    /// Default: null
     /// </summary>
-    public int MaxTokens { get; set; }
+    public int? MaxTokens { get; set; }
 
     /// <summary>
     /// LLM temperature (0.0 - 1.0) for every refinement call. Lower = more deterministic.

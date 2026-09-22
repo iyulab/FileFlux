@@ -45,14 +45,11 @@ public class DocumentParsingOptions
 {
     /// <summary>
     /// LLM 파싱 모드 사용 여부 (false일 경우 기본 규칙 기반 파싱)
-    /// Note: LLM 사용은 consumer application의 책임이며, 이 옵션은 파싱 수준을 제어합니다
+    /// Note: LLM 사용은 consumer application의 책임이며, 이 옵션은 파싱 수준을 제어합니다.
+    /// 문서 유형과 언어는 파서가 항상 스스로 판정한다(<c>InferType</c> · <c>LanguageDetector</c>, 결과는 <c>Metadata</c>) —
+    /// 아무도 읽지 않던 <c>DocumentTypeHint</c>·<c>Language</c> 는 0.25.0 에서 제거됐다.
     /// </summary>
     public bool UseLlmParsing { get; set; } = true;
-
-    /// <summary>
-    /// 문서 유형 힌트 (자동 감지하지 않고 직접 지정)
-    /// </summary>
-    public string? DocumentTypeHint { get; set; }
 
     /// <summary>
     /// 구조화 세밀도 (Low, Medium, High)
@@ -64,11 +61,6 @@ public class DocumentParsingOptions
     /// 언어 없음); 본문·섹션·키워드는 그대로다. 0.24.2 이전에는 읽는 코드가 없어 항상 추출됐다.
     /// </summary>
     public bool ExtractMetadata { get; set; } = true;
-
-    /// <summary>
-    /// 언어별 처리 옵션
-    /// </summary>
-    public string Language { get; set; } = "ko";
 
     /// <summary>
     /// 커스텀 파싱 설정

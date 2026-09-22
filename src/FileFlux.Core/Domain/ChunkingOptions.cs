@@ -67,17 +67,11 @@ public class ChunkingOptions
     public int MaxHeaderParagraphLength { get; set; } = 200;
 
     /// <summary>
-    /// Recognize Korean section markers (default: true)
-    /// </summary>
-    public bool RecognizeKoreanSectionMarkers { get; set; } = true;
-
-    /// <summary>
-    /// Remove duplicate content in overlap regions (default: true)
-    /// </summary>
-    public bool DeduplicateOverlaps { get; set; } = true;
-
-    /// <summary>
-    /// ISO 639-1 language code for text segmentation
+    /// ISO 639-1 language code for text segmentation ("auto" = detect). Language-specific section markers (Korean
+    /// included) follow this code — the former <c>RecognizeKoreanSectionMarkers</c> was read by nothing and was removed
+    /// in 0.25.0. Overlap de-duplication is part of the text refinement preset
+    /// (<c>RefiningOptions.TextRefinementPreset</c>), not a chunking switch — the former <c>DeduplicateOverlaps</c> was
+    /// removed for the same reason.
     /// </summary>
     public string? LanguageCode { get; set; } = "auto";
 

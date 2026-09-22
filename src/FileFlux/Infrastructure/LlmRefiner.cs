@@ -75,7 +75,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             // Apply LLM improvements based on options
             // LlmRefineOptions.Temperature / MaxTokens reach every call from here (0.25.0); MaxTokens <= 0 means the
             // service's default, as its documentation says.
-            var settings = new GenerationSettings(options.Temperature, options.MaxTokens > 0 ? options.MaxTokens : null);
+            var settings = new GenerationSettings(options.Temperature, options.MaxTokens is > 0 ? options.MaxTokens : null);
 
             if (options.RestoreSentences)
             {

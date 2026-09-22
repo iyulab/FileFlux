@@ -15,6 +15,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The two shipped implementations honour it; an outside implementation keeps compiling and, until it overrides the
   overload, ignores the settings (the default forwards to the two-argument method).
 
+### Changed
+- **`LlmRefineOptions.MaxTokens` is `int?` (null = the service's default; 0 still means the same) and
+  `ParsingOptions.Temperature` is `double`** — the two option types now spell the same two settings the same way.
+  Assignments compile unchanged.
+
+### Removed
+- **Eight public options that another member already drives, or that nothing drives.** Each was declared with a
+  default and read by nothing; the member that actually does the job is named here and in the survivor's XML doc:
+  - `ChunkingOptions.DeduplicateOverlaps` — overlap de-duplication is part of `RefiningOptions.TextRefinementPreset`.
+  - `ChunkingOptions.RecognizeKoreanSectionMarkers` — section markers follow `ChunkingOptions.LanguageCode`.
+  - `ParsingOptions.LlmModel` — the model is the registered `IDocumentAnalysisService`'s.
+  - `RefineOptions.ProcessImages` (also dropped from the `Minimal`/`Full` presets) — `RefiningOptions.ProcessImagesToText`.
+  - `RefiningOptions.UseAIForDescriptions` — duplicate of `RefiningOptions.ProcessImagesToText`.
+  - `RefiningOptions.UseAIForOCRCorrection` — `LlmRefineOptions.CorrectOcrErrors`.
+  - `DocumentParsingOptions.DocumentTypeHint` / `Language` — the parser always infers both (`Metadata` reports them).
+  An assignment to one of these no longer compiles; delete it or move the value to the member named above.
+
 ### Fixed
 - **`LlmRefineOptions.Temperature`/`MaxTokens` and `ParsingOptions.Temperature`/`MaxTokens` now reach the model.**
   They were declared with defaults and read by nothing: every refinement and structuring call used the service's
@@ -23,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DocumentParsingOptions.Temperature`/`MaxTokens` (new members) for the structuring call. **Effective behaviour
   change**: with the options' declared defaults (0.3) those calls are now more deterministic than before; set
   `Temperature = 0.7` to keep the old sampling. `MaxTokens` 0/null still means the service's default.
+
 - **Six public options that a hard-coded literal stood in for now do what they say.** Of the 58 options the
   reachability roster listed as read by nothing, 12 had the feature implemented with a literal in the option's
   place; these six are wired (defaults reproduce the previous behaviour):
@@ -35,8 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     null keeps the strategy default.
   - `LlmRefineOptions.PreserveFormatting` — a formatting rule in the noise, OCR and restructuring prompts (the OCR
     prompt's fixed "preserve intentional formatting" line is now this rule; the other two gained it).
-  The roster now carries a verdict for each of the remaining 48 (37 with no implementation, 8 driven by another
-  type's member, 1 same-class duplicate, 2 more literals to wire).
+  The roster now carries a verdict for each of the remaining 40 (37 with no implementation, 3 literals still to wire).
 
 ## [0.24.1] - 2026-09-22
 

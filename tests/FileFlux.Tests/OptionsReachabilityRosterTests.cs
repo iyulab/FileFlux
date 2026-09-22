@@ -41,8 +41,8 @@ public class OptionsReachabilityRosterTests
         // SeparateDocumentHeader A · StrategyOptions A (CustomProperties is the working bag).
         ["FileFlux.Core.ChunkingOptions"] =
         [
-            "DeduplicateOverlaps", "MaxHeaderParagraphLength", "MaxHeaderParagraphs", "MaxHeadingLevel",
-            "RecognizeKoreanSectionMarkers", "SeparateDocumentHeader", "StrategyOptions",
+            "MaxHeaderParagraphLength", "MaxHeaderParagraphs", "MaxHeadingLevel",
+            "SeparateDocumentHeader", "StrategyOptions",
         ],
         // ExtractOptions: CustomOptions A · DetectBlockTypes A (RawContent.Blocks never populated) · ExtractTables A
         // (RawContent.Tables never populated) · MinTableConfidence A · PageRange D (PdfDocumentReader ExtractPerPage
@@ -81,31 +81,27 @@ public class OptionsReachabilityRosterTests
         [
             "EnableAdaptiveSampling",
         ],
-        // ParsingOptions: Extra A · LlmModel B (ctor model of OpenAICompatibleDocumentAnalysisService) ·
+        // ParsingOptions: Extra A. LlmModel B removed in 0.25.0 (the model is the analysis service's) ·
         // MaxTokens / Temperature wired in 0.25.0 (DocumentProcessor copies them into DocumentParsingOptions).
         ["FileFlux.Core.ParsingOptions"] =
         [
-            "Extra", "LlmModel",
+            "Extra",
         ],
-        // RefineOptions: LlmModel A · MaxLlmTokens A (DocumentRefiner never calls an LLM) · ProcessImages B
+        // RefineOptions: LlmModel A · MaxLlmTokens A (DocumentRefiner never calls an LLM). ProcessImages B removed in 0.25.0
         // (RefiningOptions.ProcessImagesToText).
         ["FileFlux.Core.RefineOptions"] =
         [
-            "LlmModel", "MaxLlmTokens", "ProcessImages",
+            "LlmModel", "MaxLlmTokens",
         ],
-        // RefiningOptions: UseAIForDescriptions C (duplicate of ProcessImagesToText, which is read) ·
-        // UseAIForOCRCorrection B (LlmRefineOptions.CorrectOcrErrors).
-        ["FileFlux.Core.RefiningOptions"] =
-        [
-            "UseAIForDescriptions", "UseAIForOCRCorrection",
-        ],
+        // RefiningOptions: UseAIForDescriptions C (duplicate of ProcessImagesToText) and UseAIForOCRCorrection B
+        // (LlmRefineOptions.CorrectOcrErrors) removed in 0.25.0.
         // DocumentCacheOptions.MinHitRatio A (no hit ratio is computed).
         ["FileFlux.DocumentCacheOptions"] = ["MinHitRatio"],
-        // DocumentParsingOptions: CustomSettings A · DocumentTypeHint B (InferType always) · Language B (LanguageDetector
-        // always) · StructuringLevel A (one prompt for every level). ExtractMetadata wired in 0.24.2.
+        // DocumentParsingOptions: CustomSettings A · StructuringLevel A (one prompt for every level). ExtractMetadata wired
+        // in 0.24.2; DocumentTypeHint B (InferType always) and Language B (LanguageDetector always) removed in 0.25.0.
         ["FileFlux.DocumentParsingOptions"] =
         [
-            "CustomSettings", "DocumentTypeHint", "Language", "StructuringLevel",
+            "CustomSettings", "StructuringLevel",
         ],
         // EmbeddingOptions: all A — IEmbeddingService takes EmbeddingPurpose, this type reaches nothing (type-level dead weight;
         // Dimensions/Model live on the loaded model and LMSupplyOptions.EmbeddingModel).
@@ -113,8 +109,10 @@ public class OptionsReachabilityRosterTests
         [
             "Dimensions", "Model", "Normalize", "Pooling",
         ],
-        // ImageToTextOptions: CustomOptions A · Language B (LMSupplyOptions.OcrLanguageHint; output language auto-detected).
-        // ExtractMetadata wired in 0.24.2 (OCR + captioner).
+        // ImageToTextOptions: CustomOptions A · Language D — a contract member the consumer's IImageToTextService reads
+        // (the CLI's three vision providers do); the library's five call sites pass the literal "auto" where a pipeline
+        // knob would be, and the shipped LMSupply OCR takes its hint from LMSupplyOptions.OcrLanguageHint at load time.
+        // Kept (re-verdict 0.25.0: not B — nothing else is the knob). ExtractMetadata wired in 0.24.2 (OCR + captioner).
         ["FileFlux.ImageToTextOptions"] =
         [
             "CustomOptions", "Language",

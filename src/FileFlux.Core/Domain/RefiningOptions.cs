@@ -28,16 +28,6 @@ public class RefiningOptions
     public bool RestructureHeadings { get; set; } = true;
 
     /// <summary>
-    /// Use AI for OCR correction (default: false)
-    /// </summary>
-    public bool UseAIForOCRCorrection { get; set; }
-
-    /// <summary>
-    /// Use AI for image/table descriptions (default: false)
-    /// </summary>
-    public bool UseAIForDescriptions { get; set; }
-
-    /// <summary>
     /// Convert content to structured Markdown format (default: true).
     /// Uses IMarkdownConverter to preserve document structure
     /// (headings, tables, lists, code blocks) in Markdown format.
@@ -48,7 +38,9 @@ public class RefiningOptions
     /// <summary>
     /// Process embedded images to text using IImageToTextService (default: false).
     /// When enabled, extracts text from images and replaces image placeholders
-    /// with the extracted content in the document.
+    /// with the extracted content in the document. This is the only image switch — the former
+    /// <c>UseAIForDescriptions</c> duplicated it and was read by nothing (removed in 0.25.0). AI OCR correction is
+    /// <c>LlmRefineOptions.CorrectOcrErrors</c> (the former <c>UseAIForOCRCorrection</c> here was likewise removed).
     /// </summary>
     public bool ProcessImagesToText { get; set; }
 
