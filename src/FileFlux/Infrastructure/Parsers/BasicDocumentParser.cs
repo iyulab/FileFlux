@@ -92,8 +92,11 @@ public partial class BasicDocumentParser : IDocumentParser
         // 섹션 분할
         var sections = ExtractSections(text, hints);
 
-        // 기본 메타데이터 생성
-        var metadata = CreateBasicMetadata(rawContent, documentType);
+        // 기본 메타데이터 생성 — DocumentParsingOptions.ExtractMetadata 가 false 면 빈 메타데이터(카운트·제목·언어 없음)
+        // (0.24.2 이전에는 이 옵션을 읽는 코드가 없어 항상 생성됐다).
+        var metadata = options.ExtractMetadata
+            ? CreateBasicMetadata(rawContent, documentType)
+            : new DocumentMetadata();
 
         // 키워드 추출 (단순 빈도 기반)
         var keywords = ExtractKeywords(text, 10);

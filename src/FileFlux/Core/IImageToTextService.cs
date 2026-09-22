@@ -82,7 +82,8 @@ public class ImageToTextOptions
     public bool ExtractStructure { get; set; } = true;
 
     /// <summary>
-    /// 이미지 메타데이터 추출 여부
+    /// 이미지 메타데이터 추출 여부 (기본값: true). false 면 결과의 <c>Metadata</c>(파일 크기·포맷)가 비어 있다 — OCR·캡셔너
+    /// 두 provider 모두. 0.24.2 이전에는 읽는 코드가 없어 항상 채워졌다.
     /// </summary>
     public bool ExtractMetadata { get; set; } = true;
 

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.2] - 2026-09-22
+
+### Fixed
+- **Six public options that a hard-coded literal stood in for now do what they say.** Of the 58 options the
+  reachability roster listed as read by nothing, 12 had the feature implemented with a literal in the option's
+  place; these six are wired (defaults reproduce the previous behaviour):
+  - `ExtractOptions.ExtractImages` / `MaxImageSize` — applied by **every** reader (PDF, DOCX/XLSX, PPTX, HWP)
+    through one `ImageExtractionPolicy`: off drops images and image hints; an image above the limit is dropped
+    and named in `RawContent.Warnings`.
+  - `DocumentParsingOptions.ExtractMetadata` — false yields empty parse metadata (counts, title, language).
+  - `ImageToTextOptions.ExtractMetadata` — false leaves the OCR/caption result's `Metadata` empty (both providers).
+  - `MetadataEnrichmentOptions.MaxTokens` — bounds the content sampled into the enrichment prompt (~4 chars/token);
+    null keeps the strategy default.
+  - `LlmRefineOptions.PreserveFormatting` — a formatting rule in the noise, OCR and restructuring prompts (the OCR
+    prompt's fixed "preserve intentional formatting" line is now this rule; the other two gained it).
+  The roster now carries a verdict for each of the remaining 52 (37 with no implementation, 8 driven by another
+  type's member, 1 same-class duplicate, 6 more literals to wire next).
+
 ## [0.24.1] - 2026-09-22
 
 ### Changed

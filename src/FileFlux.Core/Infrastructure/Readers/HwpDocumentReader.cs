@@ -160,7 +160,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
         try
         {
-            return await Task.Run(() => ExtractHwpContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractHwpContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UnhwpException ex)
         {
@@ -185,7 +185,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             var bytes = memoryStream.ToArray();
 
-            return await Task.Run(() => ExtractHwpContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractHwpContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UnhwpException ex)
         {

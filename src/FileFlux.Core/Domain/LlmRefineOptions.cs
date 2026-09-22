@@ -37,8 +37,9 @@ public class LlmRefineOptions
     public bool MergeDuplicates { get; set; } = true;
 
     /// <summary>
-    /// Preserve original formatting where possible.
-    /// Default: true
+    /// Preserve original formatting where possible (default: true). Becomes a rule in the noise-removal, OCR-correction
+    /// and restructuring prompts: keep line breaks, spacing and markdown markers exactly — or, when false, allow them to
+    /// be normalized for readability. Before 0.24.2 this member was read by nothing.
     /// </summary>
     public bool PreserveFormatting { get; set; } = true;
 

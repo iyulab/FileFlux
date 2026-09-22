@@ -87,7 +87,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.RemoveNoise)
             {
-                var (text, improved, tokens) = await RemoveNoiseAsync(refinedText, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RemoveNoiseAsync(refinedText, options.PreserveFormatting, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -99,7 +99,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.CorrectOcrErrors)
             {
-                var (text, improved, tokens) = await CorrectOcrErrorsAsync(refinedText, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await CorrectOcrErrorsAsync(refinedText, options.PreserveFormatting, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -111,7 +111,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.RestructureSections)
             {
-                var (text, improved, tokens) = await RestructureSectionsAsync(refinedText, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RestructureSectionsAsync(refinedText, options.PreserveFormatting, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -241,7 +241,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Remove noise content (ads, legal notices, irrelevant content).
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RemoveNoiseAsync(
-        string text, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -265,6 +265,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Keep document structure (headings, lists)
             - Do not summarize or rephrase content
             - Only remove clearly irrelevant sections
+            {FormattingRule(preserveFormatting)}
 
             Text:
             {text}
@@ -289,7 +290,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Correct OCR errors in scanned documents.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> CorrectOcrErrorsAsync(
-        string text, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -311,7 +312,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             Rules:
             - Fix obvious OCR errors based on context
-            - Preserve intentional formatting
+            {FormattingRule(preserveFormatting)}
             - Do not change the meaning of content
             - Keep technical terms and proper nouns as-is unless clearly wrong
 
@@ -338,7 +339,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Restructure document sections for better organization.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RestructureSectionsAsync(
-        string text, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
@@ -361,6 +362,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Only adjust markdown heading markers (#, ##, etc.)
             - Keep the same number of sections
             - Do not merge or remove sections
+            {FormattingRule(preserveFormatting)}
 
             Text:
             {text}
@@ -435,6 +437,15 @@ public sealed partial class LlmRefiner : ILlmRefiner
         // Check for lines ending without punctuation followed by lowercase letter
         return BrokenSentenceRegex().IsMatch(text);
     }
+
+    /// <summary>
+    /// The prompt rule <see cref="LlmRefineOptions.PreserveFormatting"/> stands for. Before 0.24.2 the option was
+    /// declared and read by nothing: the OCR prompt always said "preserve intentional formatting" and the other two
+    /// said nothing about it.
+    /// </summary>
+    internal static string FormattingRule(bool preserveFormatting) => preserveFormatting
+        ? "- Preserve the original formatting exactly (line breaks, spacing, markdown markers)"
+        : "- Formatting (line breaks, spacing) may be normalized where it improves readability";
 
     private static bool HasPotentialOcrErrors(string text)
     {

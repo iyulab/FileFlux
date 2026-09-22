@@ -266,8 +266,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
             var loader = UndocNativeLoader.Instance;
             await loader.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
 
-            return await Task.Run(() => ExtractOfficeContent(filePath, loader, cancellationToken), cancellationToken)
-                .ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractOfficeContent(filePath, loader, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -293,8 +292,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             var data = memoryStream.ToArray();
 
-            return await Task.Run(() => ExtractOfficeContentFromBytes(data, fileName, loader, cancellationToken), cancellationToken)
-                .ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractOfficeContentFromBytes(data, fileName, loader, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {

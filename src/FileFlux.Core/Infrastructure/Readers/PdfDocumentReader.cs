@@ -279,7 +279,7 @@ public partial class PdfDocumentReader : IDocumentReader
 
         try
         {
-            return await Task.Run(() => ExtractPdfContent(filePath, options, cancellationToken), cancellationToken).ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractPdfContent(filePath, options, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (PdfPagesExhaustedException ex)
         {
@@ -313,7 +313,7 @@ public partial class PdfDocumentReader : IDocumentReader
                 await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
             }
 
-            var result = await Task.Run(() => ExtractPdfContent(tempPath, options, cancellationToken), cancellationToken).ConfigureAwait(false);
+            var result = ImageExtractionPolicy.Apply(await Task.Run(() => ExtractPdfContent(tempPath, options, cancellationToken), cancellationToken).ConfigureAwait(false), options);
 
             // Update file info to reflect original stream
             result.File = new SourceFileInfo

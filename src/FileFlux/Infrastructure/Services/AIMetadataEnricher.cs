@@ -261,7 +261,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
         CancellationToken cancellationToken)
     {
         // Truncate content based on strategy
-        var truncated = TruncateContent(content, options.ExtractionStrategy);
+        var truncated = TruncateContent(content, options.ExtractionStrategy, options.MaxTokens);
 
         // Build prompt
         var systemPrompt = options.CustomPrompt ?? GetSchemaPrompt(schema);
@@ -284,15 +284,24 @@ public partial class AIMetadataEnricher : IMetadataEnricher
     /// <summary>
     /// Truncate content based on extraction strategy.
     /// </summary>
-    private static string TruncateContent(string content, MetadataExtractionStrategy strategy)
+    /// <remarks>
+    /// <see cref="MetadataEnrichmentOptions.MaxTokens"/>, when set, is the budget; it is converted to characters
+    /// at <see cref="CharsPerToken"/> (a rough average for mixed prose - this is a sampling bound, not a tokenizer).
+    /// Left null, the strategy's default applies. Before 0.24.2 the option was declared and read by nothing.
+    /// </remarks>
+    internal const int CharsPerToken = 4;
+
+    internal static string TruncateContent(string content, MetadataExtractionStrategy strategy, int? maxTokens)
     {
-        var maxChars = strategy switch
-        {
-            MetadataExtractionStrategy.Fast => 2000,
-            MetadataExtractionStrategy.Smart => 4000,
-            MetadataExtractionStrategy.Deep => 8000,
-            _ => 4000
-        };
+        var maxChars = maxTokens is { } budget && budget > 0
+            ? budget * CharsPerToken
+            : strategy switch
+            {
+                MetadataExtractionStrategy.Fast => 2000,
+                MetadataExtractionStrategy.Smart => 4000,
+                MetadataExtractionStrategy.Deep => 8000,
+                _ => 4000
+            };
 
         if (content.Length <= maxChars)
             return content;

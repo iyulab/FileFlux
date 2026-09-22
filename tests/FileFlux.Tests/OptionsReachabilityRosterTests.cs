@@ -32,60 +32,95 @@ public class OptionsReachabilityRosterTests
     /// </summary>
     private static readonly Dictionary<string, string[]> KnownUnread = new()
     {
+        // Verdicts (run 58 cycle-920, FileFlux draft 20260920-143000): A = no implementation anywhere,
+        // B = the feature is driven by another type's member, C = a same-class duplicate, D = a hard-coded literal
+        // sits where the option should be read. Six D entries were wired in 0.24.2 and left this list.
+        // ChunkingOptions: DeduplicateOverlaps B (RefiningOptions.TextRefinementPreset -> FluxCurator RemoveDuplicateLines) ·
+        // MaxHeaderParagraphLength A · MaxHeaderParagraphs A · MaxHeadingLevel A (FluxCurator has no heading knob;
+        // MarkdownConversionOptions.MaxHeadingLevel is a different concept) · RecognizeKoreanSectionMarkers B (LanguageCode) ·
+        // SeparateDocumentHeader A · StrategyOptions A (CustomProperties is the working bag).
         ["FileFlux.Core.ChunkingOptions"] =
         [
             "DeduplicateOverlaps", "MaxHeaderParagraphLength", "MaxHeaderParagraphs", "MaxHeadingLevel",
             "RecognizeKoreanSectionMarkers", "SeparateDocumentHeader", "StrategyOptions",
         ],
+        // ExtractOptions: CustomOptions A · DetectBlockTypes A (RawContent.Blocks never populated) · ExtractTables A
+        // (RawContent.Tables never populated) · MinTableConfidence A · PageRange D (PdfDocumentReader ExtractPerPage
+        // all-pages loop + whole-document fast path — next) · PreserveCoordinates A. ExtractImages/MaxImageSize wired
+        // in 0.24.2 (ImageExtractionPolicy, every reader).
         ["FileFlux.Core.ExtractOptions"] =
         [
-            "CustomOptions", "DetectBlockTypes", "ExtractImages", "ExtractTables", "MaxImageSize",
+            "CustomOptions", "DetectBlockTypes", "ExtractTables",
             "MinTableConfidence", "PageRange", "PreserveCoordinates",
         ],
+        // GraphBuildOptions.IncludeReferenceEdges A (four gated edge builders, none for Reference).
         ["FileFlux.Core.GraphBuildOptions"] = ["IncludeReferenceEdges"],
+        // HierarchicalEnrichmentOptions: EnrichParentsFirst D (OrderForHierarchicalEnrichment orders parents first
+        // unconditionally — but the method has no callers) · MaxDepth A · PropagateParentKeywords A · PropagateParentSummary A.
+        // The type reaches no interface method: type-level dead weight.
         ["FileFlux.Core.HierarchicalEnrichmentOptions"] =
         [
             "EnrichParentsFirst", "MaxDepth", "PropagateParentKeywords", "PropagateParentSummary",
         ],
+        // LateChunkingOptions: all A — ILateChunkingProvider takes ChunkingOptions, this type reaches nothing
+        // (OverlapSize/PreserveSectionHeaders/RespectParagraph|SentenceBoundaries have live twins on ChunkingOptions).
         ["FileFlux.Core.LateChunkingOptions"] =
         [
             "MaxBoundarySize", "MinBoundarySize", "OverlapSize", "PreserveSectionHeaders",
             "RespectParagraphBoundaries", "RespectSentenceBoundaries",
         ],
+        // LlmRefineOptions: CustomInstructions A · DocumentType A · TargetLanguage A · VerboseLogging A (ILogger level is
+        // the gate) · MaxTokens D / Temperature D (OpenAICompatibleDocumentAnalysisService `maxTokens: 1000`,
+        // `temperature: 0.7f`; needs an IDocumentAnalysisService overload — next). PreserveFormatting wired in 0.24.2.
         ["FileFlux.Core.LlmRefineOptions"] =
         [
-            "CustomInstructions", "DocumentType", "MaxTokens", "PreserveFormatting", "TargetLanguage",
+            "CustomInstructions", "DocumentType", "MaxTokens", "TargetLanguage",
             "Temperature", "VerboseLogging",
         ],
+        // MetadataEnrichmentOptions.EnableAdaptiveSampling A. MaxTokens wired in 0.24.2 (TruncateContent budget).
         ["FileFlux.Core.MetadataEnrichmentOptions"] =
         [
-            "EnableAdaptiveSampling", "MaxTokens",
+            "EnableAdaptiveSampling",
         ],
+        // ParsingOptions: Extra A · LlmModel B (ctor model of OpenAICompatibleDocumentAnalysisService) ·
+        // MaxTokens D / Temperature D (same literals, two hops via DocumentParsingOptions — next).
         ["FileFlux.Core.ParsingOptions"] =
         [
             "Extra", "LlmModel", "MaxTokens", "Temperature",
         ],
+        // RefineOptions: LlmModel A · MaxLlmTokens A (DocumentRefiner never calls an LLM) · ProcessImages B
+        // (RefiningOptions.ProcessImagesToText).
         ["FileFlux.Core.RefineOptions"] =
         [
             "LlmModel", "MaxLlmTokens", "ProcessImages",
         ],
+        // RefiningOptions: UseAIForDescriptions C (duplicate of ProcessImagesToText, which is read) ·
+        // UseAIForOCRCorrection B (LlmRefineOptions.CorrectOcrErrors).
         ["FileFlux.Core.RefiningOptions"] =
         [
             "UseAIForDescriptions", "UseAIForOCRCorrection",
         ],
+        // DocumentCacheOptions.MinHitRatio A (no hit ratio is computed).
         ["FileFlux.DocumentCacheOptions"] = ["MinHitRatio"],
+        // DocumentParsingOptions: CustomSettings A · DocumentTypeHint B (InferType always) · Language B (LanguageDetector
+        // always) · StructuringLevel A (one prompt for every level). ExtractMetadata wired in 0.24.2.
         ["FileFlux.DocumentParsingOptions"] =
         [
-            "CustomSettings", "DocumentTypeHint", "ExtractMetadata", "Language", "StructuringLevel",
+            "CustomSettings", "DocumentTypeHint", "Language", "StructuringLevel",
         ],
+        // EmbeddingOptions: all A — IEmbeddingService takes EmbeddingPurpose, this type reaches nothing (type-level dead weight;
+        // Dimensions/Model live on the loaded model and LMSupplyOptions.EmbeddingModel).
         ["FileFlux.EmbeddingOptions"] =
         [
             "Dimensions", "Model", "Normalize", "Pooling",
         ],
+        // ImageToTextOptions: CustomOptions A · Language B (LMSupplyOptions.OcrLanguageHint; output language auto-detected).
+        // ExtractMetadata wired in 0.24.2 (OCR + captioner).
         ["FileFlux.ImageToTextOptions"] =
         [
-            "CustomOptions", "ExtractMetadata", "Language",
+            "CustomOptions", "Language",
         ],
+        // LMSupplyOptions.AutoSelectMultilingualModel A (read only inside GetEmbeddingModelForLanguage, which has no callers).
         ["FileFlux.Providers.LMSupply.LMSupplyOptions"] = ["AutoSelectMultilingualModel"],
     };
 

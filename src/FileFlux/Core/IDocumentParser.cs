@@ -60,7 +60,8 @@ public class DocumentParsingOptions
     public StructuringLevel StructuringLevel { get; set; } = StructuringLevel.Medium;
 
     /// <summary>
-    /// 메타데이터 추출 여부
+    /// 메타데이터 추출 여부 (기본값: true). false 면 파싱 결과의 <c>Metadata</c> 가 비어 있다(단어·페이지 수, 제목,
+    /// 언어 없음); 본문·섹션·키워드는 그대로다. 0.24.2 이전에는 읽는 코드가 없어 항상 추출됐다.
     /// </summary>
     public bool ExtractMetadata { get; set; } = true;
 

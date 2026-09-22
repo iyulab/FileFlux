@@ -87,11 +87,13 @@ public sealed class LMSupplyCaptionerService : IImageToTextService, IAsyncDispos
                 DetectedLanguage = "en",
                 ImageType = options?.ImageTypeHint ?? "photo",
                 StructuralElements = [],
-                Metadata = new ImageMetadata
-                {
-                    FileSize = imageData.Length,
-                    Format = DetectImageFormat(imageData)
-                },
+                Metadata = options?.ExtractMetadata == false
+                    ? new ImageMetadata()
+                    : new ImageMetadata
+                    {
+                        FileSize = imageData.Length,
+                        Format = DetectImageFormat(imageData)
+                    },
                 ProcessingTimeMs = stopwatch.ElapsedMilliseconds
             };
         }
@@ -175,11 +177,13 @@ public sealed class LMSupplyCaptionerService : IImageToTextService, IAsyncDispos
                 DetectedLanguage = "en",
                 ImageType = options?.ImageTypeHint ?? "photo",
                 StructuralElements = [],
-                Metadata = new ImageMetadata
-                {
-                    FileSize = fileInfo.Exists ? fileInfo.Length : 0,
-                    Format = Path.GetExtension(imagePath).TrimStart('.').ToUpperInvariant()
-                },
+                Metadata = options?.ExtractMetadata == false
+                    ? new ImageMetadata()
+                    : new ImageMetadata
+                    {
+                        FileSize = fileInfo.Exists ? fileInfo.Length : 0,
+                        Format = Path.GetExtension(imagePath).TrimStart('.').ToUpperInvariant()
+                    },
                 ProcessingTimeMs = stopwatch.ElapsedMilliseconds
             };
         }

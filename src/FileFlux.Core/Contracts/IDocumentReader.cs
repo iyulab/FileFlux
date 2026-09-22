@@ -68,6 +68,8 @@ public class ExtractOptions
     /// <summary>
     /// Whether to extract images from document.
     /// </summary>
+    /// <remarks>Applied by every reader (PDF, DOCX/XLSX, PPTX, HWP) through <c>ImageExtractionPolicy</c>: when false
+    /// the result carries no images and no image hints. Before 0.24.2 no reader read this member.</remarks>
     public bool ExtractImages { get; set; } = true;
 
     /// <summary>
@@ -88,6 +90,8 @@ public class ExtractOptions
     /// <summary>
     /// Maximum image size in bytes (null for no limit).
     /// </summary>
+    /// <remarks>An image whose data is larger is dropped from the result and named in <c>RawContent.Warnings</c>
+    /// (every reader, same rule). Before 0.24.2 no reader read this member.</remarks>
     public int? MaxImageSize { get; set; }
 
     /// <summary>

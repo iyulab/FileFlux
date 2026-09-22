@@ -228,11 +228,14 @@ public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable
             DetectedLanguage = LanguageDetector.Detect(ocrResult.FullText).Language,
             ImageType = options?.ImageTypeHint ?? "document",
             StructuralElements = structuralElements,
-            Metadata = new ImageMetadata
-            {
-                FileSize = fileSize,
-                Format = format ?? "UNKNOWN"
-            },
+            // ImageToTextOptions.ExtractMetadata = false leaves the metadata empty (it was built unconditionally before 0.24.2).
+            Metadata = options?.ExtractMetadata == false
+                ? new ImageMetadata()
+                : new ImageMetadata
+                {
+                    FileSize = fileSize,
+                    Format = format ?? "UNKNOWN"
+                },
             ProcessingTimeMs = processingTimeMs
         };
     }

@@ -176,7 +176,7 @@ public class PowerPointDocumentReader : IDocumentReader
 
         try
         {
-            return await Task.Run(() => ExtractPowerPointContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractPowerPointContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UndocException ex)
         {
@@ -212,7 +212,7 @@ public class PowerPointDocumentReader : IDocumentReader
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             bytes = memoryStream.ToArray();
 
-            return await Task.Run(() => ExtractPowerPointContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractPowerPointContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UndocException ex)
         {

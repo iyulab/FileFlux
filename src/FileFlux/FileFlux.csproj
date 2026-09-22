@@ -44,4 +44,8 @@
   <ItemGroup Label="Core">
     <ProjectReference Include="..\FileFlux.Core\FileFlux.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FileFlux.Tests" />
+  </ItemGroup>
+
 </Project>
