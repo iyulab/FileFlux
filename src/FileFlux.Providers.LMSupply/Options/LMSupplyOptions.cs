@@ -74,10 +74,12 @@ public class LMSupplyOptions
     public string OcrLanguageHint { get; set; } = "en";
 
     /// <summary>
-    /// Gets or sets the maximum sequence length for embeddings.
-    /// Default: 512
+    /// Gets or sets the maximum sequence length for embeddings. <see langword="null"/> (the default)
+    /// lets the model decide: what it declares in <c>sentence_bert_config.json</c>, then LMSupply's
+    /// catalog entry, then 512. A value is used as given. This used to default to 512, which silently
+    /// truncated models declaring a longer length (nomic-embed-text: 8192) to 512.
     /// </summary>
-    public int MaxSequenceLength { get; set; } = 512;
+    public int? MaxSequenceLength { get; set; }
 
     /// <summary>
     /// Gets or sets the maximum tokens for text generation.

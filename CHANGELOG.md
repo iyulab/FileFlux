@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-09-22
+
+### Changed
+- **Breaking: `LMSupplyOptions.MaxSequenceLength` is `int?` and defaults to `null` ("the model decides").** It used to
+  default to 512 and pass that as an explicit value, so a model declaring a longer length (nomic-embed-text-v1.5: 8192)
+  was silently truncated to 512 on every embedding; with `null`, LMSupply 0.71.0 uses the model's own declaration, then
+  its catalog entry, then 512. Assignments compile unchanged; code that reads the property as a non-nullable value
+  handles `null`. Vectors embedded from inputs longer than 512 tokens under the old default differ from those embedded now —
+  LMSupply's `IEmbeddingModel.VectorSpaceRevision` tells a store when re-embedding is due.
+- Re-pinned `LMSupply.Captioner`, `LMSupply.Core`, `LMSupply.Embedder`, `LMSupply.Generator`, `LMSupply.Ocr` 0.70.0 -> 0.71.0
+  (the release whose `null` sequence-length default the change above relies on).
+
 ## [0.23.20] - 2026-09-21
 
 ### Changed
