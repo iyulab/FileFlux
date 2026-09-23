@@ -467,7 +467,6 @@ graph TB
 - **Strategy**: Chunking strategy name ("Auto", "Smart", "Intelligent", etc.)
 - **MaxChunkSize**: Maximum chunk size (default: 1024 tokens)
 - **OverlapSize**: Overlap size between chunks (default: 128 tokens)
-- **PreserveStructure**: Whether to preserve document structure
 - **CustomProperties**: Extensible configuration dictionary for features like metadata enrichment
 
 **Metadata Enrichment Configuration**:
@@ -475,7 +474,7 @@ graph TB
 var options = new ChunkingOptions
 {
     Strategy = "Auto",
-    CustomProperties = new Dictionary<string, object>
+    CustomProperties =
     {
         ["enableMetadataEnrichment"] = true,
         ["metadataSchema"] = MetadataSchema.General,

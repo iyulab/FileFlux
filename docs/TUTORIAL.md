@@ -129,8 +129,7 @@ var options = new ChunkingOptions
 {
     Strategy = "Auto",      // Automatic strategy selection (recommended)
     MaxChunkSize = 512,     // Maximum chunk size in tokens
-    OverlapSize = 64,       // Overlap between chunks
-    PreserveStructure = true // Maintain document structure
+    OverlapSize = 64        // Overlap between chunks
 };
 
 var chunks = await processor.ProcessAsync("document.pdf", options);
@@ -385,8 +384,7 @@ Paragraph-level segmentation:
 ```csharp
 var options = new ChunkingOptions
 {
-    Strategy = "Paragraph",
-    PreserveStructure = true
+    Strategy = "Paragraph"
 };
 ```
 
@@ -419,7 +417,7 @@ var options = new ChunkingOptions
 {
     Strategy = "Auto",
     MaxChunkSize = 512,
-    CustomProperties = new Dictionary<string, object>
+    CustomProperties =
     {
         ["enableMetadataEnrichment"] = true,
         ["metadataSchema"] = MetadataSchema.General,
@@ -460,7 +458,7 @@ foreach (var chunk in chunks)
 ```csharp
 var options = new ChunkingOptions
 {
-    CustomProperties = new Dictionary<string, object>
+    CustomProperties =
     {
         ["enableMetadataEnrichment"] = true,
         ["metadataSchema"] = MetadataSchema.General
@@ -474,7 +472,7 @@ var options = new ChunkingOptions
 ```csharp
 var options = new ChunkingOptions
 {
-    CustomProperties = new Dictionary<string, object>
+    CustomProperties =
     {
         ["enableMetadataEnrichment"] = true,
         ["metadataSchema"] = MetadataSchema.ProductManual
@@ -488,7 +486,7 @@ var options = new ChunkingOptions
 ```csharp
 var options = new ChunkingOptions
 {
-    CustomProperties = new Dictionary<string, object>
+    CustomProperties =
     {
         ["enableMetadataEnrichment"] = true,
         ["metadataSchema"] = MetadataSchema.TechnicalDoc
@@ -686,8 +684,7 @@ public class RagService
         {
             Strategy = "Auto",
             MaxChunkSize = 512,
-            OverlapSize = 64,
-            PreserveStructure = true
+            OverlapSize = 64
         };
 
         await foreach (var result in _processor.ProcessStreamAsync(filePath, options))

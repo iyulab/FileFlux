@@ -176,7 +176,7 @@ var options = new ChunkingOptions
 {
     Strategy = "Auto",
     MaxChunkSize = 512,
-    CustomProperties = new Dictionary<string, object>
+    CustomProperties =
     {
         ["enableMetadataEnrichment"] = true,
         ["metadataSchema"] = MetadataSchema.General
@@ -403,19 +403,18 @@ services.AddFileFlux();
 Evaluate and optimize chunking quality for RAG systems:
 
 ```csharp
-var analyzer = serviceProvider.GetRequiredService<IDocumentQualityAnalyzer>();
+using FileFlux.Infrastructure.Quality;
 
-// Analyze document quality
-var report = await analyzer.AnalyzeQualityAsync("document.pdf");
-Console.WriteLine($"Quality Score: {report.OverallQualityScore:P2}");
+// Score the chunks a processing run produced
+var chunks = await processor.ProcessAsync("document.pdf", options);
+var metrics = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
 
-// Generate Q&A benchmark for RAG testing
-var benchmark = await analyzer.GenerateQABenchmarkAsync("document.pdf", questionCount: 20);
-
-// Compare different chunking strategies
-var strategies = new[] { "Intelligent", "Semantic", "Smart" };
-var comparison = await analyzer.BenchmarkChunkingAsync("document.pdf", strategies);
+Console.WriteLine($"Completeness: {metrics.AverageCompleteness:P0}");
+Console.WriteLine($"Boundaries:   {metrics.BoundaryQuality:P0}");
+Console.WriteLine($"Size spread:  {metrics.SizeDistribution:P0}");
 ```
+
+To compare strategies, run `ProcessAsync` once per `ChunkingOptions.Strategy` and compare the metrics.
 
 📖 See [Architecture](docs/ARCHITECTURE.md) for quality analysis details.
 
