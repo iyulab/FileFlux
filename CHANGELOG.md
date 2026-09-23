@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it were whole and a refiner could adopt it. **Breaking** for callers of the LMSupply provider that relied on getting
   the partial text: catch the exception, or raise `GenerationSettings.MaxTokens`. The other calls of the service
   (analysis, summaries, keywords) are unchanged.
+- Re-pinned sibling package(s) `FluxImprover` 0.12.20 -> 0.13.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
 
 ### Dependencies
 - `LMSupply.*` 0.72.1 -> 0.73.0.
