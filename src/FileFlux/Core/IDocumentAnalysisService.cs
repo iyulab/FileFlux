@@ -119,30 +119,22 @@ public sealed record GenerationSettings(double? Temperature = null, int? MaxToke
 /// <remarks>
 /// Only an implementation that can observe the completion reason can throw it. The OpenAI-compatible service this
 /// library ships does (<c>finish_reason = "length"</c>); the LMSupply service cannot observe the reason and returns the
-/// text as generated.
+/// text as generated. It derives from <see cref="Flux.Abstractions.TextCompletionTruncatedException"/>, which services
+/// on the shared completion port throw for the same condition — catch the base type to cover both.
 /// </remarks>
-public sealed class GenerationTruncatedException : Exception
+public sealed class GenerationTruncatedException : Flux.Abstractions.TextCompletionTruncatedException
 {
-    private const string DefaultMessage = "The model stopped at the output token limit; the response is truncated.";
-
     /// <summary>Creates the exception with the default message.</summary>
-    public GenerationTruncatedException() : base(DefaultMessage) { }
+    public GenerationTruncatedException() { }
 
     /// <summary>Creates the exception with a message.</summary>
-    public GenerationTruncatedException(string? message) : base(message ?? DefaultMessage) { }
+    public GenerationTruncatedException(string? message) : base(message) { }
 
     /// <summary>Creates the exception with a message and an inner exception.</summary>
-    public GenerationTruncatedException(string? message, Exception? innerException) : base(message ?? DefaultMessage, innerException) { }
+    public GenerationTruncatedException(string? message, Exception? innerException) : base(message, innerException) { }
 
     /// <summary>Creates the exception for a call that asked for <paramref name="maxTokens"/> output tokens.</summary>
-    public GenerationTruncatedException(int maxTokens)
-        : base($"The model stopped at the output token limit ({maxTokens} tokens); the response is truncated.")
-    {
-        MaxTokens = maxTokens;
-    }
-
-    /// <summary>The output token limit the call ran into, when known.</summary>
-    public int? MaxTokens { get; }
+    public GenerationTruncatedException(int maxTokens) : base(maxTokens) { }
 }
 
 /// <summary>

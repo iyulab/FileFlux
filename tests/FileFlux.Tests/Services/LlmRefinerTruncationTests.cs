@@ -125,6 +125,31 @@ public sealed class LlmRefinerTruncationTests : IDisposable
         result.Info.Warnings.Should().ContainSingle().Which.Should().StartWith($"{pass}:").And.Contain("truncated");
     }
 
+    /// <summary>
+    /// A service that sits on the shared completion port (an adapter over <c>Flux.Abstractions.ITextCompletionService</c>)
+    /// reports truncation with the port's exception; the refiner must treat it the same as its own.
+    /// </summary>
+    [Fact]
+    public async Task A_truncation_reported_by_the_shared_completion_port_is_not_adopted()
+    {
+        var document = RefinableText();
+        var service = new ScriptedService(_ => throw new Flux.Abstractions.TextCompletionTruncatedException(100));
+
+        var result = await new LlmRefiner(service).RefineAsync(new RefinedContent { Text = document }, NoiseOnly, TestContext.Current.CancellationToken);
+
+        result.Text.Should().Be(document.Trim());
+        result.Info.Warnings.Should().ContainSingle().Which.Should().StartWith("RemoveNoise:").And.Contain("truncated at the output token limit");
+    }
+
+    [Fact]
+    public void GenerationTruncatedException_is_the_shared_port_exception()
+    {
+        Exception ex = new GenerationTruncatedException(42);
+
+        ex.Should().BeAssignableTo<Flux.Abstractions.TextCompletionTruncatedException>()
+            .Which.MaxTokens.Should().Be(42);
+    }
+
     [Fact]
     public async Task A_pass_that_does_not_fit_the_declared_context_is_not_sent()
     {

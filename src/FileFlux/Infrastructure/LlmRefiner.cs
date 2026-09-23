@@ -566,7 +566,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// <summary>Prompt size for the context check: three characters per token.</summary>
     private static int PromptTokens(string prompt) => prompt.Length / 3;
 
-    private static string SkipNote(string pass, Exception ex) => ex is GenerationTruncatedException
+    private static string SkipNote(string pass, Exception ex) => ex is Flux.Abstractions.TextCompletionTruncatedException
         ? $"{pass}: the response was truncated at the output token limit; the pass was not applied"
         : $"{pass}: {ex.Message}";
 

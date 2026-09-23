@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-09-23
+
+### Changed
+- **`GenerationTruncatedException` derives from `Flux.Abstractions.TextCompletionTruncatedException`** (Flux.Abstractions
+  0.26.0), the exception services on the shared completion port throw when the model stopped at the output token limit.
+  One `catch (TextCompletionTruncatedException)` now covers both; `MaxTokens` is inherited. Existing `catch
+  (GenerationTruncatedException)` code keeps working.
+
+### Fixed
+- **LLM refinement also refuses a truncation reported by the shared completion port.** `LlmRefiner` recognised only its
+  own `GenerationTruncatedException`; a service built on `ITextCompletionService` that reported truncation with the
+  port's exception was skipped with a generic warning instead of the truncation note. It now matches the base type.
+
+### Dependencies
+- `Flux.Abstractions` 0.25.0 -> 0.26.0.
+
 ## [0.26.1] - 2026-09-23
 
 ### Changed
