@@ -135,6 +135,9 @@ public sealed class GenerationTruncatedException : Flux.Abstractions.TextComplet
 
     /// <summary>Creates the exception for a call that asked for <paramref name="maxTokens"/> output tokens.</summary>
     public GenerationTruncatedException(int maxTokens) : base(maxTokens) { }
+
+    /// <summary>Creates the exception for a call that asked for <paramref name="maxTokens"/> output tokens, wrapping the error that reported it.</summary>
+    public GenerationTruncatedException(int maxTokens, Exception? innerException) : base(maxTokens, innerException) { }
 }
 
 /// <summary>
