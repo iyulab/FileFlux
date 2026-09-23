@@ -102,10 +102,12 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
             Temperature = (float)(settings.Temperature ?? 0.7)
         };
 
-        // TODO(upstream: claudedocs/lm-supply/issues/ISSUE-lm-supply-20260923-030000-complete-generation-hides-finish-reason.md)
-        // GenerateCompleteAsync returns only the text, so a response cut off at MaxTokens cannot be told apart and
-        // GenerationTruncatedException is not thrown here. LlmRefiner's text-sized budget and context check still apply.
-        return await _model.GenerateCompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false);
+        // A cut-off answer is not an answer: callers rewrite whole texts with this and cannot tell a truncated rewrite
+        // from one that removed content — the same rule as the OpenAI-compatible service.
+        var result = await _model.GenerateCompleteResultAsync(prompt, options, cancellationToken).ConfigureAwait(false);
+        if (string.Equals(result.FinishReason, "length", StringComparison.OrdinalIgnoreCase))
+            throw new GenerationTruncatedException(options.MaxTokens);
+        return result.Content;
     }
 
     /// <inheritdoc />

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - unreleased
+
+### Changed
+- **`LMSupplyGeneratorService.GenerateAsync` throws `GenerationTruncatedException` when the local model stopped at
+  `MaxTokens`**, like the OpenAI-compatible service has since 0.26.0. Before, a rewrite cut off mid-text came back as if
+  it were whole and a refiner could adopt it. **Breaking** for callers of the LMSupply provider that relied on getting
+  the partial text: catch the exception, or raise `GenerationSettings.MaxTokens`. The other calls of the service
+  (analysis, summaries, keywords) are unchanged.
+
+### Dependencies
+- `LMSupply.*` 0.72.1 -> 0.73.0.
+
 ## [0.27.1] - 2026-09-23
 
 ### Changed
