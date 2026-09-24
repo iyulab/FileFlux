@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.2] - 2026-09-24
+
+### Changed
+- Re-pinned sibling package(s) `FluxImprover` 0.13.1 -> 0.13.2, `LMSupply.Captioner` 0.74.0 -> 0.75.0, `LMSupply.Core` 0.74.0 -> 0.75.0, `LMSupply.Embedder` 0.74.0 -> 0.75.0, `LMSupply.Generator` 0.74.0 -> 0.75.0, `LMSupply.Ocr` 0.74.0 -> 0.75.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+
+## [0.28.1] - 2026-09-24
+
+### Changed
+- Re-pinned sibling package(s) `FluxImprover` 0.13.0 -> 0.13.1, `LMSupply.Captioner` 0.73.0 -> 0.74.0, `LMSupply.Core` 0.73.0 -> 0.74.0, `LMSupply.Embedder` 0.73.0 -> 0.74.0, `LMSupply.Generator` 0.73.0 -> 0.74.0, `LMSupply.Ocr` 0.73.0 -> 0.74.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+
 ## [0.28.0] - 2026-09-23
 
 ### Changed
@@ -19,16 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 - `LMSupply.*` 0.72.1 -> 0.73.0.
-
-## [0.28.2] - 2026-09-24
-
-### Changed
-- Re-pinned sibling package(s) `FluxImprover` 0.13.1 -> 0.13.2, `LMSupply.Captioner` 0.74.0 -> 0.75.0, `LMSupply.Core` 0.74.0 -> 0.75.0, `LMSupply.Embedder` 0.74.0 -> 0.75.0, `LMSupply.Generator` 0.74.0 -> 0.75.0, `LMSupply.Ocr` 0.74.0 -> 0.75.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
-
-## [0.28.1] - 2026-09-24
-
-### Changed
-- Re-pinned sibling package(s) `FluxImprover` 0.13.0 -> 0.13.1, `LMSupply.Captioner` 0.73.0 -> 0.74.0, `LMSupply.Core` 0.73.0 -> 0.74.0, `LMSupply.Embedder` 0.73.0 -> 0.74.0, `LMSupply.Generator` 0.73.0 -> 0.74.0, `LMSupply.Ocr` 0.73.0 -> 0.74.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
 
 ## [0.27.1] - 2026-09-23
 
