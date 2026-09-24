@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - Unreleased
+
+### Fixed
+- **`FileFlux.Providers.LMSupply` loads a model with its defaults.** The default generator model was an ONNX Runtime
+  GenAI id, which LMSupply loads only with the separate `LMSupply.Generator.Onnx` package registered — this package
+  does not reference it, so `AddLMSupplyDocumentAnalysis()` and `new LMSupplyOptions()` failed on load with
+  `NotSupportedException`. The default is now `"default"`, LMSupply's hardware-aware selection (a GGUF model). The
+  CLI's `LMSUPPLY_MODEL` default follows.
+- **The LMSupply service answers instead of continuing the prompt.** Every call went through the raw completion path,
+  which hands an instruct model the bare prompt; it continued the text and ran to the token limit. Calls now go
+  through the model's chat template as a user turn, with thinking off so a reasoning model does not spend the budget
+  before answering.
+- **FluxImprover's per-call options reach the analysis service.** The adapter that lets FluxImprover (summaries,
+  keywords, contextual text) use an `IDocumentAnalysisService` dropped `CompletionOptions`: every call ran under the
+  service's default token limit and temperature, without its system prompt, so a summary sized for 512 tokens was cut
+  off under a smaller default and reported as truncated. `MaxTokens` and `Temperature` now arrive as
+  `GenerationSettings`, and the system prompt precedes the prompt.
+
+### Changed
+- **Breaking**: `LMSupplyOptions.GeneratorModel` and `AddLMSupplyDocumentAnalysis(modelId)` default to `"default"`
+  instead of `microsoft/Phi-4-mini-instruct-onnx`. To keep an ONNX model, pass its id and add
+  `LMSupply.Generator.Onnx` with `OnnxGeneratorBackend.Register()` at startup.
+
+### Dependencies
+- Parser floors raised to the current releases: `Unpdf` 0.15.0 -> 0.21.0, `Undoc` 0.8.0 -> 0.12.0,
+  `Unhwp` 0.11.0 -> 0.12.0. A consumer following FileFlux no longer resolves months-old parsers.
+
 ## [0.28.2] - 2026-09-24
 
 ### Changed

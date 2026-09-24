@@ -2,20 +2,18 @@ using FileFlux.Core;
 using FileFlux.Providers.LMSupply;
 using FileFlux.Providers.LMSupply.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace FileFlux.Tests.Integration;
 
 /// <summary>
 /// Proves that FileFlux's FluxImprover-backed <see cref="IDocumentEnricher"/> actually runs end to
-/// end against a real local model — the mock-only audit
-/// (<c>claudedocs/issues/closed/ISSUE-umbrella-20260823-233848-lmsupply-mock-only-verification-scope-broadened.md</c>,
-/// HD-21) found FileFlux's own <c>LMSupplyCompletionServiceTests</c>-equivalent coverage was entirely
-/// <c>Substitute.For&lt;IGeneratorModel&gt;()</c>, never a real model.
+/// end against a real local model — the unit coverage of this path substitutes
+/// <c>IGeneratorModel</c> and never runs one.
 /// </summary>
 /// <remarks>
-/// Uses <see cref="LMSupplyGeneratorService"/> (from the <c>FileFlux.Providers.LMSupply</c> package,
-/// as of ISSUE-FileFlux-20260824-000000 no longer trapped inside FileFlux.CLI) as the
+/// Uses <see cref="LMSupplyGeneratorService"/> (from the <c>FileFlux.Providers.LMSupply</c> package) as the
 /// <see cref="IDocumentAnalysisService"/>, wired through <c>ServiceCollectionExtensions.AddFileFlux(
 /// IServiceCollection, IDocumentAnalysisService, ServiceLifetime)</c> — the same public composition
 /// path a consumer would use, not FileFlux's internal <c>FluxImproverTextCompletionAdapter</c>
@@ -27,13 +25,12 @@ public sealed class LMSupplyFluxImproverWiringTests
     [Fact]
     public async Task DocumentEnricher_RealLocalModel_ProducesSummaryAndKeywords()
     {
-        // MaxGenerationTokens trimmed from the 1024 default — this test only needs to prove the
-        // pipeline runs end to end, not produce a long summary, and the default made this test take
-        // 10+ minutes of CPU-bound ONNX Runtime GenAI inference per run.
-        await using var analysisService = await LMSupplyGeneratorService.CreateAsync(new LMSupplyOptions { MaxGenerationTokens = 64 }, cancellationToken: TestContext.Current.CancellationToken);
+        // The package defaults: the model LMSupply picks for this host, and FluxImprover's own per-call
+        // token limits (they reach the service through the adapter).
+        await using var analysisService = await LMSupplyGeneratorService.CreateAsync(new LMSupplyOptions(), cancellationToken: TestContext.Current.CancellationToken);
 
         var services = new ServiceCollection();
-        services.AddLogging();
+        services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Debug));
         services.AddFileFlux(analysisService, ServiceLifetime.Singleton);
 
         await using var provider = services.BuildServiceProvider();

@@ -20,7 +20,7 @@ public sealed class LMSupplyGeneratorServiceTruncationTests
     {
         var model = Substitute.For<IGeneratorModel>();
         model.ModelId.Returns("test-model");
-        model.GenerateCompleteResultAsync(Arg.Any<string>(), Arg.Any<GenerationOptions>(), Arg.Any<CancellationToken>())
+        model.GenerateChatCompleteResultAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<GenerationOptions>(), Arg.Any<CancellationToken>())
             .Returns(new GenerationResult(text, TokenUsage.Empty, finishReason));
         return model;
     }
@@ -45,5 +45,33 @@ public sealed class LMSupplyGeneratorServiceTruncationTests
         var text = await service.GenerateAsync("rewrite this", new GenerationSettings { MaxTokens = 32 }, TestContext.Current.CancellationToken);
 
         text.Should().Be("the whole rewrite");
+    }
+
+    [Fact]
+    public async Task GenerateAsync_SendsThePromptAsAUserTurn_WithThinkingOff()
+    {
+        // The raw completion path gives an instruct model the bare prompt, which it continues instead of answering.
+        var model = Model("an answer", "stop");
+        await using var service = Service(model);
+
+        await service.GenerateAsync("summarize this", new GenerationSettings { MaxTokens = 32 }, TestContext.Current.CancellationToken);
+
+        await model.Received(1).GenerateChatCompleteResultAsync(
+            Arg.Is<IEnumerable<ChatMessage>>(m => m.Single().Role == ChatRole.User && m.Single().Content == "summarize this"),
+            Arg.Is<GenerationOptions>(o => o.Thinking == ThinkingMode.Off && o.MaxTokens == 32),
+            Arg.Any<CancellationToken>());
+        await model.DidNotReceive().GenerateCompleteResultAsync(Arg.Any<string>(), Arg.Any<GenerationOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SummarizeContentAsync_UsesTheChatPath()
+    {
+        var model = Model("a summary", "stop");
+        await using var service = Service(model);
+
+        var summary = await service.SummarizeContentAsync("text to summarize", cancellationToken: TestContext.Current.CancellationToken);
+
+        summary.Summary.Should().Be("a summary");
+        await model.DidNotReceive().GenerateCompleteAsync(Arg.Any<string>(), Arg.Any<GenerationOptions>(), Arg.Any<CancellationToken>());
     }
 }

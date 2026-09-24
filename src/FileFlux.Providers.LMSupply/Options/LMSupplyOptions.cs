@@ -34,9 +34,11 @@ public class LMSupplyOptions
 
     /// <summary>
     /// Gets or sets the text generator model identifier.
-    /// Default: "microsoft/Phi-4-mini-instruct-onnx"
+    /// Default: "default" — LMSupply's hardware-aware selection (a GGUF model run by llama.cpp).
+    /// An ONNX Runtime GenAI model id (e.g. "microsoft/Phi-4-mini-instruct-onnx") also needs the
+    /// LMSupply.Generator.Onnx package, registered with <c>OnnxGeneratorBackend.Register()</c> at startup.
     /// </summary>
-    public string GeneratorModel { get; set; } = "microsoft/Phi-4-mini-instruct-onnx";
+    public string GeneratorModel { get; set; } = "default";
 
     /// <summary>
     /// Gets or sets the captioning model identifier.

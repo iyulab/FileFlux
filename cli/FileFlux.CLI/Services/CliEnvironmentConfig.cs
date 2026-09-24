@@ -44,7 +44,7 @@ public class CliEnvironmentConfig
 
     public bool LMSupplyAutoFallback => GetValue("LMSUPPLY_AUTO_FALLBACK")?.ToLowerInvariant() != "false";
 
-    public string LMSupplyModel => GetValue("LMSUPPLY_MODEL") ?? "microsoft/Phi-4-mini-instruct-onnx";
+    public string LMSupplyModel => GetValue("LMSUPPLY_MODEL") ?? "default";
 
     public bool LMSupplyUseGpu => GetValue("LMSUPPLY_USE_GPU")?.ToLowerInvariant() != "false";
 

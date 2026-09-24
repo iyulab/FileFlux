@@ -1,6 +1,7 @@
 ﻿using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure.Factories;
 using Microsoft.Extensions.Logging;
+using FileFlux.Tests.TestHelpers;
 using Xunit;
 
 namespace FileFlux.Tests.Manual;
@@ -11,7 +12,7 @@ namespace FileFlux.Tests.Manual;
 public class ManualReaderTest
 {
     private readonly ILogger<ManualReaderTest> _logger;
-    private const string TestDataPath = @"D:\data\FileFlux\test";
+    private static readonly string TestDataPath = RepoTestData.Root;
 
     public ManualReaderTest()
     {
@@ -26,8 +27,8 @@ public class ManualReaderTest
     [Fact(Skip = "Manual test - requires external PDF file")]
     public async Task TestPdfTableExtraction_WithExternalFile()
     {
-        // Arrange - Change this path to test with your own PDF files
-        var pdfPath = @"D:\aims-data\매뉴얼\ClusterPlex_v5.0.5.5_p4_Release Note.pdf";
+        // Arrange - point FILEFLUX_MANUAL_PDF at a PDF of your own
+        var pdfPath = Environment.GetEnvironmentVariable("FILEFLUX_MANUAL_PDF") ?? string.Empty;
 
         if (!File.Exists(pdfPath))
         {
@@ -38,7 +39,7 @@ public class ManualReaderTest
         var reader = new PdfDocumentReader();
 
         // Act
-        _logger.LogInformation("🧪 PDF Table Extraction Test: ClusterPlex Release Note");
+        _logger.LogInformation("🧪 PDF Table Extraction Test: {FileName}", Path.GetFileName(pdfPath));
         _logger.LogInformation("==========================================");
 
         var result = await reader.ExtractAsync(pdfPath, null, CancellationToken.None);
@@ -87,7 +88,7 @@ public class ManualReaderTest
             ["Word"] = Path.Combine(TestDataPath, "test-docx", "demo.docx"),
             ["PowerPoint"] = Path.Combine(TestDataPath, "test-pptx", "samplepptx.pptx"),
             ["PDF"] = Path.Combine(TestDataPath, "test-pdf", "oai_gpt-oss_model_card.pdf"),
-            ["Markdown"] = Path.Combine(TestDataPath, "test-markdown", "test.md")
+            ["Markdown"] = Path.Combine(TestDataPath, "test-md", "next-js-installation.md")
         };
 
         _logger.LogInformation("🧪 Manual Reader Test Started");
@@ -95,11 +96,7 @@ public class ManualReaderTest
 
         foreach (var (type, filePath) in testFiles)
         {
-            if (!File.Exists(filePath))
-            {
-                _logger.LogWarning("❌ {Type} file not found: {FilePath}", type, filePath);
-                continue;
-            }
+            Assert.True(File.Exists(filePath), $"Committed test document missing: {filePath}");
 
             var fileName = Path.GetFileName(filePath);
             var reader = factory.GetReader(fileName);

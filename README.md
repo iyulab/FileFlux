@@ -243,12 +243,15 @@ using FileFlux.Providers.LMSupply.Extensions;
 
 var services = new ServiceCollection();
 
-services.AddLMSupplyDocumentAnalysis("microsoft/Phi-4-mini-instruct-onnx");
+services.AddLMSupplyDocumentAnalysis();          // "default": LMSupply picks a GGUF model for this host
 services.AddLMSupplyEmbedding("default");
 services.AddLMSupplyCaptioner();   // or AddLMSupplyOcr() for scanned/text-bearing images
 
 services.AddFileFlux();
 ```
+
+An ONNX Runtime GenAI model id (for example `microsoft/Phi-4-mini-instruct-onnx`) also needs the
+`LMSupply.Generator.Onnx` package, registered with `OnnxGeneratorBackend.Register()` at startup.
 
 `LMSupplyServiceFactory` (also in this package) offers lazy/cached service creation with
 download-progress reporting for interactive apps like the FileFlux CLI, which consumes this

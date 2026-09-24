@@ -3,6 +3,7 @@ using FileFlux.Infrastructure.Factories;
 using FileFlux;
 using FileFlux.Domain;
 using Microsoft.Extensions.Logging;
+using FileFlux.Tests.TestHelpers;
 using Xunit;
 
 namespace FileFlux.Tests.Integration;
@@ -16,7 +17,7 @@ public class DocumentReadersIntegrationTests
 {
     private readonly DocumentReaderFactory _factory;
     private readonly ILogger<DocumentReadersIntegrationTests> _logger;
-    private const string TestDataPath = @"D:\data\FileFlux\tests";
+    private static readonly string TestDataPath = RepoTestData.Root;
 
     public DocumentReadersIntegrationTests()
     {
@@ -49,7 +50,7 @@ public class DocumentReadersIntegrationTests
 
     [Theory]
     [InlineData("demo.docx", "WordReader")]
-    [InlineData("file_example_XLS_100.xls", null)] // XLS not supported, only XLSX
+    [InlineData("file_example_XLS_100.xls", "LegacyExcelReader")]
     [InlineData("samplepptx.pptx", "PowerPointReader")]
     [InlineData("oai_gpt-oss_model_card.pdf", "PdfReader")]
     [InlineData("test.md", "MarkdownReader")]
@@ -78,11 +79,7 @@ public class DocumentReadersIntegrationTests
         // Arrange
         var testFile = Path.Combine(TestDataPath, "test-docx", "demo.docx");
         
-        if (!File.Exists(testFile))
-        {
-            _logger.LogWarning("Test file not found: {TestFile}. Skipping test.", testFile);
-            return;
-        }
+        Assert.True(File.Exists(testFile), $"Committed test document missing: {testFile}");
 
         var reader = _factory.GetReader("demo.docx");
         
@@ -129,11 +126,7 @@ public class DocumentReadersIntegrationTests
         // Arrange
         var testFile = Path.Combine(TestDataPath, "test-pptx", "samplepptx.pptx");
         
-        if (!File.Exists(testFile))
-        {
-            _logger.LogWarning("Test file not found: {TestFile}. Skipping test.", testFile);
-            return;
-        }
+        Assert.True(File.Exists(testFile), $"Committed test document missing: {testFile}");
 
         var reader = _factory.GetReader("samplepptx.pptx");
         
@@ -179,11 +172,7 @@ public class DocumentReadersIntegrationTests
         // Arrange
         var testFile = Path.Combine(TestDataPath, "test-pdf", "oai_gpt-oss_model_card.pdf");
         
-        if (!File.Exists(testFile))
-        {
-            _logger.LogWarning("Test file not found: {TestFile}. Skipping test.", testFile);
-            return;
-        }
+        Assert.True(File.Exists(testFile), $"Committed test document missing: {testFile}");
 
         var reader = _factory.GetReader("oai_gpt-oss_model_card.pdf");
         
@@ -223,11 +212,7 @@ public class DocumentReadersIntegrationTests
         // Arrange
         var testFile = Path.Combine(TestDataPath, "test-md", "next-js-installation.md");
         
-        if (!File.Exists(testFile))
-        {
-            _logger.LogWarning("Test file not found: {TestFile}. Skipping test.", testFile);
-            return;
-        }
+        Assert.True(File.Exists(testFile), $"Committed test document missing: {testFile}");
 
         var reader = _factory.GetReader("test.md");
         
@@ -277,11 +262,7 @@ public class DocumentReadersIntegrationTests
         // Act & Assert
         foreach (var (type, filePath) in testFiles)
         {
-            if (!File.Exists(filePath))
-            {
-                _logger.LogWarning("Test file not found: {FilePath}. Skipping {Type}.", filePath, type);
-                continue;
-            }
+            Assert.True(File.Exists(filePath), $"Committed test document missing: {filePath}");
 
             var fileName = Path.GetFileName(filePath);
             var reader = _factory.GetReader(fileName);

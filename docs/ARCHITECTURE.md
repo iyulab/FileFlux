@@ -513,7 +513,7 @@ var lmSupplyOptions = new LMSupplyOptions
 {
     UseGpuAcceleration = true,
     EmbeddingModel = "default",
-    GeneratorModel = "microsoft/Phi-4-mini-instruct-onnx"
+    GeneratorModel = "default"
 };
 
 // Create and register LMSupply services

@@ -104,7 +104,7 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
 
         // A cut-off answer is not an answer: callers rewrite whole texts with this and cannot tell a truncated rewrite
         // from one that removed content — the same rule as the OpenAI-compatible service.
-        var result = await _model.GenerateCompleteResultAsync(prompt, options, cancellationToken).ConfigureAwait(false);
+        var result = await CompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false);
         if (string.Equals(result.FinishReason, "length", StringComparison.OrdinalIgnoreCase))
             throw new GenerationTruncatedException(options.MaxTokens);
         return result.Content;
@@ -125,7 +125,7 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
             Temperature = 0.3f
         };
 
-        var response = await _model.GenerateCompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false);
+        var response = (await CompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false)).Content;
 
         return new StructureAnalysisResult
         {
@@ -153,7 +153,7 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
             Temperature = 0.5f
         };
 
-        var response = await _model.GenerateCompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false);
+        var response = (await CompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false)).Content;
 
         return new ContentSummary
         {
@@ -180,7 +180,7 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
             Temperature = 0.3f
         };
 
-        var response = await _model.GenerateCompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false);
+        var response = (await CompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false)).Content;
 
         return new MetadataExtractionResult
         {
@@ -211,7 +211,7 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
             Temperature = 0.3f
         };
 
-        var response = await _model.GenerateCompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false);
+        var response = (await CompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false)).Content;
 
         return new QualityAssessment
         {
@@ -234,6 +234,16 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
 
         _disposed = true;
         await _model.DisposeAsync().ConfigureAwait(false);
+    }
+
+    // Every prompt this service receives is an instruction to an instruct model, so it goes through the model's chat
+    // template as a user turn: the raw completion path hands the bare prompt to the model, which continues it instead
+    // of answering and runs to MaxTokens. Thinking is off — these callers need the answer within the budget, and a
+    // reasoning model would spend it on a reasoning block first (empty content, finish=length).
+    private Task<GenerationResult> CompleteAsync(string prompt, GenerationOptions options, CancellationToken cancellationToken)
+    {
+        options.Thinking = ThinkingMode.Off;
+        return _model.GenerateChatCompleteResultAsync([ChatMessage.User(prompt)], options, cancellationToken);
     }
 
     private static int EstimateTokens(string text)

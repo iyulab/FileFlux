@@ -117,9 +117,8 @@ public sealed record GenerationSettings(double? Temperature = null, int? MaxToke
 /// shorter than its input and would otherwise be indistinguishable from an edit that removed content.
 /// </summary>
 /// <remarks>
-/// Only an implementation that can observe the completion reason can throw it. The OpenAI-compatible service this
-/// library ships does (<c>finish_reason = "length"</c>); the LMSupply service cannot observe the reason and returns the
-/// text as generated. It derives from <see cref="Flux.Abstractions.TextCompletionTruncatedException"/>, which services
+/// Only an implementation that can observe the completion reason can throw it. Both services this library ships do:
+/// the OpenAI-compatible one (<c>finish_reason = "length"</c>) and the LMSupply one (the generator's finish reason). It derives from <see cref="Flux.Abstractions.TextCompletionTruncatedException"/>, which services
 /// on the shared completion port throw for the same condition — catch the base type to cover both.
 /// </remarks>
 public sealed class GenerationTruncatedException : Flux.Abstractions.TextCompletionTruncatedException

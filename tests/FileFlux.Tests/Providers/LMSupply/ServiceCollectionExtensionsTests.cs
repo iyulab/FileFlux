@@ -101,4 +101,18 @@ public class ServiceCollectionExtensionsTests
 
         result.Should().BeSameAs(services);
     }
+
+    [Fact]
+    public void DefaultGeneratorModel_IsLMSupplysOwnDefault_InBothEntryPoints()
+    {
+        // The package references LMSupply.Generator only. An ONNX Runtime GenAI default would throw
+        // NotSupportedException on load unless the consumer also added LMSupply.Generator.Onnx and
+        // registered its backend, so a bare registration could never have produced a model.
+        new global::FileFlux.Providers.LMSupply.LMSupplyOptions().GeneratorModel.Should().Be("default");
+
+        var parameter = typeof(global::FileFlux.Providers.LMSupply.Extensions.ServiceCollectionExtensions)
+            .GetMethod(nameof(global::FileFlux.Providers.LMSupply.Extensions.ServiceCollectionExtensions.AddLMSupplyDocumentAnalysis))!
+            .GetParameters().Single(p => p.Name == "modelId");
+        parameter.DefaultValue.Should().Be("default");
+    }
 }

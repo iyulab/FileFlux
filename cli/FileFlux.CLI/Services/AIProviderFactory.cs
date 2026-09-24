@@ -205,7 +205,7 @@ public class AIProviderFactory
             "local" => new ModelInfo
             {
                 Provider = "LMSupply (Local)",
-                TextModel = _config.LMSupplyModel ?? "microsoft/Phi-4-mini-instruct-onnx",
+                TextModel = _config.LMSupplyModel,
                 VisionModel = _enableVision ? "Xenova/vit-gpt2-image-captioning" : null,
                 VisionEnabled = _enableVision,
                 IsLocal = true,

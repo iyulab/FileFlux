@@ -6,19 +6,19 @@ namespace FileFlux.Providers.LMSupply.Extensions;
 
 /// <summary>
 /// Extension methods for registering LMSupply-based AI services with dependency injection.
-/// All services use local ONNX inference — no API key required.
+/// All services run locally through LMSupply — no API key required.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers an <see cref="IDocumentAnalysisService"/> backed by a local LMSupply ONNX generator model.
+    /// Registers an <see cref="IDocumentAnalysisService"/> backed by a local LMSupply generator model.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="modelId">LMSupply generator model ID or alias. Defaults to "microsoft/Phi-4-mini-instruct-onnx".</param>
+    /// <param name="modelId">LMSupply generator model ID or alias. Defaults to "default" (hardware-aware GGUF selection).</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddLMSupplyDocumentAnalysis(
         this IServiceCollection services,
-        string modelId = "microsoft/Phi-4-mini-instruct-onnx")
+        string modelId = "default")
     {
         services.AddSingleton<IDocumentAnalysisService>(sp =>
             LMSupplyGeneratorService.CreateAsync(new LMSupplyOptions { GeneratorModel = modelId })
