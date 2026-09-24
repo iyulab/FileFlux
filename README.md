@@ -356,8 +356,8 @@ FileFlux uses layout-based table detection with confidence scoring:
 
 Structural metadata: every `ProcessAsync`/`ChunkAsync` chunk carries `Location.StartChar/EndChar`
 (offsets into the refined text), `Location.HeadingPath`/`Section` (hierarchical heading context,
-e.g. `Root Title > Sub Section`), and `Props["HierarchyPath"]`. `Location.StartPage/EndPage` are
-currently populated only on the legacy batch path for PDF page ranges.
+e.g. `Root Title > Sub Section`), and `Props["HierarchyPath"]`. `Location.StartPage/EndPage` exist but
+are not populated yet: the page mapping needs page ranges from the reader, and no shipped reader supplies them.
 
 ## AI Service Integration
 
