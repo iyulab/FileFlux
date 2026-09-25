@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of `microsoft/Phi-4-mini-instruct-onnx`. To keep an ONNX model, pass its id and add
   `LMSupply.Generator.Onnx` with `OnnxGeneratorBackend.Register()` at startup.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.75.0 -> 0.76.0, `LMSupply.Core` 0.75.0 -> 0.76.0, `LMSupply.Embedder` 0.75.0 -> 0.76.0, `LMSupply.Generator` 0.75.0 -> 0.76.0, `LMSupply.Ocr` 0.75.0 -> 0.76.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+- Re-pinned sibling package(s) `FluxImprover` 0.13.2 -> 0.13.3 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
 
 ### Dependencies
 - Parser floors raised to the current releases: `Unpdf` 0.15.0 -> 0.21.0, `Undoc` 0.8.0 -> 0.12.0,
