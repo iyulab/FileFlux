@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.29.0] - Unreleased
+## [0.29.0] - 2026-09-25
 
 ### Fixed
 - **`FileFlux.Providers.LMSupply` loads a model with its defaults.** The default generator model was an ONNX Runtime
