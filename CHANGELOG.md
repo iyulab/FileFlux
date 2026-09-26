@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Re-pinned sibling package(s) `LMSupply.*` 0.78.0 -> 0.79.0 (speaker separation in the transcriber).
+- Re-pinned sibling package(s) `FluxImprover` 0.14.2 -> 0.14.3 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`.
 
 ## [0.30.0] - 2026-09-26
 
