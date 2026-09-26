@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.31.0] - Unreleased
+## [0.31.0] - 2026-09-26
 
 ### Added
 - **A recording of several people can read as who said what.** `AddLMSupplyTranscriber(configure: o => o.Diarize = true)` (or the new `LMSupplyTranscriberOptions`) labels each passage with its speaker (`S1: …`), and `NumSpeakers` fixes the count when it is known. Speaker separation downloads two small models on first use and is off by default.
