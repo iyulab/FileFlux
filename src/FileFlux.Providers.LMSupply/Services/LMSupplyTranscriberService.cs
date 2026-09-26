@@ -10,9 +10,7 @@ public sealed class LMSupplyTranscriberService : IAudioToTextService, IAsyncDisp
 {
     private static readonly string[] s_formats = [".wav", ".mp3"];
 
-    private readonly string _modelId;
-    private readonly string? _language;
-    private readonly string? _cacheDirectory;
+    private readonly LMSupplyTranscriberOptions _options;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ITranscriberModel? _model;
 
@@ -21,10 +19,15 @@ public sealed class LMSupplyTranscriberService : IAudioToTextService, IAsyncDisp
     /// <param name="language">Language hint (ISO 639-1); null identifies the language from the audio.</param>
     /// <param name="cacheDirectory">Model cache directory; null uses LMSupply's default.</param>
     public LMSupplyTranscriberService(string modelId = "default", string? language = null, string? cacheDirectory = null)
+        : this(new LMSupplyTranscriberOptions { ModelId = modelId, Language = language, CacheDirectory = cacheDirectory })
     {
-        _modelId = modelId;
-        _language = language;
-        _cacheDirectory = cacheDirectory;
+    }
+
+    /// <summary>Creates the service from options (model, language, cache and speaker separation).</summary>
+    public LMSupplyTranscriberService(LMSupplyTranscriberOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        _options = options;
     }
 
     /// <inheritdoc/>
@@ -37,10 +40,17 @@ public sealed class LMSupplyTranscriberService : IAudioToTextService, IAsyncDisp
     public async Task<AudioTranscript> TranscribeAsync(string audioPath, CancellationToken cancellationToken = default)
     {
         var model = await ModelAsync(cancellationToken).ConfigureAwait(false);
-        var result = await model.TranscribeAsync(audioPath, new TranscribeOptions { Language = _language, WordTimestamps = true }, cancellationToken)
-            .ConfigureAwait(false);
+        var transcribeOptions = new TranscribeOptions
+        {
+            Language = _options.Language,
+            WordTimestamps = true,
+            Diarize = _options.Diarize,
+            NumSpeakers = _options.NumSpeakers,
+            SpeakerThreshold = _options.SpeakerThreshold,
+        };
+        var result = await model.TranscribeAsync(audioPath, transcribeOptions, cancellationToken).ConfigureAwait(false);
         return new AudioTranscript(
-            result.Segments.Select(s => new AudioSegment(TimeSpan.FromSeconds(s.Start), TimeSpan.FromSeconds(s.End), s.Text)).ToList())
+            result.Segments.Select(s => new AudioSegment(TimeSpan.FromSeconds(s.Start), TimeSpan.FromSeconds(s.End), s.Text) { Speaker = s.Speaker }).ToList())
         {
             Language = result.Language,
             Duration = result.DurationSeconds is { } d ? TimeSpan.FromSeconds(d) : null,
@@ -72,7 +82,7 @@ public sealed class LMSupplyTranscriberService : IAudioToTextService, IAsyncDisp
         try
         {
             return _model ??= await LocalTranscriber.LoadAsync(
-                _modelId, new TranscriberOptions { CacheDirectory = _cacheDirectory }, cancellationToken: cancellationToken)
+                _options.ModelId, new TranscriberOptions { CacheDirectory = _options.CacheDirectory }, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
         }
         finally

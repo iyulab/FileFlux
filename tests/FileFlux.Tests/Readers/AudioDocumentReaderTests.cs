@@ -118,4 +118,33 @@ public sealed class AudioDocumentReaderIntegrationTests
         Assert.True(chunks.Max(c => c.Location.EndTime) > TimeSpan.FromSeconds(50));
         Assert.True(chunks.Max(c => c.Location.EndTime) <= TimeSpan.FromSeconds(58));
     }
+    // Diarize on the same four-speaker recording: the document text reads as who said what — every passage opens with
+    // an S<n> label from the transcriber, and NumSpeakers = 4 yields exactly four distinct labels.
+    [Fact]
+    public async Task RealTranscription_WithDiarize_LabelsEachPassageWithItsSpeaker()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var path = Path.Combine(Path.GetTempPath(), "fileflux-fixtures", "0-four-speakers-zh.wav");
+        if (!File.Exists(path))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            using var http = new HttpClient();
+            await File.WriteAllBytesAsync(path, await http.GetByteArrayAsync(RecordingUrl, ct), ct);
+        }
+
+        var services = new ServiceCollection();
+        FileFlux.Providers.LMSupply.Extensions.ServiceCollectionExtensions.AddLMSupplyTranscriber(
+            services, language: "zh", configure: o => { o.Diarize = true; o.NumSpeakers = 4; });
+        services.AddFileFlux();
+        await using var provider = services.BuildServiceProvider();
+
+        using var processor = provider.GetRequiredService<IDocumentProcessorFactory>().Create(path);
+        await processor.ChunkAsync(new ChunkingOptions { MaxChunkSize = 200 }, ct);
+
+        var passages = processor.Result.Refined!.Text.Split("\n\n", StringSplitOptions.RemoveEmptyEntries);
+        Assert.NotEmpty(passages);
+        Assert.All(passages, p => Assert.Matches(@"^S\d+: ", p));
+        var labels = passages.Select(p => p[..p.IndexOf(':')]).Distinct().ToList();
+        Assert.Equal(4, labels.Count);
+    }
 }

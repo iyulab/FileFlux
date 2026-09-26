@@ -248,6 +248,7 @@ services.AddLMSupplyDocumentAnalysis();          // "default": LMSupply picks a 
 services.AddLMSupplyEmbedding("default");
 services.AddLMSupplyCaptioner();   // or AddLMSupplyOcr() for scanned/text-bearing images
 services.AddLMSupplyTranscriber(); // .wav/.mp3 become readable; chunks carry Location.StartTime/EndTime
+// services.AddLMSupplyTranscriber(configure: o => { o.Diarize = true; o.NumSpeakers = 3; }); // label who said what
 
 services.AddFileFlux();
 ```

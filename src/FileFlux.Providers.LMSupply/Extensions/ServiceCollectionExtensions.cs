@@ -89,13 +89,19 @@ public static class ServiceCollectionExtensions
     /// <param name="services">The service collection.</param>
     /// <param name="modelId">Transcriber model id or alias (<c>"default"</c>, <c>"parakeet-tdt"</c>, …).</param>
     /// <param name="language">Language hint (ISO 639-1); null identifies it from the audio.</param>
+    /// <param name="configure">
+    /// Further options — e.g. <see cref="LMSupplyTranscriberOptions.Diarize"/> to label each passage with its speaker.
+    /// </param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddLMSupplyTranscriber(
         this IServiceCollection services,
         string modelId = "default",
-        string? language = null)
+        string? language = null,
+        Action<LMSupplyTranscriberOptions>? configure = null)
     {
-        services.AddSingleton<IAudioToTextService>(_ => new LMSupplyTranscriberService(modelId, language));
+        var options = new LMSupplyTranscriberOptions { ModelId = modelId, Language = language };
+        configure?.Invoke(options);
+        services.AddSingleton<IAudioToTextService>(_ => new LMSupplyTranscriberService(options));
         return services;
     }
 }
