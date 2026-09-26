@@ -152,12 +152,18 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             sw.Stop();
 
+            // Sections carry character offsets; after a rewrite the input's offsets describe a different text.
+            var outputText = refinedText.Trim();
+            var sections = outputText == refined.Text || refined.Sections.Count == 0
+                ? refined.Sections
+                : SectionPathCalculator.BuildSections(outputText);
+
             return new LlmRefinedContent
             {
                 RefinedId = refined.Id,
                 RawId = refined.RawId,
-                Text = refinedText.Trim(),
-                Sections = refined.Sections,
+                Text = outputText,
+                Sections = sections,
                 Structures = refined.Structures,
                 Metadata = refined.Metadata,
                 Quality = quality,

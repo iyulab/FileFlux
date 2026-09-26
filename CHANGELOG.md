@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as cleaned so far — in `DocumentRefiner`, in the stateful processor's built-in refine, and in the legacy
   processor's refine step. **Behaviour change**: chunk text on the default path is cleaner; re-index if you compare
   chunks across versions.
+- **After `LlmRefineAsync`, chunking reads the LLM's text**, as `IDocumentProcessor.ChunkAsync` documents ("uses
+  LlmRefinedContent if available"). Both `ChunkAsync` and `ChunkStreamAsync` read the rule-refined text, so the LLM
+  pass was paid for and discarded. When a rewrite changed the text, sections are rebuilt from it (by `LlmRefiner`, and
+  by the processor when a refiner passes the old sections through), so heading paths match chunk offsets.
+  **Behaviour change** for callers that run the LLM stage: chunks now carry its output.
 
 ## [0.29.2] - 2026-09-26
 

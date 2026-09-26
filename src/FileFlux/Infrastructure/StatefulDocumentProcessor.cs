@@ -437,6 +437,39 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
     #region Stage 3: Chunk
 
+    /// <summary>
+    /// What the chunk stage reads: the LLM-refined content when the LLM stage ran, otherwise the refined content —
+    /// the contract of <see cref="IDocumentProcessor.ChunkAsync"/>. When an LLM rewrite changed the text but passed
+    /// the rule-refined sections through (their offsets describe a different text), the sections are rebuilt from
+    /// the text being chunked so heading paths stay aligned with chunk offsets.
+    /// </summary>
+    private RefinedContent ChunkSource()
+    {
+        var refined = Result.Refined!;
+        if (Result.LlmRefined is not { } llm || ReferenceEquals(llm.Text, refined.Text) || llm.Text == refined.Text)
+            return refined;
+
+        var sections = ReferenceEquals(llm.Sections, refined.Sections) || llm.Sections.SequenceEqual(refined.Sections)
+            ? (refined.Sections.Count > 0 ? BuildSections(llm.Text) : [])
+            : llm.Sections.ToList();
+
+        return new RefinedContent
+        {
+            Id = refined.Id,
+            RawId = refined.RawId,
+            Text = llm.Text,
+            Topic = refined.Topic,
+            Summary = refined.Summary,
+            Keywords = refined.Keywords,
+            Sections = sections,
+            Structures = llm.Structures,
+            Metadata = llm.Metadata,
+            Quality = refined.Quality,
+            Info = refined.Info,
+            RefinedAt = llm.RefinedAt,
+        };
+    }
+
     /// <inheritdoc/>
     public async Task ChunkAsync(ChunkingOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -460,7 +493,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
         try
         {
-            var refined = Result.Refined!;
+            var refined = ChunkSource();
 
             if (string.IsNullOrWhiteSpace(refined.Text))
             {
@@ -565,7 +598,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
         options ??= new ChunkingOptions();
         var sw = Stopwatch.StartNew();
-        var refined = Result.Refined!;
+        var refined = ChunkSource();
 
         if (string.IsNullOrWhiteSpace(refined.Text))
         {

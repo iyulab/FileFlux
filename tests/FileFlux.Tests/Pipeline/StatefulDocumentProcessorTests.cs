@@ -459,6 +459,63 @@ public class StatefulDocumentProcessorTests
         }
     }
 
+    /// <summary>
+    /// After an LLM refinement, chunking reads the LLM's text, as the contract says ("uses LlmRefinedContent if
+    /// available"). It read the rule-refined text, so every token spent on the LLM pass was discarded — on both the
+    /// batch and the streaming chunk calls.
+    /// </summary>
+    [Fact]
+    public async Task ChunkAsync_AfterLlmRefine_ChunksTheLlmText()
+    {
+        var tempFile = CreateTempTextFile("# Title\n\nteh orignal text with typos.");
+        try
+        {
+            var factory = new DocumentProcessorFactory(
+                _readerFactory, _chunkerFactory, documentRefiner: null, llmRefiner: new RewritingLlmRefiner(),
+                documentEnricher: null, loggerFactory: NullLoggerFactory.Instance);
+
+            using var batch = factory.Create(tempFile);
+            await batch.LlmRefineAsync(cancellationToken: TestContext.Current.CancellationToken);
+            await batch.ChunkAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+            var text = string.Concat(batch.Result.Chunks!.Select(c => c.Content));
+            Assert.Contains("the original text without typos", text);
+            Assert.DoesNotContain("orignal", text);
+            Assert.Contains(batch.Result.Chunks!, c => c.Location.HeadingPath.Contains("Corrected title"));
+
+            using var streaming = factory.Create(tempFile);
+            await streaming.LlmRefineAsync(cancellationToken: TestContext.Current.CancellationToken);
+            var streamed = new List<DocumentChunk>();
+            await foreach (var chunk in streaming.ChunkStreamAsync(cancellationToken: TestContext.Current.CancellationToken))
+                streamed.Add(chunk);
+            Assert.Contains("the original text without typos", string.Concat(streamed.Select(c => c.Content)));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    private sealed class RewritingLlmRefiner : ILlmRefiner
+    {
+        public string RefinerType => "test";
+        public bool IsAvailable => true;
+        public string? ModelName => "test";
+
+        // A naive refiner: rewrites the text and passes the rule-refined sections through (as LlmRefiner did), so the
+        // processor must not map chunks onto section offsets computed over a different text.
+        public Task<LlmRefinedContent> RefineAsync(RefinedContent refined, LlmRefineOptions? options = null, CancellationToken cancellationToken = default)
+            => Task.FromResult(new LlmRefinedContent
+            {
+                RefinedId = refined.Id,
+                RawId = refined.RawId,
+                Text = "# Corrected title\n\nthe original text without typos.",
+                Sections = refined.Sections,
+                Structures = refined.Structures,
+                Metadata = refined.Metadata,
+            });
+    }
+
     private IDocumentProcessor CreateProcessor(string filePath)
     {
         var factory = new DocumentProcessorFactory(
