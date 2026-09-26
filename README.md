@@ -205,6 +205,7 @@ FileFlux defines AI service interfaces - consumer applications provide implement
 |-----------|---------|------------------------|
 | `IDocumentAnalysisService` | Text generation, intelligent chunking. Override `GenerateAsync(prompt, GenerationSettings, ct)` so `LlmRefineOptions`/`ParsingOptions` `Temperature`/`MaxTokens` reach your model, and throw `GenerationTruncatedException` (or, from a service on the shared completion port, its base `Flux.Abstractions.TextCompletionTruncatedException`) when the model stops at the token limit so a cut-off rewrite is never adopted. Set `ProviderInfo.MaxContextLength` and the refiner will not send a pass that cannot fit | OpenAI, Anthropic, LMSupply |
 | `IImageToTextService` | Image captioning, OCR | OpenAI Vision, LMSupply Captioner/OCR |
+| `IAudioToTextService` | Speech transcription — makes audio files readable (0.30.0+); without one, audio is unsupported | LMSupply Transcriber |
 | `IEmbeddingService` | Embedding generation | OpenAI, LMSupply Embedder |
 
 #### Example: Custom AI Provider
@@ -246,6 +247,7 @@ var services = new ServiceCollection();
 services.AddLMSupplyDocumentAnalysis();          // "default": LMSupply picks a GGUF model for this host
 services.AddLMSupplyEmbedding("default");
 services.AddLMSupplyCaptioner();   // or AddLMSupplyOcr() for scanned/text-bearing images
+services.AddLMSupplyTranscriber(); // .wav/.mp3 become readable; chunks carry Location.StartTime/EndTime
 
 services.AddFileFlux();
 ```
@@ -283,6 +285,7 @@ AI backend.
 | HTML | .html, .htm | Built-in | Web content extraction |
 | CSV/TSV | .csv, .tsv | Built-in (CsvHelper) | Header-aware markdown table serialization; UTF-8/BOM + CP949 (EUC-KR) fallback decoding |
 | Text | .txt, .json | Built-in | Basic text processing |
+| Audio | .wav, .mp3 | `IAudioToTextService` (e.g. `AddLMSupplyTranscriber()`) | Speech as text, one paragraph per segment (speaker-labelled when the service separates speakers); chunks carry `Location.StartTime`/`EndTime`. Unsupported when no service is registered |
 
 ## Known Limitations
 

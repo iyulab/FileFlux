@@ -67,6 +67,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentReader, MultiModalExcelDocumentReader>();
         services.AddTransient<IDocumentReader, LegacyExcelDocumentReader>();
         services.AddTransient<IDocumentReader, HwpDocumentReader>();
+        // Audio reads through IAudioToTextService; with none registered the reader claims no file.
+        services.AddTransient<IDocumentReader>(sp => new AudioDocumentReader(sp.GetService<IAudioToTextService>()));
 
         // Language profile for multilingual support (always Singleton - thread-safe)
         services.AddSingleton<ILanguageProfileProvider, DefaultLanguageProfileProvider>();

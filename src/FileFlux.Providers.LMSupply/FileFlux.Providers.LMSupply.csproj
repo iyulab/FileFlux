@@ -6,7 +6,7 @@
     <IsPackable>true</IsPackable>
     <PackageId>FileFlux.Providers.LMSupply</PackageId>
     <Title>FileFlux.Providers.LMSupply - Local AI Provider for FileFlux</Title>
-    <Description>LMSupply local ONNX model provider for FileFlux: document analysis (summarization, metadata extraction), embeddings, OCR, and image captioning — no API key required.</Description>
+    <Description>LMSupply local ONNX model provider for FileFlux: document analysis (summarization, metadata extraction), embeddings, OCR, image captioning, and speech transcription — no API key required.</Description>
     <PackageTags>rag;document;fileflux;lmsupply;local;onnx;ocr;captioning;embedding</PackageTags>
   </PropertyGroup>
 
@@ -15,6 +15,7 @@
     <PackageReference Include="LMSupply.Generator" />
     <PackageReference Include="LMSupply.Ocr" />
     <PackageReference Include="LMSupply.Captioner" />
+    <PackageReference Include="LMSupply.Transcriber" />
   </ItemGroup>
 
   <ItemGroup>

@@ -79,4 +79,23 @@ public static class ServiceCollectionExtensions
                 .GetAwaiter().GetResult());
         return services;
     }
+
+    /// <summary>
+    /// Registers an <see cref="IAudioToTextService"/> backed by a local LMSupply transcriber, which makes FileFlux read
+    /// <c>.wav</c> and <c>.mp3</c> files: the speech becomes the document text, and each chunk's
+    /// <c>Location.StartTime</c>/<c>EndTime</c> say which stretch of the recording it came from. The model loads on
+    /// first use.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="modelId">Transcriber model id or alias (<c>"default"</c>, <c>"parakeet-tdt"</c>, …).</param>
+    /// <param name="language">Language hint (ISO 639-1); null identifies it from the audio.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddLMSupplyTranscriber(
+        this IServiceCollection services,
+        string modelId = "default",
+        string? language = null)
+    {
+        services.AddSingleton<IAudioToTextService>(_ => new LMSupplyTranscriberService(modelId, language));
+        return services;
+    }
 }

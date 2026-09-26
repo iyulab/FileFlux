@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RawContent.Spans` / `RefinedContent.Spans` (`SourceSpan`: `Page`, `StartTime`, `EndTime`): a reader says where each
   stretch of its text came from; refinement carries it and chunking writes it onto `Location`. `SourceLocation` gains
   `StartTime`/`EndTime` for timed sources.
+- **Audio files are readable** (`.wav`, `.mp3`) when an `IAudioToTextService` is registered — the new port, which
+  `FileFlux.Providers.LMSupply` implements with `AddLMSupplyTranscriber()` (a local transcriber, loaded on first use).
+  The speech becomes the text, one paragraph per segment, and every chunk carries the time range of the recording it
+  covers (`Location.StartTime`/`EndTime`, absolute across the file). Without a registered service audio stays
+  unsupported, as before.
 
 ### Fixed
 - `ChunkStreamAsync` sets `Location.HeadingPath`/`Section` and `Props["HierarchyPath"]` like `ChunkAsync` (they were
