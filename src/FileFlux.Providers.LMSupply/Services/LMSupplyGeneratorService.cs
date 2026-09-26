@@ -9,7 +9,7 @@ namespace FileFlux.Providers.LMSupply.Services;
 /// <summary>
 /// IDocumentAnalysisService implementation using LMSupply.Generator.
 /// </summary>
-public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncDisposable
+public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncDisposable, IDisposable
 {
     private readonly IGeneratorModel _model;
     private readonly LMSupplyOptions _options;
@@ -225,6 +225,12 @@ public sealed class LMSupplyGeneratorService : IDocumentAnalysisService, IAsyncD
     }
 
     /// <inheritdoc />
+    /// <summary>
+    /// Disposes synchronously, for a container disposed with <c>Dispose()</c> (which throws on a service that is only
+    /// <see cref="IAsyncDisposable"/>). Blocks on <see cref="DisposeAsync"/>.
+    /// </summary>
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

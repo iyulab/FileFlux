@@ -10,7 +10,7 @@ namespace FileFlux.Providers.LMSupply.Services;
 /// IImageToTextService implementation using LMSupply.Ocr.
 /// Provides optical character recognition for document and text images.
 /// </summary>
-public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable
+public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable, IDisposable
 {
     private readonly IOcr _ocr;
     private bool _disposed;
@@ -183,6 +183,12 @@ public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable
     }
 
     /// <inheritdoc />
+    /// <summary>
+    /// Disposes synchronously, for a container disposed with <c>Dispose()</c> (which throws on a service that is only
+    /// <see cref="IAsyncDisposable"/>). Blocks on <see cref="DisposeAsync"/>.
+    /// </summary>
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

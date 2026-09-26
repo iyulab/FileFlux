@@ -7,7 +7,7 @@ namespace FileFlux.Providers.LMSupply;
 /// Factory for creating and caching LMSupply service instances.
 /// Services are created lazily on first access because they require async model loading.
 /// </summary>
-public sealed class LMSupplyServiceFactory : IAsyncDisposable
+public sealed class LMSupplyServiceFactory : IAsyncDisposable, IDisposable
 {
     private readonly LMSupplyOptions _options;
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -160,6 +160,12 @@ public sealed class LMSupplyServiceFactory : IAsyncDisposable
     }
 
     /// <inheritdoc />
+    /// <summary>
+    /// Disposes synchronously, for a container disposed with <c>Dispose()</c> (which throws on a service that is only
+    /// <see cref="IAsyncDisposable"/>). Blocks on <see cref="DisposeAsync"/>.
+    /// </summary>
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

@@ -7,7 +7,7 @@ namespace FileFlux.Providers.LMSupply.Services;
 /// <summary>
 /// IEmbeddingService implementation using LMSupply.Embedder.
 /// </summary>
-public sealed class LMSupplyEmbedderService : IEmbeddingService, IAsyncDisposable
+public sealed class LMSupplyEmbedderService : IEmbeddingService, IAsyncDisposable, IDisposable
 {
     private readonly IEmbeddingModel _model;
     private bool _disposed;
@@ -111,6 +111,12 @@ public sealed class LMSupplyEmbedderService : IEmbeddingService, IAsyncDisposabl
     }
 
     /// <inheritdoc />
+    /// <summary>
+    /// Disposes synchronously, for a container disposed with <c>Dispose()</c> (which throws on a service that is only
+    /// <see cref="IAsyncDisposable"/>). Blocks on <see cref="DisposeAsync"/>.
+    /// </summary>
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

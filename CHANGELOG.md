@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A recording of several people can read as who said what.** `AddLMSupplyTranscriber(configure: o => o.Diarize = true)` (or the new `LMSupplyTranscriberOptions`) labels each passage with its speaker (`S1: …`), and `NumSpeakers` fixes the count when it is known. Speaker separation downloads two small models on first use and is off by default.
 - **Content read earlier can be refined and chunked with its source locations.** `IDocumentProcessorFactory.Create(RawContent)` starts a processor at the Extracted stage: no reader runs, and each chunk's `Location` (pages, times) comes from `RawContent.Spans`. A pipeline that stores extracted text and chunks it later no longer loses where each chunk came from.
 
+### Fixed
+- **Disposing a service provider with `Dispose()` no longer throws when an LMSupply service is registered.** The six LMSupply services (transcriber, captioner, OCR, embedder, generator, and the service factory) implemented only `IAsyncDisposable`, and a container disposed synchronously throws on such a singleton; they now implement `IDisposable` too.
+
 ### Changed
 - Re-pinned sibling package(s) `LMSupply.*` 0.78.0 -> 0.79.0 (speaker separation in the transcriber).
 - Re-pinned sibling package(s) `FluxImprover` 0.14.2 -> 0.14.3 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`.

@@ -9,7 +9,7 @@ namespace FileFlux.Providers.LMSupply.Services;
 /// IImageToTextService implementation using LMSupply.Captioner.
 /// Provides image captioning capabilities for visual content description.
 /// </summary>
-public sealed class LMSupplyCaptionerService : IImageToTextService, IAsyncDisposable
+public sealed class LMSupplyCaptionerService : IImageToTextService, IAsyncDisposable, IDisposable
 {
     private readonly ICaptionerModel _model;
     private bool _disposed;
@@ -202,6 +202,12 @@ public sealed class LMSupplyCaptionerService : IImageToTextService, IAsyncDispos
     }
 
     /// <inheritdoc />
+    /// <summary>
+    /// Disposes synchronously, for a container disposed with <c>Dispose()</c> (which throws on a service that is only
+    /// <see cref="IAsyncDisposable"/>). Blocks on <see cref="DisposeAsync"/>.
+    /// </summary>
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

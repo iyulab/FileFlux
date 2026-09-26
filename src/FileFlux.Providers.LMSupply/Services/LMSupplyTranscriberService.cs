@@ -6,13 +6,14 @@ namespace FileFlux.Providers.LMSupply.Services;
 /// <see cref="IAudioToTextService"/> over a local LMSupply transcriber (Whisper or Parakeet). The model loads on first
 /// use, not at registration, so registering the service costs nothing until an audio file is read.
 /// </summary>
-public sealed class LMSupplyTranscriberService : IAudioToTextService, IAsyncDisposable
+public sealed class LMSupplyTranscriberService : IAudioToTextService, IAsyncDisposable, IDisposable
 {
     private static readonly string[] s_formats = [".wav", ".mp3"];
 
     private readonly LMSupplyTranscriberOptions _options;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ITranscriberModel? _model;
+    private bool _disposed;
 
     /// <summary>Creates the service.</summary>
     /// <param name="modelId">Transcriber model id or alias (<c>"default"</c>, <c>"parakeet-tdt"</c>, …).</param>
@@ -92,8 +93,17 @@ public sealed class LMSupplyTranscriberService : IAudioToTextService, IAsyncDisp
     }
 
     /// <inheritdoc/>
+    /// <summary>
+    /// Disposes synchronously, for a container disposed with <c>Dispose()</c> (which throws on a service that is only
+    /// <see cref="IAsyncDisposable"/>). Blocks on <see cref="DisposeAsync"/>.
+    /// </summary>
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+
     public async ValueTask DisposeAsync()
     {
+        if (_disposed)
+            return;
+        _disposed = true;
         if (_model is not null)
             await _model.DisposeAsync().ConfigureAwait(false);
         _gate.Dispose();
