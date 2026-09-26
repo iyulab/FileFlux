@@ -41,39 +41,33 @@ public sealed class LMSupplyTranscriberService : IAudioToTextService, IAsyncDisp
     public async Task<AudioTranscript> TranscribeAsync(string audioPath, CancellationToken cancellationToken = default)
     {
         var model = await ModelAsync(cancellationToken).ConfigureAwait(false);
-        var transcribeOptions = new TranscribeOptions
-        {
-            Language = _options.Language,
-            WordTimestamps = true,
-            Diarize = _options.Diarize,
-            NumSpeakers = _options.NumSpeakers,
-            SpeakerThreshold = _options.SpeakerThreshold,
-        };
-        var result = await model.TranscribeAsync(audioPath, transcribeOptions, cancellationToken).ConfigureAwait(false);
-        return new AudioTranscript(
-            result.Segments.Select(s => new AudioSegment(TimeSpan.FromSeconds(s.Start), TimeSpan.FromSeconds(s.End), s.Text) { Speaker = s.Speaker }).ToList())
-        {
-            Language = result.Language,
-            Duration = result.DurationSeconds is { } d ? TimeSpan.FromSeconds(d) : null,
-        };
+        return ToTranscript(await model.TranscribeAsync(audioPath, TranscribeOptions(), cancellationToken).ConfigureAwait(false));
     }
 
     /// <inheritdoc/>
     public async Task<AudioTranscript> TranscribeAsync(Stream audio, string fileName, CancellationToken cancellationToken = default)
     {
-        // LMSupply decodes MP3 from a file path only; a temporary file keeps every supported format working.
-        var temp = Path.Combine(Path.GetTempPath(), $"fileflux-audio-{Guid.NewGuid():N}{Path.GetExtension(fileName)}");
-        try
-        {
-            await using (var file = File.Create(temp))
-                await audio.CopyToAsync(file, cancellationToken).ConfigureAwait(false);
-            return await TranscribeAsync(temp, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            File.Delete(temp);
-        }
+        // LMSupply 0.79.2 decodes a stream as it decodes a file (MP3 recognised from its first bytes, mixed down and
+        // resampled to 16 kHz), so the stream goes straight through — no temporary file.
+        var model = await ModelAsync(cancellationToken).ConfigureAwait(false);
+        return ToTranscript(await model.TranscribeAsync(audio, TranscribeOptions(), cancellationToken).ConfigureAwait(false));
     }
+
+    private TranscribeOptions TranscribeOptions() => new()
+    {
+        Language = _options.Language,
+        WordTimestamps = true,
+        Diarize = _options.Diarize,
+        NumSpeakers = _options.NumSpeakers,
+        SpeakerThreshold = _options.SpeakerThreshold,
+    };
+
+    private static AudioTranscript ToTranscript(TranscriptionResult result) =>
+        new(result.Segments.Select(s => new AudioSegment(TimeSpan.FromSeconds(s.Start), TimeSpan.FromSeconds(s.End), s.Text) { Speaker = s.Speaker }).ToList())
+        {
+            Language = result.Language,
+            Duration = result.DurationSeconds is { } d ? TimeSpan.FromSeconds(d) : null,
+        };
 
     private async Task<ITranscriberModel> ModelAsync(CancellationToken cancellationToken)
     {

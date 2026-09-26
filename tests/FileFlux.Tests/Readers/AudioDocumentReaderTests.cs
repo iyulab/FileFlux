@@ -147,4 +147,33 @@ public sealed class AudioDocumentReaderIntegrationTests
         var labels = passages.Select(p => p[..p.IndexOf(':')]).Distinct().ToList();
         Assert.Equal(4, labels.Count);
     }
+    // The same recording handed over as a stream (processor Create(stream, ".wav")). The provider passes the stream to
+    // LMSupply directly (0.79.2 decodes streams like files), and the chunks carry the same absolute times.
+    [Fact]
+    public async Task RealTranscription_FromAStream_ChunksCarryAbsoluteTimes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var path = Path.Combine(Path.GetTempPath(), "fileflux-fixtures", "0-four-speakers-zh.wav");
+        if (!File.Exists(path))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            using var http = new HttpClient();
+            await File.WriteAllBytesAsync(path, await http.GetByteArrayAsync(RecordingUrl, ct), ct);
+        }
+
+        var services = new ServiceCollection();
+        FileFlux.Providers.LMSupply.Extensions.ServiceCollectionExtensions.AddLMSupplyTranscriber(services, language: "zh");
+        services.AddFileFlux();
+        await using var provider = services.BuildServiceProvider();
+
+        await using var stream = File.OpenRead(path);
+        using var processor = provider.GetRequiredService<IDocumentProcessorFactory>().Create(stream, ".wav");
+        await processor.ChunkAsync(new ChunkingOptions { MaxChunkSize = 200 }, ct);
+
+        var chunks = processor.Result.Chunks!;
+        Assert.NotEmpty(chunks);
+        Assert.All(chunks, c => Assert.NotNull(c.Location.StartTime));
+        Assert.True(chunks.Max(c => c.Location.EndTime) > TimeSpan.FromSeconds(50));
+        Assert.True(chunks.Max(c => c.Location.EndTime) <= TimeSpan.FromSeconds(58));
+    }
 }

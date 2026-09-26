@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.2] - Unreleased
+
+### Changed
+- Audio from a stream goes straight to the LMSupply transcriber instead of through a temporary file — LMSupply 0.79.2 decodes a stream as it decodes a file (MP3 recognised from its bytes, mixed down, resampled to 16 kHz).
+- Re-pinned sibling package(s) `LMSupply.*` 0.79.1 -> 0.79.2.
+
 ## [0.31.1] - 2026-09-26
 
 ### Changed
