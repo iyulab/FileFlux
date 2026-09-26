@@ -179,6 +179,28 @@ public class DocumentRefinerTests
 
     #region Helper Methods
 
+    /// <summary>
+    /// The default registration gives the refiner a markdown converter. The converter's output must be built from the
+    /// text the earlier steps cleaned, not from the raw text: rebuilding from raw threw away noise cleaning (artificial
+    /// "Paragraph N" headings, collapsed whitespace), the PDF header/footer filter and numbered-heading conversion on
+    /// every default-path document.
+    /// </summary>
+    [Fact]
+    public async Task RefineAsync_WithTheDefaultMarkdownConverter_KeepsTheEarlierCleanup()
+    {
+        var refiner = new DocumentRefiner(
+            markdownConverter: new FileFlux.Infrastructure.Conversion.MarkdownConverter(),
+            logger: NullLogger<DocumentRefiner>.Instance);
+        var raw = CreateRawContent("## Paragraph 3\n\nThe first real sentence.\n\n\n\n\nThe    second    sentence.");
+
+        var result = await refiner.RefineAsync(raw, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("Paragraph 3", result.Text);
+        Assert.DoesNotContain("    ", result.Text);
+        Assert.Contains("The first real sentence.", result.Text);
+        Assert.Equal("## Paragraph 3\n\nThe first real sentence.\n\n\n\n\nThe    second    sentence.", raw.Text);
+    }
+
     private static RawContent CreateRawContent(string text, string fileName = "test.txt")
     {
         return new RawContent

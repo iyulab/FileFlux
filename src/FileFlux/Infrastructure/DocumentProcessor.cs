@@ -225,7 +225,8 @@ public sealed partial class FluxDocumentProcessor
                 // Get RawContent from Extra if provided (for full conversion support)
                 if (options.Extra.TryGetValue("_rawContent", out var rawObj) && rawObj is RawContent rawContent)
                 {
-                    var markdownResult = await _markdownConverter.ConvertAsync(rawContent, new MarkdownConversionOptions
+                    // Convert the parsed text, not the raw content's (which would undo parsing's rebuild).
+                    var markdownResult = await _markdownConverter.ConvertAsync(rawContent.WithText(refinedText), new MarkdownConversionOptions
                     {
                         PreserveHeadings = true,
                         ConvertTables = true,

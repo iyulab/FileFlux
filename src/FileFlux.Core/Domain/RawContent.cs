@@ -22,6 +22,17 @@ public class RawContent
     public string Text { get; set; } = string.Empty;
 
     /// <summary>
+    /// A shallow copy carrying <paramref name="text"/> — for a pipeline step that hands the text as cleaned so far to
+    /// a component typed on <see cref="RawContent"/>. A memberwise copy, so a member added later is carried too.
+    /// </summary>
+    internal RawContent WithText(string text)
+    {
+        var copy = (RawContent)MemberwiseClone();
+        copy.Text = text;
+        return copy;
+    }
+
+    /// <summary>
     /// Structured text blocks with position and style info.
     /// </summary>
     public List<TextBlock> Blocks { get; set; } = [];

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.3] - Unreleased
+
+### Fixed
+- **Refinement with the default markdown converter keeps the cleanup done before it.** With the converter the default
+  registration provides, the refiner handed the converter the raw text and replaced its own result with the output,
+  so noise cleaning (artificial `Paragraph N` headings, collapsed runs of whitespace and blank lines), the PDF
+  header/footer filter and numbered-section headings never reached the chunks. The converter now receives the text
+  as cleaned so far — in `DocumentRefiner`, in the stateful processor's built-in refine, and in the legacy
+  processor's refine step. **Behaviour change**: chunk text on the default path is cleaner; re-index if you compare
+  chunks across versions.
+
 ## [0.29.2] - 2026-09-26
 
 ### Changed

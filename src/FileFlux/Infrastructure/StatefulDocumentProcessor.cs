@@ -308,7 +308,8 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         // Step 2: Convert to markdown if converter available
         if ((options.ConvertTablesToMarkdown || options.ConvertBlocksToMarkdown) && _markdownConverter != null)
         {
-            var markdownResult = await _markdownConverter.ConvertAsync(raw, new MarkdownConversionOptions
+            // Convert the text as cleaned so far, not the raw content (which would undo Step 1).
+            var markdownResult = await _markdownConverter.ConvertAsync(raw.WithText(refinedText), new MarkdownConversionOptions
             {
                 PreserveHeadings = true,
                 ConvertTables = true,

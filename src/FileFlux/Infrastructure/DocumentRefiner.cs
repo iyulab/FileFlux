@@ -99,8 +99,9 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
             }
             else if ((options.ConvertTablesToMarkdown || options.ConvertBlocksToMarkdown) && _markdownConverter != null)
             {
-                // Fallback to IMarkdownConverter for legacy readers
-                var markdownResult = await _markdownConverter.ConvertAsync(raw, new MarkdownConversionOptions
+                // Fallback to IMarkdownConverter for legacy readers. It converts the text as cleaned so far: handing it
+                // the raw content rebuilt the document from raw text and threw away every step above.
+                var markdownResult = await _markdownConverter.ConvertAsync(raw.WithText(refinedText), new MarkdownConversionOptions
                 {
                     PreserveHeadings = true,
                     ConvertTables = true,
