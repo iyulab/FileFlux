@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.30.0] - Unreleased
+## [0.30.0] - 2026-09-26
 
 ### Added
 - **PDF chunks name their pages.** `Location.StartPage`/`EndPage` are filled for PDFs on every processor path
