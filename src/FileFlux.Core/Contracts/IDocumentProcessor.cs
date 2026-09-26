@@ -212,6 +212,15 @@ public interface IDocumentProcessorFactory
     /// Create processor for byte array with explicit format.
     /// </summary>
     IDocumentProcessor Create(byte[] content, string extension, string? fileName = null);
+
+    /// <summary>
+    /// Create processor over content that was already read — e.g. text an earlier extraction stored, together with the
+    /// <see cref="RawContent.Spans"/> that locate it in its source. The processor starts at the Extracted stage: no
+    /// reader runs, refine and chunk run as they do for a file, and each chunk's <c>Location</c> (pages, times) comes
+    /// from the spans. <see cref="RawContent.File"/> names the content (its <c>Extension</c> selects format-specific
+    /// refinement; empty is treated as plain text).
+    /// </summary>
+    IDocumentProcessor Create(RawContent content);
 }
 
 /// <summary>

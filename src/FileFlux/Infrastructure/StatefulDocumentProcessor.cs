@@ -163,6 +163,44 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<StatefulDocumentProcessor>.Instance;
     }
 
+    /// <summary>
+    /// Create processor over content that was already read: it starts at the Extracted stage.
+    /// </summary>
+    internal StatefulDocumentProcessor(
+        RawContent content,
+        IDocumentReaderFactory readerFactory,
+        IChunkerFactory chunkerFactory,
+        IDocumentRefiner? documentRefiner,
+        ILlmRefiner? llmRefiner,
+        IDocumentEnricher? documentEnricher,
+        FluxImproverServices? improverServices,
+        IMarkdownConverter? markdownConverter,
+        IImageToTextService? imageToTextService,
+        ILogger<StatefulDocumentProcessor> logger)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        var extension = content.File.Extension;
+        _extension = string.IsNullOrWhiteSpace(extension) ? ".txt" : extension.StartsWith('.') ? extension : $".{extension}";
+        _fileName = string.IsNullOrWhiteSpace(content.File.Name) ? $"content{_extension}" : content.File.Name;
+        FilePath = $"memory://{_fileName}";
+
+        _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
+        _chunkerFactory = chunkerFactory ?? throw new ArgumentNullException(nameof(chunkerFactory));
+        _documentRefiner = documentRefiner;
+        _llmRefiner = llmRefiner;
+        _documentEnricher = documentEnricher;
+        _improverServices = improverServices;
+        _markdownConverter = markdownConverter;
+        _imageToTextService = imageToTextService;
+        _textRefiner = new TextRefiner();
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<StatefulDocumentProcessor>.Instance;
+
+        Result.Raw = content;
+        Result.Metrics.OriginalCharCount = content.Text.Length;
+        _state = ProcessorState.Extracted;
+    }
+
     #endregion
 
     #region Stage 1: Extract

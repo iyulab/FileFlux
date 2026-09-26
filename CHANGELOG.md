@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **A recording of several people can read as who said what.** `AddLMSupplyTranscriber(configure: o => o.Diarize = true)` (or the new `LMSupplyTranscriberOptions`) labels each passage with its speaker (`S1: …`), and `NumSpeakers` fixes the count when it is known. Speaker separation downloads two small models on first use and is off by default.
+- **Content read earlier can be refined and chunked with its source locations.** `IDocumentProcessorFactory.Create(RawContent)` starts a processor at the Extracted stage: no reader runs, and each chunk's `Location` (pages, times) comes from `RawContent.Spans`. A pipeline that stores extracted text and chunks it later no longer loses where each chunk came from.
 
 ### Changed
 - Re-pinned sibling package(s) `LMSupply.*` 0.78.0 -> 0.79.0 (speaker separation in the transcriber).

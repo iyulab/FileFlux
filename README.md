@@ -152,6 +152,15 @@ await processor.ProcessAsync(new ProcessingOptions
     Enrich = new EnrichOptions { BuildGraph = true }
 });
 
+// Text you extracted earlier and stored: start at the Extracted stage, keep the source locations
+using var stored = factory.Create(new RawContent
+{
+    Text = storedText,
+    Spans = storedSpans,   // SourceSpan(start, end) { Page = 3 } / { StartTime = …, EndTime = … }
+    File = new SourceFileInfo { Name = "report.md", Extension = ".md" },
+});
+await stored.ChunkAsync();         // each chunk's Location.StartPage/EndPage/StartTime/EndTime comes from the spans
+
 // Access the document graph
 if (processor.Result.Graph != null)
 {

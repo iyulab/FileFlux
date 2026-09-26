@@ -96,6 +96,22 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
     }
 
     /// <inheritdoc/>
+    public IDocumentProcessor Create(RawContent content)
+    {
+        return new StatefulDocumentProcessor(
+            content,
+            _readerFactory,
+            _chunkerFactory,
+            _documentRefiner,
+            _llmRefiner,
+            _documentEnricher,
+            _improverServices,
+            _markdownConverter,
+            _imageToTextService,
+            _loggerFactory.CreateLogger<StatefulDocumentProcessor>());
+    }
+
+    /// <inheritdoc />
     public IDocumentProcessor Create(byte[] content, string extension, string? fileName = null)
     {
         return new StatefulDocumentProcessor(
