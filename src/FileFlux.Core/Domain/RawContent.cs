@@ -33,6 +33,13 @@ public class RawContent
     }
 
     /// <summary>
+    /// Where the text came from in the source — pages, time ranges — as ordered spans over <see cref="Text"/>.
+    /// A reader that knows it fills this; refinement carries the spans to <see cref="RefinedContent.Spans"/>, and
+    /// chunking writes them onto each chunk's <see cref="SourceLocation"/>. Empty when the reader does not know.
+    /// </summary>
+    public IReadOnlyList<SourceSpan> Spans { get; set; } = [];
+
+    /// <summary>
     /// Structured text blocks with position and style info.
     /// </summary>
     public List<TextBlock> Blocks { get; set; } = [];

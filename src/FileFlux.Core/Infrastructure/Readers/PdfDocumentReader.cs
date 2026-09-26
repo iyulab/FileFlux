@@ -372,7 +372,8 @@ public partial class PdfDocumentReader : IDocumentReader
         // Fast path: try whole-document extraction
         try
         {
-            markdown = doc.ToMarkdown();
+            // Page markers let the page boundaries become RawContent.Spans (read and removed below).
+            markdown = doc.ToMarkdown(new MarkdownOptions { PageMarkers = true });
         }
         catch (UnpdfException ex)
         {
@@ -387,6 +388,10 @@ public partial class PdfDocumentReader : IDocumentReader
 
         // Remove null bytes
         markdown = TextSanitizer.RemoveNullBytes(markdown);
+
+        // Page markers → page spans, removed from the text (and trimmed, as the text always was) before anything
+        // below measures or classifies it: a document of empty pages must still read as empty.
+        (markdown, var pageSpans) = PageMarkers.Extract(markdown);
 
         // Unpdf 0.12.0 ExtractionQuality.SuppressedTextRuns: text runs the font decoder
         // could not resolve and discarded. Read before the empty-document classification
@@ -488,7 +493,8 @@ public partial class PdfDocumentReader : IDocumentReader
 
         return new RawContent
         {
-            Text = markdown.Trim(),
+            Text = markdown,
+            Spans = pageSpans,
             File = new SourceFileInfo
             {
                 Name = FileNameHelper.ExtractSafeFileName(fileInfo),
@@ -659,7 +665,7 @@ public partial class PdfDocumentReader : IDocumentReader
             {
                 var pageMarkdown = doc.PageToMarkdown(page);
                 if (!string.IsNullOrWhiteSpace(pageMarkdown))
-                    parts.Add(pageMarkdown);
+                    parts.Add($"<!-- page {page} -->\n\n{pageMarkdown}");
                 continue;
             }
             catch (UnpdfException ex)
@@ -674,7 +680,7 @@ public partial class PdfDocumentReader : IDocumentReader
                 var pageText = doc.PageToText(page);
                 if (!string.IsNullOrWhiteSpace(pageText))
                 {
-                    parts.Add(pageText);
+                    parts.Add($"<!-- page {page} -->\n\n{pageText}");
                     warnings.Add($"Page {page}: using plaintext fallback " +
                                  $"(markdown {ErrorKindKey}={FormatErrorKind(markdownKind)})");
                 }

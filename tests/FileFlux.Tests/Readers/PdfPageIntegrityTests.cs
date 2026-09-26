@@ -92,6 +92,63 @@ public class PdfPageIntegrityTests : IDisposable
     }
 
     [Fact]
+    public async Task ExtractAsync_ReportsWhichPageEachStretchOfTextCameFrom()
+    {
+        var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: false));
+
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("<!--", content.Text, StringComparison.Ordinal);
+        Assert.Equal([1, 2], content.Spans.Select(s => s.Page!.Value));
+        Assert.Contains("PAGE ONE", content.Text[content.Spans[0].Start..content.Spans[0].End], StringComparison.Ordinal);
+        Assert.Contains("PAGE TWO", content.Text[content.Spans[1].Start..content.Spans[1].End], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// End to end on the default processor: chunk locations name the pages their text came from. Before, nothing
+    /// wrote page information and <c>StartPage</c>/<c>EndPage</c> were always null.
+    /// </summary>
+    [Fact]
+    public async Task ProcessedChunks_CarryTheirPages()
+    {
+        var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: false));
+        var factory = new FileFlux.Infrastructure.DocumentProcessorFactory(
+            new FileFlux.Infrastructure.Factories.DocumentReaderFactory(),
+            new FluxCurator.Infrastructure.Chunking.ChunkerFactory(),
+            loggerFactory: Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
+
+        using var processor = factory.Create(path);
+        await processor.ChunkAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        var chunks = processor.Result.Chunks!;
+        Assert.NotEmpty(chunks);
+        Assert.All(chunks, c => Assert.NotNull(c.Location.StartPage));
+        Assert.Equal(1, chunks.Min(c => c.Location.StartPage));
+        Assert.Equal(2, chunks.Max(c => c.Location.EndPage));
+    }
+
+    /// <summary>The legacy one-call processor (still registered) carries pages the same way, through parse and refine.</summary>
+    [Fact]
+    public async Task LegacyProcessAsync_ChunksCarryTheirPages()
+    {
+        var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: false));
+        var processor = new FileFlux.Infrastructure.FluxDocumentProcessor(
+            new FileFlux.Infrastructure.Factories.DocumentReaderFactory(),
+            new FileFlux.Infrastructure.Factories.DocumentParserFactory(),
+            new FluxCurator.Infrastructure.Chunking.ChunkerFactory(),
+            markdownConverter: new FileFlux.Infrastructure.Conversion.MarkdownConverter());
+
+        var chunks = await processor.ProcessAsync(
+            path, new ChunkingOptions { RefiningOptions = new RefiningOptions() }, TestContext.Current.CancellationToken);
+
+        Assert.NotEmpty(chunks);
+        Assert.All(chunks, c => Assert.NotNull(c.Location.StartPage));
+        Assert.Equal(1, chunks.Min(c => c.Location.StartPage));
+        Assert.Equal(2, chunks.Max(c => c.Location.EndPage));
+        Assert.DoesNotContain(chunks, c => c.Content.Contains("ffspan", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ReadAsync_DamagedPageTree_ShouldCarryTheSameSignal()
     {
         // Stage 0 is where the page count is stated, so it is the surface where a short

@@ -88,12 +88,7 @@ public sealed partial class FluxDocumentProcessor
             parsedContent = await RefineAsync(parsedContent, options.RefiningOptions, cancellationToken).ConfigureAwait(false);
         }
 
-        // Stage 4: Chunk (FluxCurator)
-        // Pass PageRanges for page number calculation (from PDF extraction)
-        if (rawContent.Hints.TryGetValue("PageRanges", out var pageRangesObj) && pageRangesObj is Dictionary<int, (int Start, int End)> pageRanges)
-        {
-            options.CustomProperties["_pageRanges"] = pageRanges;
-        }
+        // Stage 4: Chunk (FluxCurator) — pages/times come from the parsed content's spans
         var chunks = await ChunkAsync(parsedContent, options, cancellationToken).ConfigureAwait(false);
 
         // Stage 5: Enhance (FluxImprover) - if available and enabled
@@ -174,13 +169,19 @@ public sealed partial class FluxDocumentProcessor
         try
         {
             var parser = _parserFactory.GetParser(raw);
-            var parsed = await parser.ParseAsync(raw, new DocumentParsingOptions
+            // Reader spans (pages, time ranges) ride through parsing as marker lines (SourceSpanMarkers).
+            var input = raw.Spans.Count > 0 ? raw.WithText(SourceSpanMarkers.Insert(raw.Text, raw.Spans)) : raw;
+            var parsed = await parser.ParseAsync(input, new DocumentParsingOptions
             {
                 UseLlmParsing = options.UseLlm,
                 // ParsingOptions' sampling settings reach the parser's LLM call from here (0.25.0).
                 Temperature = options.Temperature,
                 MaxTokens = options.MaxTokens
             }, cancellationToken).ConfigureAwait(false);
+
+            (var parsedText, var spans) = SourceSpanMarkers.Extract(parsed.Text, raw.Spans);
+            parsed.Text = parsedText;
+            parsed.Spans = spans;
 
             LogWarnings("Parsing", parsed.Info.Warnings);
             return parsed;
@@ -217,7 +218,7 @@ public sealed partial class FluxDocumentProcessor
 
         try
         {
-            var refinedText = parsed.Text;
+            var refinedText = SourceSpanMarkers.Insert(parsed.Text, parsed.Spans);
 
             // Stage 1: Markdown conversion (if enabled and IMarkdownConverter available)
             if (options.ConvertToMarkdown && _markdownConverter != null)
@@ -303,11 +304,13 @@ public sealed partial class FluxDocumentProcessor
             // Handles: empty bullets, duplicate lines, custom patterns, etc.
             var textRefineOptions = MapTextRefinementPreset(options.TextRefinementPreset);
             refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
+            (refinedText, var spans) = SourceSpanMarkers.Extract(refinedText, parsed.Spans);
 
             // Create refined content
             var refined = new RefinedContent
             {
                 Text = refinedText,
+                Spans = spans,
                 Metadata = parsed.Metadata,
                 Topic = parsed.Topic,
                 Summary = parsed.Summary,
@@ -653,14 +656,8 @@ public sealed partial class FluxDocumentProcessor
             var rawId = Guid.NewGuid();
             var chunks = fcChunks.ToFileFluxChunks(parsedId, rawId);
 
-            // Enrich with document metadata and page numbers
-            // Extract PageRanges from options if available (passed from ProcessAsync)
-            Dictionary<int, (int Start, int End)>? pageRanges = null;
-            if (options.CustomProperties.TryGetValue("_pageRanges", out var prObj) && prObj is Dictionary<int, (int Start, int End)> pr)
-            {
-                pageRanges = pr;
-            }
-            EnrichChunksWithMetadata(chunks, parsed, pageRanges);
+            // Enrich with document metadata, heading paths and source pages/times
+            EnrichChunksWithMetadata(chunks, parsed);
 
             LogCreatedChunks(_logger, chunks.Count, chunker.StrategyName);
             return [.. chunks];
@@ -807,8 +804,7 @@ public sealed partial class FluxDocumentProcessor
 
     private static void EnrichChunksWithMetadata(
         IReadOnlyList<DocumentChunk> chunks,
-        RefinedContent parsed,
-        Dictionary<int, (int Start, int End)>? pageRanges = null)
+        RefinedContent parsed)
     {
         // Build flattened section list for heading path calculation
         var allSections = SectionPathCalculator.Flatten(parsed.Sections);
@@ -834,69 +830,9 @@ public sealed partial class FluxDocumentProcessor
                 chunk.Props[ChunkPropsKeys.HierarchyPath] = string.Join(" > ", headingPath);
             }
 
-            // Calculate page numbers based on PageRanges (for PDF documents)
-            if (pageRanges != null && pageRanges.Count > 0)
-            {
-                var (startPage, endPage) = CalculatePageNumbers(pageRanges, chunk.Location.StartChar, chunk.Location.EndChar);
-                if (startPage.HasValue)
-                {
-                    chunk.Location.StartPage = startPage;
-                    chunk.Location.EndPage = endPage ?? startPage;
-                }
-            }
+            // Source pages/times from the reader's spans (carried through parse and refine)
+            SourceSpanMarkers.Apply(chunk.Location, parsed.Spans);
         }
-    }
-
-    /// <summary>
-    /// Calculate page numbers for a chunk based on its character position and PageRanges.
-    /// </summary>
-    /// <param name="pageRanges">Dictionary mapping page number (1-based) to character range</param>
-    /// <param name="startChar">Chunk start character position</param>
-    /// <param name="endChar">Chunk end character position</param>
-    /// <returns>Tuple of (startPage, endPage), both 1-based</returns>
-    private static (int? StartPage, int? EndPage) CalculatePageNumbers(
-        Dictionary<int, (int Start, int End)> pageRanges,
-        int startChar,
-        int endChar)
-    {
-        int? startPage = null;
-        int? endPage = null;
-
-        // Find pages that contain the chunk's start and end positions
-        foreach (var (pageNum, range) in pageRanges)
-        {
-            // Check if this page contains the start position
-            if (startPage == null && startChar >= range.Start && startChar <= range.End)
-            {
-                startPage = pageNum;
-            }
-
-            // Check if this page contains the end position
-            if (endChar >= range.Start && endChar <= range.End)
-            {
-                endPage = pageNum;
-            }
-
-            // Early exit if both found
-            if (startPage.HasValue && endPage.HasValue)
-                break;
-        }
-
-        // Fallback: find closest page if exact match not found
-        if (startPage == null && pageRanges.Count > 0)
-        {
-            // Find the page whose range is closest to startChar
-            startPage = pageRanges
-                .OrderBy(p => Math.Min(Math.Abs(p.Value.Start - startChar), Math.Abs(p.Value.End - startChar)))
-                .First().Key;
-        }
-
-        if (endPage == null && startPage.HasValue)
-        {
-            endPage = startPage;
-        }
-
-        return (startPage, endPage);
     }
 
     private static bool ShouldEnhance(ChunkingOptions options)

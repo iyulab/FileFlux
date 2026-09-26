@@ -190,6 +190,13 @@ public class SourceLocation
     public int EndChar { get; set; }
     public int? StartPage { get; set; }
     public int? EndPage { get; set; }
+
+    /// <summary>Earliest source time this chunk's text covers, for timed sources (audio, video).</summary>
+    public TimeSpan? StartTime { get; set; }
+
+    /// <summary>Latest source time this chunk's text covers.</summary>
+    public TimeSpan? EndTime { get; set; }
+
     public string? Section { get; set; }
     public List<string> HeadingPath { get; set; } = new();
 }

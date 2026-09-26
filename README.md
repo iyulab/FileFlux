@@ -359,8 +359,15 @@ FileFlux uses layout-based table detection with confidence scoring:
 
 Structural metadata: every `ProcessAsync`/`ChunkAsync` chunk carries `Location.StartChar/EndChar`
 (offsets into the refined text), `Location.HeadingPath`/`Section` (hierarchical heading context,
-e.g. `Root Title > Sub Section`), and `Props["HierarchyPath"]`. `Location.StartPage/EndPage` exist but
-are not populated yet: the page mapping needs page ranges from the reader, and no shipped reader supplies them.
+e.g. `Root Title > Sub Section`), and `Props["HierarchyPath"]` — on the streaming `ChunkStreamAsync` too.
+`Location.StartPage/EndPage` name the first and last source page of the chunk's text for PDFs (0.30.0+), and
+`Location.StartTime/EndTime` carry the source time range for timed sources.
+
+These come from `RawContent.Spans`: a reader describes where each stretch of its text came from (`SourceSpan` —
+`Page`, `StartTime`/`EndTime`), refinement carries the spans onto `RefinedContent.Spans`, and chunking writes the
+spans each chunk overlaps onto its `Location`. A custom `IDocumentReader` fills `Spans` to get the same. Spans are
+dropped (and chunk pages left null) when a step rebuilds the text from scratch — table/block conversion from
+structured reader output, or an LLM rewrite.
 
 ## AI Service Integration
 

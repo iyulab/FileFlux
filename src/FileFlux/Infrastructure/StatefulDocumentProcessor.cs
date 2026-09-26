@@ -296,7 +296,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     /// </summary>
     private async Task<RefinedContent> RefineInternalAsync(RawContent raw, RefineOptions options, CancellationToken cancellationToken)
     {
-        var refinedText = raw.Text;
+        var refinedText = SourceSpanMarkers.Insert(raw.Text, raw.Spans);
         var structures = new List<StructuredElement>();
 
         // Step 1: Clean noise
@@ -335,6 +335,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         // Step 4: Text-level refinement via FluxCurator (Standard includes token optimization)
         var textRefineOptions = FluxCurator.Core.Domain.TextRefineOptions.Standard;
         refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
+        (refinedText, var spans) = SourceSpanMarkers.Extract(refinedText, raw.Spans);
 
         // Build sections from text
         var sections = options.BuildSections ? BuildSections(refinedText) : [];
@@ -344,6 +345,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             RawId = raw.Id,
             Text = refinedText,
             Sections = sections,
+            Spans = spans,
             Structures = structures,
             Metadata = BuildMetadata(raw),
             Quality = new RefinementQuality
@@ -443,6 +445,12 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     /// the rule-refined sections through (their offsets describe a different text), the sections are rebuilt from
     /// the text being chunked so heading paths stay aligned with chunk offsets.
     /// </summary>
+    private static SourceLocation WithSpans(SourceLocation location, IReadOnlyList<SourceSpan> spans)
+    {
+        SourceSpanMarkers.Apply(location, spans);
+        return location;
+    }
+
     private RefinedContent ChunkSource()
     {
         var refined = Result.Refined!;
@@ -462,6 +470,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             Summary = refined.Summary,
             Keywords = refined.Keywords,
             Sections = sections,
+            Spans = [],
             Structures = llm.Structures,
             Metadata = llm.Metadata,
             Quality = refined.Quality,
@@ -538,13 +547,13 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
                     ChunkIndex = idx,
                     Tokens = fc.Metadata.EstimatedTokenCount,
                     Strategy = chunker.StrategyName,
-                    Location = new SourceLocation
+                    Location = WithSpans(new SourceLocation
                     {
                         StartChar = fc.Location.StartPosition,
                         EndChar = fc.Location.EndPosition,
                         HeadingPath = headingPath,
                         Section = headingPath.Count > 0 ? headingPath[^1] : null
-                    },
+                    }, refined.Spans),
                     Metadata = refined.Metadata,
                     SourceInfo = new SourceMetadataInfo
                     {
@@ -619,12 +628,16 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         var fcChunks = await chunker.ChunkAsync(refined.Text, fcOptions, cancellationToken).ConfigureAwait(false);
         var chunks = new List<FileFlux.Core.DocumentChunk>();
         var idx = 0;
+        var flatSections = SectionPathCalculator.Flatten(refined.Sections);
 
         foreach (var fc in fcChunks)
         {
             // Lift heading level before stripping markers (no info loss), then strip — same
             // single-source-of-truth helpers as the batch path and FluxCuratorChunkAdapter.
+            // Heading path, section and source spans are set exactly as on the batch path.
             var headingLevel = FluxCuratorChunkAdapter.TryExtractHeadingLevel(fc.Content);
+            var headingPath = SectionPathCalculator.CalculateHeadingPath(
+                flatSections, fc.Location.StartPosition, fc.Location.EndPosition);
             var chunk = new FileFlux.Core.DocumentChunk
             {
                 RawId = Result.Raw!.Id,
@@ -632,16 +645,22 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
                 ChunkIndex = idx++,
                 Tokens = fc.Metadata.EstimatedTokenCount,
                 Strategy = chunker.StrategyName,
-                Location = new SourceLocation
+                Location = WithSpans(new SourceLocation
                 {
                     StartChar = fc.Location.StartPosition,
-                    EndChar = fc.Location.EndPosition
-                },
+                    EndChar = fc.Location.EndPosition,
+                    HeadingPath = headingPath,
+                    Section = headingPath.Count > 0 ? headingPath[^1] : null
+                }, refined.Spans),
                 Metadata = refined.Metadata
             };
             if (headingLevel is int level)
             {
                 chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel] = level;
+            }
+            if (headingPath.Count > 0)
+            {
+                chunk.Props[ChunkPropsKeys.HierarchyPath] = string.Join(" > ", headingPath);
             }
 
             chunks.Add(chunk);

@@ -42,6 +42,12 @@ public class RefinedContent
     public List<Section> Sections { get; set; } = [];
 
     /// <summary>
+    /// The reader's <see cref="RawContent.Spans"/> carried through refinement, in offsets over <see cref="Text"/>.
+    /// Empty when the reader supplied none, or when a rewrite (LLM refinement) could not keep them.
+    /// </summary>
+    public IReadOnlyList<SourceSpan> Spans { get; set; } = [];
+
+    /// <summary>
     /// Extracted structured elements (tables, code, lists).
     /// </summary>
     public IReadOnlyList<StructuredElement> Structures { get; set; } = [];

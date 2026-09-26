@@ -57,7 +57,8 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
 
         try
         {
-            var refinedText = raw.Text;
+            // Reader spans (pages, time ranges) ride through the steps below as marker lines (SourceSpanMarkers).
+            var refinedText = SourceSpanMarkers.Insert(raw.Text, raw.Spans);
             var structures = new List<StructuredElement>();
 
             // Step 1: Clean noise (headers, footers, page numbers)
@@ -163,6 +164,9 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
                 refinedText = NormalizeWhitespace(refinedText);
             }
 
+            // Read the span markers back as offsets over the final text, and remove them.
+            (refinedText, var spans) = SourceSpanMarkers.Extract(refinedText, raw.Spans);
+
             // Build sections from text headings
             var sections = options.BuildSections ? BuildSections(refinedText) : [];
 
@@ -174,6 +178,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
                 RawId = raw.Id,
                 Text = refinedText,
                 Sections = sections,
+                Spans = spans,
                 Structures = structures,
                 Metadata = metadata,
                 Quality = new RefinementQuality

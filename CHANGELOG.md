@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.29.3] - Unreleased
+## [0.30.0] - Unreleased
+
+### Added
+- **PDF chunks name their pages.** `Location.StartPage`/`EndPage` are filled for PDFs on every processor path
+  (`ChunkAsync`, `ChunkStreamAsync`, the one-call `ProcessAsync`) — they existed but were always null.
+- `RawContent.Spans` / `RefinedContent.Spans` (`SourceSpan`: `Page`, `StartTime`, `EndTime`): a reader says where each
+  stretch of its text came from; refinement carries it and chunking writes it onto `Location`. `SourceLocation` gains
+  `StartTime`/`EndTime` for timed sources.
 
 ### Fixed
+- `ChunkStreamAsync` sets `Location.HeadingPath`/`Section` and `Props["HierarchyPath"]` like `ChunkAsync` (they were
+  empty on the streaming path).
 - **Refinement with the default markdown converter keeps the cleanup done before it.** With the converter the default
   registration provides, the refiner handed the converter the raw text and replaced its own result with the output,
   so noise cleaning (artificial `Paragraph N` headings, collapsed runs of whitespace and blank lines), the PDF
@@ -22,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pass was paid for and discarded. When a rewrite changed the text, sections are rebuilt from it (by `LlmRefiner`, and
   by the processor when a refiner passes the old sections through), so heading paths match chunk offsets.
   **Behaviour change** for callers that run the LLM stage: chunks now carry its output.
+
+### Removed
+- The internal page mapping that read a `Hints["PageRanges"]` value no reader wrote.
 
 ## [0.29.2] - 2026-09-26
 
