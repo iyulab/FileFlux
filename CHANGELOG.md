@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.10] - 2026-09-28
+
+### Changed
+- Re-pinned sibling package(s) `FluxImprover` 0.14.10 -> 0.14.11 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+
 ## [0.31.9] - 2026-09-28
 
 ### Changed
