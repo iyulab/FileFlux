@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.7] - 2026-09-27
+
+### Changed
+- Re-pinned sibling package(s) `FluxImprover` 0.14.8 -> 0.14.9, `LMSupply.Captioner` 0.84.0 -> 0.85.0, `LMSupply.Core` 0.84.0 -> 0.85.0, `LMSupply.Embedder` 0.84.0 -> 0.85.0, `LMSupply.Generator` 0.84.0 -> 0.85.0, `LMSupply.Ocr` 0.84.0 -> 0.85.0, `LMSupply.Transcriber` 0.84.0 -> 0.85.0 — re-consumption of already-consumed iyulab packages via `check-pin-drift.ps1 -Fix`. No source changes.
+
 ## [0.31.6] - 2026-09-27
 
 ### Changed
