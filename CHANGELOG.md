@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.12] - Unreleased
+
+### Fixed
+
+- **Numbered list items no longer become section headings.** With `RefineOptions.BuildSections` (the default), every
+  line starting `1.`, `3-1.`, `①` or `(1)` was rewritten to a `##`/`###` heading, so a numbered reference list, footnotes,
+  inline numbered points and tables of contents became sections. In a 33-page encyclopedia PDF, 116 of 141 headings
+  were whole references, and the section titles came to 48,180 characters. A numbered line now becomes a heading only
+  when it reads as a section title: at most 80 characters, not ending like a sentence, not next to another numbered
+  line of the same kind, with body text after it, and outside code fences. Numbered sections separated by body text
+  (`1. 개요` …) still become headings. The same PDF now has 25 headings, the ones its PDF extraction marks.
+
 ## [0.31.11] - 2026-09-28
 
 ### Changed

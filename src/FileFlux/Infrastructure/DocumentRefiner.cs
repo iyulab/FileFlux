@@ -278,54 +278,113 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
     }
 
     /// <summary>
-    /// Converts numbered section markers to Markdown headings.
-    /// Patterns: "1.", "2.", "3-1.", "4-2.", "(1)", "①", etc.
+    /// Longest numbered line still read as a section title. A title is a label; a numbered reference, footnote or
+    /// inline point is a sentence or a paragraph (a 33-page encyclopedia export: median 357 characters).
     /// </summary>
-    private static string ConvertNumberedSectionsToHeadings(string text)
+    internal const int MaxNumberedTitleLength = 80;
+
+    private static readonly (Regex Pattern, int Level, Func<Match, string> Marker)[] NumberedMarkers =
+    [
+        // Third level "3-1-1." -> H4, sub level "3-1." -> H3, top level "1." -> H2
+        (new Regex(@"^(\d+-\d+-\d+)\.\s*(.+)$"), 4, m => m.Groups[1].Value + "."),
+        (new Regex(@"^(\d+-\d+)\.\s+(.+)$"), 3, m => m.Groups[1].Value + "."),
+        (new Regex(@"^(\d+)\.\s+(.+)$"), 2, m => m.Groups[1].Value + "."),
+        // Korean-style circled numbers "①" and parenthesized "(1)" -> H3
+        (new Regex(@"^([①②③④⑤⑥⑦⑧⑨⑩])\s+(.+)$"), 3, m => m.Groups[1].Value),
+        (new Regex(@"^\((\d+)\)\s+(.+)$"), 3, m => "(" + m.Groups[1].Value + ")"),
+    ];
+
+    /// <summary>
+    /// Converts numbered section markers ("1.", "3-1.", "3-1-1.", "①", "(1)") to Markdown headings — for text whose
+    /// sections are numbered lines rather than marked headings. A numbered line is a section title only when it looks
+    /// like one: short, not ending like a sentence, and followed by body text. A run of numbered lines (another numbered
+    /// line of the same kind as the nearest non-blank neighbour) is a list — references, footnotes, a table of contents,
+    /// steps — and stays a list; so does a one-item list with no body after it (the next thing is a heading, or nothing),
+    /// a long numbered sentence inside a paragraph, and anything inside a code fence.
+    /// </summary>
+    internal static string ConvertNumberedSectionsToHeadings(string text)
     {
-        // Pattern 1: Top-level numbers like "1." or "2." at line start followed by content
-        // Convert to ## (H2)
-        text = Regex.Replace(
-            text,
-            @"^(\d+)\.\s+(.+)$",
-            m => $"## {m.Groups[1].Value}. {m.Groups[2].Value}",
-            RegexOptions.Multiline);
+        var lines = text.Split('\n');
+        var matches = new (int Level, string Marker, string Title)?[lines.Length];
+        var inFence = false;
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i].TrimEnd('\r');
+            if (line.TrimStart().StartsWith("```", StringComparison.Ordinal))
+            {
+                inFence = !inFence;
+                continue;
+            }
+            if (!inFence)
+            {
+                matches[i] = MatchNumberedMarker(line);
+            }
+        }
 
-        // Pattern 2: Sub-level numbers like "3-1." or "4-2." at line start
-        // Convert to ### (H3)
-        text = Regex.Replace(
-            text,
-            @"^(\d+-\d+)\.\s+(.+)$",
-            m => $"### {m.Groups[1].Value}. {m.Groups[2].Value}",
-            RegexOptions.Multiline);
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (matches[i] is not { } numbered || !IsTitleShaped(numbered.Title) || IsInNumberedRun(lines, matches, i)
+                || !IsFollowedByBody(lines, i))
+            {
+                continue;
+            }
 
-        // Pattern 3: Third-level like "3-1-1." or "4-2-3."
-        // Convert to #### (H4)
-        text = Regex.Replace(
-            text,
-            @"^(\d+-\d+-\d+)\.\s*(.*)$",
-            m => string.IsNullOrWhiteSpace(m.Groups[2].Value)
-                ? m.Value  // Keep as-is if no content
-                : $"#### {m.Groups[1].Value}. {m.Groups[2].Value}",
-            RegexOptions.Multiline);
+            var cr = lines[i].EndsWith('\r') ? "\r" : string.Empty;
+            lines[i] = $"{new string('#', numbered.Level)} {numbered.Marker} {numbered.Title}{cr}";
+        }
 
-        // Pattern 4: Korean-style circled numbers like "①" or "②"
-        // Convert to ### (H3)
-        text = Regex.Replace(
-            text,
-            @"^([①②③④⑤⑥⑦⑧⑨⑩])\s+(.+)$",
-            m => $"### {m.Groups[1].Value} {m.Groups[2].Value}",
-            RegexOptions.Multiline);
+        return string.Join('\n', lines);
+    }
 
-        // Pattern 5: Parenthesized numbers like "(1)" or "(2)"
-        // Convert to ### (H3)
-        text = Regex.Replace(
-            text,
-            @"^\((\d+)\)\s+(.+)$",
-            m => $"### ({m.Groups[1].Value}) {m.Groups[2].Value}",
-            RegexOptions.Multiline);
+    private static (int Level, string Marker, string Title)? MatchNumberedMarker(string line)
+    {
+        foreach (var (pattern, level, marker) in NumberedMarkers)
+        {
+            var match = pattern.Match(line);
+            if (match.Success)
+            {
+                var title = match.Groups[2].Value.Trim();
+                return title.Length == 0 ? null : (level, marker(match), title);
+            }
+        }
 
-        return text;
+        return null;
+    }
+
+    private static bool IsTitleShaped(string title)
+        => title.Length <= MaxNumberedTitleLength
+           && title[^1] is not ('.' or '。' or ',' or ';');
+
+    private static bool IsFollowedByBody(string[] lines, int index)
+    {
+        for (var j = index + 1; j < lines.Length; j++)
+        {
+            if (!string.IsNullOrWhiteSpace(lines[j]))
+            {
+                return !lines[j].TrimStart().StartsWith('#');
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsInNumberedRun(string[] lines, (int Level, string Marker, string Title)?[] matches, int index)
+    {
+        var level = matches[index]!.Value.Level;
+        return NeighbourLevel(-1) == level || NeighbourLevel(+1) == level;
+
+        int? NeighbourLevel(int step)
+        {
+            for (var j = index + step; j >= 0 && j < lines.Length; j += step)
+            {
+                if (!string.IsNullOrWhiteSpace(lines[j]))
+                {
+                    return matches[j]?.Level;
+                }
+            }
+
+            return null;
+        }
     }
 
     #endregion
