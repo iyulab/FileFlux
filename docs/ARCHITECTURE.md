@@ -41,8 +41,7 @@ graph TB
     B --> C[DocumentProcessor]
 
     C --> D[IDocumentReaderFactory]
-    C --> E[IChunkingStrategyFactory]
-    C --> M[IMetadataEnricher]
+    C --> E[FluxCurator chunker]
 
     D --> F[PdfReader]
     D --> G[WordReader]
@@ -54,16 +53,12 @@ graph TB
     D --> N[CsvReader]
     D --> O[HtmlReader]
 
-    E --> P[AutoChunkingStrategy]
-    E --> Q[SmartChunkingStrategy]
-    E --> R[IntelligentChunkingStrategy]
-    E --> S[SemanticChunkingStrategy]
-    E --> T[ParagraphChunkingStrategy]
-    E --> U[FixedSizeChunkingStrategy]
-    E --> V[MemoryOptimizedIntelligentStrategy]
-
-    M --> X[AIMetadataEnricher]
-    M --> Y[RuleBasedMetadataExtractor]
+    E --> P[Auto]
+    E --> Q[Sentence]
+    E --> R[Paragraph]
+    E --> S[Token]
+    E --> T[Semantic]
+    E --> U[Hierarchical]
 
     C --> W[DocumentChunk[]]
 
@@ -71,7 +66,6 @@ graph TB
     style B fill:#f3e5f5
     style C fill:#fff3e0
     style W fill:#e8f5e8
-    style M fill:#e8eaf6
 ```
 
 ### Project Structure
@@ -120,15 +114,10 @@ FileFlux/                         # Full RAG Pipeline Package
 │   │   ├── MultiModalWordDocumentReader
 │   │   ├── MultiModalExcelDocumentReader
 │   │   └── MultiModalPowerPointDocumentReader
-│   ├── Strategies/               # Chunking Strategies
-│   │   ├── AutoChunkingStrategy
-│   │   ├── SmartChunkingStrategy
-│   │   ├── IntelligentChunkingStrategy
-│   │   └── SemanticChunkingStrategy
 │   ├── Languages/                # Language Profiles
 │   │   └── LanguageProfiles.cs
 │   ├── Services/                 # Processing Services
-│   │   ├── AIMetadataEnricher
+│   │   ├── AIMetadataEnricher        # Standalone metadata extraction (not a pipeline stage)
 │   │   ├── FluxCurator
 │   │   └── FluxImprover
 │   └── Factories/                # Factory implementations
@@ -356,14 +345,15 @@ console.log("Code block preserved");
 
 ### 7. IChunkingStrategy (Content Splitting)
 
-**Strategy Types**:
-- **AutoChunkingStrategy**: Automatic strategy selection (recommended)
-- **SmartChunkingStrategy**: Sentence boundary-based with high completeness
-- **IntelligentChunkingStrategy**: LLM-based semantic boundary detection
-- **MemoryOptimizedIntelligentChunkingStrategy**: Memory-efficient intelligent chunking
-- **SemanticChunkingStrategy**: Sentence-based semantic chunking
-- **ParagraphChunkingStrategy**: Paragraph-level segmentation
-- **FixedSizeChunkingStrategy**: Fixed-size token-based chunking
+Chunking is delegated to FluxCurator. Strategy names (`ChunkingStrategies`):
+- **Auto**: Selects a strategy from the document's structure (recommended)
+- **Sentence**: Sentence-boundary chunking
+- **Paragraph**: Paragraph-level segmentation
+- **Token**: Fixed-size token chunking
+- **Semantic**: Embedding-based semantic boundaries (requires a FluxCurator `IEmbedder`)
+- **Hierarchical**: Heading/structure-aware chunking
+
+An unknown strategy name throws.
 
 ### 8. ILanguageProfile (Multilingual Text Segmentation)
 
@@ -430,13 +420,12 @@ graph TB
 - Text content and metadata extraction
 - Document structure preservation
 
-### 3. Metadata Enrichment (Optional)
+### 3. Metadata Extraction (standalone service)
 
-- AI-powered metadata extraction with IDocumentAnalysisService
-- Three-tier fallback: AI → Hybrid → Rule-based
-- Automatic caching based on file content hash
-- Schema-based extraction (General, ProductManual, TechnicalDoc)
-- Enriched metadata stored in CustomProperties with "enriched_" prefix
+`AIMetadataEnricher` (`IMetadataEnricher`) extracts document metadata — AI through `IDocumentAnalysisService` with a
+rule-based fallback, cached by content, per schema (General, ProductManual, TechnicalDoc). It is **not a pipeline stage**:
+construct it and call `EnrichAsync` on the text you want described. The pipeline's own enrichment is the Enrich stage
+(`IDocumentEnricher`, summaries/keywords/contextual text per chunk).
 
 ### 4. Chunking Processing
 
@@ -453,39 +442,15 @@ graph TB
 - Unsupported format exception handling
 - Extension discovery API
 
-### ChunkingStrategyFactory
-
-- Strategy name-based selection system
-- Default and fallback strategy management
-- Dynamic strategy registration support
-
 ## Configuration and Options
 
 ### ChunkingOptions
 
 **Main Settings**:
-- **Strategy**: Chunking strategy name ("Auto", "Smart", "Intelligent", etc.)
+- **Strategy**: Chunking strategy name (`ChunkingStrategies`: "Auto", "Sentence", "Paragraph", "Token", "Semantic", "Hierarchical")
 - **MaxChunkSize**: Maximum chunk size (default: 1024 tokens)
 - **OverlapSize**: Overlap size between chunks (default: 128 tokens)
-- **CustomProperties**: Extensible configuration dictionary for features like metadata enrichment
-
-**Metadata Enrichment Configuration**:
-```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "Auto",
-    CustomProperties =
-    {
-        ["enableMetadataEnrichment"] = true,
-        ["metadataSchema"] = MetadataSchema.General,
-        ["metadataOptions"] = new MetadataEnrichmentOptions
-        {
-            ExtractionStrategy = MetadataExtractionStrategy.Smart,
-            MinConfidence = 0.7
-        }
-    }
-};
-```
+- **CustomProperties**: Extra values passed through to the chunker
 
 ### Dependency Injection Setup
 
@@ -679,21 +644,6 @@ public static string? ContextualHeader(this DocumentChunk chunk)
     => chunk.Props.TryGetValue("ContextualHeader", out var v) ? v?.ToString() : null;
 ```
 
-### Metadata Enrichment Pattern
-
-```csharp
-// Enriched metadata storage in CustomProperties
-chunk.Metadata.CustomProperties["enriched_topics"] = new[] { "AI", "Machine Learning" };
-chunk.Metadata.CustomProperties["enriched_keywords"] = new[] { "neural networks", "deep learning" };
-chunk.Metadata.CustomProperties["enriched_description"] = "Introduction to AI concepts";
-chunk.Metadata.CustomProperties["enriched_confidence"] = 0.92;
-chunk.Metadata.CustomProperties["enriched_extractionMethod"] = "ai";
-
-// Access enriched metadata
-var topics = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_topics") as string[];
-var confidence = Convert.ToDouble(chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_confidence", 0.0));
-```
-
 ### Pipeline Traceability
 
 ```
@@ -721,7 +671,7 @@ FileFlux focuses on transforming documents into structured chunks optimized for 
   - No direct AI service implementations
 
 **Interface-Driven AI**: FileFlux defines AI service interfaces without implementations:
-- `IDocumentAnalysisService`: Text generation for intelligent chunking
+- `IDocumentAnalysisService`: Text generation for the LLM-refine and enrich stages
 - `IImageToTextService`: Image captioning and OCR
 - `IEmbeddingService`: Embedding generation for semantic search
 
