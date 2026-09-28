@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] - Unreleased
+
+### Changed
+- **PDF extraction uses Unpdf 0.22.0** (and Undoc / Unhwp 0.13.0). On a 33-page encyclopedia PDF, 0.21.0 gave 25 headings, five of them
+  cut or split mid-word (`# oncept`, `# Carbon concentrating m echanism s`), and lost six more. 0.22.0 gives all 31 intact, keeps
+  about 1,600 more digits (volume numbers, citation ids), and stops turning prose beside figures into tables.
+
+### Fixed
+- **A paragraph that starts with a number is not a heading.** The Markdown conversion promoted any line of the form «number, space,
+  capital» — a whole paragraph beginning with an equation (`2 H2O + 2 NADP+ → …`) became `##`. It now applies the same title rule as
+  numbered sections: short, not ending like a sentence.
+- **A numbered label that starts lowercase is not a section title.** A diagram legend (`1. outer membrane`, `2. intermembrane space`)
+  interleaved with body text became `##` headings. In scripts with letter case, a title does not start with a lowercase letter.
+
 ## [0.31.13] - 2026-09-28
 
 ### Changed
