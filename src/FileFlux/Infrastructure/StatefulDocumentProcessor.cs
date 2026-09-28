@@ -553,16 +553,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             }
 
             // Execute chunking via FluxCurator
-            var fcOptions = new FluxCuratorChunkOptions
-            {
-                MaxChunkSize = options.MaxChunkSize,
-                MinChunkSize = options.MinChunkSize,
-                OverlapSize = options.OverlapSize,
-                TargetChunkSize = options.MaxChunkSize / 2,
-                PreserveParagraphs = options.PreserveParagraphs,
-                PreserveSentences = options.PreserveSentences,
-                EnableChunkBalancing = options.EnableChunkBalancing
-            };
+            var fcOptions = ToFluxCuratorOptions(options);
             var chunker = CreateChunkerFor(options.Strategy, refined.Text, fcOptions);
 
             var fcChunks = await chunker.ChunkAsync(refined.Text, fcOptions, cancellationToken).ConfigureAwait(false);
@@ -576,44 +567,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             // same text the chunker ran on, so chunk char offsets align with section offsets.
             var flatSections = SectionPathCalculator.Flatten(refined.Sections);
 
-            var chunks = fcChunks.Select((fc, idx) =>
-            {
-                var headingLevel = FluxCuratorChunkAdapter.TryExtractHeadingLevel(fc.Content);
-                var headingPath = SectionPathCalculator.CalculateHeadingPath(
-                    flatSections, fc.Location.StartPosition, fc.Location.EndPosition);
-                var chunk = new FileFlux.Core.DocumentChunk
-                {
-                    RawId = Result.Raw!.Id,
-                    Content = FluxCuratorChunkAdapter.StripInternalMarkers(fc.Content),
-                    ChunkIndex = idx,
-                    Tokens = fc.Metadata.EstimatedTokenCount,
-                    Strategy = chunker.StrategyName,
-                    Location = WithSpans(new SourceLocation
-                    {
-                        StartChar = fc.Location.StartPosition,
-                        EndChar = fc.Location.EndPosition,
-                        HeadingPath = headingPath,
-                        Section = headingPath.Count > 0 ? headingPath[^1] : null
-                    }, refined.Spans),
-                    Metadata = refined.Metadata,
-                    SourceInfo = new SourceMetadataInfo
-                    {
-                        SourceId = Result.DocumentId.ToString(),
-                        SourceType = refined.Metadata.FileType ?? "unknown",
-                        Title = refined.Metadata.Title ?? refined.Metadata.FileName,
-                        FilePath = FilePath
-                    }
-                };
-                if (headingLevel is int level)
-                {
-                    chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel] = level;
-                }
-                if (headingPath.Count > 0)
-                {
-                    chunk.Props[ChunkPropsKeys.HierarchyPath] = string.Join(" > ", headingPath);
-                }
-                return chunk;
-            }).ToList();
+            var chunks = fcChunks.Select((fc, idx) => ToChunk(fc, idx, chunker.StrategyName, refined, flatSections)).ToList();
 
             // Link structures to chunks
             LinkStructuresToChunks(chunks, refined.Structures);
@@ -659,12 +613,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             yield break;
         }
 
-        var fcOptions = new FluxCuratorChunkOptions
-        {
-            MaxChunkSize = options.MaxChunkSize,
-            MinChunkSize = options.MinChunkSize,
-            OverlapSize = options.OverlapSize
-        };
+        var fcOptions = ToFluxCuratorOptions(options);
         var chunker = CreateChunkerFor(options.Strategy, refined.Text, fcOptions);
 
         // Use ChunkAsync and yield results (IChunker doesn't have streaming)
@@ -675,37 +624,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
         foreach (var fc in fcChunks)
         {
-            // Lift heading level before stripping markers (no info loss), then strip — same
-            // single-source-of-truth helpers as the batch path and FluxCuratorChunkAdapter.
-            // Heading path, section and source spans are set exactly as on the batch path.
-            var headingLevel = FluxCuratorChunkAdapter.TryExtractHeadingLevel(fc.Content);
-            var headingPath = SectionPathCalculator.CalculateHeadingPath(
-                flatSections, fc.Location.StartPosition, fc.Location.EndPosition);
-            var chunk = new FileFlux.Core.DocumentChunk
-            {
-                RawId = Result.Raw!.Id,
-                Content = FluxCuratorChunkAdapter.StripInternalMarkers(fc.Content),
-                ChunkIndex = idx++,
-                Tokens = fc.Metadata.EstimatedTokenCount,
-                Strategy = chunker.StrategyName,
-                Location = WithSpans(new SourceLocation
-                {
-                    StartChar = fc.Location.StartPosition,
-                    EndChar = fc.Location.EndPosition,
-                    HeadingPath = headingPath,
-                    Section = headingPath.Count > 0 ? headingPath[^1] : null
-                }, refined.Spans),
-                Metadata = refined.Metadata
-            };
-            if (headingLevel is int level)
-            {
-                chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel] = level;
-            }
-            if (headingPath.Count > 0)
-            {
-                chunk.Props[ChunkPropsKeys.HierarchyPath] = string.Join(" > ", headingPath);
-            }
-
+            var chunk = ToChunk(fc, idx++, chunker.StrategyName, refined, flatSections);
             chunks.Add(chunk);
             yield return chunk;
         }
@@ -1128,6 +1047,81 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     /// as the IFluxCurator orchestrator path). Without this, Auto silently degraded to the
     /// factory's Sentence fallback.
     /// </summary>
+    /// <summary>
+    /// A FileFlux chunk from a FluxCurator chunk — one conversion for <see cref="ChunkAsync"/> and
+    /// <see cref="ChunkStreamAsync"/>. Two copies had drifted: the streaming one set no <see cref="SourceMetadataInfo"/>
+    /// at all, and neither carried the language the chunker segmented with, so every chunk reported the default "en".
+    /// The heading level is lifted before the structural markers are stripped (no information lost).
+    /// </summary>
+    private FileFlux.Core.DocumentChunk ToChunk(
+        FluxCurator.Core.Domain.DocumentChunk fc,
+        int index,
+        string strategyName,
+        RefinedContent refined,
+        List<Section> flatSections)
+    {
+        var headingLevel = FluxCuratorChunkAdapter.TryExtractHeadingLevel(fc.Content);
+        var headingPath = SectionPathCalculator.CalculateHeadingPath(
+            flatSections, fc.Location.StartPosition, fc.Location.EndPosition);
+        var sourceInfo = new SourceMetadataInfo
+        {
+            SourceId = Result.DocumentId.ToString(),
+            SourceType = refined.Metadata.FileType ?? "unknown",
+            Title = refined.Metadata.Title ?? refined.Metadata.FileName,
+            FilePath = FilePath
+        };
+        if (!string.IsNullOrEmpty(fc.Metadata.LanguageCode))
+        {
+            sourceInfo.Language = fc.Metadata.LanguageCode;
+            sourceInfo.LanguageConfidence = 1.0;
+        }
+
+        var chunk = new FileFlux.Core.DocumentChunk
+        {
+            RawId = Result.Raw!.Id,
+            Content = FluxCuratorChunkAdapter.StripInternalMarkers(fc.Content),
+            ChunkIndex = index,
+            Tokens = fc.Metadata.EstimatedTokenCount,
+            Strategy = strategyName,
+            Location = WithSpans(new SourceLocation
+            {
+                StartChar = fc.Location.StartPosition,
+                EndChar = fc.Location.EndPosition,
+                HeadingPath = headingPath,
+                Section = headingPath.Count > 0 ? headingPath[^1] : null
+            }, refined.Spans),
+            Metadata = refined.Metadata,
+            SourceInfo = sourceInfo
+        };
+        if (headingLevel is int level)
+        {
+            chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel] = level;
+        }
+        if (headingPath.Count > 0)
+        {
+            chunk.Props[ChunkPropsKeys.HierarchyPath] = string.Join(" > ", headingPath);
+        }
+
+        return chunk;
+    }
+
+    /// <summary>
+    /// The FluxCurator options for <paramref name="options"/> — one mapping for <see cref="ChunkAsync"/> and
+    /// <see cref="ChunkStreamAsync"/>. Two copies had drifted: the streaming one passed only the three sizes, and neither
+    /// passed <see cref="ChunkingOptions.LanguageCode"/>, so the segmentation profile was always auto-detected.
+    /// </summary>
+    private static FluxCuratorChunkOptions ToFluxCuratorOptions(ChunkingOptions options) => new()
+    {
+        MaxChunkSize = options.MaxChunkSize,
+        MinChunkSize = options.MinChunkSize,
+        OverlapSize = options.OverlapSize,
+        TargetChunkSize = options.MaxChunkSize / 2,
+        LanguageCode = options.LanguageCode is null or "auto" ? null : options.LanguageCode,
+        PreserveParagraphs = options.PreserveParagraphs,
+        PreserveSentences = options.PreserveSentences,
+        EnableChunkBalancing = options.EnableChunkBalancing
+    };
+
     private IChunker CreateChunkerFor(string strategy, string text, FluxCuratorChunkOptions fcOptions)
     {
         var fcStrategy = ChunkingStrategyMap.ToFluxCurator(strategy);

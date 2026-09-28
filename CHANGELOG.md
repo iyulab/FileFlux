@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ran. It does now; so does a reader added with `AddDocumentReader<T>()` before `AddFileFlux()`.
 
 ### Fixed
+- **Stateful chunks report their language.** Every chunk from `ProcessAsync`/`ChunkAsync` reported `SourceInfo.Language = "en"` (the
+  default) — a Korean document included — because the conversion dropped the language the chunker segmented with. Chunks from
+  `ChunkStreamAsync`/`ProcessStreamAsync` also carried no `SourceInfo` at all (no source id, file path or title); they do now.
+- **`ChunkingOptions.LanguageCode` reaches the chunker** on the stateful path (it did only on the legacy processor), and the streaming
+  path honours `PreserveParagraphs`, `PreserveSentences` and `EnableChunkBalancing` too — it passed only the three sizes.
+- The XML docs of the `ChunkingOptions` members only the legacy `FluxDocumentProcessor` reads (conditional enrichment, `CustomProperties`,
+  `RefiningOptions`) say so and name where the stateful pipeline takes those settings.
 - The document-type optimizer's default recommendation and the quality engine's boundary advice named strategies that do not exist
   (`Intelligent`); they name `Auto` and `Paragraph`. `ChunkMetadataEnricher` computes `quality.completeness` for every chunk — it
   was computed only for a `Smart` strategy, which no chunk ever had.

@@ -37,9 +37,11 @@ public class ChunkingOptions
     public bool PreserveSentences { get; set; } = true;
 
     /// <summary>
-    /// Custom properties for advanced settings. This is the one extension bag on this type — the read keys are the
-    /// metadata-enrichment ones documented in <c>docs/ARCHITECTURE.md</c>; <c>StrategyOptions</c>, which nothing read,
-    /// was removed in 0.25.0.
+    /// Custom properties for advanced settings. The keys read are <c>enableEnhancement</c>, <c>useContextualRetrieval</c>
+    /// and <c>enrichKeywords</c> (each <c>true</c> to turn it on). <c>StrategyOptions</c>, which nothing read, was removed
+    /// in 0.25.0.
+    /// <para>Read by the legacy <c>FluxDocumentProcessor.ProcessAsync(path, options)</c> only. The stateful
+    /// <c>IDocumentProcessor</c> takes enrichment through <c>EnrichAsync</c> / <c>ProcessingOptions.Enrich</c>.</para>
     /// </summary>
     public Dictionary<string, object> CustomProperties { get; } = new();
 
@@ -63,6 +65,8 @@ public class ChunkingOptions
     /// Enable conditional enrichment based on chunk quality assessment (default: false)
     /// When enabled, chunks are pre-assessed and may skip unnecessary LLM enrichment operations.
     /// This can reduce LLM API costs by 30-50% for well-structured documents.
+    /// <para>Read by the legacy <c>FluxDocumentProcessor.ProcessAsync(path, options)</c> only. The stateful
+    /// <c>IDocumentProcessor</c> takes enrichment through <c>EnrichAsync</c> / <c>ProcessingOptions.Enrich</c>.</para>
     /// </summary>
     public bool EnableConditionalEnrichment { get; set; }
 
@@ -71,6 +75,8 @@ public class ChunkingOptions
     /// Chunks with OverallScore >= this value skip summarization and keyword extraction.
     /// Only used when EnableConditionalEnrichment is true.
     /// Default: 0.8
+    /// <para>Read by the legacy <c>FluxDocumentProcessor.ProcessAsync(path, options)</c> only. The stateful
+    /// <c>IDocumentProcessor</c> takes enrichment through <c>EnrichAsync</c> / <c>ProcessingOptions.Enrich</c>.</para>
     /// </summary>
     public float ConditionalEnrichmentThreshold { get; set; } = 0.8f;
 
@@ -78,6 +84,8 @@ public class ChunkingOptions
     /// Minimum content length (characters) to enable summarization (default: 500)
     /// Chunks shorter than this skip summarization even if otherwise recommended.
     /// Only used when EnableConditionalEnrichment is true.
+    /// <para>Read by the legacy <c>FluxDocumentProcessor.ProcessAsync(path, options)</c> only. The stateful
+    /// <c>IDocumentProcessor</c> takes enrichment through <c>EnrichAsync</c> / <c>ProcessingOptions.Enrich</c>.</para>
     /// </summary>
     public int MinSummarizationLength { get; set; } = 500;
 
@@ -85,6 +93,8 @@ public class ChunkingOptions
     /// Refining options to apply before chunking (default: enabled with Markdown conversion).
     /// The Refine stage is executed between Parse and Chunk stages.
     /// Set to null to disable refining, or use RefiningOptions.WithImageProcessing for image processing.
+    /// <para>Read by the legacy <c>FluxDocumentProcessor.ProcessAsync(path, options)</c> only. The stateful
+    /// <c>IDocumentProcessor</c> takes refinement through <c>RefineAsync</c> / <c>ProcessingOptions.Refine</c>.</para>
     /// </summary>
     public RefiningOptions? RefiningOptions { get; set; } = new();
 }
