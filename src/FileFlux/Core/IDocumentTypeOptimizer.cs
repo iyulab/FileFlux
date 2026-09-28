@@ -197,7 +197,7 @@ public class PerformanceMetrics
     /// <summary>
     /// Recommended chunking strategy.
     /// </summary>
-    public string RecommendedStrategy { get; set; } = "Intelligent";
+    public string RecommendedStrategy { get; set; } = ChunkingStrategies.Auto;
 
     /// <summary>
     /// Additional optimization hints.

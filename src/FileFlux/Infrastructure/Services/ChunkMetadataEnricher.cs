@@ -22,12 +22,9 @@ public class ChunkMetadataEnricher
         var relevanceScore = CalculateRelevanceScore(chunk.Content, context);
         chunk.Props[ChunkPropsKeys.QualityRelevanceScore] = relevanceScore;
 
-        // Calculate completeness score for Smart strategy chunks
-        if (chunk.Strategy == "Smart")
-        {
-            var completeness = CalculateCompletenessScore(chunk.Content);
-            chunk.Props[ChunkPropsKeys.QualityCompleteness] = completeness;
-        }
+        // Completeness does not depend on the strategy. It was computed only for chunks of a "Smart" strategy, which no
+        // longer exists, so no chunk got it.
+        chunk.Props[ChunkPropsKeys.QualityCompleteness] = CalculateCompletenessScore(chunk.Content);
 
         // Detect and store content type
         var contentType = DetectContentType(chunk.Content);

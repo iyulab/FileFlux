@@ -214,7 +214,9 @@ services.AddFileFlux();
 ```
 
 `AddFileFlux(ServiceLifetime.Singleton)` registers the pipeline with the lifetime of a singleton or hosted consumer (default
-`Scoped`); `AddDocumentReader<T>()` / `AddDocumentParser<T>()` add your own reader or parser for a format.
+`Scoped`); `AddDocumentReader<T>()` / `AddDocumentParser<T>()` add your own reader or parser for a format — an added reader wins
+over the built-in one for its extensions, registered before or after `AddFileFlux()` (`AddNativeOfficeReader()` uses this for the
+native DOCX/XLSX/PPTX reader).
 
 #### Local AI with LMSupply (v0.20.0+)
 

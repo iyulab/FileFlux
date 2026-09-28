@@ -138,11 +138,11 @@ public class ChunkQualityEngine
             {
                 Type = RecommendationType.ChunkingStrategy,
                 Priority = (int)RecommendationPriority.Critical,
-                Description = "Switch to Intelligent chunking strategy for better semantic boundary detection",
+                Description = "Switch to the Paragraph chunking strategy (or Semantic, with an embedder) for better boundary detection",
                 ExpectedImprovement = 0.25,
                 SuggestedParameters = new Dictionary<string, object>
                 {
-                    ["Strategy"] = "Intelligent",
+                    ["Strategy"] = ChunkingStrategies.Paragraph,
                     ["Reason"] = "Current strategy produces poor semantic boundaries"
                 }
             });

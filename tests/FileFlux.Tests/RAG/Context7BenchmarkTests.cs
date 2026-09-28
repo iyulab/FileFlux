@@ -121,7 +121,7 @@ The results support our hypothesis that transformer architectures provide superi
     public async Task Context7Metadata_TechnicalDocument_ProducesCorrectClassification()
     {
         // Arrange
-        var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
+        var options = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 512 };
 
         // Act
         await using var processor = _processorFactory.Create(_technicalTestFile);
@@ -163,7 +163,7 @@ The results support our hypothesis that transformer architectures provide superi
     public async Task Context7Metadata_BusinessDocument_ProducesCorrectClassification()
     {
         // Arrange
-        var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
+        var options = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 512 };
 
         // Act
         await using var processor = _processorFactory.Create(_businessTestFile);
@@ -201,7 +201,7 @@ The results support our hypothesis that transformer architectures provide superi
     public async Task Context7Metadata_AcademicDocument_ProducesCorrectClassification()
     {
         // Arrange
-        var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
+        var options = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 512 };
 
         // Act
         await using var processor = _processorFactory.Create(_academicTestFile);
@@ -234,8 +234,8 @@ The results support our hypothesis that transformer architectures provide superi
     public async Task Context7EnhancedChunks_CompareToBasicChunks_ShowsImprovement()
     {
         // Arrange - Smart strategy with Context7 vs basic strategy
-        var smartOptions = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
-        var basicOptions = new ChunkingOptions { Strategy = "FixedSize", MaxChunkSize = 512 };
+        var smartOptions = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 512 };
+        var basicOptions = new ChunkingOptions { Strategy = ChunkingStrategies.Token, MaxChunkSize = 512 };
 
         // Act
         await using var smartProcessor = _processorFactory.Create(_technicalTestFile);
@@ -272,7 +272,7 @@ The results support our hypothesis that transformer architectures provide superi
     public async Task Context7QualityGrades_AssignCorrectGrades_BasedOnRAGSuitability()
     {
         // Arrange
-        var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
+        var options = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 512 };
 
         // Act
         await using var processor = _processorFactory.Create(_technicalTestFile);
@@ -317,7 +317,7 @@ The results support our hypothesis that transformer architectures provide superi
             _ => throw new ArgumentException("Invalid domain")
         };
         
-        var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
+        var options = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 512 };
 
         // Act
         await using var processor = _processorFactory.Create(testFile);
@@ -355,7 +355,7 @@ The results support our hypothesis that transformer architectures provide superi
     public async Task Context7MetadataEnrichment_InformationDensityCalculation_ProducesValidScores()
     {
         // Arrange
-        var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 256 };
+        var options = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 256 };
 
         // Act
         await using var processor = _processorFactory.Create(_technicalTestFile);
@@ -383,7 +383,7 @@ The results support our hypothesis that transformer architectures provide superi
     public async Task Context7SmartStrategy_CompletenessScore_MeetsMinimumThreshold()
     {
         // Arrange
-        var options = new ChunkingOptions { Strategy = "Smart", MaxChunkSize = 512 };
+        var options = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 512 };
 
         // Act
         await using var processor = _processorFactory.Create(_technicalTestFile);

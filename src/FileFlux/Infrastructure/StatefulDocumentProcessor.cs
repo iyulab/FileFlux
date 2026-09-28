@@ -521,6 +521,9 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     public async Task ChunkAsync(ChunkingOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        // Reject an unknown strategy before any stage runs — not after extraction and refinement have been paid for.
+        ChunkingStrategyMap.ToFluxCurator(options?.Strategy);
+
 
         if (_state >= ProcessorState.Chunked)
         {
@@ -636,6 +639,8 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        // Reject an unknown strategy before any stage runs — not after extraction and refinement have been paid for.
+        ChunkingStrategyMap.ToFluxCurator(options?.Strategy);
 
         // Auto-run previous stage if needed
         if (_state < ProcessorState.Refined)
@@ -888,6 +893,9 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     public async Task ProcessAsync(ProcessingOptions? options = null, CancellationToken cancellationToken = default)
     {
         options ??= ProcessingOptions.Default;
+        // Reject an unknown strategy before any stage runs — not after extraction and refinement have been paid for.
+        ChunkingStrategyMap.ToFluxCurator(options.Chunking?.Strategy);
+
 
         await ExtractAsync(cancellationToken).ConfigureAwait(false);
         await RefineAsync(options.Refine, cancellationToken).ConfigureAwait(false);
@@ -911,6 +919,9 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         options ??= ProcessingOptions.Default;
+        // Reject an unknown strategy before any stage runs — not after extraction and refinement have been paid for.
+        ChunkingStrategyMap.ToFluxCurator(options.Chunking?.Strategy);
+
 
         await ExtractAsync(cancellationToken).ConfigureAwait(false);
         await RefineAsync(options.Refine, cancellationToken).ConfigureAwait(false);
@@ -1119,7 +1130,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     /// </summary>
     private IChunker CreateChunkerFor(string strategy, string text, FluxCuratorChunkOptions fcOptions)
     {
-        var fcStrategy = MapToFluxCuratorStrategy(strategy);
+        var fcStrategy = ChunkingStrategyMap.ToFluxCurator(strategy);
         if (fcStrategy == FluxCuratorStrategy.Auto)
         {
             fcOptions.Strategy = FluxCuratorStrategy.Auto;
@@ -1130,19 +1141,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         return _chunkerFactory.CreateChunker(fcStrategy);
     }
 
-    private static FluxCuratorStrategy MapToFluxCuratorStrategy(string strategy)
-    {
-        return strategy?.ToLowerInvariant() switch
-        {
-            "auto" => FluxCuratorStrategy.Auto,
-            "sentence" => FluxCuratorStrategy.Sentence,
-            "paragraph" => FluxCuratorStrategy.Paragraph,
-            "token" => FluxCuratorStrategy.Token,
-            "semantic" => FluxCuratorStrategy.Semantic,
-            "hierarchical" => FluxCuratorStrategy.Hierarchical,
-            _ => FluxCuratorStrategy.Auto
-        };
-    }
 
     private void ThrowIfDisposed()
     {

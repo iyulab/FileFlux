@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.33.0] - Unreleased
 
+### Changed
+- **An unknown `ChunkingOptions.Strategy` throws `ArgumentException`, before any stage runs.** It used to run as `Auto` without a
+  word, so a typo — or a name from an older release such as `Smart`, `Intelligent`, `FixedSize` or `PageLevel` — chunked the document
+  some other way than the caller asked. Names are matched case-insensitively; an unset strategy is still `Auto`.
+- **A reader you add wins over the built-in reader for its extensions, whichever side of `AddFileFlux()` it is registered on.**
+  `AddNativeOfficeReader()` (documented as «call before `AddFileFlux()`») and `AddFileFluxWithNativeOffice()` registered the native
+  DOCX/XLSX/PPTX reader before the built-ins, and the reader factory prefers the reader registered last — so the native reader never
+  ran. It does now; so does a reader added with `AddDocumentReader<T>()` before `AddFileFlux()`.
+
 ### Fixed
+- The document-type optimizer's default recommendation and the quality engine's boundary advice named strategies that do not exist
+  (`Intelligent`); they name `Auto` and `Paragraph`. `ChunkMetadataEnricher` computes `quality.completeness` for every chunk — it
+  was computed only for a `Smart` strategy, which no chunk ever had.
 - **The README's Quick Start runs.** It resolved an `IDocumentProcessor` that `AddFileFlux()` never registers, called a
   `ProcessAsync(path)` the interface does not have and read `chunk.Index` (the property is `ChunkIndex`). It now goes through
   `IDocumentProcessorFactory.Create(path)` → `ProcessAsync()` → `Result`, and the streaming and options examples do too.

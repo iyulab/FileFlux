@@ -630,7 +630,7 @@ public sealed partial class FluxDocumentProcessor
         try
         {
             // Map FileFlux strategy to FluxCurator strategy
-            var fcStrategy = MapToFluxCuratorStrategy(options.Strategy);
+            var fcStrategy = ChunkingStrategyMap.ToFluxCurator(options.Strategy);
             var chunker = _chunkerFactory.CreateChunker(fcStrategy);
 
             // Convert options
@@ -783,24 +783,6 @@ public sealed partial class FluxDocumentProcessor
 
     #region Helper Methods
 
-    private static FluxCuratorStrategy MapToFluxCuratorStrategy(string strategy)
-    {
-        return strategy?.ToLowerInvariant() switch
-        {
-            "auto" => FluxCuratorStrategy.Auto,
-            "sentence" => FluxCuratorStrategy.Sentence,
-            "paragraph" => FluxCuratorStrategy.Paragraph,
-            "token" => FluxCuratorStrategy.Token,
-            "semantic" => FluxCuratorStrategy.Semantic,
-            "hierarchical" => FluxCuratorStrategy.Hierarchical,
-            // Legacy mappings
-            "smart" => FluxCuratorStrategy.Sentence,
-            "intelligent" => FluxCuratorStrategy.Semantic,
-            "fixedsize" => FluxCuratorStrategy.Token,
-            "pagelevel" => FluxCuratorStrategy.Paragraph,
-            _ => FluxCuratorStrategy.Auto
-        };
-    }
 
     private static void EnrichChunksWithMetadata(
         IReadOnlyList<DocumentChunk> chunks,

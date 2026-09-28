@@ -73,10 +73,12 @@ public static class ServiceCollectionExtensions
         // Language profile for multilingual support (always Singleton - thread-safe)
         services.AddSingleton<ILanguageProfileProvider, DefaultLanguageProfileProvider>();
 
-        // Reader factory (configurable lifetime)
+        // Reader factory (configurable lifetime). The factory prefers the reader registered last for an extension, so the
+        // built-ins go first and every reader the caller added (AddDocumentReader, AddNativeOfficeReader, a plain
+        // AddTransient<IDocumentReader, …>) goes after them, whichever side of AddFileFlux() it was registered on.
         services.Add(new ServiceDescriptor(
             typeof(IDocumentReaderFactory),
-            provider => new DocumentReaderFactory(provider.GetServices<IDocumentReader>()),
+            provider => new DocumentReaderFactory(BuiltInReadersFirst(provider.GetServices<IDocumentReader>())),
             lifetime));
 
         // Parser factory (configurable lifetime - captures IDocumentAnalysisService, which consumers
@@ -260,7 +262,27 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Adds a custom document reader.
+    /// The readers <see cref="AddFileFlux(IServiceCollection, ServiceLifetime)"/> registers. Keep in step with the
+    /// registrations there — a test pins it.
+    /// </summary>
+    internal static readonly IReadOnlySet<Type> BuiltInReaderTypes = new HashSet<Type>
+    {
+        typeof(TextDocumentReader), typeof(MarkdownDocumentReader), typeof(HtmlDocumentReader), typeof(CsvDocumentReader),
+        typeof(MultiModalPdfDocumentReader), typeof(MultiModalPowerPointDocumentReader), typeof(MultiModalWordDocumentReader),
+        typeof(MultiModalExcelDocumentReader), typeof(LegacyExcelDocumentReader), typeof(HwpDocumentReader),
+        typeof(AudioDocumentReader),
+    };
+
+    private static IEnumerable<IDocumentReader> BuiltInReadersFirst(IEnumerable<IDocumentReader> readers)
+    {
+        var all = readers.ToList();
+        return all.Where(r => BuiltInReaderTypes.Contains(r.GetType()))
+            .Concat(all.Where(r => !BuiltInReaderTypes.Contains(r.GetType())));
+    }
+
+    /// <summary>
+    /// Adds a custom document reader. It takes precedence over the built-in reader for the extensions it claims, whether it
+    /// is registered before or after <c>AddFileFlux()</c>; among readers you add, the one registered last wins.
     /// </summary>
     public static IServiceCollection AddDocumentReader<T>(this IServiceCollection services)
         where T : class, IDocumentReader
@@ -282,11 +304,9 @@ public static class ServiceCollectionExtensions
     /// - Optional background self-update (opt-in via UndocNativeLoader.AutoUpdateEnabled or the
     ///   FILEFLUX_NATIVE_AUTOUPDATE environment variable; off by default for reproducibility)
     ///
-    /// Call this BEFORE AddFileFlux() to use native readers as primary:
-    /// <code>
-    /// services.AddNativeOfficeReader();
-    /// services.AddFileFlux();
-    /// </code>
+    /// The native reader takes precedence over the built-in DOCX/XLSX/PPTX readers whether this is called before or after
+    /// AddFileFlux(). (It used to lose to them: the reader factory prefers the reader registered last, and the built-ins
+    /// were registered after it.)
     /// </remarks>
     public static IServiceCollection AddNativeOfficeReader(this IServiceCollection services)
     {
