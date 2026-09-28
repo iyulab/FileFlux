@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.32.0] - Unreleased
+## [0.32.0] - 2026-09-28
 
 ### Changed
 - **PDF extraction uses Unpdf 0.22.0** (and Undoc / Unhwp 0.13.0). On a 33-page encyclopedia PDF, 0.21.0 gave 25 headings, five of them
