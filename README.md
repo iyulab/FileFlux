@@ -16,13 +16,12 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 - **5-Stage Stateful Pipeline**: Extract → Rule-Refine → LLM-Refine → Chunk → Enrich
 - **Native Document Readers**: Rust FFI-based readers (Unpdf, Undoc, Unhwp) for 2-5x faster processing. Binaries are NuGet-pinned for reproducibility; runtime self-update from GitHub releases is opt-in (off by default — set `UndocNativeLoader.AutoUpdateEnabled = true` / `UnhwpNativeLoader.AutoUpdateEnabled = true` or the `FILEFLUX_NATIVE_AUTOUPDATE=1` environment variable)
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, HWP, HWPX, Markdown, HTML, TXT, JSON, CSV
-- **Flexible Chunking Strategies**: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize, Hierarchical, PageLevel
+- **Chunking Strategies**: Auto, Sentence, Paragraph, Token, Hierarchical, Semantic (`ChunkingStrategies` — see [Chunking Strategies](#chunking-strategies))
 - **Interface-Driven AI**: Define AI service interfaces, implement with your preferred provider
 - **Document Graph**: Inter-chunk relationship tracking with sequential, hierarchical, and semantic edges
 - **Structural Metadata**: HeadingPath, page numbers, ContextDependency scores for enhanced RAG
 - **Language Detection**: Automatic language detection using NTextCat
 - **IEnrichedChunk Interface**: Standardized interface for RAG system integration
-- **Metadata Enrichment**: AI-powered metadata extraction with caching and fallback
 - **Extensible Architecture**: Interface-based design for easy customization
 - **Async Processing**: Streaming and parallel processing for large documents
 
@@ -43,37 +42,40 @@ dotnet add package FileFlux.Core
 |---------|---------------|----------|
 | Document Readers (PDF, DOCX, etc.) | ✅ | ✅ |
 | Core Interfaces & Models | ✅ | ✅ |
-| AI Service Interfaces | ✅ | ✅ |
+| AI Service Interfaces (`IDocumentAnalysisService`, `IImageToTextService`, `IAudioToTextService`, `IEmbeddingService`) | ❌ | ✅ |
 | Chunking Strategies | ❌ | ✅ |
 | FluxCurator & FluxImprover | ❌ | ✅ |
 | DocumentProcessor | ❌ | ✅ |
 | Use Case | Custom chunking | Full RAG pipeline |
 
+`FileFlux.Providers.LMSupply` adds local AI implementations of those interfaces ([below](#local-ai-with-lmsupply-v0200)), and
+`FileFlux.CLI` is a command-line tool over the same pipeline (`dotnet tool install -g FileFlux.CLI`).
+
 ## Quick Start
 
 ### Basic Usage
 
+`AddFileFlux()` registers an `IDocumentProcessorFactory`. A processor handles one document: create it from a path (or a
+`Stream`/`byte[]` with its extension), run the pipeline, and read the chunks from `Result` — which is itself the chunk
+sequence.
+
 ```csharp
 using FileFlux;
+using FileFlux.Core;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
+services.AddFileFlux();   // no logger or AI service required
+using var provider = services.BuildServiceProvider();
 
-// Optional: Register AI services for advanced features
-// services.AddScoped<IDocumentAnalysisService, YourLLMService>();
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+await using var processor = factory.Create("document.pdf");
 
-// Register FileFlux services (no logger required)
-services.AddFileFlux();
+await processor.ProcessAsync();   // Extract → Refine → (LLM refine, skipped without an AI service) → Chunk
 
-var provider = services.BuildServiceProvider();
-var processor = provider.GetRequiredService<IDocumentProcessor>();
-
-// Process document
-var chunks = await processor.ProcessAsync("document.pdf");
-
-foreach (var chunk in chunks)
+foreach (var chunk in processor.Result)
 {
-    Console.WriteLine($"Chunk {chunk.Index}: {chunk.Content}");
+    Console.WriteLine($"Chunk {chunk.ChunkIndex}: {chunk.Content}");
 }
 ```
 
@@ -94,30 +96,33 @@ foreach (var chunk in chunks)
 
 ### Streaming Processing
 
+`ProcessStreamAsync` yields chunks as they are produced; `Result.Chunks` holds all of them once the enumeration ends.
+
 ```csharp
-await foreach (var result in processor.ProcessStreamAsync("document.pdf"))
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+await using var processor = factory.Create("document.pdf");
+
+await foreach (var chunk in processor.ProcessStreamAsync())
 {
-    if (result.IsSuccess && result.Result != null)
-    {
-        foreach (var chunk in result.Result)
-        {
-            Console.WriteLine($"Chunk {chunk.Index}: {chunk.Content.Length} chars");
-        }
-    }
+    Console.WriteLine($"Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars");
 }
 ```
 
 ### Chunking Options
 
 ```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "Auto",      // Automatic strategy selection
-    MaxChunkSize = 512,     // Maximum chunk size
-    OverlapSize = 64        // Overlap between chunks
-};
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+await using var processor = factory.Create("document.pdf");
 
-var chunks = await processor.ProcessAsync("document.pdf", options);
+await processor.ProcessAsync(new ProcessingOptions
+{
+    Chunking = new ChunkingOptions
+    {
+        Strategy = ChunkingStrategies.Auto,   // see Chunking Strategies below
+        MaxChunkSize = 512,                   // maximum chunk size (default 1024)
+        OverlapSize = 64                      // overlap between chunks (default 128)
+    }
+});
 ```
 
 ### Stateful Pipeline (v0.9.0+)
@@ -125,8 +130,7 @@ var chunks = await processor.ProcessAsync("document.pdf", options);
 The new stateful pipeline provides explicit control over each processing stage:
 
 ```csharp
-using FileFlux;
-using FileFlux.Infrastructure.Factories;
+using FileFlux.Core;
 
 // Create processor via factory
 var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
@@ -178,32 +182,6 @@ if (processor.Result.Graph != null)
 | Chunk | `IChunkerFactory` | Optional | Content segmentation with various strategies |
 | Enrich | `IDocumentEnricher` | ✅ | LLM-powered summaries, keywords, contextual text |
 
-### Metadata Enrichment
-
-```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "Auto",
-    MaxChunkSize = 512,
-    CustomProperties =
-    {
-        ["enableMetadataEnrichment"] = true,
-        ["metadataSchema"] = MetadataSchema.General
-    }
-};
-
-var chunks = await processor.ProcessAsync("document.pdf", options);
-
-// Access enriched metadata
-foreach (var chunk in chunks)
-{
-    var keywords = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_keywords");
-    var description = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_description");
-    var documentType = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_documentType");
-    var language = chunk.Metadata.CustomProperties.GetValueOrDefault("enriched_language");
-}
-```
-
 ### AI Service Interfaces
 
 FileFlux defines AI service interfaces - consumer applications provide implementations.
@@ -215,7 +193,10 @@ FileFlux defines AI service interfaces - consumer applications provide implement
 | `IDocumentAnalysisService` | Text generation, intelligent chunking. Override `GenerateAsync(prompt, GenerationSettings, ct)` so `LlmRefineOptions`/`ParsingOptions` `Temperature`/`MaxTokens` reach your model, and throw `GenerationTruncatedException` (or, from a service on the shared completion port, its base `Flux.Abstractions.TextCompletionTruncatedException`) when the model stops at the token limit so a cut-off rewrite is never adopted. Set `ProviderInfo.MaxContextLength` and the refiner will not send a pass that cannot fit | OpenAI, Anthropic, LMSupply |
 | `IImageToTextService` | Image captioning, OCR | OpenAI Vision, LMSupply Captioner/OCR |
 | `IAudioToTextService` | Speech transcription — makes audio files readable (0.30.0+); without one, audio is unsupported | LMSupply Transcriber |
-| `IEmbeddingService` | Embedding generation | OpenAI, LMSupply Embedder |
+| `IEmbeddingService` | Embedding generation for your own use. The pipeline does not consume it yet — `Semantic` chunking takes FluxCurator's `IEmbedder` (see [Chunking Strategies](#chunking-strategies)) | OpenAI, LMSupply Embedder |
+
+`OpenAICompatibleDocumentAnalysisService` (in `FileFlux`) is a ready `IDocumentAnalysisService` for OpenAI, Azure OpenAI,
+Ollama and other OpenAI-compatible endpoints.
 
 #### Example: Custom AI Provider
 
@@ -225,17 +206,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-// Implement your own AI service
-services.AddScoped<IDocumentAnalysisService, YourOpenAIService>();
-services.AddScoped<IImageToTextService, YourVisionService>();
-services.AddScoped<IEmbeddingService, YourEmbeddingService>();
+// Your implementations, registered before or after AddFileFlux() — the pipeline resolves them when it runs
+services.AddSingleton<IDocumentAnalysisService>(myAnalysisService);   // LLM refine, enrichment
+services.AddSingleton<IImageToTextService>(myVisionService);          // images inside documents
 
-// Register FileFlux
 services.AddFileFlux();
-
-var provider = services.BuildServiceProvider();
-var processor = provider.GetRequiredService<IDocumentProcessor>();
 ```
+
+`AddFileFlux(ServiceLifetime.Singleton)` registers the pipeline with the lifetime of a singleton or hosted consumer (default
+`Scoped`); `AddDocumentReader<T>()` / `AddDocumentParser<T>()` add your own reader or parser for a format.
 
 #### Local AI with LMSupply (v0.20.0+)
 
@@ -249,12 +228,14 @@ dotnet add package FileFlux.Providers.LMSupply
 ```
 
 ```csharp
+using FileFlux;
 using FileFlux.Providers.LMSupply.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
 services.AddLMSupplyDocumentAnalysis();          // "default": LMSupply picks a GGUF model for this host
-services.AddLMSupplyEmbedding("default");
+services.AddLMSupplyEmbedding("default");        // an IEmbeddingService for your own use (not read by the pipeline)
 services.AddLMSupplyCaptioner();   // or AddLMSupplyOcr() for scanned/text-bearing images
 services.AddLMSupplyTranscriber(); // .wav/.mp3 become readable; chunks carry Location.StartTime/EndTime
 // services.AddLMSupplyTranscriber(configure: o => { o.Diarize = true; o.NumSpeakers = 3; }); // label who said what
@@ -352,7 +333,7 @@ if (content.Hints.TryGetValue("suppressed_text_runs", out var runs))
 FileFlux uses layout-based table detection with confidence scoring:
 - Tables with confidence score ≥ 0.5 are converted to Markdown format
 - Low-confidence tables fall back to plain text to prevent garbled output
-- Table quality metrics are exposed via `StructuralHints` for consumer applications
+- Table quality metrics are exposed via `RawContent.Hints` for consumer applications
 
 ### Document-Specific Notes
 - **Excel**: Very large worksheets (>100K rows) may impact memory usage
@@ -368,11 +349,11 @@ FileFlux uses layout-based table detection with confidence scoring:
 | `Paragraph` | Paragraph-boundary chunks; best for Markdown/blogs; oversized paragraphs fall back to sentence splits | — |
 | `Token` | Token-budget chunks for unstructured text | — |
 | `Hierarchical` | Heading-structure-aware chunks | — |
-| `Semantic` | Embedding-similarity boundaries | Requires an `IEmbedder` registered **before** `AddFileFlux()` — otherwise chunker creation throws `ArgumentException` |
+| `Semantic` | Embedding-similarity boundaries | Requires a FluxCurator `IEmbedder` in the container — otherwise chunker creation throws `ArgumentException` |
 
 Structural metadata: every `ProcessAsync`/`ChunkAsync` chunk carries `Location.StartChar/EndChar`
 (offsets into the refined text), `Location.HeadingPath`/`Section` (hierarchical heading context,
-e.g. `Root Title > Sub Section`), and `Props["HierarchyPath"]` — on the streaming `ChunkStreamAsync` too.
+e.g. `Root Title > Sub Section`), and `Props[ChunkPropsKeys.HierarchyPath]` (`"hierarchy.path"`) — on the streaming `ChunkStreamAsync` too.
 `Location.StartPage/EndPage` name the first and last source page of the chunk's text for PDFs (0.30.0+), and
 `Location.StartTime/EndTime` carry the source time range for timed sources.
 
@@ -382,44 +363,11 @@ spans each chunk overlaps onto its `Location`. A custom `IDocumentReader` fills 
 dropped (and chunk pages left null) when a step rebuilds the text from scratch — table/block conversion from
 structured reader output, or an LLM rewrite.
 
-## AI Service Integration
-
-FileFlux defines interfaces while implementation is up to the consumer application.
-
-```csharp
-// Optional: Register AI services for advanced features
-// - IDocumentAnalysisService: For intelligent chunking and metadata enrichment
-// - IImageToTextService: For multimodal document processing
-services.AddScoped<IDocumentAnalysisService, YourLLMService>();
-services.AddScoped<IImageToTextService, YourVisionService>();
-
-// Register FileFlux services (works without AI services too)
-services.AddFileFlux();
-```
-
-**Note**: Logger registration is optional. FileFlux uses NullLogger internally if no logger is provided.
-
-For AI service implementation examples, see the `samples/` directory.
-
 ## Advanced Features
 
-### 🤖 AI Integration (Optional)
-
-FileFlux defines interfaces - YOU implement them with your preferred AI provider.
-
-```csharp
-// Register your AI service implementation
-services.AddScoped<IDocumentAnalysisService, YourAIService>();
-services.AddFileFlux();
-```
-
-**Features enabled with AI services:**
-- Intelligent structure analysis for optimal chunking
-- Semantic content summarization
-- AI-powered quality assessment
-- Q&A benchmark generation for RAG testing
-
-📖 See [Tutorial](docs/TUTORIAL.md) for AI service implementation examples.
+AI services are optional — see [AI Service Interfaces](#ai-service-interfaces). With an `IDocumentAnalysisService` registered,
+the LLM refine stage runs (noise removal, sentence restoration) and `EnrichAsync` builds summaries, keywords and the document
+graph; without one those stages are skipped. 📖 See [Tutorial](docs/TUTORIAL.md) for AI service implementation examples.
 
 ### 📊 Quality Analysis
 
@@ -429,40 +377,20 @@ Evaluate and optimize chunking quality for RAG systems:
 using FileFlux.Infrastructure.Quality;
 
 // Score the chunks a processing run produced
-var chunks = await processor.ProcessAsync("document.pdf", options);
-var metrics = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+await using var processor = factory.Create("document.pdf");
+await processor.ProcessAsync();
+
+var metrics = await ChunkQualityEngine.CalculateQualityMetricsAsync(processor.Result);
 
 Console.WriteLine($"Completeness: {metrics.AverageCompleteness:P0}");
 Console.WriteLine($"Boundaries:   {metrics.BoundaryQuality:P0}");
 Console.WriteLine($"Size spread:  {metrics.SizeDistribution:P0}");
 ```
 
-To compare strategies, run `ProcessAsync` once per `ChunkingOptions.Strategy` and compare the metrics.
+To compare strategies, run `ProcessAsync` once per `ChunkingOptions.Strategy` (a new processor each time) and compare the metrics.
 
 📖 See [Architecture](docs/ARCHITECTURE.md) for quality analysis details.
-
-### 🔧 Dependency Injection
-
-FileFlux works with or without AI services:
-
-```csharp
-// Minimal setup (no AI)
-services.AddFileFlux();
-
-// With AI service
-services.AddScoped<IDocumentAnalysisService, YourAIService>();
-services.AddFileFlux();
-
-// Environment-specific configuration
-if (Environment.IsDevelopment())
-    services.AddScoped<IDocumentAnalysisService, MockTextCompletionService>();
-else
-    services.AddScoped<IDocumentAnalysisService, ProductionAIService>();
-
-services.AddFileFlux();
-```
-
-📖 See [Tutorial](docs/TUTORIAL.md) for more DI patterns and examples.
 
 ## Documentation
 

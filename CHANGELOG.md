@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - Unreleased
+
+### Fixed
+- **The README's Quick Start runs.** It resolved an `IDocumentProcessor` that `AddFileFlux()` never registers, called a
+  `ProcessAsync(path)` the interface does not have and read `chunk.Index` (the property is `ChunkIndex`). It now goes through
+  `IDocumentProcessorFactory.Create(path)` → `ProcessAsync()` → `Result`, and the streaming and options examples do too.
+- **The README no longer advertises chunking strategies or keys that do not exist** — `Smart`/`Intelligent`/`FixedSize`/`PageLevel`,
+  `Props["HierarchyPath"]` (the key is `hierarchy.path`, `ChunkPropsKeys.HierarchyPath`), `StructuralHints` (`RawContent.Hints`) —
+  nor a metadata-enrichment option set the pipeline does not read. The package table puts the AI service interfaces in `FileFlux`,
+  where they are, and says `IEmbeddingService` is not consumed by the pipeline.
+
 ## [0.32.0] - 2026-09-28
 
 ### Changed
