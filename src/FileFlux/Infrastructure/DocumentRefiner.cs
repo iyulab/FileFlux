@@ -351,9 +351,16 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
         return null;
     }
 
-    private static bool IsTitleShaped(string title)
-        => title.Length <= MaxNumberedTitleLength
-           && title[^1] is not ('.' or '。' or ',' or ';');
+    /// <summary>
+    /// Whether the text after a section number reads as a title: short, not ending like a sentence, and — in a script
+    /// with letter case — not starting with a lowercase letter. A figure legend's numbered labels ("1. outer membrane")
+    /// and a paragraph that happens to begin with a number ("2 H2O + 2 NADP+ → …") are not titles. The one rule both
+    /// numbered-heading paths use (this refiner and <see cref="Conversion.MarkdownConverter"/>).
+    /// </summary>
+    internal static bool IsTitleShaped(string title)
+        => title.Length is > 0 and <= MaxNumberedTitleLength
+           && title[^1] is not ('.' or '。' or ',' or ';')
+           && !char.IsLower(title.FirstOrDefault(char.IsLetter));
 
     private static bool IsFollowedByBody(string[] lines, int index)
     {

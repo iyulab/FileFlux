@@ -402,7 +402,7 @@ public class MarkdownConverter : IMarkdownConverter
 
         // 숫자로 시작하는 섹션 (1. Introduction, 2.1 Background 등)
         var numberedSectionMatch = Regex.Match(trimmedLine, @"^(\d+(?:\.\d+)*)\s+([A-Z].+)$");
-        if (numberedSectionMatch.Success)
+        if (numberedSectionMatch.Success && DocumentRefiner.IsTitleShaped(numberedSectionMatch.Groups[2].Value))
         {
             var sectionNum = numberedSectionMatch.Groups[1].Value;
             var depth = sectionNum.Count(c => c == '.') + 1;

@@ -113,6 +113,24 @@ public class MarkdownConverterTests
         Assert.True(result.Statistics.HeadingCount > 0);
     }
 
+    /// <summary>
+    /// A paragraph that happens to begin with a number and a capital ("2 H2O + 2 NADP+ → …", an equation followed by its
+    /// explanation) is body text; a short numbered label with a capital is still a heading. The converter shares the
+    /// refiner's title rule.
+    /// </summary>
+    [Fact]
+    public async Task ConvertAsync_AParagraphStartingWithANumber_IsNotAHeading()
+    {
+        const string paragraph = "2 H2O + 2 NADP+ + 3 ADP + 3 Pi + light → 2 NADPH + 2 H+ + 3 ATP + O2 Not all wavelengths of light can support photosynthesis.";
+        var rawContent = new RawContent { Text = paragraph + "\n\n2.1 Background\nMore content" };
+
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("# " + paragraph, result.Markdown, StringComparison.Ordinal);
+        Assert.Contains(paragraph, result.Markdown, StringComparison.Ordinal);
+        Assert.Contains("# 2.1 Background", result.Markdown, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task ConvertAsync_HeadingLevelConstraints_Applied()
     {

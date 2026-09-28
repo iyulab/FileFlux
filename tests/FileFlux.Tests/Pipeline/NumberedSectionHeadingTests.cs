@@ -64,6 +64,15 @@ public class NumberedSectionHeadingTests
     }
 
     [Fact]
+    public void A_Figure_Legend_Label_Starting_Lowercase_Is_Not_A_Title()
+    {
+        // A diagram's numbered labels, interleaved with the body text they sit beside in the PDF layout.
+        var text = "Chloroplast ultrastructure:\n1. outer membrane\nIn plants and algae, photosynthesis takes place in chloroplasts.\n2. intermembrane space\nThe chloroplast is enclosed by a membrane.";
+
+        Assert.Equal(text, DocumentRefiner.ConvertNumberedSectionsToHeadings(text));
+    }
+
+    [Fact]
     public void A_Short_Numbered_Line_Ending_Like_A_Sentence_Is_Not_A_Title()
     {
         var text = "Intro text.\n1. Mix the samples.\nMore text.";
