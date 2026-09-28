@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.33.0] - Unreleased
+## [0.33.0] - 2026-09-29
 
 ### Changed
 - **An unknown `ChunkingOptions.Strategy` throws `ArgumentException`, before any stage runs.** It used to run as `Auto` without a
