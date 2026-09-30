@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.33.8] - Unreleased
+## [0.33.8] - 2026-09-30
 
 ### Changed
 - **Documentation comments describe behaviour only.** Build comments, test descriptions and a path example in `FileNameHelper` no longer carry internal references.
