@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Documentation comments describe behaviour only.** Build comments, test descriptions and a path example in `FileNameHelper` no longer carry internal references.
+- Re-pinned sibling package(s) `FluxCurator` 0.10.1 -> 0.10.2, `LMSupply.Captioner` 0.94.0 -> 0.95.0, `LMSupply.Core` 0.94.0 -> 0.95.0, `LMSupply.Embedder` 0.94.0 -> 0.95.0, `LMSupply.Generator` 0.94.0 -> 0.95.0, `LMSupply.Ocr` 0.94.0 -> 0.95.0, `LMSupply.Transcriber` 0.94.0 -> 0.95.0.
 
 ## [0.33.7] - 2026-09-30
 
