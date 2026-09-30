@@ -12,7 +12,7 @@ Write-Host "🚀 FileFlux RAG Quality Benchmark" -ForegroundColor Cyan
 Write-Host "=================================" -ForegroundColor Cyan
 
 # Navigate to project directory
-Set-Location "D:\data\FileFlux\samples\FileFlux.RealWorldBenchmark"
+Set-Location $PSScriptRoot
 
 # Check for .env.local file with API key
 $envFile = ".env.local"

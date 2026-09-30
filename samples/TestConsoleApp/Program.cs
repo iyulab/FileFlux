@@ -9,9 +9,8 @@ using OpenAI;
 using TestConsoleApp;
 using System.Text.Json;
 
-// Simple PDF test console app
-// var path = @"D:\test-data\채변프로그램 변경[25.02.03].pdf";
-var path = @"D:\data\FileFlux\tests\test-pdf\oai_gpt-oss_model_card.pdf";
+// Simple PDF test console app: first argument, or the bundled sample PDF when run from the repository root
+var path = args.Length > 0 ? args[0] : Path.Combine("tests", "test-pdf", "oai_gpt-oss_model_card.pdf");
 
 Console.WriteLine("FileFlux PDF Processing Test");
 Console.WriteLine($"Processing: {path}");

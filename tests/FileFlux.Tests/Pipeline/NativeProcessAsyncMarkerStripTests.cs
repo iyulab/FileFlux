@@ -8,11 +8,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace FileFlux.Tests.Pipeline;
 
 /// <summary>
-/// Mirrors the Filer consumer tripwire (FileFluxMarkerStripTests) at the source level:
-/// the native IDocumentProcessor.ProcessAsync -> Result.Chunks[].Content path must NOT
+/// End-to-end guard for the path a caller indexes: the native
+/// IDocumentProcessor.ProcessAsync -> Result.Chunks[].Content path must NOT
 /// leak internal structural markers (&lt;!-- HEADING_* --&gt; / TABLE_* / LIST_* / CODE_*).
-/// This is the native-path regression guard requested in issue
-/// ISSUE-FileFlux-20260601-094128-structural-marker-content-leak (line 124).
+/// Reader-level tests alone do not cover this path, so it is asserted here directly.
 /// </summary>
 public class NativeProcessAsyncMarkerStripTests
 {
@@ -42,7 +41,7 @@ public class NativeProcessAsyncMarkerStripTests
     [Fact]
     public async Task NativeProcessAsync_DefaultAuto_DoesNotLeakStructuralMarkers()
     {
-        // Arrange — mirror Filer: factory.Create(".md") -> ProcessAsync default (Auto) -> Result.Chunks
+        // Arrange — the caller path: factory.Create(".md") -> ProcessAsync default (Auto) -> Result.Chunks
         var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-marker-{Guid.NewGuid():N}.md");
         await File.WriteAllTextAsync(tempFile, MarkdownWithAllStructures, TestContext.Current.CancellationToken);
 
@@ -94,10 +93,9 @@ public class NativeProcessAsyncMarkerStripTests
     [Fact]
     public async Task NativeProcessAsync_LinkReferenceDefinition_DoesNotLeakBracketColon()
     {
-        // Arrange — mirror Filer's exact path: factory.Create(".md") -> ProcessAsync -> Result.Chunks.
+        // Arrange — the caller path: factory.Create(".md") -> ProcessAsync -> Result.Chunks.
         // A labeled link reference definition must not surface as `[]:` / `[label]: url` in chunk content,
-        // while the referencing link's display text survives (no content loss). Regression for the
-        // reference-definition-group leak (Filer upstream issue 20260607).
+        // while the referencing link's display text survives (no content loss).
         var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-refdef-{Guid.NewGuid():N}.md");
         await File.WriteAllTextAsync(tempFile, MarkdownWithReferenceDefinition, TestContext.Current.CancellationToken);
 
@@ -138,9 +136,9 @@ public class NativeProcessAsyncMarkerStripTests
     [Fact]
     public async Task NativeProcessAsync_DocWithoutReferenceDefinitions_DoesNotLeakBracketColon()
     {
-        // Arrange — the exact Filer shape: a document with ZERO reference definitions still gets
-        // an empty LinkReferenceDefinitionGroup appended by Markdig, which used to render a bare
-        // []: onto the tail. Verify the native chunk path Filer indexes stays clean.
+        // Arrange — a document with ZERO reference definitions still gets an empty
+        // LinkReferenceDefinitionGroup appended by Markdig, which used to render a bare
+        // []: onto the tail. Verify the native chunk path stays clean.
         var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-norefdef-{Guid.NewGuid():N}.md");
         await File.WriteAllTextAsync(tempFile, MarkdownWithoutReferenceDefinitions, TestContext.Current.CancellationToken);
 
@@ -179,11 +177,10 @@ public class NativeProcessAsyncMarkerStripTests
     [Fact]
     public async Task NativeProcessAsync_ImagesAndEmptyLink_PreserveMarkerAndDropEmptyBrackets()
     {
-        // Arrange — mirror Filer's exact path: factory.Create(".md") -> ProcessAsync -> Result.Chunks.
+        // Arrange — the caller path: factory.Create(".md") -> ProcessAsync -> Result.Chunks.
         // Images must keep their `!` marker (not masquerade as links) and empty-text links must not
-        // leave bare `[]` bracket noise in indexed chunk content. Native-path guard for the
-        // LinkInline image/empty-link fix (issue 20260607-linkinline-image-marker-lost); the
-        // refdef leak showed reader-unit coverage alone can miss the path Filer actually indexes.
+        // leave bare `[]` bracket noise in indexed chunk content. Reader-unit coverage alone can
+        // miss this path, so the LinkInline image/empty-link rendering is asserted end to end.
         var tempFile = Path.Combine(Path.GetTempPath(), $"fileflux-image-{Guid.NewGuid():N}.md");
         await File.WriteAllTextAsync(tempFile, MarkdownWithImagesAndEmptyLink, TestContext.Current.CancellationToken);
 

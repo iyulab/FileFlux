@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.8] - Unreleased
+
+### Changed
+- **Documentation comments describe behaviour only.** Build comments, test descriptions and a path example in `FileNameHelper` no longer carry internal references.
+
 ## [0.33.7] - 2026-09-30
 
 ### Changed
@@ -606,7 +611,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Re-pinned sibling package(s) `FluxImprover` 0.11.4 -> 0.11.5, `LMSupply.Captioner` 0.55.4 -> 0.57.0, `LMSupply.Core` 0.55.4 -> 0.57.0, `LMSupply.Embedder` 0.55.4 -> 0.57.0, `LMSupply.Generator` 0.55.4 -> 0.57.0, `LMSupply.Ocr` 0.55.4 -> 0.57.0 — re-consumption of already-consumed iyulab packages. No source changes.
-- Aligned third-party pins with the rest of the ecosystem: `Markdig` 1.2.0 -> 1.3.2, `OpenAI` 2.10.0 -> 2.12.0 (cross-submodule floor consistency; 2.12.x is the ecosystem floor because Microsoft.Extensions.AI.OpenAI 10.9.0 caps OpenAI below 2.13.0). No source changes.
+- Updated third-party pins: `Markdig` 1.2.0 -> 1.3.2, `OpenAI` 2.10.0 -> 2.12.0 (2.12.x because Microsoft.Extensions.AI.OpenAI 10.9.0 caps OpenAI below 2.13.0). No source changes.
 
 ## [0.22.7] - 2026-09-07
 
@@ -914,13 +919,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.15] - 2026-06-29
 
 ### Fixed
-- **Captive dependency (MU-6)**: `AddFileFlux` registered `IDocumentParserFactory` and `IMarkdownConverter`
+- **Captive dependency**: `AddFileFlux` registered `IDocumentParserFactory` and `IMarkdownConverter`
   as hardcoded Singletons even though they capture `IDocumentAnalysisService`, which consumers commonly
   register as Scoped (e.g. FluxIndex's `FluxIndexTextCompletionAdapter`). This captive dependency forced
   consumers to disable global scope validation (`ValidateScopes=false`), masking other captive bugs. Both are
   now registered with the method's shared `lifetime` parameter (default Scoped), so the graph validates under
-  `ValidateScopes=true`. The Markdown normalizer remains Singleton (no DI captures). Reported via umbrella MU-6
-  (upstream root fix of a downstream consumer report).
+  `ValidateScopes=true`. The Markdown normalizer remains Singleton (no DI captures).
 
 ### Changed
 - Build: NU1903 (CVE-2025-6965 in transitive `SQLitePCLRaw.lib.e_sqlite3`, via the sample app's EFCore.Sqlite)

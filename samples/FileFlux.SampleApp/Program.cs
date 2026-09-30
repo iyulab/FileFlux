@@ -221,7 +221,7 @@ class Program
         var testDirOption = new Option<string>("--test-dir")
         {
             Description = "테스트 파일이 있는 디렉토리 경로",
-            DefaultValueFactory = _ => @"D:\data\FileFlux\test"
+            DefaultValueFactory = _ => "tests"
         };
 
         var benchmarkCommand = new Command("benchmark", "종합 벤치마크 실행 - 모든 테스트 파일에 대한 성능 측정");

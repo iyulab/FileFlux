@@ -17,7 +17,7 @@ public static class ImprovedTestProgram
 {
     public static async Task RunImprovedTest()
     {
-        var path = @"D:\test-data\채변프로그램 변경[25.02.03].pdf";
+        var path = Path.Combine("tests", "test-pdf", "oai_gpt-oss_model_card.pdf");
 
         Console.WriteLine("FileFlux PDF Processing Test (IMPROVED - Phase 15)");
         Console.WriteLine($"Processing: {path}");

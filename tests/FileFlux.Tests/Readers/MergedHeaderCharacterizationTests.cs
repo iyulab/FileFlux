@@ -12,9 +12,7 @@ namespace FileFlux.Tests.Readers;
 /// labels, a shape common in real reporting spreadsheets — came back with its structure
 /// collapsed: group labels shifted to the far right, a fabricated <c>#</c> cell injected, no
 /// error or warning. Undoc 0.8.0 fixed this by anchoring merged cells to their start column
-/// (<c>render/grid.rs</c>) — see
-/// <c>claudedocs/FileFlux/upstream-issues/closed/ISSUE-undoc-20260805-merged-multirow-header-table-collapse.md</c>
-/// in the umbrella workspace. These tests used to pin the defect (see git history for the
+/// (<c>render/grid.rs</c>). These tests used to pin the defect (see git history for the
 /// characterization-test form); they now pin the fixed contract so a future Undoc bump cannot
 /// regress it silently.
 /// </para>
@@ -102,9 +100,8 @@ public class MergedHeaderCharacterizationTests
     /// Confirmed intentional (not a defect): row 2's column labels (연번/이메일/...) render as the
     /// first data row, not as the markdown table header. Markdown cannot express a two-row header
     /// natively, so Undoc promotes row 1 (the group labels, now correctly column-anchored) to the
-    /// header and flattens row 2 into data — see the undoc maintainer's response in
-    /// <c>ISSUE-undoc-20260805-merged-multirow-header-table-collapse.md</c> §"다단 헤더 → 헤더1행 +
-    /// 데이터N행 평탄화는 결함으로 접수하지 않는다". Content is not lost (asserted by
+    /// header and flattens row 2 into data — Undoc's intended behaviour for multi-row headers,
+    /// not a defect. Content is not lost (asserted by
     /// <see cref="MergedHeader_LosesNoDataRows"/>), only relocated.
     /// </summary>
     [Fact]

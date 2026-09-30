@@ -21,7 +21,7 @@ OPENAI_MODEL=gpt-5-nano
 
 ### 2. Add Test Files
 
-Place test documents in `D:\data\FileFlux\tests\`:
+Place test documents under `tests/` (subfolders `test-pdf/`, `test-docx/`, ...) relative to the working directory, or point `FILEFLUX_TEST_DATA` at another directory:
 - PDF files (`.pdf`)
 - Word documents (`.docx`)
 - Markdown files (`.md`)

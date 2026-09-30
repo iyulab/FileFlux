@@ -159,9 +159,8 @@ This document covers:
     // Link reference definitions (`[label]: url`) are Markdig metadata, not renderable
     // content. Markdig parses them into a LinkReferenceDefinitionGroup block that has no
     // matching ExtractBlock case and used to fall through to the NormalizeRenderer default
-    // arm, leaking the raw definition plus a trailing `[]:` into chunk text (Filer saw the
-    // trailing `[]:` after tables/lists in osi-model.md / tcp-vs-udp.md). The reader now
-    // skips these blocks entirely.
+    // arm, leaking the raw definition plus a trailing `[]:` into chunk text (typically right
+    // after a table or list at the end of a document). The reader now skips these blocks entirely.
 
     [Fact]
     public async Task ExtractAsync_LabeledReferenceDefinition_ShouldStripDefinitionAndKeepInlineLink()
@@ -184,8 +183,8 @@ This document covers:
     [Fact]
     public async Task ExtractAsync_TableThenReferenceDefinition_ShouldNotLeakTrailingBracketColon()
     {
-        // Arrange — reference definition at end of document, right after a table. This is the
-        // exact Filer shape: the group renders a trailing `[]:` glued onto the table's tail.
+        // Arrange — reference definition at end of document, right after a table: the group
+        // used to render a trailing `[]:` glued onto the table's tail.
         var markdown = "# TCP vs UDP\n\n| Protocol | Use |\n|---|---|\n| TCP | Streaming, DNS, games |\n\n[ref]: https://example.com/spec\n";
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
 
@@ -217,9 +216,8 @@ This document covers:
 
     // Markdig appends an (often empty) LinkReferenceDefinitionGroup to the end of EVERY document,
     // even when the source contains zero reference definitions. Before the skip, the empty group
-    // rendered a bare `[]:` placeholder glued onto the document tail — this is the *actual* shape
-    // Filer observed in osi-model.md / tcp-vs-udp.md (confirmed: both originals have no [label]: url).
-    // These two cases guard the empty-group path directly (the labeled cases above do not).
+    // rendered a bare `[]:` placeholder glued onto the document tail — the common shape in
+    // ordinary documents, which have no `[label]: url` lines at all. These two cases guard the empty-group path directly (the labeled cases above do not).
 
     [Fact]
     public async Task ExtractAsync_TableDocWithoutReferenceDefinitions_ShouldNotAppendTrailingBracketColon()

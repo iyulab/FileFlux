@@ -32,10 +32,10 @@ public class OptionsReachabilityRosterTests
     /// </summary>
     private static readonly Dictionary<string, string[]> KnownUnread = new()
     {
-        // Verdicts (run 58 cycle-920, FileFlux draft 20260920-143000): A = no implementation anywhere,
+        // Verdicts: A = no implementation anywhere,
         // B = the feature is driven by another type's member, C = a same-class duplicate, D = a hard-coded literal
         // sits where the option should be read. Six D entries were wired in 0.24.2 and left this list.
-        // 0.25.0 (run 58 cycle-920~924) verdicts for what used to be here — A = no implementation anywhere, B = another
+        // 0.25.0 verdicts for what used to be here — A = no implementation anywhere, B = another
         // member drives it, C = a same-class duplicate, D = a literal sits where the option should be read:
         // ChunkingOptions: MaxHeaderParagraphLength/MaxHeaderParagraphs/SeparateDocumentHeader/MaxHeadingLevel/
         //   StrategyOptions A — removed (CustomProperties is the one bag; MarkdownConversionOptions.MaxHeadingLevel is a

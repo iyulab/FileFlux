@@ -9,7 +9,7 @@ using Xunit;
 namespace FileFlux.Tests.Options;
 
 /// <summary>
-/// Six options that a hard-coded literal used to stand in for (roster verdict D, run 58 cycle-920). Each fact
+/// Six options that a hard-coded literal used to stand in for (roster verdict D). Each fact
 /// runs both values: the option must change the outcome, and its default must reproduce what the literal did.
 /// </summary>
 public sealed class WiredOptionsTests

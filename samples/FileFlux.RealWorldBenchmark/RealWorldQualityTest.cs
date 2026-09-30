@@ -17,7 +17,7 @@ namespace FileFlux.RealWorldBenchmark;
 
 public class RealWorldQualityTest
 {
-    private static readonly string TestDataPath = @"D:\data\FileFlux\test";
+    private static readonly string TestDataPath = Program.TestDataPath;
     private readonly IServiceProvider _serviceProvider;
     private readonly IDocumentProcessor _processor;
     private readonly RAGQualityAnalyzer _qualityAnalyzer;

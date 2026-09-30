@@ -48,7 +48,7 @@ class RealWorldTestRunner
 
 **Generated**: {DateTime.Now:yyyy-MM-dd HH:mm:ss}  
 **Duration**: {report.Duration.TotalSeconds:F1} seconds  
-**Test Data Path**: D:\data\FileFlux\test  
+**Test Data Path**: {Program.TestDataPath}  
 
 ## 📊 Executive Summary
 

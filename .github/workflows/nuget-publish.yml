@@ -56,10 +56,8 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       # Pack every packable project in the solution, not just the two named after the repository.
-      # Packing individual csproj files by name left FileFlux.Providers.LMSupply — packable, and in
-      # the solution since it was added (cycle-307) — never published at any version. Nothing failed:
-      # a package that is never produced cannot fail to push. Same defect class, same fix, as
-      # FluxImprover's publish.yml (iyulab/FluxImprover@4f01b46).
+      # Packing individual csproj files by name silently skips any packable project not on the list,
+      # and nothing fails: a package that is never produced cannot fail to push.
       - name: 📦 Create NuGet Packages
         run: |
           dotnet pack FileFlux.slnx \

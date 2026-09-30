@@ -135,7 +135,7 @@ public static class FileNameHelper
     /// <param name="pathOrText">Path or text that may contain a file path</param>
     /// <returns>Extracted filename, or original text if no path detected</returns>
     /// <example>
-    /// "C:\Users\Admin\Desktop\image.jpg" => "image.jpg"
+    /// "C:\Photos\image.jpg" => "image.jpg"
     /// "/home/user/docs/photo.png" => "photo.png"
     /// "Simple text" => "Simple text"
     /// </example>

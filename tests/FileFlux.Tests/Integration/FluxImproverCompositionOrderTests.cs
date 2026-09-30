@@ -12,8 +12,7 @@ namespace FileFlux.Tests.Integration;
 /// Before 0.22.12 FileFlux registered <c>FluxImproverServices</c> with <c>Add</c> and a factory that
 /// returned null when FileFlux had no <c>IDocumentAnalysisService</c>; registered after
 /// <c>AddFluxImprover</c>, that null-returning descriptor shadowed FluxImprover's and every FluxImprover
-/// facade in the container failed with "No service for type FluxImproverServices" — found when the
-/// ecosystem E2E harness wired FluxFeed's contextual enrichment (2026-09-09).
+/// facade in the container failed with "No service for type FluxImproverServices".
 /// </summary>
 public sealed class FluxImproverCompositionOrderTests
 {

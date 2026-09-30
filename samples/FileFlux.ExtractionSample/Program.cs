@@ -23,8 +23,8 @@ class Program
         // Get PDF reader
         var pdfReader = services.GetRequiredService<IDocumentReader>();
 
-        // Target PDF path
-        var pdfPath = @"D:\data\FileFlux\tests\test-pdf\oai_gpt-oss_model_card.pdf";
+        // Target PDF path: first argument, or the bundled sample PDF when run from the repository root
+        var pdfPath = args.Length > 0 ? args[0] : Path.Combine("tests", "test-pdf", "oai_gpt-oss_model_card.pdf");
 
         try
         {

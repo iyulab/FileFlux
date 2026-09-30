@@ -181,7 +181,7 @@ public class PerformanceBenchmarker
     
     private List<string> DiscoverTestFiles()
     {
-        var testPath = @"D:\data\FileFlux\test";
+        var testPath = Program.TestDataPath;
         var files = new List<string>();
         
         if (System.IO.Directory.Exists(testPath))

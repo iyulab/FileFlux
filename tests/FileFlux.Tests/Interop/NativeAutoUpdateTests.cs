@@ -4,8 +4,8 @@ using AwesomeAssertions;
 namespace FileFlux.Tests.Interop;
 
 /// <summary>
-/// Verifies that native binary self-update from GitHub releases is opt-in (default OFF),
-/// per ISSUE-FileFlux-20260619-143000-native-autoupdate-optin. Reliability comes from the
+/// Verifies that native binary self-update from GitHub releases is opt-in (default OFF).
+/// Reliability comes from the
 /// NuGet-pinned bundled binary; GitHub self-update only runs when explicitly enabled via the
 /// static AutoUpdateEnabled flag or the FILEFLUX_NATIVE_AUTOUPDATE environment variable.
 /// </summary>

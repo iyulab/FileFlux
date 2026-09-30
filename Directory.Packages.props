@@ -59,7 +59,7 @@
          replaces the former repo-wide WarningsNotAsErrors;NU1903 suppression. -->
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
   </ItemGroup>
-  <!-- xUnit v3 / Microsoft.Testing.Platform — BD-20260829-xunit-v3-pilot rollout -->
+  <!-- xUnit v3 / Microsoft.Testing.Platform -->
   <ItemGroup Label="Testing Framework">
     <PackageVersion Include="xunit.v3" Version="4.0.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />

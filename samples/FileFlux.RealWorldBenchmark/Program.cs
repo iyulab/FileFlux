@@ -27,7 +27,8 @@ namespace FileFlux.RealWorldBenchmark;
 
 class Program
 {
-    private static readonly string TestDataPath = @"D:\data\FileFlux\test";
+    // Test documents live in test-pdf/, test-docx/, ... under this directory (relative to the working directory).
+    internal static readonly string TestDataPath = Environment.GetEnvironmentVariable("FILEFLUX_TEST_DATA") ?? "tests";
     private static readonly Dictionary<string, List<TestFile>> TestFiles = new();
 
     static async Task Main(string[] args)

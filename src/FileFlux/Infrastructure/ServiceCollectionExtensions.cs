@@ -135,7 +135,7 @@ public static class ServiceCollectionExtensions
         // through FluxImprover itself (AddFluxImprover / AddFluxImproverWithLMSupply). This descriptor
         // therefore (1) yields to an existing registration instead of shadowing it — with services.Add
         // the later, null-returning factory won and every FluxImprover facade in the same container
-        // failed with "No service for type FluxImproverServices" (ecosystem E2E, 2026-09-09) — and
+        // failed with "No service for type FluxImproverServices" — and
         // (2) when FileFlux has no IDocumentAnalysisService of its own, builds from FluxImprover's
         // ITextGenerationService if the consumer registered one, so the order of AddFileFlux and
         // AddFluxImprover does not matter. Null only when neither exists (FileFlux's "no LLM" case).
