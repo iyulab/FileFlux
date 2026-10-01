@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.12] - 2026-10-01
+
+### Changed
+- Re-pinned sibling package(s) `Flux.Abstractions` 0.26.0 -> 0.27.0, `FluxCurator` 0.10.2 -> 0.10.3, `FluxImprover` 0.14.24 -> 0.15.1. No source changes.
+
 ## [0.33.11] - 2026-10-01
 
 ### Changed

@@ -36,9 +36,9 @@
     <PackageVersion Include="OpenAI" Version="2.12.0" />
   </ItemGroup>
   <ItemGroup Label="Flux Packages">
-    <PackageVersion Include="Flux.Abstractions" Version="0.26.0" />
-    <PackageVersion Include="FluxCurator" Version="0.10.2" />
-    <PackageVersion Include="FluxImprover" Version="0.14.24" />
+    <PackageVersion Include="Flux.Abstractions" Version="0.27.0" />
+    <PackageVersion Include="FluxCurator" Version="0.10.3" />
+    <PackageVersion Include="FluxImprover" Version="0.15.1" />
   </ItemGroup>
   <ItemGroup Label="LMSupply (Release - NuGet packages)">
     <PackageVersion Include="LMSupply.Core" Version="0.98.0" />
