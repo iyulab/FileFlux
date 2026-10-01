@@ -12,9 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **A PDF whose text is drawn through form XObjects is no longer reported as a scan.** The PDF parser does not yet read
   text inside form XObjects and counts each form invocation as an image, so such a document came back empty with
-  `extraction_failure_reason=no_text_layer` and the "image-only/scanned, requires OCR" warning. It now gets
-  `text_not_extracted` when no image is found, with a warning that says the document is not a scan and that OCR is not
-  the remedy. The text itself is still lost until the parser reads form XObjects.
+  `extraction_failure_reason=no_text_layer` and the "image-only/scanned, requires OCR" warning. When no image is found
+  the reason is now `text_not_extracted`, and the warning says the cause is undetermined: text inside form XObjects (not
+  read yet; no OCR needed) or a scanned image wrapped in one (OCR needed) — the parser sees neither. The text itself is
+  still lost until the parser reads form XObjects.
 - **`StatefulDocumentProcessor` logs extraction warnings.** They were attached to the result but never logged, so an
   empty extraction showed only "Extracted 0 chars"; `DocumentProcessor` already logged them.
 - **Packages now carry the license text.** Each `.nupkg` includes `LICENSE` next to the `MIT` expression, so an

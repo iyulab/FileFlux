@@ -28,6 +28,10 @@ public class PdfNoTextLayerClassificationTests
     private static readonly string FormXObjectPath =
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "form-xobject-text.pdf");
 
+    // One page that paints a form XObject whose content is a page-sized image (a scanner's wrapping).
+    private static readonly string FormWrappedImagePath =
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "form-xobject-image.pdf");
+
     private static readonly string TextPdfPath =
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "oai_gpt-oss_model_card.pdf");
 
@@ -53,8 +57,20 @@ public class PdfNoTextLayerClassificationTests
         // this test changes to assert it. Until then the text is lost; what must not happen is the
         // "scanned, needs OCR" verdict, which a consumer shows its user as the cause.
         Assert.Equal("text_not_extracted", content.Hints["extraction_failure_reason"]);
-        Assert.Contains(content.Warnings, w => w.Contains("not a scanned document"));
+        Assert.Contains(content.Warnings, w => w.Contains("cannot tell which"));
         Assert.DoesNotContain(content.Warnings, w => w.Contains("image-only/scanned"));
+    }
+
+    [Fact]
+    public async Task ExtractAsync_AScanImageWrappedInAFormXObject_IsNotReportedAsNotAScan()
+    {
+        // A scanner can wrap its page image in a form XObject; the parser then extracts no image either. The
+        // warning must not tell the reader the document is not a scan.
+        var content = await _reader.ExtractAsync(FormWrappedImagePath, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal("text_not_extracted", content.Hints["extraction_failure_reason"]);
+        Assert.DoesNotContain(content.Warnings, w => w.Contains("not a scanned document"));
+        Assert.Contains(content.Warnings, w => w.Contains("OCR needed"));
     }
 
     [Fact]

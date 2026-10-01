@@ -411,9 +411,10 @@ public partial class PdfDocumentReader : IDocumentReader
             {
                 "no_text_layer" => "PDF contains no extractable text (image-only/scanned document). " +
                     "Text extraction requires OCR, which is outside the text extractor's scope.",
-                "text_not_extracted" => "PDF pages draw content but the parser read no text and found no images " +
-                    "(for example text drawn inside form XObjects). This is not a scanned document and OCR is " +
-                    "not the remedy: the PDF parser does not read this document's text.",
+                "text_not_extracted" => "PDF pages draw content through objects the parser did not read: no text " +
+                    "and no image were extracted. This may be text drawn inside form XObjects (which the parser " +
+                    "does not read yet; OCR would not be needed) or a scanned image wrapped in one (OCR needed) - " +
+                    "the parser cannot tell which.",
                 "text_runs_suppressed" => $"PDF text could not be fully decoded and was silently dropped " +
                     $"by the parser ({suppressedTextRuns} text run(s) discarded — the font's character " +
                     "codes could not be resolved). This is not a scanned document and does not need OCR.",
@@ -620,9 +621,10 @@ public partial class PdfDocumentReader : IDocumentReader
                     return "no_text_layer";
                 if (stats.ImageOpCount > 0 && stats.TextOpCount == 0)
                 {
-                    // Unpdf counts every XObject invocation (Do) as an image operation, forms included. A page that
-                    // paints only forms whose text the parser does not read has image operations but no image: it
-                    // is not a scan, and telling the reader to OCR it sends them the wrong way.
+                    // Unpdf counts every XObject invocation (Do) as an image operation, forms included, and reads
+                    // neither the text nor the images inside a form. With no image extracted the page may be text
+                    // drawn in forms or a scan wrapped in one - so it is not reported as a scan, and not as "not a
+                    // scan" either.
                     imagesFound ??= HasImages(doc);
                     return imagesFound.Value ? "no_text_layer" : "text_not_extracted";
                 }
