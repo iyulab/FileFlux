@@ -243,6 +243,8 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
             _state = ProcessorState.Extracted;
             LogExtracted(_logger, rawContent.Text.Length, rawContent.File.Name, sw.Elapsed.TotalSeconds);
+            foreach (var warning in rawContent.Warnings)
+                LogExtractionWarning(_logger, rawContent.File.Name, warning);
         }
         catch (Exception ex)
         {
@@ -1157,6 +1159,9 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Extracted {CharCount} chars from {FileName} in {Duration:F2}s")]
     private static partial void LogExtracted(ILogger logger, int charCount, string fileName, double duration);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Extraction warning for {FileName}: {Warning}")]
+    private static partial void LogExtractionWarning(ILogger logger, string fileName, string warning);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Refined {OriginalChars} -> {RefinedChars} chars, {StructureCount} structures in {Duration:F2}s")]
     private static partial void LogRefined(ILogger logger, int originalChars, int refinedChars, int structureCount, double duration);

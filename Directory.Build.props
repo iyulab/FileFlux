@@ -2,7 +2,7 @@
 <Project>
   <!-- Version Information (can be overridden by build scripts) -->
   <PropertyGroup>
-    <VersionPrefix>0.33.12</VersionPrefix>
+    <VersionPrefix>0.33.13</VersionPrefix>
     <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
     <FileVersion>$(VersionPrefix)</FileVersion>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(VersionPrefix)</PackageVersion>
@@ -163,6 +163,9 @@
   </PropertyGroup>
   <ItemGroup Condition="'$(IsPackable)' == 'true' AND Exists('$(MSBuildThisFileDirectory)README.md')">
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(IsPackable)' == 'true' AND Exists('$(MSBuildThisFileDirectory)LICENSE')">
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
   <!-- Global AssemblyInfo -->

@@ -411,6 +411,9 @@ public partial class PdfDocumentReader : IDocumentReader
             {
                 "no_text_layer" => "PDF contains no extractable text (image-only/scanned document). " +
                     "Text extraction requires OCR, which is outside the text extractor's scope.",
+                "text_not_extracted" => "PDF pages draw content but the parser read no text and found no images " +
+                    "(for example text drawn inside form XObjects). This is not a scanned document and OCR is " +
+                    "not the remedy: the PDF parser does not read this document's text.",
                 "text_runs_suppressed" => $"PDF text could not be fully decoded and was silently dropped " +
                     $"by the parser ({suppressedTextRuns} text run(s) discarded — the font's character " +
                     "codes could not be resolved). This is not a scanned document and does not need OCR.",
@@ -609,11 +612,20 @@ public partial class PdfDocumentReader : IDocumentReader
         try
         {
             var sawContent = false;
+            bool? imagesFound = null;
             for (var page = 1; page <= doc.SectionCount; page++)
             {
                 var stats = doc.GetPageStats(page);
-                if (stats.ImageOpCount > 0 && (stats.TextOpCount == 0 || stats.OcrTextSuppressed))
+                if (stats.ImageOpCount > 0 && stats.OcrTextSuppressed)
                     return "no_text_layer";
+                if (stats.ImageOpCount > 0 && stats.TextOpCount == 0)
+                {
+                    // Unpdf counts every XObject invocation (Do) as an image operation, forms included. A page that
+                    // paints only forms whose text the parser does not read has image operations but no image: it
+                    // is not a scan, and telling the reader to OCR it sends them the wrong way.
+                    imagesFound ??= HasImages(doc);
+                    return imagesFound.Value ? "no_text_layer" : "text_not_extracted";
+                }
                 if (stats.SuppressedTextRuns > 0)
                     return "text_runs_suppressed";
                 if (stats.TextOpCount > 0 || stats.ImageOpCount > 0)
@@ -631,6 +643,23 @@ public partial class PdfDocumentReader : IDocumentReader
         catch (UnpdfException)
         {
             return "no_text_layer";
+        }
+    }
+
+    /// <summary>
+    /// Whether the document holds an image at all: an extracted image resource (resources are extracted, see
+    /// <c>ParseOptions.ExtractResources</c>) or one the parser saw but could not decode. Introspection failures count as
+    /// images, keeping the scanned-document reading this check refines.
+    /// </summary>
+    private static bool HasImages(UnpdfDocument doc)
+    {
+        try
+        {
+            return doc.ResourceCount > 0 || doc.GetExtractionQuality().UnsupportedImageCount > 0;
+        }
+        catch (UnpdfException)
+        {
+            return true;
         }
     }
 

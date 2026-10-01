@@ -23,6 +23,11 @@ public class PdfNoTextLayerClassificationTests
     private static readonly string BlankPagePath =
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "blank-page.pdf");
 
+    // One page whose content stream only paints a form XObject ("q /Fm1 Do Q"); the form draws the text.
+    // The PDF parser does not read text inside forms and counts the form invocation as an image operation.
+    private static readonly string FormXObjectPath =
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "form-xobject-text.pdf");
+
     private static readonly string TextPdfPath =
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "oai_gpt-oss_model_card.pdf");
 
@@ -37,6 +42,19 @@ public class PdfNoTextLayerClassificationTests
         Assert.Equal(string.Empty, content.Text);
         Assert.Equal("no_text_layer", content.Hints["extraction_failure_reason"]);
         Assert.Contains(content.Warnings, w => w.Contains("image-only/scanned"));
+    }
+
+    [Fact]
+    public async Task ExtractAsync_TextDrawnThroughAFormXObject_IsNotReportedAsAScan()
+    {
+        var content = await _reader.ExtractAsync(FormXObjectPath, cancellationToken: TestContext.Current.CancellationToken);
+
+        // When the PDF parser reads form XObjects, this document yields its text and
+        // this test changes to assert it. Until then the text is lost; what must not happen is the
+        // "scanned, needs OCR" verdict, which a consumer shows its user as the cause.
+        Assert.Equal("text_not_extracted", content.Hints["extraction_failure_reason"]);
+        Assert.Contains(content.Warnings, w => w.Contains("not a scanned document"));
+        Assert.DoesNotContain(content.Warnings, w => w.Contains("image-only/scanned"));
     }
 
     [Fact]
