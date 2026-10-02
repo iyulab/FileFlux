@@ -41,12 +41,12 @@
     <PackageVersion Include="FluxImprover" Version="0.15.2" />
   </ItemGroup>
   <ItemGroup Label="LMSupply (Release - NuGet packages)">
-    <PackageVersion Include="LMSupply.Core" Version="0.98.1" />
-    <PackageVersion Include="LMSupply.Embedder" Version="0.98.1" />
-    <PackageVersion Include="LMSupply.Generator" Version="0.98.1" />
-    <PackageVersion Include="LMSupply.Captioner" Version="0.98.1" />
-    <PackageVersion Include="LMSupply.Ocr" Version="0.98.1" />
-    <PackageVersion Include="LMSupply.Transcriber" Version="0.98.1" />
+    <PackageVersion Include="LMSupply.Core" Version="0.98.2" />
+    <PackageVersion Include="LMSupply.Embedder" Version="0.98.2" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.98.2" />
+    <PackageVersion Include="LMSupply.Captioner" Version="0.98.2" />
+    <PackageVersion Include="LMSupply.Ocr" Version="0.98.2" />
+    <PackageVersion Include="LMSupply.Transcriber" Version="0.98.2" />
   </ItemGroup>
   <ItemGroup Label="CLI and UI">
     <PackageVersion Include="System.CommandLine" Version="2.0.8" />
