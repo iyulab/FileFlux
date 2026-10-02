@@ -63,6 +63,12 @@ public class ImageInfo
     public int Position { get; set; }
 
     /// <summary>
+    /// The page the image is drawn on (1-based, the numbering of the document's page spans), when the reader knows
+    /// it - PDF. Null for formats without pages and when the reader cannot tell.
+    /// </summary>
+    public int? PageNumber { get; set; }
+
+    /// <summary>
     /// MIME type (e.g., "image/png", "image/jpeg")
     /// </summary>
     public string? MimeType { get; set; }

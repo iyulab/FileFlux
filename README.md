@@ -261,7 +261,7 @@ AI backend.
 
 | Format | Extension | Reader | Features |
 |--------|-----------|--------|----------|
-| PDF | .pdf | Unpdf (Rust FFI) | Text, tables, image extraction |
+| PDF | .pdf | Unpdf (Rust FFI) | Text, tables, image extraction (each image with its `PageNumber`) |
 | Word | .docx | Undoc (Rust FFI) | Style and structure preservation |
 | Excel | .xlsx | Undoc (Rust FFI) | Multi-sheet and table structure |
 | Excel (legacy) | .xls | Built-in (ExcelDataReader) | BIFF binary workbooks; per-sheet markdown tables; CP949 (EUC-KR) fallback for codepage-less BIFF5/7 |

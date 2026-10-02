@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.33.13] - Unreleased
+## [0.34.0] - Unreleased
+
+### Added
+- **PDF images carry the page they are drawn on.** `ImageInfo.PageNumber` (1-based, the numbering of the document's page
+  spans, so it agrees with the page of the surrounding text). Null for formats without pages and when the reader cannot
+  tell.
 
 ### Fixed
 - **A PDF whose text is drawn through form XObjects is no longer reported as a scan.** The PDF parser does not yet read

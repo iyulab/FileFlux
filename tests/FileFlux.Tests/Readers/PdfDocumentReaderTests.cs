@@ -174,6 +174,38 @@ public class PdfDocumentReaderTests
         }
     }
 
+    [Fact]
+    public async Task ExtractAsync_ModelCardFixture_EachImageCarriesThePageItIsDrawnOn()
+    {
+        // The page an image reports is the page span that holds its reference in the text - the same numbering body
+        // chunks get their page from, so an image chunk and the text around it agree.
+        var content = await _reader.ExtractAsync(ModelCardFixture, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.NotEmpty(content.Images);
+        foreach (var image in content.Images)
+        {
+            var at = content.Text.IndexOf($"]({image.Id}.", StringComparison.Ordinal);
+            Assert.True(at >= 0, $"{image.Id} is referenced in the text");
+            var span = Assert.Single(content.Spans, s => s.Start <= at && at < s.End);
+            Assert.NotNull(image.PageNumber);
+            Assert.Equal(span.Page, image.PageNumber);
+        }
+
+        Assert.True(content.Images.Select(i => i.PageNumber).Distinct().Count() > 1, "the fixture's images sit on several pages");
+    }
+
+    [Theory]
+    [InlineData("page20_Im6", 20)]
+    [InlineData("page1_Im1", 1)]
+    [InlineData("page0_Im1", null)]
+    [InlineData("Im6", null)]
+    [InlineData("xpage20_Im6", null)]
+    [InlineData("page_Im6", null)]
+    public void PageOfResource_ReadsOnlyThePageForm(string resourceId, int? expected)
+    {
+        Assert.Equal(expected, PdfDocumentReader.PageOfResource(resourceId));
+    }
+
     // ----- Extract stage: delegated Unpdf serialization (structural truncation guard) -----
 
     [Fact]

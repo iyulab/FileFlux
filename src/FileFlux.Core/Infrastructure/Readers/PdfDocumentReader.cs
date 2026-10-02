@@ -523,6 +523,27 @@ public partial class PdfDocumentReader : IDocumentReader
     /// already extracted successfully by this point, and losing images is a lesser outcome than
     /// losing the document.
     /// </summary>
+    /// <summary>
+    /// The page an embedded image resource is drawn on, read from its id (<c>page{N}_Im{K}</c>, the same 1-based
+    /// numbering as the page markers), or null when the id has another form.
+    /// </summary>
+    /// <remarks>
+    /// The parser reports the page in the resource id only - its resource metadata has no page field - so this reads
+    /// the id strictly and answers null for anything else rather than guessing.
+    /// TODO(upstream): read the page from the parser's resource metadata once it carries one, and drop this parse.
+    /// </remarks>
+    internal static int? PageOfResource(string resourceId)
+    {
+        var match = ResourcePageRegex().Match(resourceId);
+        return match.Success && int.TryParse(match.Groups[1].ValueSpan, System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture, out var page) && page > 0
+            ? page
+            : null;
+    }
+
+    [GeneratedRegex(@"^page(\d{1,6})_")]
+    private static partial Regex ResourcePageRegex();
+
     private static List<ImageInfo> ExtractEmbeddedImages(UnpdfDocument doc, List<string> warnings)
     {
         var images = new List<ImageInfo>();
@@ -541,7 +562,8 @@ public partial class PdfDocumentReader : IDocumentReader
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
-                    SourceUrl = $"embedded:{resourceId}"
+                    SourceUrl = $"embedded:{resourceId}",
+                    PageNumber = PageOfResource(resourceId)
                 });
             }
         }
