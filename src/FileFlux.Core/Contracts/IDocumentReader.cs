@@ -126,6 +126,22 @@ public interface IDocumentReaderFactory
     IDocumentReader? GetReader(string fileName);
 
     /// <summary>
+    /// Gets the reader for content whose name may not tell the truth.
+    /// </summary>
+    /// <param name="fileName">The declared file name (or just its extension).</param>
+    /// <param name="detectedExtension">
+    /// The format the content was recognised as (<see cref="FileFlux.Core.Infrastructure.Readers.FormatSignature"/>),
+    /// or <see langword="null"/> when the content is not decisive.
+    /// </param>
+    /// <returns>
+    /// The reader the name selects when it reads the detected format or nothing was detected;
+    /// otherwise the reader for the detected format, falling back to the name's reader when none is
+    /// registered for it. A file whose name selects no reader at all is still read when its content
+    /// is recognised.
+    /// </returns>
+    IDocumentReader? GetReader(string fileName, string? detectedExtension);
+
+    /// <summary>
     /// Gets all registered readers.
     /// </summary>
     /// <returns>Collection of all available readers.</returns>

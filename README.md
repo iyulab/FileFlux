@@ -265,14 +265,6 @@ AI backend.
 | Word | .docx | Undoc (Rust FFI) | Style and structure preservation |
 | Excel | .xlsx | Undoc (Rust FFI) | Multi-sheet and table structure |
 | Excel (legacy) | .xls | Built-in (ExcelDataReader) | BIFF binary workbooks; per-sheet markdown tables; CP949 (EUC-KR) fallback for codepage-less BIFF5/7 |
-
-> **Mislabelled workbooks (since 0.17.0)** — the two Excel readers route on the container's magic
-> bytes rather than the declared extension, in both directions: a compound-file (`.xls`) workbook
-> named `.xlsx` extracts through the legacy reader, and an OOXML package named `.xls` extracts
-> through the OOXML one. `RawContent.File.Extension` reports the container that was actually parsed,
-> not the name the file arrived under. Content that is neither container fails with
-> `extraction_failure_reason=container_mismatch` instead of the ZIP parser's "could not find EOCD",
-> which reads as corruption when the file is simply not a workbook.
 | PowerPoint | .pptx | Undoc (Rust FFI) | Slide and notes extraction |
 | HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
 | Markdown | .md | Built-in | Structure preservation |
@@ -280,6 +272,26 @@ AI backend.
 | CSV/TSV | .csv, .tsv | Built-in (CsvHelper) | Header-aware markdown table serialization; UTF-8/BOM + CP949 (EUC-KR) fallback decoding |
 | Text | .txt, .json | Built-in | Basic text processing |
 | Audio | .wav, .mp3 | `IAudioToTextService` (e.g. `AddLMSupplyTranscriber()`) | Speech as text, one paragraph per segment (speaker-labelled when the service separates speakers); chunks carry `Location.StartTime`/`EndTime`. Unsupported when no service is registered |
+
+> **The name is a claim, the content decides (since 0.35.0)** — when a file's name selects the wrong
+> reader, or none, reader selection consults the content: a PDF (`%PDF-` header) or an OOXML
+> package (`.docx` / `.xlsx` / `.pptx`, told apart by the package's part folders) is read by the
+> reader for what it is. A browser's "Save as PDF" kept under a `.docx` name, or a download named
+> `.bin`, extracts instead of failing. The result says so: `RawContent.File.Extension` is the format
+> that was parsed, the `declared_extension` hint keeps the name's claim, and a warning carries
+> `[extension_mismatch]`. Content the detector cannot tell apart (text, HTML, legacy compound files,
+> a damaged package) keeps the declared reader. `FormatSignature` (`DetectFile` / `DetectStream` /
+> `DetectBytes`) is public, and `IDocumentReaderFactory.GetReader(fileName, detectedExtension)`
+> selects with it; the PDF and OOXML readers accept content they parse whatever its name.
+>
+> **Mislabelled workbooks (since 0.17.0)** — the two Excel readers route on the container's magic
+> bytes rather than the declared extension, in both directions: a compound-file (`.xls`) workbook
+> named `.xlsx` extracts through the legacy reader, and an OOXML package named `.xls` extracts
+> through the OOXML one. `RawContent.File.Extension` reports the container that was actually parsed,
+> not the name the file arrived under. Content that is neither container fails with
+> `extraction_failure_reason=container_mismatch` instead of the ZIP parser's "could not find EOCD",
+> which reads as corruption when the file is simply not a workbook. When the content is a format
+> another reader parses, the message names it as `detected_extension` (for example `.pdf`).
 
 ## Known Limitations
 

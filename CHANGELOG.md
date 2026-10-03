@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0] - Unreleased
+
+### Added
+- **A document whose name claims the wrong format is read as what it is.** When the name selects the wrong reader (a
+  browser's "Save as PDF" kept under a `.docx` name) or none (a PDF downloaded as `.bin`), reader selection consults the
+  content: a PDF, or an OOXML package told apart as `.docx` / `.xlsx` / `.pptx` by its part folders, goes to the reader
+  for that format. `RawContent.File.Extension` is the format that was parsed, the `declared_extension` hint keeps the
+  name's claim, and a warning carries `[extension_mismatch]`. Content that cannot be told apart (text, HTML, legacy
+  compound files, damaged packages) keeps the declared reader. Applies to file, stream (seekable) and byte inputs of the
+  document processor and to `FluxDocumentProcessor.ExtractAsync`.
+- `FormatSignature` (`Detect` / `DetectFile` / `DetectStream` / `DetectBytes` / `NoteDeclaredMismatch`) and
+  `IDocumentReaderFactory.GetReader(string fileName, string? detectedExtension)`.
+
+### Changed
+- **The PDF, Word, Excel and PowerPoint readers accept content they parse whatever its name.** A caller holding one of
+  these readers is no longer refused with "File format not supported" when the content is that reader's format.
+- **A container mismatch names the format the content actually is.** When an Office reader is handed content that is a
+  format another reader parses, the failure carries `[detected_extension=.pdf]` (for example) next to
+  `[extraction_failure_reason=container_mismatch]`, instead of only "not a document this reader can parse".
+  `ContainerSignature.AnnotateFailure` takes the detected format as a new parameter (**Breaking** for direct callers).
+
+### Fixed
+- The README's "Mislabelled workbooks" note sat inside the supported-formats table and cut it in two; it now follows the
+  table.
+
 ## [0.34.3] - 2026-10-03
 
 ### Changed

@@ -83,6 +83,18 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         return null;
     }
 
+    public IDocumentReader? GetReader(string fileName, string? detectedExtension)
+    {
+        var declared = GetReader(fileName);
+        if (string.IsNullOrEmpty(detectedExtension))
+            return declared;
+
+        if (declared is not null && declared.SupportedExtensions.Contains(detectedExtension, StringComparer.OrdinalIgnoreCase))
+            return declared;
+
+        return GetReader($"content{detectedExtension}") ?? declared;
+    }
+
     public IDocumentReader? GetReader(RawContent rawContent)
     {
         if (rawContent?.File == null)

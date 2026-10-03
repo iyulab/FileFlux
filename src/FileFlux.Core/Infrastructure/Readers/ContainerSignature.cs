@@ -99,6 +99,12 @@ public static class ContainerSignature
     /// </remarks>
     /// <param name="message">The parser's own failure message, kept as the leading text.</param>
     /// <param name="actual">The container the content actually is.</param>
+    /// <param name="detectedExtension">
+    /// The format <see cref="FormatSignature"/> recognised in the content, or <see langword="null"/>.
+    /// When the content is neither container but is a format another reader parses (a PDF under a
+    /// <c>.docx</c> name), the note names it and carries it as <c>detected_extension</c>, so a
+    /// consumer can say "this is a PDF" instead of "unreadable".
+    /// </param>
     /// <param name="acceptable">
     /// The containers this reader can actually handle. What counts as a mismatch differs per reader:
     /// the Excel readers accept both, because a workbook exists in both containers and they route
@@ -108,10 +114,18 @@ public static class ContainerSignature
     public static string AnnotateFailure(
         string message,
         OfficeContainer actual,
+        string? detectedExtension,
         params OfficeContainer[] acceptable)
     {
         if (Array.IndexOf(acceptable, actual) >= 0)
             return message;
+
+        if (actual == OfficeContainer.Unknown && detectedExtension is not null)
+        {
+            return $"{message} The content is {FormatSignature.Describe(detectedExtension)}, not the " +
+                $"container its extension claims, so it reads as {detectedExtension}. " +
+                $"[extraction_failure_reason=container_mismatch] [detected_extension={detectedExtension}]";
+        }
 
         var described = actual switch
         {

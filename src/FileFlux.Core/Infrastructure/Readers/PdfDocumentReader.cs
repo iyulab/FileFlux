@@ -140,7 +140,7 @@ public partial class PdfDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"PDF file not found: {filePath}");
 
-        if (!CanRead(filePath))
+        if (!FormatSignature.Accepts(SupportedExtensions, filePath, () => FormatSignature.DetectFile(filePath)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
 
         var startTime = DateTime.UtcNow;
@@ -227,7 +227,7 @@ public partial class PdfDocumentReader : IDocumentReader
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        if (!CanRead(fileName))
+        if (!FormatSignature.Accepts(SupportedExtensions, fileName, () => FormatSignature.DetectStream(stream)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
 
         // Unpdf requires file path, so save stream to temp file
@@ -274,7 +274,7 @@ public partial class PdfDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"PDF file not found: {filePath}");
 
-        if (!CanRead(filePath))
+        if (!FormatSignature.Accepts(SupportedExtensions, filePath, () => FormatSignature.DetectFile(filePath)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
 
         try
@@ -301,7 +301,7 @@ public partial class PdfDocumentReader : IDocumentReader
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        if (!CanRead(fileName))
+        if (!FormatSignature.Accepts(SupportedExtensions, fileName, () => FormatSignature.DetectStream(stream)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
 
         // Unpdf requires file path, so save stream to temp file

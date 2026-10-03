@@ -32,7 +32,7 @@ public class ExcelDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"Excel document not found: {filePath}");
 
-        if (!CanRead(filePath))
+        if (!FormatSignature.Accepts(SupportedExtensions, filePath, () => FormatSignature.DetectFile(filePath)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
 
         var startTime = DateTime.UtcNow;
@@ -95,7 +95,7 @@ public class ExcelDocumentReader : IDocumentReader
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        if (!CanRead(fileName))
+        if (!FormatSignature.Accepts(SupportedExtensions, fileName, () => FormatSignature.DetectStream(stream)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
 
         var startTime = DateTime.UtcNow;
@@ -168,7 +168,7 @@ public class ExcelDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"Excel document not found: {filePath}");
 
-        if (!CanRead(filePath))
+        if (!FormatSignature.Accepts(SupportedExtensions, filePath, () => FormatSignature.DetectFile(filePath)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
 
         try
@@ -180,13 +180,13 @@ public class ExcelDocumentReader : IDocumentReader
             throw new DocumentProcessingException(
                 filePath,
                 UndocErrorKindFormatting.WithErrorKind(
-                    DescribeExtractionFailure(ContainerSignature.DetectFile(filePath), ex.Message), ex.Kind),
+                    DescribeExtractionFailure(filePath, ex.Message), ex.Kind),
                 ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             throw new DocumentProcessingException(
-                filePath, DescribeExtractionFailure(ContainerSignature.DetectFile(filePath), ex.Message), ex);
+                filePath, DescribeExtractionFailure(filePath, ex.Message), ex);
         }
     }
 
@@ -194,10 +194,11 @@ public class ExcelDocumentReader : IDocumentReader
     /// Tells a mislabelled file apart from a damaged one, so the message does not send its reader
     /// after corruption that is not there.
     /// </summary>
-    private static string DescribeExtractionFailure(OfficeContainer container, string message)
+    private static string DescribeExtractionFailure(string filePath, string message)
         => ContainerSignature.AnnotateFailure(
             $"Failed to extract Excel document: {message}",
-            container,
+            ContainerSignature.DetectFile(filePath),
+            FormatSignature.DetectFile(filePath),
             OfficeContainer.Zip,
             OfficeContainer.CompoundFile);
 
@@ -205,7 +206,7 @@ public class ExcelDocumentReader : IDocumentReader
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        if (!CanRead(fileName))
+        if (!FormatSignature.Accepts(SupportedExtensions, fileName, () => FormatSignature.DetectStream(stream)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
 
         try

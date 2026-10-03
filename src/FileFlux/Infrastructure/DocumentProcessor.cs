@@ -1,4 +1,5 @@
 using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure.Adapters;
 using FluxCurator.Core;
 using FluxCurator.Core.Core;
@@ -129,10 +130,13 @@ public sealed partial class FluxDocumentProcessor
 
         try
         {
-            var reader = _readerFactory.GetReader(filePath)
+            // The name is a claim; the content decides when it is recognisable (FormatSignature).
+            var detected = FormatSignature.DetectFile(filePath);
+            var reader = _readerFactory.GetReader(filePath, detected)
                 ?? throw new UnsupportedFileFormatException(filePath, $"No reader found for: {filePath}");
 
             var rawContent = await reader.ExtractAsync(filePath, null, cancellationToken).ConfigureAwait(false);
+            FormatSignature.NoteDeclaredMismatch(rawContent, filePath, detected);
 
             LogWarnings("Extraction", rawContent.Warnings);
             return rawContent;

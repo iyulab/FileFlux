@@ -32,7 +32,7 @@ public class PowerPointDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"PowerPoint document not found: {filePath}");
 
-        if (!CanRead(filePath))
+        if (!FormatSignature.Accepts(SupportedExtensions, filePath, () => FormatSignature.DetectFile(filePath)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
 
         var startTime = DateTime.UtcNow;
@@ -95,7 +95,7 @@ public class PowerPointDocumentReader : IDocumentReader
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        if (!CanRead(fileName))
+        if (!FormatSignature.Accepts(SupportedExtensions, fileName, () => FormatSignature.DetectStream(stream)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
 
         var startTime = DateTime.UtcNow;
@@ -171,7 +171,7 @@ public class PowerPointDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"PowerPoint document not found: {filePath}");
 
-        if (!CanRead(filePath))
+        if (!FormatSignature.Accepts(SupportedExtensions, filePath, () => FormatSignature.DetectFile(filePath)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
 
         try
@@ -183,7 +183,7 @@ public class PowerPointDocumentReader : IDocumentReader
             throw new DocumentProcessingException(
                 filePath,
                 UndocErrorKindFormatting.WithErrorKind(
-                    ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), OfficeContainer.Zip),
+                    ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip),
                     ex.Kind),
                 ex);
         }
@@ -191,7 +191,7 @@ public class PowerPointDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(
                 filePath,
-                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), OfficeContainer.Zip),
+                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip),
                 ex);
         }
     }
@@ -200,7 +200,7 @@ public class PowerPointDocumentReader : IDocumentReader
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        if (!CanRead(fileName))
+        if (!FormatSignature.Accepts(SupportedExtensions, fileName, () => FormatSignature.DetectStream(stream)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
 
         // Hoisted so the catch blocks can classify the container they were handed.
@@ -219,7 +219,7 @@ public class PowerPointDocumentReader : IDocumentReader
             throw new DocumentProcessingException(
                 fileName,
                 UndocErrorKindFormatting.WithErrorKind(
-                    ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), OfficeContainer.Zip),
+                    ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip),
                     ex.Kind),
                 ex);
         }
@@ -227,7 +227,7 @@ public class PowerPointDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(
                 fileName,
-                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), OfficeContainer.Zip),
+                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip),
                 ex);
         }
     }

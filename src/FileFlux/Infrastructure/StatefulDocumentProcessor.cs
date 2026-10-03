@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure.Adapters;
 using FluxCurator.Core;
 using FluxCurator.Core.Core;
@@ -255,24 +256,34 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
     private async Task<RawContent> ExtractFromFileAsync(CancellationToken cancellationToken)
     {
-        var reader = _readerFactory.GetReader(FilePath)
+        var detected = FormatSignature.DetectFile(FilePath);
+        var reader = _readerFactory.GetReader(FilePath, detected)
             ?? throw new UnsupportedFileFormatException(FilePath, $"No reader found for: {FilePath}");
-        return await reader.ExtractAsync(FilePath, null, cancellationToken).ConfigureAwait(false);
+        var raw = await reader.ExtractAsync(FilePath, null, cancellationToken).ConfigureAwait(false);
+        FormatSignature.NoteDeclaredMismatch(raw, FilePath, detected);
+        return raw;
     }
 
     private async Task<RawContent> ExtractFromStreamAsync(CancellationToken cancellationToken)
     {
-        var reader = _readerFactory.GetReader(_extension)
+        // A non-seekable stream cannot be probed without consuming it; the declared extension decides.
+        var detected = FormatSignature.DetectStream(_stream!);
+        var reader = _readerFactory.GetReader(_extension, detected)
             ?? throw new UnsupportedFileFormatException(_extension, $"No reader found for extension: {_extension}");
-        return await reader.ExtractAsync(_stream!, _fileName ?? $"stream{_extension}", null, cancellationToken).ConfigureAwait(false);
+        var raw = await reader.ExtractAsync(_stream!, _fileName ?? $"stream{_extension}", null, cancellationToken).ConfigureAwait(false);
+        FormatSignature.NoteDeclaredMismatch(raw, _extension, detected);
+        return raw;
     }
 
     private async Task<RawContent> ExtractFromBytesAsync(CancellationToken cancellationToken)
     {
         using var stream = new MemoryStream(_content!);
-        var reader = _readerFactory.GetReader(_extension)
+        var detected = FormatSignature.DetectBytes(_content!);
+        var reader = _readerFactory.GetReader(_extension, detected)
             ?? throw new UnsupportedFileFormatException(_extension, $"No reader found for extension: {_extension}");
-        return await reader.ExtractAsync(stream, _fileName ?? $"content{_extension}", null, cancellationToken).ConfigureAwait(false);
+        var raw = await reader.ExtractAsync(stream, _fileName ?? $"content{_extension}", null, cancellationToken).ConfigureAwait(false);
+        FormatSignature.NoteDeclaredMismatch(raw, _extension, detected);
+        return raw;
     }
 
     #endregion
