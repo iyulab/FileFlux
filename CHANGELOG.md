@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.3] - 2026-10-03
+
+### Changed
+- Re-pinned sibling package(s) `FluxImprover` 0.15.3 -> 0.15.4, `LMSupply.Captioner` 0.98.2 -> 0.99.0, `LMSupply.Core` 0.98.2 -> 0.99.0, `LMSupply.Embedder` 0.98.2 -> 0.99.0, `LMSupply.Generator` 0.98.2 -> 0.99.0, `LMSupply.Ocr` 0.98.2 -> 0.99.0, `LMSupply.Transcriber` 0.98.2 -> 0.99.0. No source changes.
+
 ## [0.34.2] - 2026-10-02
 
 ### Changed
