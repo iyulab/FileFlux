@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.36.0] - Unreleased
+## [0.36.0] - 2026-10-03
 
 ### Added
 - **HWP and HWPX documents, and legacy workbooks, are recognised by content too.** An `.hwp` sent as `.doc`, an HWPX
