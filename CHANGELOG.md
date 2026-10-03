@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The HWP and legacy Excel readers accept content they parse whatever its name; the HWP reader reports the generation
   it parsed (`File.Extension`, `hwp_format`) from the content.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.100.0 -> 0.101.0, `LMSupply.Core` 0.100.0 -> 0.101.0, `LMSupply.Embedder` 0.100.0 -> 0.101.0, `LMSupply.Generator` 0.100.0 -> 0.101.0, `LMSupply.Ocr` 0.100.0 -> 0.101.0, `LMSupply.Transcriber` 0.100.0 -> 0.101.0.
+- Re-pinned sibling package(s) `FluxImprover` 0.15.5 -> 0.15.6.
 
 ## [0.35.0] - 2026-10-03
 
