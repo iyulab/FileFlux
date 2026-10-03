@@ -14,6 +14,13 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
     public IEnumerable<string> SupportedExtensions => [".hwp", ".hwpx"];
 
+    /// <summary>
+    /// The HWP generation actually parsed: the content's when it is recognised (a misnamed file reaches this reader
+    /// by content), the name's otherwise.
+    /// </summary>
+    private static string HwpExtension(string? detected, string name)
+        => detected is ".hwp" or ".hwpx" ? detected : Path.GetExtension(name).ToLowerInvariant();
+
     public bool CanRead(string fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;
@@ -33,12 +40,12 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"HWP document not found: {filePath}");
 
-        if (!CanRead(filePath))
+        if (!FormatSignature.Accepts(SupportedExtensions, filePath, () => FormatSignature.DetectFile(filePath)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
 
         var startTime = DateTime.UtcNow;
         var fileInfo = new FileInfo(filePath);
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        var extension = HwpExtension(FormatSignature.DetectFile(filePath), filePath);
 
         try
         {
@@ -91,17 +98,17 @@ public sealed partial class HwpDocumentReader : IDocumentReader
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        if (!CanRead(fileName))
+        if (!FormatSignature.Accepts(SupportedExtensions, fileName, () => FormatSignature.DetectStream(stream)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
 
         var startTime = DateTime.UtcNow;
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
 
         try
         {
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             var bytes = memoryStream.ToArray();
+            var extension = HwpExtension(FormatSignature.DetectBytes(bytes), fileName);
 
             var result = new ReadResult
             {
@@ -155,7 +162,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"HWP document not found: {filePath}");
 
-        if (!CanRead(filePath))
+        if (!FormatSignature.Accepts(SupportedExtensions, filePath, () => FormatSignature.DetectFile(filePath)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(filePath)}", nameof(filePath));
 
         try
@@ -176,7 +183,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        if (!CanRead(fileName))
+        if (!FormatSignature.Accepts(SupportedExtensions, fileName, () => FormatSignature.DetectStream(stream)))
             throw new ArgumentException($"File format not supported: {Path.GetExtension(fileName)}", nameof(fileName));
 
         try
@@ -200,7 +207,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
     private static RawContent ExtractHwpContent(string filePath, CancellationToken cancellationToken)
     {
         var fileInfo = new FileInfo(filePath);
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        var extension = HwpExtension(FormatSignature.DetectFile(filePath), filePath);
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
         var extractedImages = new List<ImageInfo>();
@@ -280,7 +287,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
     private static RawContent ExtractHwpContentFromBytes(byte[] bytes, string fileName, CancellationToken cancellationToken)
     {
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        var extension = HwpExtension(FormatSignature.DetectBytes(bytes), fileName);
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
         var extractedImages = new List<ImageInfo>();

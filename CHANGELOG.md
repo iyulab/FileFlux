@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0] - Unreleased
+
+### Added
+- **HWP and HWPX documents, and legacy workbooks, are recognised by content too.** An `.hwp` sent as `.doc`, an HWPX
+  package under any name (its `mimetype` entry says `application/hwp+zip`), or an `.xls` workbook under a `.docx`
+  name is read by the HWP or legacy Excel reader, with the same `declared_extension` hint and `[extension_mismatch]`
+  warning as 0.35.0's PDF/OOXML routing. A compound file is identified by its directory streams (`FileHeader` +
+  `BodyText`/`DocInfo`, or `Workbook`/`Book`), never by a byte scan; an encrypted Office file is still left to its
+  declared reader, which reports it as encrypted.
+
+### Changed
+- An `.xls` workbook under an `.xlsx` name, read through the document processor, now carries the
+  `[extension_mismatch]` note like every other routed file (the Excel reader used to switch readers silently).
+- The HWP and legacy Excel readers accept content they parse whatever its name; the HWP reader reports the generation
+  it parsed (`File.Extension`, `hwp_format`) from the content.
+
 ## [0.35.0] - 2026-10-03
 
 ### Added

@@ -98,11 +98,45 @@ public static class FormatSignature
         if (Detect(prefix) is { } byPrefix)
             return byPrefix;
 
-        if (ContainerSignature.Detect(prefix) != OfficeContainer.Zip)
-            return null;
+        switch (ContainerSignature.Detect(prefix))
+        {
+            case OfficeContainer.Zip:
+                stream.Position = 0;
+                return DetectOfficePackage(stream);
 
-        stream.Position = 0;
-        return DetectOfficePackage(stream);
+            case OfficeContainer.CompoundFile:
+                // The directory can sit anywhere in the container, so the whole file is read — as the readers
+                // that parse a compound file do anyway.
+                stream.Position = 0;
+                using (var buffer = new MemoryStream())
+                {
+                    stream.CopyTo(buffer);
+                    return DetectCompoundFile(buffer.GetBuffer().AsSpan(0, (int)buffer.Length));
+                }
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// A compound file holds several formats. Two have a reader here and are told apart by their streams: an HWP 5
+    /// document (<c>FileHeader</c> with <c>BodyText</c> or <c>DocInfo</c>) and a legacy workbook (<c>Workbook</c> or
+    /// <c>Book</c>). An encrypted OOXML document is a compound file too, and is left to the declared reader, which
+    /// reports it as encrypted; a legacy Word or PowerPoint file has no reader and stays undetected.
+    /// </summary>
+    private static string? DetectCompoundFile(ReadOnlySpan<byte> content)
+    {
+        var names = CompoundFileDirectory.EnumerateNames(content);
+        bool Has(string name) => names.Contains(name, StringComparer.Ordinal);
+
+        if (Has("EncryptedPackage") || Has("EncryptionInfo"))
+            return null;
+        if (Has("FileHeader") && (Has("BodyText") || Has("DocInfo")))
+            return ".hwp";
+        if (Has("Workbook") || Has("Book"))
+            return ".xls";
+        return null;
     }
 
     private static string? DetectOfficePackage(Stream stream)
@@ -110,6 +144,14 @@ public static class FormatSignature
         try
         {
             using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+
+            // HWPX (OWPML) names itself in a stored "mimetype" entry, as EPUB and ODF do.
+            if (archive.GetEntry("mimetype") is { Length: < 256 } mimetype)
+            {
+                using var reader = new StreamReader(mimetype.Open());
+                if (reader.ReadToEnd().Trim() == "application/hwp+zip")
+                    return ".hwpx";
+            }
 
             var hasContentTypes = false;
             string? part = null;
@@ -174,6 +216,9 @@ public static class FormatSignature
         ".docx" => "a Word document (OOXML)",
         ".xlsx" => "an Excel workbook (OOXML)",
         ".pptx" => "a PowerPoint presentation (OOXML)",
+        ".hwp" => "an HWP 5 document",
+        ".hwpx" => "an HWPX document",
+        ".xls" => "a legacy Excel workbook",
         _ => $"a {extension} document"
     };
 

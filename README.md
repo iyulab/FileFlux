@@ -274,15 +274,18 @@ AI backend.
 | Audio | .wav, .mp3 | `IAudioToTextService` (e.g. `AddLMSupplyTranscriber()`) | Speech as text, one paragraph per segment (speaker-labelled when the service separates speakers); chunks carry `Location.StartTime`/`EndTime`. Unsupported when no service is registered |
 
 > **The name is a claim, the content decides (since 0.35.0)** — when a file's name selects the wrong
-> reader, or none, reader selection consults the content: a PDF (`%PDF-` header) or an OOXML
-> package (`.docx` / `.xlsx` / `.pptx`, told apart by the package's part folders) is read by the
-> reader for what it is. A browser's "Save as PDF" kept under a `.docx` name, or a download named
-> `.bin`, extracts instead of failing. The result says so: `RawContent.File.Extension` is the format
-> that was parsed, the `declared_extension` hint keeps the name's claim, and a warning carries
-> `[extension_mismatch]`. Content the detector cannot tell apart (text, HTML, legacy compound files,
-> a damaged package) keeps the declared reader. `FormatSignature` (`DetectFile` / `DetectStream` /
-> `DetectBytes`) is public, and `IDocumentReaderFactory.GetReader(fileName, detectedExtension)`
-> selects with it; the PDF and OOXML readers accept content they parse whatever its name.
+> reader, or none, reader selection consults the content: a PDF (`%PDF-` header), an OOXML
+> package (`.docx` / `.xlsx` / `.pptx`, told apart by the package's part folders), an HWPX
+> package (its `mimetype` entry), or a compound file whose directory holds an HWP 5 document or a
+> legacy workbook (since 0.36.0) is read by the reader for what it is. A browser's "Save as PDF"
+> kept under a `.docx` name, an `.hwp` sent as `.doc`, or a download named `.bin`, extracts instead
+> of failing. The result says so: `RawContent.File.Extension` is the format that was parsed, the
+> `declared_extension` hint keeps the name's claim, and a warning carries `[extension_mismatch]`.
+> Content the detector cannot tell apart (text, HTML, legacy Word/PowerPoint, an encrypted Office
+> file, a damaged package) keeps the declared reader. `FormatSignature` (`DetectFile` /
+> `DetectStream` / `DetectBytes`) is public, and `IDocumentReaderFactory.GetReader(fileName,
+> detectedExtension)` selects with it; the PDF, OOXML, HWP and legacy Excel readers accept content
+> they parse whatever its name.
 >
 > **Mislabelled workbooks (since 0.17.0)** — the two Excel readers route on the container's magic
 > bytes rather than the declared extension, in both directions: a compound-file (`.xls`) workbook

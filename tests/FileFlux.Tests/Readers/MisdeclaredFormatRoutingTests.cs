@@ -65,12 +65,39 @@ public class MisdeclaredFormatRoutingTests : IDisposable
     }
 
     [Fact]
+    public void Detect_CompoundFile_ByItsStreams()
+    {
+        // A compound file holds several formats; the directory tells the ones with a reader apart.
+        Assert.Equal(".xls", FormatSignature.DetectFile(Xls));
+        Assert.Equal(".hwp", FormatSignature.DetectBytes(
+            CompoundFileEncryptionTests.CompoundFile(["Root Entry", "FileHeader", "DocInfo", "BodyText"])));
+
+        // Legacy Word has no reader to route to, and an encrypted OOXML document is left to the declared reader,
+        // which reports it as encrypted rather than as some other format.
+        Assert.Null(FormatSignature.DetectBytes(CompoundFileEncryptionTests.CompoundFile(["Root Entry", "WordDocument"])));
+        Assert.Null(FormatSignature.DetectBytes(
+            CompoundFileEncryptionTests.CompoundFile(["Root Entry", "EncryptionInfo", "EncryptedPackage", "Workbook"])));
+    }
+
+    [Fact]
+    public void Detect_Hwpx_ByItsMimetypeEntry()
+    {
+        var path = Path.Combine(_tempDir, "report.docx");
+        using (var zip = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            using (var writer = new StreamWriter(zip.CreateEntry("mimetype").Open()))
+                writer.Write("application/hwp+zip");
+            using (var writer = new StreamWriter(zip.CreateEntry("Contents/section0.xml").Open()))
+                writer.Write("<hs:sec/>");
+        }
+
+        Assert.Equal(".hwpx", FormatSignature.DetectFile(path));
+    }
+
+    [Fact]
     public void Detect_ContentItCannotTellApart_IsNull()
     {
-        // A legacy compound file is a container of several formats, and the Excel readers already
-        // route between the two workbook containers; text and HTML carry no signature at all.
-        Assert.Null(FormatSignature.DetectFile(Xls));
-
+        // Text and HTML carry no signature at all.
         var html = Path.Combine(_tempDir, "page.docx");
         File.WriteAllText(html, "<html><body>Sign in to download this file</body></html>");
         Assert.Null(FormatSignature.DetectFile(html));
@@ -136,6 +163,20 @@ public class MisdeclaredFormatRoutingTests : IDisposable
         Assert.Equal(".docx", processor.Result.Raw!.File.Extension);
         Assert.False(string.IsNullOrWhiteSpace(processor.Result.Raw.Text));
         Assert.Equal(".pdf", processor.Result.Raw.Hints["declared_extension"]);
+    }
+
+    [Theory]
+    [InlineData("budget.docx")]
+    [InlineData("budget.xlsx")]
+    public async Task LegacyWorkbookUnderAnotherName_IsReadByTheLegacyReader_AndSaysSo(string name)
+    {
+        using var processor = Create(CopyAs(Xls, name));
+
+        await processor.ExtractAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(".xls", processor.Result.Raw!.File.Extension);
+        Assert.False(string.IsNullOrWhiteSpace(processor.Result.Raw.Text));
+        Assert.Equal(Path.GetExtension(name), processor.Result.Raw.Hints["declared_extension"]);
     }
 
     [Fact]
