@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[extension_mismatch]` note like every other routed file (the Excel reader used to switch readers silently).
 - The HWP and legacy Excel readers accept content they parse whatever its name; the HWP reader reports the generation
   it parsed (`File.Extension`, `hwp_format`) from the content.
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.100.0 -> 0.101.0, `LMSupply.Core` 0.100.0 -> 0.101.0, `LMSupply.Embedder` 0.100.0 -> 0.101.0, `LMSupply.Generator` 0.100.0 -> 0.101.0, `LMSupply.Ocr` 0.100.0 -> 0.101.0, `LMSupply.Transcriber` 0.100.0 -> 0.101.0.
 
 ## [0.35.0] - 2026-10-03
 
