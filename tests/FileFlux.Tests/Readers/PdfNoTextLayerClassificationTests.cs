@@ -24,13 +24,16 @@ public class PdfNoTextLayerClassificationTests
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "blank-page.pdf");
 
     // One page whose content stream only paints a form XObject ("q /Fm1 Do Q"); the form draws the text.
-    // The PDF parser does not read text inside forms and counts the form invocation as an image operation.
     private static readonly string FormXObjectPath =
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "form-xobject-text.pdf");
 
     // One page that paints a form XObject whose content is a page-sized image (a scanner's wrapping).
     private static readonly string FormWrappedImagePath =
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "form-xobject-image.pdf");
+
+    // One page whose only content stream is declared FlateDecode but is not zlib data: the parser leaves it out.
+    private static readonly string UndecodableStreamPath =
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "undecodable-content-stream.pdf");
 
     private static readonly string TextPdfPath =
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "oai_gpt-oss_model_card.pdf");
@@ -49,28 +52,43 @@ public class PdfNoTextLayerClassificationTests
     }
 
     [Fact]
-    public async Task ExtractAsync_TextDrawnThroughAFormXObject_IsNotReportedAsAScan()
+    public async Task ExtractAsync_TextDrawnThroughAFormXObject_YieldsTheText()
     {
+        // The parser reads form XObjects (Unpdf 0.24.0): the text inside the form is the page's text, and the document
+        // carries no failure reason and no warning.
         var content = await _reader.ExtractAsync(FormXObjectPath, cancellationToken: TestContext.Current.CancellationToken);
 
-        // When the PDF parser reads form XObjects, this document yields its text and
-        // this test changes to assert it. Until then the text is lost; what must not happen is the
-        // "scanned, needs OCR" verdict, which a consumer shows its user as the cause.
-        Assert.Equal("text_not_extracted", content.Hints["extraction_failure_reason"]);
-        Assert.Contains(content.Warnings, w => w.Contains("cannot tell which"));
-        Assert.DoesNotContain(content.Warnings, w => w.Contains("image-only/scanned"));
+        Assert.Contains("Hello from form xobject", content.Text);
+        Assert.False(content.Hints.ContainsKey("extraction_failure_reason"));
+        Assert.Empty(content.Warnings);
     }
 
     [Fact]
-    public async Task ExtractAsync_AScanImageWrappedInAFormXObject_IsNotReportedAsNotAScan()
+    public async Task ExtractAsync_AScanImageWrappedInAFormXObject_IsAScan_AndItsImageIsExtracted()
     {
-        // A scanner can wrap its page image in a form XObject; the parser then extracts no image either. The
-        // warning must not tell the reader the document is not a scan.
+        // A scanner can wrap its page image in a form XObject. The parser now counts the image inside the form, and
+        // extracts it, so the document reads as what it is: a scan, with its page image on page 1.
         var content = await _reader.ExtractAsync(FormWrappedImagePath, cancellationToken: TestContext.Current.CancellationToken);
 
+        Assert.Equal("no_text_layer", content.Hints["extraction_failure_reason"]);
+        Assert.Contains(content.Warnings, w => w.Contains("image-only/scanned"));
+        var image = Assert.Single(content.Images);
+        Assert.Equal(1, image.PageNumber);
+        Assert.DoesNotContain(".", image.Id);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_AnUndecodableContentStream_IsNotReportedAsABlankPage()
+    {
+        // The parser leaves a stream it cannot decode out of the page; with it the page's only content goes too, and
+        // the page used to read exactly like a blank one. The content is missing - neither blank nor scanned.
+        var content = await _reader.ExtractAsync(UndecodableStreamPath, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(string.Empty, content.Text);
         Assert.Equal("text_not_extracted", content.Hints["extraction_failure_reason"]);
-        Assert.DoesNotContain(content.Warnings, w => w.Contains("not a scanned document"));
-        Assert.Contains(content.Warnings, w => w.Contains("OCR needed"));
+        Assert.Equal(1L, content.Hints[PdfDocumentReader.UndecodableContentStreamsKey]);
+        Assert.Contains(content.Warnings, w => w.Contains("could not be decoded"));
+        Assert.DoesNotContain(content.Warnings, w => w.Contains("blank (no text"));
     }
 
     [Fact]

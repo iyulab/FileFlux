@@ -53,6 +53,14 @@ public partial class PdfDocumentReader : IDocumentReader
     internal const string SuppressedTextRunsKey = "suppressed_text_runs";
 
     /// <summary>
+    /// Structural-hint key for page content streams the parser could not decode (Unpdf
+    /// <c>ExtractionQuality.UndecodableContentStreams</c>). The parser leaves such a stream out and keeps the rest of the
+    /// page, so the extraction succeeds with content missing — and a page whose only stream it was reads exactly like a
+    /// blank page. Present (with the count) only when non-zero.
+    /// </summary>
+    internal const string UndecodableContentStreamsKey = "undecodable_content_streams";
+
+    /// <summary>
     /// Formats an Unpdf error kind for diagnostics. Deliberately
     /// <see cref="Enum.ToString()"/> and not <see cref="Enum.GetName(Type, object)"/>:
     /// Unpdf's ABI assigns new reasons new numbers and never reuses old ones, so a
@@ -185,6 +193,14 @@ public partial class PdfDocumentReader : IDocumentReader
                 result.Warnings.Add("Pages are missing from this document: the PDF is damaged and only " +
                                     "part of its page tree could be read. The page count below is not " +
                                     "the document's own.");
+                result.Status = ProcessingStatus.Partial;
+            }
+
+            var undecodableStreams = ReadUndecodableContentStreamCount(doc);
+            if (undecodableStreams > 0)
+            {
+                result.DocumentProps[UndecodableContentStreamsKey] = undecodableStreams;
+                result.Warnings.Add(UndecodableStreamsWarning(undecodableStreams));
                 result.Status = ProcessingStatus.Partial;
             }
 
@@ -398,12 +414,15 @@ public partial class PdfDocumentReader : IDocumentReader
         // below, which needs it to tell "no readable text layer" (scanned, OCR required)
         // apart from "text was here and got dropped at decode time" (not scanned).
         var suppressedTextRuns = ReadSuppressedTextRunCount(doc);
+        var undecodableStreams = ReadUndecodableContentStreamCount(doc);
 
         // Classify the no-text outcome: the document parsed fine but yielded no
         // text at all. Unpdf 0.9.0 page introspection (GetPageStats) separates
         // image-only/scanned pages (no readable text layer, OCR required) from
         // genuinely blank pages, instead of returning a silently-empty result.
-        if (string.IsNullOrWhiteSpace(markdown) && status == ProcessingStatus.Completed)
+        // "No text" means no text besides image references: a scanned page whose image is extracted renders as
+        // "![](page1_Im0.png)" and nothing else, and is exactly the document this classification exists for.
+        if (!HasTextBeyondImageReferences(markdown) && status == ProcessingStatus.Completed)
         {
             var reason = ClassifyEmptyDocument(doc, suppressedTextRuns);
             structuralHints["extraction_failure_reason"] = reason;
@@ -411,10 +430,8 @@ public partial class PdfDocumentReader : IDocumentReader
             {
                 "no_text_layer" => "PDF contains no extractable text (image-only/scanned document). " +
                     "Text extraction requires OCR, which is outside the text extractor's scope.",
-                "text_not_extracted" => "PDF pages draw content through objects the parser did not read: no text " +
-                    "and no image were extracted. This may be text drawn inside form XObjects (which the parser " +
-                    "does not read yet; OCR would not be needed) or a scanned image wrapped in one (OCR needed) - " +
-                    "the parser cannot tell which.",
+                "text_not_extracted" => UndecodableStreamsWarning(undecodableStreams) +
+                    " No text was extracted; the document is not known to be blank or scanned.",
                 "text_runs_suppressed" => $"PDF text could not be fully decoded and was silently dropped " +
                     $"by the parser ({suppressedTextRuns} text run(s) discarded — the font's character " +
                     "codes could not be resolved). This is not a scanned document and does not need OCR.",
@@ -434,6 +451,15 @@ public partial class PdfDocumentReader : IDocumentReader
         {
             structuralHints[SuppressedTextRunsKey] = suppressedTextRuns;
             status = ProcessingStatus.Partial;
+        }
+
+        if (undecodableStreams > 0)
+        {
+            structuralHints[UndecodableContentStreamsKey] = undecodableStreams;
+            status = ProcessingStatus.Partial;
+            // The empty-document branch above already explains it when nothing was extracted.
+            if (!structuralHints.ContainsKey("extraction_failure_reason"))
+                warnings.Add(UndecodableStreamsWarning(undecodableStreams) + " The extracted text is not complete.");
         }
 
         // Damage does not always fail: the parser recovers what it can from a broken page
@@ -524,25 +550,51 @@ public partial class PdfDocumentReader : IDocumentReader
     /// losing the document.
     /// </summary>
     /// <summary>
-    /// The page an embedded image resource is drawn on, read from its id (<c>page{N}_Im{K}</c>, the same 1-based
-    /// numbering as the page markers), or null when the id has another form.
+    /// The image id FileFlux reports for a parser resource: the resource id without its file extension
+    /// (<c>page20_Im6.png</c> → <c>page20_Im6</c>). The text references the image as <c>page20_Im6.png</c>, so the id is
+    /// the reference's file name without its extension — as it has been since images were first reported, which keeps
+    /// ids (and everything a consumer keyed to them, such as a stored description) stable across parser versions.
     /// </summary>
-    /// <remarks>
-    /// The parser reports the page in the resource id only - its resource metadata has no page field - so this reads
-    /// the id strictly and answers null for anything else rather than guessing.
-    /// TODO(upstream): read the page from the parser's resource metadata once it carries one, and drop this parse.
-    /// </remarks>
-    internal static int? PageOfResource(string resourceId)
+    internal static string ImageIdOf(string resourceId)
     {
-        var match = ResourcePageRegex().Match(resourceId);
-        return match.Success && int.TryParse(match.Groups[1].ValueSpan, System.Globalization.NumberStyles.None,
-            System.Globalization.CultureInfo.InvariantCulture, out var page) && page > 0
-            ? page
+        var extension = Path.GetExtension(resourceId);
+        return extension.Length > 1 ? resourceId[..^extension.Length] : resourceId;
+    }
+
+    /// <summary>
+    /// The page an embedded image resource is drawn on, from the parser's resource metadata (<c>page</c>, 1-based, the
+    /// numbering of the page markers), or null when the metadata does not say.
+    /// </summary>
+    private static int? PageOfResource(UnpdfDocument doc, string resourceId)
+    {
+        using var info = doc.GetResourceInfo(resourceId);
+        return info is not null
+               && info.RootElement.TryGetProperty("page", out var page)
+               && page.ValueKind == System.Text.Json.JsonValueKind.Number
+               && page.TryGetInt32(out var value) && value > 0
+            ? value
             : null;
     }
 
-    [GeneratedRegex(@"^page(\d{1,6})_")]
-    private static partial Regex ResourcePageRegex();
+    /// <summary>
+    /// Reads Unpdf's count of page content streams it could not decode (left out of an otherwise successful
+    /// extraction). Introspection failure is reported as zero, not a guess.
+    /// </summary>
+    private static long ReadUndecodableContentStreamCount(UnpdfDocument doc)
+    {
+        try
+        {
+            return doc.GetExtractionQuality().UndecodableContentStreams;
+        }
+        catch (UnpdfException)
+        {
+            return 0;
+        }
+    }
+
+    private static string UndecodableStreamsWarning(long count) =>
+        $"{count} page content stream(s) in this PDF could not be decoded and were left out by the parser; " +
+        "the content they draw is missing.";
 
     private static List<ImageInfo> ExtractEmbeddedImages(UnpdfDocument doc, List<string> warnings)
     {
@@ -556,14 +608,15 @@ public partial class PdfDocumentReader : IDocumentReader
                 if (resourceData is not { Length: > 0 })
                     continue;
 
+                var id = ImageIdOf(resourceId);
                 images.Add(new ImageInfo
                 {
-                    Id = resourceId,
+                    Id = id,
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
-                    SourceUrl = $"embedded:{resourceId}",
-                    PageNumber = PageOfResource(resourceId)
+                    SourceUrl = $"embedded:{id}",
+                    PageNumber = PageOfResource(doc, resourceId)
                 });
             }
         }
@@ -626,8 +679,9 @@ public partial class PdfDocumentReader : IDocumentReader
     /// surface as OcrTextSuppressed), "text_runs_suppressed" when a page's own text runs
     /// were discarded by the decoder (Unpdf 0.14.0 per-page <c>PageStats.SuppressedTextRuns</c>,
     /// checked before falling back to the whole-document total for introspection paths that
-    /// only see the aggregate), "blank_page" when no page has text or image content.
-    /// Introspection failures fall back to "no_text_layer" (the pre-0.14.0 single-label
+    /// only see the aggregate), "text_not_extracted" when a page content stream could not be decoded (its content is
+    /// missing, so the page is neither known blank nor known scanned), "blank_page" when no page has text or image
+    /// content. Introspection failures fall back to "no_text_layer" (the pre-0.14.0 single-label
     /// behavior).
     /// </summary>
     private static string ClassifyEmptyDocument(UnpdfDocument doc, long suppressedTextRuns)
@@ -635,21 +689,19 @@ public partial class PdfDocumentReader : IDocumentReader
         try
         {
             var sawContent = false;
-            bool? imagesFound = null;
             for (var page = 1; page <= doc.SectionCount; page++)
             {
                 var stats = doc.GetPageStats(page);
+                // Content the parser could not decode is missing, whatever the rest of the page shows: neither blank
+                // nor scanned can be said of it.
+                if (stats.UndecodableContentStreams > 0)
+                    return "text_not_extracted";
                 if (stats.ImageOpCount > 0 && stats.OcrTextSuppressed)
                     return "no_text_layer";
+                // Image paints only (Unpdf 0.24.0+ counts forms apart and reads the text and images inside them), so
+                // an image with no text is a page without a text layer.
                 if (stats.ImageOpCount > 0 && stats.TextOpCount == 0)
-                {
-                    // Unpdf counts every XObject invocation (Do) as an image operation, forms included, and reads
-                    // neither the text nor the images inside a form. With no image extracted the page may be text
-                    // drawn in forms or a scan wrapped in one - so it is not reported as a scan, and not as "not a
-                    // scan" either.
-                    imagesFound ??= HasImages(doc);
-                    return imagesFound.Value ? "no_text_layer" : "text_not_extracted";
-                }
+                    return "no_text_layer";
                 if (stats.SuppressedTextRuns > 0)
                     return "text_runs_suppressed";
                 if (stats.TextOpCount > 0 || stats.ImageOpCount > 0)
@@ -667,23 +719,6 @@ public partial class PdfDocumentReader : IDocumentReader
         catch (UnpdfException)
         {
             return "no_text_layer";
-        }
-    }
-
-    /// <summary>
-    /// Whether the document holds an image at all: an extracted image resource (resources are extracted, see
-    /// <c>ParseOptions.ExtractResources</c>) or one the parser saw but could not decode. Introspection failures count as
-    /// images, keeping the scanned-document reading this check refines.
-    /// </summary>
-    private static bool HasImages(UnpdfDocument doc)
-    {
-        try
-        {
-            return doc.ResourceCount > 0 || doc.GetExtractionQuality().UnsupportedImageCount > 0;
-        }
-        catch (UnpdfException)
-        {
-            return true;
         }
     }
 
@@ -810,4 +845,8 @@ public partial class PdfDocumentReader : IDocumentReader
 
     [GeneratedRegex(@"!\[.*?\]\(.+?\)")]
     private static partial Regex ImageRegex();
+
+    /// <summary>Whether <paramref name="markdown"/> holds any text once its image references are removed.</summary>
+    internal static bool HasTextBeyondImageReferences(string markdown) =>
+        !string.IsNullOrWhiteSpace(markdown) && !string.IsNullOrWhiteSpace(ImageRegex().Replace(markdown, string.Empty));
 }

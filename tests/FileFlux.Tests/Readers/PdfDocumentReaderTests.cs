@@ -195,15 +195,26 @@ public class PdfDocumentReaderTests
     }
 
     [Theory]
-    [InlineData("page20_Im6", 20)]
-    [InlineData("page1_Im1", 1)]
-    [InlineData("page0_Im1", null)]
-    [InlineData("Im6", null)]
-    [InlineData("xpage20_Im6", null)]
-    [InlineData("page_Im6", null)]
-    public void PageOfResource_ReadsOnlyThePageForm(string resourceId, int? expected)
+    [InlineData("![](page1_Im0.png)", false)]
+    [InlineData("![](page1_Im0.png)\n\n![alt](page2_Im0.png)\n", false)]
+    [InlineData("  \n", false)]
+    [InlineData("![](page1_Im0.png) Figure 1", true)]
+    [InlineData("Body text.", true)]
+    public void HasTextBeyondImageReferences_CountsOnlyText(string markdown, bool expected)
     {
-        Assert.Equal(expected, PdfDocumentReader.PageOfResource(resourceId));
+        // A scan whose page image is extracted renders as its image reference alone - that is a document without text.
+        Assert.Equal(expected, PdfDocumentReader.HasTextBeyondImageReferences(markdown));
+    }
+
+    [Theory]
+    [InlineData("page20_Im6.png", "page20_Im6")]
+    [InlineData("page1_Fm1_Im1.jpg", "page1_Fm1_Im1")]
+    [InlineData("page20_Im6", "page20_Im6")]
+    public void ImageIdOf_IsTheReferencesFileNameWithoutItsExtension(string resourceId, string expected)
+    {
+        // The parser's ids carry the file extension since 0.25.0; the image id FileFlux reports does not, as before, so
+        // a consumer keyed to it (a stored description) keeps matching across the parser upgrade.
+        Assert.Equal(expected, PdfDocumentReader.ImageIdOf(resourceId));
     }
 
     // ----- Extract stage: delegated Unpdf serialization (structural truncation guard) -----

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.0] - Unreleased
+
+### Fixed
+- **A PDF whose text is drawn inside form XObjects yields its text.** Such documents (one form per page is common in
+  exported reports) used to give 0 characters; two real reports now give about 18,000 and 34,000 characters with page
+  locations and their images. Images inside forms are extracted too. (Unpdf 0.22.0 -> 0.25.0.)
+- **A scanned PDF whose page image is extracted is reported as `no_text_layer`.** Its text was the image reference
+  alone (`![](page1_Im0.png)`), which counted as text, so the scan carried no failure reason and no warning. The
+  classification now looks at text besides image references. A scan wrapped in a form XObject is `no_text_layer` too,
+  no longer `text_not_extracted`.
+- **A page content stream the parser cannot decode is no longer reported as a blank page.** The stream was left out and
+  the page read as `blank_page`. It is now `text_not_extracted` with `Hints["undecodable_content_streams"]`, and when the
+  rest of the document did yield text, the hint and a warning say the text is not complete (status `Partial`).
+
+### Changed
+- **`extraction_failure_reason = "text_not_extracted"` now means undecodable content**, not "drawn through a form XObject
+  the parser did not read" — the parser reads forms.
+- Embedded image ids keep their extension-free form (`page20_Im6`) although the parser's resource ids now carry the file
+  extension; the page an image is drawn on comes from the parser's resource metadata instead of the id.
+- Undoc 0.13.0 -> 0.13.2, Unhwp 0.13.0 -> 0.13.1.
+
 ## [0.36.2] - 2026-10-04
 
 ### Changed
