@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   format another reader parses, the failure carries `[detected_extension=.pdf]` (for example) next to
   `[extraction_failure_reason=container_mismatch]`, instead of only "not a document this reader can parse".
   `ContainerSignature.AnnotateFailure` takes the detected format as a new parameter (**Breaking** for direct callers).
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.99.0 -> 0.100.0, `LMSupply.Core` 0.99.0 -> 0.100.0, `LMSupply.Embedder` 0.99.0 -> 0.100.0, `LMSupply.Generator` 0.99.0 -> 0.100.0, `LMSupply.Ocr` 0.99.0 -> 0.100.0, `LMSupply.Transcriber` 0.99.0 -> 0.100.0.
 
 ### Fixed
 - The README's "Mislabelled workbooks" note sat inside the supported-formats table and cut it in two; it now follows the
