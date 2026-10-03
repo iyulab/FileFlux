@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[extraction_failure_reason=container_mismatch]`, instead of only "not a document this reader can parse".
   `ContainerSignature.AnnotateFailure` takes the detected format as a new parameter (**Breaking** for direct callers).
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.99.0 -> 0.100.0, `LMSupply.Core` 0.99.0 -> 0.100.0, `LMSupply.Embedder` 0.99.0 -> 0.100.0, `LMSupply.Generator` 0.99.0 -> 0.100.0, `LMSupply.Ocr` 0.99.0 -> 0.100.0, `LMSupply.Transcriber` 0.99.0 -> 0.100.0.
+- Re-pinned sibling package(s) `FluxImprover` 0.15.4 -> 0.15.5.
 
 ### Fixed
 - The README's "Mislabelled workbooks" note sat inside the supported-formats table and cut it in two; it now follows the
