@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] - Unreleased
+
+### Removed
+- **Breaking: the unused result wrappers `ProcessingResult<T>` (in both `FileFlux.Core` and `FileFlux.Domain`) and the
+  `FileFlux.Domain` copies of `ProcessingProgress` / `ProcessingStage`.** Nothing returned the wrappers — processing
+  reports failures as exceptions — and the second copies duplicated the `FileFlux.Core` types under another namespace.
+  Migration: use `FileFlux.Core.ProcessingProgress` / `ProcessingStage`; the non-generic `ProcessingResult` (the chunk
+  list) is unchanged.
+
 ## [0.37.2] - 2026-10-05
 
 ### Changed
