@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.38.0] - Unreleased
+## [0.38.0] - 2026-10-05
 
 ### Removed
 - **Breaking: the unused result wrappers `ProcessingResult<T>` (in both `FileFlux.Core` and `FileFlux.Domain`) and the
