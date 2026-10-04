@@ -11,7 +11,7 @@ namespace FileFlux.Tests;
 /// </summary>
 public class OptionsReachabilityRosterTests
 {
-    private static readonly Assembly[] Libraries =
+    internal static readonly Assembly[] Libraries =
     [
         Assembly.Load("FileFlux"),
         Assembly.Load("FileFlux.Core"),
