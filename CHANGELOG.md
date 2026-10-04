@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Embedded image ids keep their extension-free form (`page20_Im6`) although the parser's resource ids now carry the file
   extension; the page an image is drawn on comes from the parser's resource metadata instead of the id.
 - Undoc 0.13.0 -> 0.13.2, Unhwp 0.13.0 -> 0.13.1.
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.103.0 -> 0.104.0, `LMSupply.Core` 0.103.0 -> 0.104.0, `LMSupply.Embedder` 0.103.0 -> 0.104.0, `LMSupply.Generator` 0.103.0 -> 0.104.0, `LMSupply.Ocr` 0.103.0 -> 0.104.0, `LMSupply.Transcriber` 0.103.0 -> 0.104.0.
 
 ## [0.36.2] - 2026-10-04
 
