@@ -348,7 +348,6 @@ MIT License - 자세한 내용은 [LICENSE](../../LICENSE) 참조
 
 ## 링크
 
-- [FileFlux SDK 문서](../../docs/README.md)
+- [FileFlux SDK 문서](../../README.md)
 - [아키텍처 가이드](../../docs/ARCHITECTURE.md)
 - [튜토리얼](../../docs/TUTORIAL.md)
-- [벤치마크](../../docs/benchmarks/)
