@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.0] - Unreleased
+
+### Removed
+- **Breaking:** `FileSystemResultStorage` (with `ProcessingSummary`) and `TestResultsStorage`. Nothing in FileFlux used
+  them and neither was documented — a debugging aid for dumping pipeline stages to disk and a test helper that shipped
+  in the package. Serialize `RawContent` / `RefinedContent` / `DocumentChunk` yourself if you were writing them out.
+
 ## [0.38.3] - 2026-10-05
 
 ### Changed

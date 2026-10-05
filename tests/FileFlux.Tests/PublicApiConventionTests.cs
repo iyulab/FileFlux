@@ -15,21 +15,11 @@ namespace FileFlux.Tests;
 /// </remarks>
 public class PublicApiConventionTests
 {
-    private static readonly string[] KnownUncancellable =
-    [
-        "FileFlux.Domain.FileSystemResultStorage.ComputeFileHashAsync(String)",
-        "FileFlux.Domain.FileSystemResultStorage.GetProcessingSummaryAsync(String)",
-        "FileFlux.Domain.FileSystemResultStorage.LoadChunksAsync(String)",
-        "FileFlux.Domain.FileSystemResultStorage.LoadRawContentAsync(String)",
-        "FileFlux.Domain.FileSystemResultStorage.SaveChunksAsync(String, DocumentChunk[], ChunkingOptions)",
-        "FileFlux.Domain.FileSystemResultStorage.SaveParsedContentAsync(String, RefinedContent)",
-        "FileFlux.Domain.FileSystemResultStorage.SaveProgressAsync(String, ProcessingProgress)",
-        "FileFlux.Domain.FileSystemResultStorage.SaveRawContentAsync(String, RawContent)",
-        "FileFlux.Infrastructure.Storage.TestResultsStorage.SaveChunkingResultsAsync(String, DocumentChunk[], ChunkingOptions)",
-        "FileFlux.Infrastructure.Storage.TestResultsStorage.SaveExtractionResultAsync(String, RawContent)",
-        "FileFlux.Infrastructure.Storage.TestResultsStorage.SaveParsingResultAsync(String, RefinedContent)",
-    ];
+    private static readonly string[] KnownUncancellable = [];
 
+    // Kept (2026-10-05): RawContent / RefinedContent / parsed content are the extraction products, and a document is often
+    // extracted in part — the Errors / Warnings / Status they carry are per-page diagnostics beside the content, not the
+    // call's failure channel (a reader throws when it cannot read the file at all).
     private static readonly string[] KnownResultReturns =
     [
         "FileFlux.Core.IDocumentReader.ExtractAsync(Stream, String, ExtractOptions, CancellationToken)",
@@ -41,7 +31,6 @@ public class PublicApiConventionTests
         "FileFlux.Core.Infrastructure.Readers.ImageExtractionPolicy.Apply(RawContent, ExtractOptions)",
         "FileFlux.Core.Infrastructure.Readers.TextDocumentReader.ExtractStreamAsync(Stream, String, Action<ProcessingProgress>, CancellationToken)",
         "FileFlux.Core.Infrastructure.Readers.TextDocumentReader.ExtractStreamAsync(String, Action<ProcessingProgress>, CancellationToken)",
-        "FileFlux.Domain.FileSystemResultStorage.LoadRawContentAsync(String)",
         "FileFlux.IDocumentParser.ParseAsync(RawContent, DocumentParsingOptions, CancellationToken)",
         "FileFlux.Infrastructure.FluxDocumentProcessor.ExtractAsync(String, CancellationToken)",
         "FileFlux.Infrastructure.FluxDocumentProcessor.ParseAsync(RawContent, ParsingOptions, CancellationToken)",
