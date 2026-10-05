@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.106.0 -> 0.106.1, `LMSupply.Core` 0.106.0 -> 0.106.1, `LMSupply.Embedder` 0.106.0 -> 0.106.1, `LMSupply.Generator` 0.106.0 -> 0.106.1, `LMSupply.Ocr` 0.106.0 -> 0.106.1, `LMSupply.Transcriber` 0.106.0 -> 0.106.1.
+- Re-pinned sibling package(s) `FluxImprover` 0.16.1 -> 0.16.2.
 
 ### Fixed
 - **Cancelling a call now cancels it.** 46 method(s) that take a `CancellationToken` caught every exception to
