@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.39.1] - Unreleased
 
+### Changed
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.106.0 -> 0.106.1, `LMSupply.Core` 0.106.0 -> 0.106.1, `LMSupply.Embedder` 0.106.0 -> 0.106.1, `LMSupply.Generator` 0.106.0 -> 0.106.1, `LMSupply.Ocr` 0.106.0 -> 0.106.1, `LMSupply.Transcriber` 0.106.0 -> 0.106.1.
+
 ### Fixed
 - **Cancelling a call now cancels it.** 46 method(s) that take a `CancellationToken` caught every exception to
   return a fallback (`null`, an empty result, a failure value) or to log and continue, and treated the caller's own
