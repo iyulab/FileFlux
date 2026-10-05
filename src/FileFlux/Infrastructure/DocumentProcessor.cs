@@ -604,7 +604,7 @@ public sealed partial class FluxDocumentProcessor
                     LogProcessedImage(_logger, image.Id, extractionResult.ExtractedText.Length);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 LogImageExtractionFailed(_logger, ex, image.Id);
             }
@@ -776,7 +776,7 @@ public sealed partial class FluxDocumentProcessor
             LogEnhancementCompleted(_logger, chunks.Length);
             return chunks;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogEnhancementFailed(_logger, ex);
             return chunks;

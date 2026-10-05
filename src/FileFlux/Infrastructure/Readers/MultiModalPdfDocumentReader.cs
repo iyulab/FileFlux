@@ -159,7 +159,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                         imageTextResults.Add(result);
                     }
                 }
-                catch
+                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {
                     // Individual image processing failure is ignored
                 }
@@ -231,7 +231,7 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // On image processing failure, use base result with warning. Name the Unpdf
             // error kind when the native layer is the one that failed — the message alone

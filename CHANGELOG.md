@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.1] - Unreleased
+
+### Fixed
+- **Cancelling a call now cancels it.** 46 method(s) that take a `CancellationToken` caught every exception to
+  return a fallback (`null`, an empty result, a failure value) or to log and continue, and treated the caller's own
+  cancellation the same way. They now let the caller's `OperationCanceledException` through; other failures behave
+  as before. Affected: document readers, enrichment, LLM refinement, image processing, semantic boundary detection and the LMSupply OCR/captioner services.
+
 ## [0.39.0] - 2026-10-06
 
 ### Removed

@@ -114,7 +114,7 @@ public class MemoryEfficientProcessor : IMemoryEfficientProcessor, IDisposable
                         ProcessingTime = DateTime.UtcNow
                     };
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {
                     return new BatchProcessingResult
                     {

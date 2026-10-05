@@ -576,7 +576,7 @@ public partial class BasicDocumentParser : IDocumentParser
             // 응답을 구조화된 데이터로 파싱
             return ParseTextCompletionResponse(response, basicResult);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // 텍스트 완성 서비스 실패 시 기본 구조 반환
             return basicResult;

@@ -127,7 +127,7 @@ public class ImageProcessor
                             imageInfo.Data, null, cancellationToken).ConfigureAwait(false);
                         processedImage.AIDescription = aiResult.ExtractedText;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                     {
                         if (_verbose)
                         {
@@ -152,7 +152,7 @@ public class ImageProcessor
                     Trace.TraceInformation($"[Verbose] Extracted: {fileName} ({dimensions.Width}x{dimensions.Height}, {imageInfo.Data.Length} bytes)");
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 result = result.Replace($"![{imageInfo.Caption}](embedded:{imageInfo.Id})", $"[Image {savedIndex}: {ex.Message}]");
             }
@@ -279,7 +279,7 @@ public class ImageProcessor
                             imageBytes, null, cancellationToken).ConfigureAwait(false);
                         processedImage.AIDescription = aiResult.ExtractedText;
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                     {
                         if (_verbose)
                         {
@@ -301,7 +301,7 @@ public class ImageProcessor
                     Trace.TraceInformation($"[Verbose] Extracted: {fileName} ({dimensions.Width}x{dimensions.Height}, {imageBytes.Length} bytes)");
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 result = result.Replace(match.Value, $"[Image {imageIndex}: {ex.Message}]");
             }

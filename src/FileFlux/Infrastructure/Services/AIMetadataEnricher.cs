@@ -210,7 +210,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
                     _cache.Set(request.CacheKey, metadata, _cacheOptions);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 LogDocumentProcessingFailed(_logger, ex, request.DocumentId);
 

@@ -79,7 +79,7 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
                 }
             };
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // Fall back to text-based similarity if any exception occurs
             return await DetectBoundaryWithTextSimilarityAsync(segment1, segment2, cancellationToken);
@@ -139,7 +139,7 @@ public class SemanticBoundaryDetector : ISemanticBoundaryDetector
             // Post-process boundaries to merge nearby boundaries and adjust confidence
             return PostProcessBoundaries(boundaries, segments);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // Fall back to text-based analysis if embedding operations fail
             return await DetectBoundariesWithTextSimilarityAsync(segments, cancellationToken);

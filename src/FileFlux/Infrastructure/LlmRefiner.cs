@@ -179,7 +179,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
                 }
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogLlmRefinementFailed(_logger, ex);
             return CreatePassthroughResult(refined, $"LLM refinement failed: {ex.Message}");
@@ -247,7 +247,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             var improved = !string.IsNullOrWhiteSpace(result) && result != text;
             return (improved ? result : text, improved, EstimateTokens(prompt));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogRestoreSentencesFailed(_logger, ex);
             skipped.Add(SkipNote("RestoreSentences", ex));
@@ -298,7 +298,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             var improved = !string.IsNullOrWhiteSpace(result) && result.Length < text.Length * 0.95;
             return (improved ? result : text, improved, EstimateTokens(prompt));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogRemoveNoiseFailed(_logger, ex);
             skipped.Add(SkipNote("RemoveNoise", ex));
@@ -349,7 +349,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             var improved = !string.IsNullOrWhiteSpace(result) && result != text;
             return (improved ? result : text, improved, EstimateTokens(prompt));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogCorrectOcrFailed(_logger, ex);
             skipped.Add(SkipNote("CorrectOcrErrors", ex));
@@ -399,7 +399,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             var improved = !string.IsNullOrWhiteSpace(result) && result != text;
             return (improved ? result : text, improved, EstimateTokens(prompt));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogRestructureSectionsFailed(_logger, ex);
             skipped.Add(SkipNote("RestructureSections", ex));
@@ -448,7 +448,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             var improved = !string.IsNullOrWhiteSpace(result) && result.Length < text.Length * 0.95;
             return (improved ? result : text, improved, EstimateTokens(prompt));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogMergeDuplicatesFailed(_logger, ex);
             skipped.Add(SkipNote("MergeDuplicates", ex));

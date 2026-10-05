@@ -121,7 +121,7 @@ public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable, 
 
             return CreateResult(result, stopwatch.ElapsedMilliseconds, options, imageData.Length);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
             return CreateErrorResult(stopwatch.ElapsedMilliseconds, ex.Message);
@@ -146,7 +146,7 @@ public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable, 
 
             return CreateResult(result, stopwatch.ElapsedMilliseconds, options, 0);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
             return CreateErrorResult(stopwatch.ElapsedMilliseconds, ex.Message);
@@ -175,7 +175,7 @@ public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable, 
 
             return CreateResult(result, stopwatch.ElapsedMilliseconds, options, fileSize, format);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
             return CreateErrorResult(stopwatch.ElapsedMilliseconds, ex.Message);

@@ -444,7 +444,7 @@ public sealed class UndocNativeLoader : IDisposable
 
             return (isUpdateAvailable, latestVersion, currentVersion);
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             return (false, null, _loadedVersion);
         }

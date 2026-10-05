@@ -226,7 +226,7 @@ public sealed partial class DocumentEnricher : IDocumentEnricher
                 results[index] = await EnrichSingleChunkAsync(
                     chunk, fullText, options, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 if (_logger is not null) LogEnrichChunkFailed(_logger, ex, index);
                 results[index] = new EnrichedDocumentChunk { Chunk = chunk };
@@ -275,7 +275,7 @@ public sealed partial class DocumentEnricher : IDocumentEnricher
                     .SummarizeAsync(chunk.Content, cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 if (_logger is not null) LogSummaryFailed(_logger, ex, chunk.Id);
             }
@@ -290,7 +290,7 @@ public sealed partial class DocumentEnricher : IDocumentEnricher
                     .ExtractKeywordsWithScoresAsync(chunk.Content, cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 if (_logger is not null) LogKeywordsFailed(_logger, ex, chunk.Id);
             }
@@ -314,7 +314,7 @@ public sealed partial class DocumentEnricher : IDocumentEnricher
 
                 contextualText = enrichedResult.ContextSummary;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 if (_logger is not null) LogContextualTextFailed(_logger, ex, chunk.Id);
             }
@@ -477,7 +477,7 @@ public sealed partial class DocumentEnricher : IDocumentEnricher
                 });
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             if (_logger is not null) LogSemanticRelationshipsFailed(_logger, ex);
         }

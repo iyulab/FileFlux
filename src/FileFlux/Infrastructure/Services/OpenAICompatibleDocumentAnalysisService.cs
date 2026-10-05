@@ -178,7 +178,7 @@ public sealed partial class OpenAICompatibleDocumentAnalysisService
             await CompleteAsync(null, "Hello", temperature: 0.0f, maxTokens: 10, cancellationToken);
             return true;
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             return false;
         }

@@ -195,7 +195,7 @@ public class MultiModalWordDocumentReader : IDocumentReader
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // 이미지 처리 실패 시 기본 결과 사용하되 경고 추가
             var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
@@ -277,13 +277,13 @@ public class MultiModalWordDocumentReader : IDocumentReader
                         results.Add(result);
                     }
                 }
-                catch
+                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {
                     // 개별 이미지 처리 실패는 무시하고 계속 진행
                 }
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // 문서 전체 이미지 처리 실패
         }

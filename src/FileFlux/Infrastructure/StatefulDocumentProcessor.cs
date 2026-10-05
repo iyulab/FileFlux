@@ -476,7 +476,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             _state = ProcessorState.LlmRefined;
             LogLlmRefinePassthrough(_logger, sw.Elapsed.TotalSeconds);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when ((ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested) && (ex is not FileFluxException))
         {
             // On LLM failure, create passthrough result instead of failing the whole pipeline
             LogLlmRefinementFailed(_logger, ex);

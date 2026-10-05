@@ -92,7 +92,7 @@ public class MarkdownConverter : IMarkdownConverter
             result.Markdown = markdown;
             result.IsSuccess = true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             result.IsSuccess = false;
             result.Warnings.Add($"Conversion failed: {ex.Message}");
@@ -262,7 +262,7 @@ public class MarkdownConverter : IMarkdownConverter
             // LLM 응답에서 Markdown만 추출 (코드 블록 제거)
             return ExtractMarkdownFromLLMResponse(response);
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             return null;
         }

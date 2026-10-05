@@ -97,7 +97,7 @@ public sealed class LMSupplyCaptionerService : IImageToTextService, IAsyncDispos
                 ProcessingTimeMs = stopwatch.ElapsedMilliseconds
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
             return new ImageToTextResult
@@ -138,7 +138,7 @@ public sealed class LMSupplyCaptionerService : IImageToTextService, IAsyncDispos
                 ProcessingTimeMs = stopwatch.ElapsedMilliseconds
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
             return new ImageToTextResult
@@ -187,7 +187,7 @@ public sealed class LMSupplyCaptionerService : IImageToTextService, IAsyncDispos
                 ProcessingTimeMs = stopwatch.ElapsedMilliseconds
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
             return new ImageToTextResult
