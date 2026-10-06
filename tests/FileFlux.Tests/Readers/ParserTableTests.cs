@@ -147,6 +147,25 @@ public class ParserTableTests
         Assert.Equal(1, CountOccurrences(refined.Text, "3. verify"));
     }
 
+    // ---- chunks keep what the table-aware chunker recorded -------------------------------------------------------
+
+    [Fact]
+    public async Task Process_TablePieces_CarryTheChunkersTableKeys()
+    {
+        await using var processor = DocumentProcessorFactoryBuilder.CreateDefault().Build().Create(VerticalMergeFixture);
+
+        await processor.ProcessAsync(new ProcessingOptions
+        {
+            Chunking = new ChunkingOptions { Strategy = "Token", MaxChunkSize = 200, OverlapSize = 20 },
+            IncludeLlmRefine = false,
+        }, TestContext.Current.CancellationToken);
+
+        var table = Assert.Single(processor.Result.Chunks!, c => c.Props.ContainsKey("table"));
+        Assert.Equal(true, table.Props["table"]);
+        Assert.Equal(0, table.Props["table_index"]);
+        Assert.Equal(1, table.Props["table_pieces"]);
+    }
+
     private static int CountOccurrences(string text, string value)
     {
         var count = 0;

@@ -426,7 +426,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
             {
                 Type = StructureType.Code,
                 Caption = $"Code block ({codeData.Language})",
-                Data = JsonSerializer.SerializeToElement(codeData),
+                Data = StructureJsonContext.ToElement(codeData),
                 Location = new StructureLocation
                 {
                     StartChar = match.Index,
@@ -453,7 +453,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
                 {
                     Type = StructureType.Table,
                     Caption = $"Table ({tableData.Count} rows)",
-                    Data = JsonSerializer.SerializeToElement(tableData),
+                    Data = StructureJsonContext.ToElement(tableData),
                     Location = new StructureLocation
                     {
                         StartChar = match.Index,
@@ -516,7 +516,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
             {
                 Type = StructureType.List,
                 Caption = $"{(isOrdered ? "Ordered" : "Unordered")} list ({items.Count} items)",
-                Data = JsonSerializer.SerializeToElement(new { Ordered = isOrdered, Items = items }),
+                Data = StructureJsonContext.ToElement(new ListBlockData(isOrdered, items)),
                 Location = new StructureLocation
                 {
                     StartChar = match.Index,

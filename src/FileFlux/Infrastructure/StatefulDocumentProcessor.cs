@@ -915,7 +915,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             {
                 Type = StructureType.Code,
                 Caption = $"Code block ({codeData.Language})",
-                Data = System.Text.Json.JsonSerializer.SerializeToElement(codeData),
+                Data = StructureJsonContext.ToElement(codeData),
                 Location = new StructureLocation
                 {
                     StartChar = match.Index,
@@ -936,7 +936,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
                 {
                     Type = StructureType.Table,
                     Caption = "Markdown table",
-                    Data = System.Text.Json.JsonSerializer.SerializeToElement(tableData),
+                    Data = StructureJsonContext.ToElement(tableData),
                     Location = new StructureLocation
                     {
                         StartChar = match.Index,
@@ -1106,6 +1106,15 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             Metadata = refined.Metadata,
             SourceInfo = sourceInfo
         };
+
+        // What the chunker recorded about the chunk (a table piece's table_* keys, for instance) travels with it, as it
+        // does through FluxCuratorChunkAdapter.
+        if (fc.Metadata.Custom is { Count: > 0 } custom)
+        {
+            foreach (var (key, value) in custom)
+                chunk.Props[key] = value;
+        }
+
         if (headingLevel is int level)
         {
             chunk.Props[ChunkPropsKeys.HierarchyHeadingLevel] = level;

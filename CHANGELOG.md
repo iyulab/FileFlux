@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.41.1] - Unreleased
+
+### Fixed
+- **`ProcessAsync` chunks carry what the chunker recorded.** The chunking step behind `ProcessAsync`/`ChunkAsync` dropped
+  the chunker's metadata, so table pieces from FluxCurator 0.11.0 reached consumers without their `table`,
+  `table_index`, `table_piece`/`table_pieces` and `table_row_start`/`table_row_end` keys (only the adapter path kept
+  them). They now arrive in `DocumentChunk.Props`.
+- **Refining works in an app that disables reflection-based JSON** (trimmed, native AOT, file-based `dotnet run app.cs`).
+  The code, table and list data attached to structured elements is serialized with generated code; it used reflection and
+  `RefineAsync`/`ProcessAsync` failed with "Reflection-based serialization has been disabled". The JSON shape is unchanged.
+
 ## [0.41.0] - 2026-10-06
 
 ### Added
