@@ -97,15 +97,13 @@ public class MergedHeaderCharacterizationTests
     }
 
     /// <summary>
-    /// Confirmed intentional (not a defect): row 2's column labels (연번/이메일/...) render as the
-    /// first data row, not as the markdown table header. Markdown cannot express a two-row header
-    /// natively, so Undoc promotes row 1 (the group labels, now correctly column-anchored) to the
-    /// header and flattens row 2 into data — Undoc's intended behaviour for multi-row headers,
-    /// not a defect. Content is not lost (asserted by
-    /// <see cref="MergedHeader_LosesNoDataRows"/>), only relocated.
+    /// The column labels (row 2) are part of the Markdown header, joined under their group labels (<c>기본 정보 / 연번</c>).
+    /// Until FileFlux 0.45.0 they rendered as the first data row — Markdown has one header row — so a table chunk, which
+    /// repeats only the header row, lost the column names after its first piece. Content is not lost either way
+    /// (<see cref="MergedHeader_LosesNoDataRows"/>).
     /// </summary>
     [Fact]
-    public async Task MergedHeader_ColumnLabelRow_IsFlattenedIntoData_ByDesign()
+    public async Task MergedHeader_ColumnLabels_AreInTheHeaderRow()
     {
         var content = await _reader.ExtractAsync(MergedHeaderFixture, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -114,8 +112,7 @@ public class MergedHeaderCharacterizationTests
         var labelRowIndex = Array.FindIndex(lines, l => l.Contains("연번") && l.Contains("이메일"));
 
         Assert.True(separatorIndex >= 0, "a markdown table is produced at all");
-        Assert.True(labelRowIndex >= 0, "the column labels survive somewhere in the output");
-        Assert.True(labelRowIndex > separatorIndex, "the column labels render as the first data row");
+        Assert.Equal(separatorIndex - 1, labelRowIndex);
     }
 
     /// <summary>

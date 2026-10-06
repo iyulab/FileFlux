@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.45.0] - Unreleased
+
+### Changed
+- **A table header of several rows becomes one header row that names every column.** A merged group row above column
+  labels (a spreadsheet's «기본 정보» over «연번 · 구분 · …») is written as `기본 정보 / 연번 | 기본 정보 / 구분 | …`. Before,
+  Markdown's single header row held only the group labels and the column labels became the first data row, so a table
+  chunk, which repeats only the header row, lost the column names after its first piece. Applies to header rows the
+  parser declares and to any top row with a horizontally merged cell; `TableData.Cells` is unchanged. Table text
+  changes for such tables — a vault that re-extracts on extractor minor changes picks this up.
+
 ## [0.44.0] - 2026-10-06
 
 ### Changed
