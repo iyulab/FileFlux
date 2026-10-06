@@ -228,7 +228,7 @@ public class MultiModalWordDocumentReader : IDocumentReader
         try
         {
             // Undoc의 GetResourceIds()를 사용하여 이미지 추출
-            var resourceIds = UndocImageResources.ImageIds(doc);
+            var resourceIds = UndocImageResources.Shown(doc).Select(resource => resource.Id);
 
             foreach (var resourceId in resourceIds)
             {

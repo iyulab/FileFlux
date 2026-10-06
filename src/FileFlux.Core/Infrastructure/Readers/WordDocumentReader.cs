@@ -255,8 +255,8 @@ public partial class WordDocumentReader : IDocumentReader
         structuralHints["section_count"] = doc.SectionCount;
 
         // Extract embedded resources (images)
-        var resourceIds = UndocImageResources.ImageIds(doc);
-        foreach (var resourceId in resourceIds)
+        var resources = UndocImageResources.Shown(doc);
+        foreach (var (resourceId, altText) in resources)
         {
             var resourceData = doc.GetResourceData(resourceId);
             if (resourceData != null)
@@ -264,6 +264,7 @@ public partial class WordDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = resourceId,
+                    Caption = altText,
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
@@ -348,8 +349,8 @@ public partial class WordDocumentReader : IDocumentReader
         structuralHints["section_count"] = doc.SectionCount;
 
         // Extract embedded resources (images)
-        var resourceIds = UndocImageResources.ImageIds(doc);
-        foreach (var resourceId in resourceIds)
+        var resources = UndocImageResources.Shown(doc);
+        foreach (var (resourceId, altText) in resources)
         {
             var resourceData = doc.GetResourceData(resourceId);
             if (resourceData != null)
@@ -357,6 +358,7 @@ public partial class WordDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = resourceId,
+                    Caption = altText,
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,

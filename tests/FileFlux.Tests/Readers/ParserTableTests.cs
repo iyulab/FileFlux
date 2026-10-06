@@ -17,17 +17,17 @@ public class ParserTableTests
     private static readonly string VerticalMergeFixture =
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "vertical-merge.xlsx");
 
-    // ---- grid expansion: the two placeholder conventions --------------------------------------------------------
+    // ---- grid expansion: a row under a vertical merge has no cell at the covered position ----------------------
 
     [Fact]
-    public void ReadTables_UndocStyle_PlaceholderUnderAVerticalMerge_KeepsEveryValueInItsColumn()
+    public void ReadTables_UndocStyle_RowUnderAVerticalMerge_KeepsEveryValueInItsColumn()
     {
-        // Undoc: the row under a row_span carries an empty placeholder at the covered position.
+        // Undoc (0.14.0+, every format): the row under a row_span has no cell at the covered position.
         const string json = """
             {"sections":[{"name":"S","content":[{"type":"Table","rows":[
               {"is_header":true,"cells":[{"content":[{"runs":[{"text":"Group"}]}],"is_header":true},{"content":[{"runs":[{"text":"Item"}]}],"is_header":true}]},
               {"cells":[{"content":[{"runs":[{"text":"A"}]}],"row_span":2},{"content":[{"runs":[{"text":"x"}]}]}]},
-              {"cells":[{"content":[]},{"content":[{"runs":[{"text":"y"}]}]}]}
+              {"cells":[{"content":[{"runs":[{"text":"y"}]}]}]}
             ]}]}]}
             """;
 
@@ -41,9 +41,9 @@ public class ParserTableTests
     }
 
     [Fact]
-    public void ReadTables_NoPlaceholderConvention_SkipsThePositionAMergeStillCovers()
+    public void ReadTables_UnpdfStyle_SkipsThePositionAMergeStillCovers()
     {
-        // Unpdf/Unhwp: no placeholder; the row under a rowspan is one cell short.
+        // Unpdf/Unhwp naming (rowspan/colspan, nested content); the row under a rowspan is one cell short.
         const string json = """
             {"pages":[{"number":3,"elements":[{"type":"table","header_rows":1,"caption":"Totals","rows":[
               {"is_header":true,"cells":[{"content":[{"content":[{"type":"text","text":"Group"}]}],"rowspan":1,"colspan":1},{"content":[{"content":[{"type":"text","text":"Item"}]}],"rowspan":1,"colspan":1}]},

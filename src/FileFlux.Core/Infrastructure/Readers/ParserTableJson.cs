@@ -10,9 +10,9 @@ namespace FileFlux.Core.Infrastructure.Readers;
 /// <para>
 /// The parsers expose tables only as JSON; their Markdown flattens them. The shapes differ in naming
 /// (<c>row_span</c>/<c>rowspan</c>, header flags on rows, cells, or the table) and in one structural detail that decides
-/// column placement: Undoc emits an empty placeholder cell at each position a vertical merge covers, while Unpdf and
-/// Unhwp do not. A row whose spans already add up to the grid width carries its placeholders and is placed as is;
-/// a shorter row skips the positions merges from above still cover. Both rules land each value in its own column.
+/// column placement: a merged cell is recorded once, on the cell that owns it — the positions a vertical merge covers
+/// in the rows below have no cell (Unpdf, Unhwp, and Undoc from 0.14.0 for every format). A row's cells are therefore
+/// placed left to right, skipping the positions merges from above still cover, which lands each value in its own column.
 /// </para>
 /// </remarks>
 internal static class ParserTableJson
@@ -176,16 +176,12 @@ internal static class ParserTableJson
         {
             grid[r] = Enumerable.Repeat(string.Empty, width).ToArray();
             var cells = cellsPerRow[r];
-            var carriesPlaceholders = cells.Sum(c => Span(c, "col_span", "colspan")) == width;
             var col = 0;
 
             foreach (var cell in cells)
             {
-                if (!carriesPlaceholders)
-                {
-                    while (col < width && coveredUntil[col] >= r)
-                        col++;
-                }
+                while (col < width && coveredUntil[col] >= r)
+                    col++;
 
                 if (col >= width)
                     break;

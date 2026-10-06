@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.46.0] - Unreleased
+
+### Changed
+- **PDF text is read by Unpdf 0.31.0 (was 0.26.0).** What changes in extracted text:
+  - Text outside a page's visible area — the slug of a print-ready page, a stamp or notice in the margin of a larger
+    page placed on a smaller one — is no longer extracted, and running heads are looked for in the crop box's margins.
+  - Two columns of running text are no longer read as a table, and pages with a table keep their column reading order
+    (a column is read to its end, the table where it stands). On a 13-page Korean central-bank report excerpt this removed 42 of
+    46 «table» rows that held sentences out of order and every repeated watermark/stamp line.
+  - Bold that a font declares (weight, ForceBold, the embedded program's weight) counts as bold, and a short bold line
+    titling what follows, or a numbered title such as «01 - Introduction», becomes a heading.
+  - Text in embedded Type 1 / bare CFF fonts reads through the font's own encoding (TeX ligatures, quotes, dashes and
+    math symbols no longer turn into other characters).
+  Extracted text changes for such PDFs — a vault that re-extracts on extractor minor changes picks this up.
+- **Office documents are read by Undoc 0.14.0 (was 0.13.4).** A PowerPoint's images are the media its slides show;
+  media used only by a slide layout or master is no longer returned. A spreadsheet row under a vertical merge has no
+  cell at the covered position, as in Word.
+
+### Added
+- **An Office image carries its alt text.** Word and PowerPoint images returned in `RawContent.Images` have
+  `ImageInfo.Caption` set to the picture's description (alt text) when the document has one.
+
+### Fixed
+- **One picture is returned once.** Word and PowerPoint images are the resources Undoc marks as `primary`; the SVG
+  original Office writes beside a picture's raster rendering (`alternate`) and an HD Photo effects layer (`layer`) are
+  no longer returned as images of their own.
+
 ## [0.45.0] - 2026-10-06
 
 ### Changed
