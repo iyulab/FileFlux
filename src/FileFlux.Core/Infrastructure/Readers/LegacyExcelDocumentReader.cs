@@ -289,13 +289,20 @@ public class LegacyExcelDocumentReader : IDocumentReader
         {
             Text = extraction.Markdown,
             File = file,
+            Tables = extraction.Tables,
+            Spans = extraction.Spans,
             Hints = extraction.Hints,
             Warnings = extraction.Warnings,
             ReaderType = "LegacyExcelReader"
         };
     }
 
-    private sealed record WorkbookExtraction(string Markdown, Dictionary<string, object> Hints, List<string> Warnings);
+    private sealed record WorkbookExtraction(
+        string Markdown,
+        List<TableData> Tables,
+        List<SourceSpan> Spans,
+        Dictionary<string, object> Hints,
+        List<string> Warnings);
 
     private static IExcelDataReader CreateReader(Stream stream)
     {
@@ -307,6 +314,12 @@ public class LegacyExcelDocumentReader : IDocumentReader
         });
     }
 
+    /// <summary>
+    /// The workbook as text and tables, in the same shape as the .xlsx reader: each non-empty sheet is a <c>## name</c>
+    /// heading followed by its cells as one table (<see cref="TableMarkdown"/>), sheets separated by a rule. The table is
+    /// also returned as <see cref="TableData"/> (first row as header, merged ranges as <see cref="MergedCell"/>, the
+    /// sheet's 1-based position as <see cref="TableData.PageNumber"/>) and each sheet's text is a span.
+    /// </summary>
     private static WorkbookExtraction ExtractWorkbook(byte[] bytes, CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
@@ -320,6 +333,8 @@ public class LegacyExcelDocumentReader : IDocumentReader
         using var reader = CreateReader(stream);
 
         var sb = new StringBuilder();
+        var tables = new List<TableData>();
+        var spans = new List<SourceSpan>();
         var sheetCount = 0;
         var emptySheets = 0;
 
@@ -340,38 +355,25 @@ public class LegacyExcelDocumentReader : IDocumentReader
                 rows.Add(cells);
             }
 
-            // Trim fully-empty trailing rows; skip sheets with no content at all
-            while (rows.Count > 0 && rows[^1].All(string.IsNullOrWhiteSpace))
-                rows.RemoveAt(rows.Count - 1);
-
-            if (rows.Count == 0)
+            var merges = (reader.MergeCells ?? []).Select(range => (range.FromRow, range.FromColumn, range.ToRow, range.ToColumn)).ToList();
+            var table = ToTable(rows, merges, sheetCount, sheetName, tables.Count);
+            if (table is null)
             {
                 emptySheets++;
                 continue;
             }
 
             if (sb.Length > 0)
-                sb.AppendLine();
+                sb.Append("\n\n---\n\n");
 
-            sb.Append("## ").AppendLine(sheetName);
-            sb.AppendLine();
-
-            var header = rows[0];
-            var columnCount = header.Length;
-
-            AppendMarkdownRow(sb, header, columnCount);
-            sb.Append("| ");
-            sb.Append(string.Join(" | ", Enumerable.Repeat("---", columnCount)));
-            sb.AppendLine(" |");
-
-            for (var r = 1; r < rows.Count; r++)
-            {
-                AppendMarkdownRow(sb, rows[r], columnCount);
-            }
+            var start = sb.Length;
+            sb.Append("## ").Append(sheetName).Append("\n\n").Append(TableMarkdown.Render(table));
+            spans.Add(new SourceSpan(start, sb.Length) { Page = sheetCount });
+            tables.Add(table);
         } while (reader.NextResult());
 
         hints["worksheet_count"] = sheetCount;
-        hints["has_tables"] = sheetCount > emptySheets;
+        hints["has_tables"] = tables.Count > 0;
 
         if (emptySheets > 0)
             warnings.Add($"{emptySheets} of {sheetCount} worksheet(s) contain no data.");
@@ -379,10 +381,63 @@ public class LegacyExcelDocumentReader : IDocumentReader
         if (sheetCount == emptySheets)
             warnings.Add("Workbook contains no extractable cell data.");
 
-        var markdown = sb.ToString().TrimEnd();
+        var markdown = sb.ToString();
         hints["character_count"] = markdown.Length;
 
-        return new WorkbookExtraction(markdown, hints, warnings);
+        return new WorkbookExtraction(markdown, tables, spans, hints, warnings);
+    }
+
+    /// <summary>
+    /// One sheet's cells as a table, or <c>null</c> when the sheet has no data. Fully empty trailing rows and columns are
+    /// trimmed; a merged range keeps its value at its top-left cell (where the file stores it).
+    /// </summary>
+    internal static TableData? ToTable(
+        List<string[]> rows,
+        IReadOnlyList<(int FromRow, int FromColumn, int ToRow, int ToColumn)> mergeCells,
+        int sheetNumber,
+        string sheetName,
+        int order)
+    {
+        while (rows.Count > 0 && rows[^1].All(string.IsNullOrWhiteSpace))
+            rows.RemoveAt(rows.Count - 1);
+
+        var columns = rows.Count == 0 ? 0 : rows.Max(row => row.Length);
+        while (columns > 0 && rows.All(row => row.Length < columns || string.IsNullOrWhiteSpace(row[columns - 1])))
+            columns--;
+
+        if (rows.Count == 0 || columns == 0)
+            return null;
+
+        var cells = rows
+            .Select(row => Enumerable.Range(0, columns).Select(c => c < row.Length ? row[c].Trim() : string.Empty).ToArray())
+            .ToArray();
+
+        var merged = mergeCells
+            .Where(range => range.FromRow < cells.Length && range.FromColumn < columns)
+            .Select(range => new MergedCell
+            {
+                StartRow = range.FromRow,
+                EndRow = Math.Min(range.ToRow, cells.Length - 1),
+                StartCol = range.FromColumn,
+                EndCol = Math.Min(range.ToColumn, columns - 1),
+                Content = cells[range.FromRow][range.FromColumn]
+            })
+            .Where(cell => cell.EndRow > cell.StartRow || cell.EndCol > cell.StartCol)
+            .ToList();
+
+        var table = new TableData
+        {
+            Cells = cells,
+            HasHeader = true,
+            MergedCells = merged,
+            DetectionMethod = TableDetectionMethod.Structured,
+            Confidence = 1.0,
+            PageNumber = sheetNumber,
+            Order = order
+        };
+        table.Props["header_rows"] = 1;
+        table.Props["section_name"] = sheetName;
+        return table;
     }
 
     private static string FormatCell(object? value) => value switch
@@ -394,29 +449,4 @@ public class LegacyExcelDocumentReader : IDocumentReader
         bool b => b ? "TRUE" : "FALSE",
         _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
     };
-
-    private static void AppendMarkdownRow(StringBuilder sb, string[] cells, int columnCount)
-    {
-        sb.Append('|');
-        for (var c = 0; c < Math.Max(columnCount, cells.Length); c++)
-        {
-            var cell = c < cells.Length ? cells[c] : string.Empty;
-            sb.Append(' ').Append(EscapeMarkdownCell(cell)).Append(" |");
-        }
-        sb.AppendLine();
-    }
-
-    private static string EscapeMarkdownCell(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return string.Empty;
-
-        // Pipe breaks table columns; embedded line breaks break table rows
-        return value
-            .Replace("|", "\\|")
-            .Replace("\r\n", "<br>")
-            .Replace("\n", "<br>")
-            .Replace("\r", "<br>")
-            .Trim();
-    }
 }

@@ -41,6 +41,25 @@ public class ParserTableTests
     }
 
     [Fact]
+    public void EmptyTable_IsNotReturned()
+    {
+        // A sheet with no cells: the parser writes a table with no rows. It has no text block, so returning it as a
+        // TableData would break matching tables to text blocks by order.
+        const string json = """
+            {"sections":[
+              {"name":"Empty","content":[{"type":"Table","rows":[]}]},
+              {"name":"Data","content":[{"type":"Table","rows":[{"cells":[{"content":[{"runs":[{"text":"a"}]}]}]}]}]}
+            ]}
+            """;
+
+        var sections = ParserTableJson.ReadSections(json);
+        Assert.Empty(sections[0].Items);
+        var table = Assert.IsType<TableData>(Assert.Single(sections[1].Items));
+        Assert.Equal(0, table.Order);
+        Assert.Equal("a", Assert.Single(ParserTableJson.ReadTables(json, layoutInferred: false)).Table.Cells[0][0]);
+    }
+
+    [Fact]
     public void ReadTables_UnpdfStyle_SkipsThePositionAMergeStillCovers()
     {
         // Unpdf/Unhwp naming (rowspan/colspan, nested content); the row under a rowspan is one cell short.

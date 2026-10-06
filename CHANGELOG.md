@@ -26,10 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cell at the covered position, as in Word.
 
 ### Added
+- **Legacy `.xls` workbooks return their tables.** Each non-empty sheet is a `TableData` in `RawContent.Tables` (first
+  row as header, merged ranges as `MergedCells`, `PageNumber` = the sheet's position, `Props["section_name"]` = sheet
+  name) and a `RawContent.Spans` entry, as for `.xlsx`. The text is written the same way as `.xlsx` too — sheets
+  separated by a rule, fully empty trailing columns trimmed — so `.xls` text changes slightly.
 - **An Office image carries its alt text.** Word and PowerPoint images returned in `RawContent.Images` have
   `ImageInfo.Caption` set to the picture's description (alt text) when the document has one.
 
 ### Fixed
+- **A table with no cells is not returned.** A worksheet (or other section) holding an empty table produced a
+  `TableData` with 0 rows and no text block, so matching `Tables` to the text's table blocks by order went off by one.
 - **One picture is returned once.** Word and PowerPoint images are the resources Undoc marks as `primary`; the SVG
   original Office writes beside a picture's raster rendering (`alternate`) and an HD Photo effects layer (`layer`) are
   no longer returned as images of their own.

@@ -62,6 +62,8 @@ internal static class ParserTableJson
                     if (IsTable(item))
                     {
                         var table = ToTable(item, layoutInferred: false);
+                        if (!table.IsValid)
+                            continue; // an empty table (a sheet with no cells) has no text block to match
                         table.Order = order++;
                         table.PageNumber = index + 1;
                         if (name is not null)
@@ -108,6 +110,8 @@ internal static class ParserTableJson
                 if (IsTable(e))
                 {
                     var table = ToTable(e, layoutInferred);
+                    if (!table.IsValid)
+                        return; // an empty table has no text block to match by order
                     if (page is { } p)
                         table.PageNumber = p;
                     else if (sectionIndex is { } s)

@@ -68,6 +68,49 @@ public class LegacyExcelDocumentReaderTests
     }
 
     [Fact]
+    public async Task ExtractAsync_ReturnsEachSheetAsATableAndASpan()
+    {
+        var content = await _reader.ExtractAsync(FixturePath, cancellationToken: TestContext.Current.CancellationToken);
+
+        // The empty sheet yields neither a table nor a span; the data sheet yields one of each.
+        var table = Assert.Single(content.Tables);
+        Assert.Equal(["품목", "수량", "단가", "납기일"], table.Cells[0]);
+        Assert.Contains(table.Cells, row => row.Contains("공조기 FW410"));
+        Assert.Contains(table.Cells, row => row.Contains("설치|시공 비용")); // data keeps the pipe; only the text escapes it
+        Assert.True(table.HasHeader);
+        Assert.Equal(1, table.PageNumber);
+        Assert.Equal("견적서", table.Props["section_name"]);
+        Assert.Equal(TableDetectionMethod.Structured, table.DetectionMethod);
+
+        // The table's text block is inside the sheet's span, so a consumer can tie the two together.
+        var span = Assert.Single(content.Spans);
+        Assert.Equal(1, span.Page);
+        var sheetText = content.Text[span.Start..span.End];
+        Assert.StartsWith("## 견적서", sheetText, StringComparison.Ordinal);
+        Assert.Contains(TableMarkdown.Render(table), sheetText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ToTable_TrimsEmptyEdgesAndKeepsMergedRanges()
+    {
+        var rows = new List<string[]>
+        {
+            "그룹,항목,,".Split(','),
+            "A,x,,".Split(','),
+            ",y,,".Split(','),
+            ",,,".Split(','),
+        };
+
+        var table = LegacyExcelDocumentReader.ToTable(rows, [(FromRow: 1, FromColumn: 0, ToRow: 2, ToColumn: 0)], sheetNumber: 3, sheetName: "S", order: 0)!;
+
+        Assert.Equal([["그룹", "항목"], ["A", "x"], ["", "y"]], table.Cells);
+        var merged = Assert.Single(table.MergedCells);
+        Assert.Equal((1, 2, 0, 0, "A"), (merged.StartRow, merged.EndRow, merged.StartCol, merged.EndCol, merged.Content));
+        Assert.Equal(3, table.PageNumber);
+        Assert.Null(LegacyExcelDocumentReader.ToTable([", ".Split(',')], [], 1, "empty", 0));
+    }
+
+    [Fact]
     public async Task ExtractAsync_ShouldSkipEmptySheetsWithWarning()
     {
         var content = await _reader.ExtractAsync(FixturePath, cancellationToken: TestContext.Current.CancellationToken);

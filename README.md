@@ -282,7 +282,7 @@ AI backend.
 | PDF | .pdf | Unpdf (Rust FFI) | Text, tables, image extraction (each image with its `PageNumber`) |
 | Word | .docx | Undoc (Rust FFI) | Style and structure preservation |
 | Excel | .xlsx | Undoc (Rust FFI) | Multi-sheet and table structure |
-| Excel (legacy) | .xls | Built-in (ExcelDataReader) | BIFF binary workbooks; per-sheet markdown tables; CP949 (EUC-KR) fallback for codepage-less BIFF5/7 |
+| Excel (legacy) | .xls | Built-in (ExcelDataReader) | BIFF binary workbooks; per-sheet tables (text + `RawContent.Tables`); CP949 (EUC-KR) fallback for codepage-less BIFF5/7 |
 | PowerPoint | .pptx | Undoc (Rust FFI) | Slide and notes extraction |
 | HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
 | Markdown | .md | Built-in | Structure preservation |
@@ -369,9 +369,9 @@ if (content.Hints.TryGetValue("suppressed_text_runs", out var runs))
 ### Tables
 Tables come out twice, in step: inline in `RawContent.Text` as GFM tables, and as structured `RawContent.Tables`
 (`TableData` — `Cells` grid, `HasHeader`, `MergedCells`, `PageNumber`, `Caption`, `DetectionMethod`, `Confidence`;
-for sheets and sections `Props["section_name"]`). Filled by the PDF, Word, PowerPoint, Excel (.xlsx) and HWP readers
-from the parser's table structure. The text is authoritative: refinement never writes `Tables` into the text again.
-- **Excel**: the text is written from the table structure (`TableMarkdown`), one `## sheet name` section per sheet, so
+for sheets and sections `Props["section_name"]`). Filled by the PDF, Word, PowerPoint, Excel (.xlsx, .xls) and HWP readers
+from the table structure (a section with an empty table yields none). The text is authoritative: refinement never writes `Tables` into the text again.
+- **Excel** (.xlsx and legacy .xls): the text is written from the table structure (`TableMarkdown`), one `## sheet name` section per sheet, so
   every value under a merged cell keeps its column; each sheet is a `RawContent.Spans` entry (`Page` = sheet position).
 - **PDF**: tables are inferred from page layout by the parser — `DetectionMethod = Heuristic`, `Confidence = 0.5`, and
   the header flag is the parser's default rather than a detection.
