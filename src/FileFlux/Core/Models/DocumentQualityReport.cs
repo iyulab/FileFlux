@@ -5,65 +5,6 @@ using System.Collections.Generic;
 namespace FileFlux;
 
 /// <summary>
-/// Comprehensive quality report for document processing results.
-/// Designed for advanced metadata tracking and RAG system optimization.
-/// </summary>
-public class DocumentQualityReport
-{
-    /// <summary>
-    /// Document identifier for tracking and correlation
-    /// </summary>
-    public string DocumentId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Document file path or identifier
-    /// </summary>
-    public string DocumentPath { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Overall quality score (0.0-1.0) combining all metrics
-    /// Higher score indicates better RAG optimization
-    /// </summary>
-    public double OverallQualityScore { get; set; }
-
-    /// <summary>
-    /// Chunking-specific quality metrics
-    /// </summary>
-    public ChunkingQualityMetrics ChunkingQuality { get; set; } = new();
-
-    /// <summary>
-    /// Information density and content richness metrics
-    /// </summary>
-    public InformationDensityMetrics InformationDensity { get; set; } = new();
-
-    /// <summary>
-    /// Structural coherence and document organization metrics
-    /// </summary>
-    public StructuralCoherenceMetrics StructuralCoherence { get; set; } = new();
-
-    /// <summary>
-    /// Automated recommendations for improving RAG performance
-    /// </summary>
-    public List<QualityRecommendation> Recommendations { get; set; } = new();
-
-    /// <summary>
-    /// Detailed metrics for advanced analysis and debugging
-    /// Extended metadata in key-value pairs for analysis
-    /// </summary>
-    public Dictionary<string, object> DetailedMetrics { get; } = new();
-
-    /// <summary>
-    /// Processing timestamp for tracking and versioning
-    /// </summary>
-    public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
-
-    /// <summary>
-    /// Processing options used for this analysis
-    /// </summary>
-    public ChunkingOptions? ProcessingOptions { get; set; }
-}
-
-/// <summary>
 /// Chunking-specific quality metrics for RAG optimization
 /// </summary>
 public class ChunkingQualityMetrics

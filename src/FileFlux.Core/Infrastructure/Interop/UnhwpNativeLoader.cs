@@ -766,25 +766,3 @@ public sealed class UnhwpNativeLoader : IDisposable
         _disposed = true;
     }
 }
-
-/// <summary>
-/// Error codes from unhwp native library.
-/// </summary>
-public static class UnhwpErrorCodes
-{
-    public const int Ok = 0;
-    public const int FileNotFound = -1;
-    public const int ParseError = -2;
-    public const int RenderError = -3;
-    public const int InvalidFormat = -4;
-}
-
-/// <summary>
-/// HWP document format types.
-/// </summary>
-public enum HwpFormat
-{
-    Unknown = 0,
-    Hwp5 = 1,    // HWP 5.0 (OLE compound)
-    Hwpx = 2     // HWPX (XML/ZIP based)
-}

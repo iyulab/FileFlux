@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0] - Unreleased
+
+### Removed
+- **Breaking: public types that nothing used are removed.** No code path in this library constructed, returned or accepted them, and no implementation existed where they were interfaces. Code that never named them is unaffected; code that did can delete the reference - there was no behaviour behind it.
+  Removed: `DocumentQualityReport`, and the native-interop leftovers `HwpFormat`, `UnhwpErrorCodes`, `UndocJsonFormat`.
+
 ## [0.39.1] - 2026-10-06
 
 ### Changed

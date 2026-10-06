@@ -776,14 +776,3 @@ public enum UndocMarkdownFlags
     /// <summary>Add blank lines between paragraphs.</summary>
     ParagraphSpacing = 4
 }
-
-/// <summary>
-/// JSON format options for undoc.
-/// </summary>
-public enum UndocJsonFormat
-{
-    /// <summary>Pretty-printed JSON with indentation.</summary>
-    Pretty = 0,
-    /// <summary>Compact JSON without whitespace.</summary>
-    Compact = 1
-}
