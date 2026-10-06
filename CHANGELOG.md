@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.42.0] - Unreleased
+## [0.42.0] - 2026-10-06
 
 ### Changed
 - **PDF text follows the columns of a two-column page.** Lines of the left and right column that share a baseline are no
