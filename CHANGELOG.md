@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the table (it counted one cell too many); a table with consistent columns is no longer broken up because one cell is
   long; and a table that cannot stay GFM keeps its pipes, so an empty cell (a merge position) still places the values
   after it. A pipe block without a delimiter row gets an empty header instead of promoting its first data row.
+- Re-pinned sibling package(s) `FluxCurator` 0.10.4 -> 0.11.0, `LMSupply.Captioner` 0.107.0 -> 0.108.0, `LMSupply.Core` 0.107.0 -> 0.108.0, `LMSupply.Embedder` 0.107.0 -> 0.108.0, `LMSupply.Generator` 0.107.0 -> 0.108.0, `LMSupply.Ocr` 0.107.0 -> 0.108.0, `LMSupply.Transcriber` 0.107.0 -> 0.108.0.
 
 ### Removed
 - **Breaking — the pipeline no longer rebuilds or extends the text from `RawContent.Tables`/`Blocks`.** The refiner
