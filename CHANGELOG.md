@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.43.0] - Unreleased
+## [0.43.0] - 2026-10-06
 
 ### Added
 - **Per-page extraction quality for PDFs.** `RawContent.Quality.Pages` carries one `PageQuality` per page: the page's
