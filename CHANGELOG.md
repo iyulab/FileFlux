@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.44.0] - Unreleased
 
+### Changed
+- Re-pinned sibling package(s) `FluxCurator` 0.11.0 -> 0.12.0.
+
 ### Fixed
 - **An Office HD Photo effects layer is no longer returned as an image.** PowerPoint stores an artistic-effects layer
   (`.wdp`) beside the picture it belongs to; the Word, PowerPoint and Excel readers (and their multimodal wrappers) now
