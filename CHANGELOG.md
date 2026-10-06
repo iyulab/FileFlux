@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.45.0] - Unreleased
+## [0.45.0] - 2026-10-06
 
 ### Changed
 - **A table header of several rows becomes one header row that names every column.** A merged group row above column
