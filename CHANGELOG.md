@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.106.1 -> 0.107.0, `LMSupply.Core` 0.106.1 -> 0.107.0, `LMSupply.Embedder` 0.106.1 -> 0.107.0, `LMSupply.Generator` 0.106.1 -> 0.107.0, `LMSupply.Ocr` 0.106.1 -> 0.107.0, `LMSupply.Transcriber` 0.106.1 -> 0.107.0.
+- Re-pinned sibling package(s) `FluxImprover` 0.16.2 -> 0.16.3.
 
 ### Removed
 - **Breaking: public types that nothing used are removed.** No code path in this library constructed, returned or accepted them, and no implementation existed where they were interfaces. Code that never named them is unaffected; code that did can delete the reference - there was no behaviour behind it.
