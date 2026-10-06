@@ -1,4 +1,5 @@
 using FileFlux.Core;
+using FileFlux.Infrastructure.Conversion;
 using FileFlux.Infrastructure.Factories;
 using FluxCurator.Core;
 using FluxCurator.Core.Core;
@@ -253,8 +254,13 @@ public class DocumentProcessorFactoryBuilder
     /// </summary>
     public static DocumentProcessorFactoryBuilder CreateDefault()
     {
+        // The same refine stack AddFileFlux registers (converter, normaliser, refiner), so a file comes out of the
+        // default builder exactly as it does from dependency injection.
+        var markdownConverter = new MarkdownConverter();
         return new DocumentProcessorFactoryBuilder()
             .WithReaderFactory(new DocumentReaderFactory())
-            .WithChunkerFactory(new ChunkerFactory());
+            .WithChunkerFactory(new ChunkerFactory())
+            .WithMarkdownConverter(markdownConverter)
+            .WithDocumentRefiner(new DocumentRefiner(markdownConverter, new MarkdownNormalizer()));
     }
 }

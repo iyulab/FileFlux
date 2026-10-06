@@ -25,6 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multimodal PDF/Word/PowerPoint/Excel readers kept the base reader's tables but dropped its page spans, status and
   errors; they now carry all of them.
 
+### Changed
+- **`DocumentProcessorFactoryBuilder.CreateDefault()` refines like `AddFileFlux`.** It now composes the same Markdown
+  converter, normaliser and refiner that dependency injection registers, so the same file yields the same refined text
+  from either; before, a harness built on `CreateDefault()` measured a different pipeline from production.
+- **The refine path no longer damages tables.** A header row separated from its body by a blank line is re-attached
+  (it was validated alone and demoted to text, and the first data row promoted to header); a delimiter row is as wide as
+  the table (it counted one cell too many); a table with consistent columns is no longer broken up because one cell is
+  long; and a table that cannot stay GFM keeps its pipes, so an empty cell (a merge position) still places the values
+  after it. A pipe block without a delimiter row gets an empty header instead of promoting its first data row.
+
 ### Removed
 - **Breaking — the pipeline no longer rebuilds or extends the text from `RawContent.Tables`/`Blocks`.** The refiner
   replaced the whole text with a rendering of the structured view whenever a reader filled it (dropping cleanup and page
