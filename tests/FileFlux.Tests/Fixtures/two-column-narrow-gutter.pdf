@@ -1,0 +1,83 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 2874 >>
+stream
+BT
+/F1 10 Tf
+12 TL
+1 0 0 1 72 740 Tm (L01 the left column carries line 01.) Tj
+1 0 0 1 318 740 Tm (R01 the right column holds row 01.) Tj
+1 0 0 1 72 728 Tm (L02 the left column carries line 02.) Tj
+1 0 0 1 318 728 Tm (R02 the right column holds row 02.) Tj
+1 0 0 1 72 716 Tm (L03 the left column carries line 03.) Tj
+1 0 0 1 318 716 Tm (R03 the right column holds row 03.) Tj
+1 0 0 1 72 704 Tm (L04 the left column carries line 04.) Tj
+1 0 0 1 318 704 Tm (R04 the right column holds row 04.) Tj
+1 0 0 1 72 692 Tm (L05 the left column carries line 05.) Tj
+1 0 0 1 318 692 Tm (R05 the right column holds row 05.) Tj
+1 0 0 1 72 680 Tm (L06 the left column carries line 06.) Tj
+1 0 0 1 318 680 Tm (R06 the right column holds row 06.) Tj
+1 0 0 1 72 668 Tm (L07 the left column carries line 07.) Tj
+1 0 0 1 318 668 Tm (R07 the right column holds row 07.) Tj
+1 0 0 1 72 656 Tm (L08 the left column carries line 08.) Tj
+1 0 0 1 318 656 Tm (R08 the right column holds row 08.) Tj
+1 0 0 1 72 644 Tm (L09 the left column carries line 09.) Tj
+1 0 0 1 318 644 Tm (R09 the right column holds row 09.) Tj
+1 0 0 1 72 632 Tm (L10 a sentence that wraps at inter-) Tj
+1 0 0 1 318 632 Tm (R10 the right column holds row 10.) Tj
+1 0 0 1 72 620 Tm (national boundaries ends here now.) Tj
+1 0 0 1 318 620 Tm (R11 the right column holds row 11.) Tj
+1 0 0 1 72 608 Tm (L12 the left column carries line 12.) Tj
+1 0 0 1 318 608 Tm (R12 the right column holds row 12.) Tj
+1 0 0 1 72 596 Tm (L13 the left column carries line 13.) Tj
+1 0 0 1 318 596 Tm (R13 the right column holds row 13.) Tj
+1 0 0 1 72 584 Tm (L14 the left column carries line 14.) Tj
+1 0 0 1 318 584 Tm (R14 the right column holds row 14.) Tj
+1 0 0 1 72 572 Tm (L15 the left column carries line 15.) Tj
+1 0 0 1 318 572 Tm (R15 the right column holds row 15.) Tj
+1 0 0 1 72 560 Tm (L16 the left column carries line 16.) Tj
+1 0 0 1 318 560 Tm (R16 the right column holds row 16.) Tj
+1 0 0 1 72 548 Tm (L17 the left column carries line 17.) Tj
+1 0 0 1 318 548 Tm (R17 the right column holds row 17.) Tj
+1 0 0 1 72 536 Tm (L18 the left column carries line 18.) Tj
+1 0 0 1 318 536 Tm (R18 the right column holds row 18.) Tj
+1 0 0 1 72 524 Tm (L19 the left column carries line 19.) Tj
+1 0 0 1 318 524 Tm (R19 the right column holds row 19.) Tj
+1 0 0 1 72 512 Tm (L20 the left column carries line 20.) Tj
+1 0 0 1 318 512 Tm (R20 the right column holds row 20.) Tj
+1 0 0 1 72 500 Tm (L21 the left column carries line 21.) Tj
+1 0 0 1 318 500 Tm (R21 the right column holds row 21.) Tj
+1 0 0 1 72 488 Tm (L22 the left column carries line 22.) Tj
+1 0 0 1 318 488 Tm (R22 the right column holds row 22.) Tj
+1 0 0 1 72 476 Tm (L23 the left column carries line 23.) Tj
+1 0 0 1 318 476 Tm (R23 the right column holds row 23.) Tj
+1 0 0 1 72 464 Tm (L24 the left column carries line 24.) Tj
+1 0 0 1 318 464 Tm (R24 the right column holds row 24.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000003167 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+3235
+%%EOF

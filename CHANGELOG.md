@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.0] - Unreleased
+
+### Changed
+- **PDF text follows the columns of a two-column page.** Lines of the left and right column that share a baseline are no
+  longer joined, and a word hyphenated at the end of a column line is rejoined within its column instead of with the
+  other column's text (Unpdf 0.26.0). Extracted PDF text changes for multi-column documents — a vault that re-extracts
+  on extractor minor changes picks this up.
+- **PDF tables come out as GFM tables.** The header row is followed by a delimiter row and the body rows directly, so a
+  table's header no longer reads as a separate paragraph (Unpdf 0.26.0).
+
+### Dependencies
+- Unpdf 0.26.0, Undoc 0.13.4, Unhwp 0.13.3.
+
 ## [0.41.1] - 2026-10-06
 
 ### Fixed
