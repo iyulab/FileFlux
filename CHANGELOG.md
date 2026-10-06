@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   chunk, which repeats only the header row, lost the column names after its first piece. Applies to header rows the
   parser declares and to any top row with a horizontally merged cell; `TableData.Cells` is unchanged. Table text
   changes for such tables — a vault that re-extracts on extractor minor changes picks this up.
+- Re-pinned sibling package(s) `FluxImprover` 0.17.0 -> 0.18.0.
 
 ## [0.44.0] - 2026-10-06
 
