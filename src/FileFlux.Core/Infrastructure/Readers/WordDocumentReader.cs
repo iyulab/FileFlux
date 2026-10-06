@@ -255,7 +255,7 @@ public partial class WordDocumentReader : IDocumentReader
         structuralHints["section_count"] = doc.SectionCount;
 
         // Extract embedded resources (images)
-        var resourceIds = doc.GetResourceIds();
+        var resourceIds = UndocImageResources.ImageIds(doc);
         foreach (var resourceId in resourceIds)
         {
             var resourceData = doc.GetResourceData(resourceId);
@@ -348,7 +348,7 @@ public partial class WordDocumentReader : IDocumentReader
         structuralHints["section_count"] = doc.SectionCount;
 
         // Extract embedded resources (images)
-        var resourceIds = doc.GetResourceIds();
+        var resourceIds = UndocImageResources.ImageIds(doc);
         foreach (var resourceId in resourceIds)
         {
             var resourceData = doc.GetResourceData(resourceId);

@@ -226,7 +226,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
         try
         {
             // Undoc의 GetResourceIds()를 사용하여 이미지 추출
-            var resourceIds = doc.GetResourceIds();
+            var resourceIds = UndocImageResources.ImageIds(doc);
 
             foreach (var resourceId in resourceIds)
             {

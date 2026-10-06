@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.0] - Unreleased
+
+### Fixed
+- **An Office HD Photo effects layer is no longer returned as an image.** PowerPoint stores an artistic-effects layer
+  (`.wdp`) beside the picture it belongs to; the Word, PowerPoint and Excel readers (and their multimodal wrappers) now
+  return only resources the parser reports as images, so the layer no longer reaches an image enricher as an «image the
+  model cannot read». The picture itself is still returned.
+- **TIFF and JPEG XR images are named by their type.** Their bytes are now recognised (`image/tiff`,
+  `image/vnd.ms-photo`), and `.tif`/`.tiff`/`.wdp`/`.jxr`/`.hdp` ids fall back to those types, instead of
+  `application/octet-stream`. Image lists change for documents with such parts — a vault that re-extracts on extractor
+  minor changes picks this up.
+
 ## [0.43.0] - 2026-10-06
 
 ### Added

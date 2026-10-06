@@ -55,6 +55,16 @@ public static class ImageMimeTypeDetector
              ((data[0] == 0x01 || data[0] == 0x02) && data[1] == 0x00 && data[2] == 0x09 && data[3] == 0x00)))
             return "image/wmf";
 
+        // TIFF: little-endian "II*" + 0x00 or big-endian "MM" + 0x00 + "*".
+        if (data.Length >= 4 &&
+            ((data[0] == 0x49 && data[1] == 0x49 && data[2] == 0x2A && data[3] == 0x00) ||
+             (data[0] == 0x4D && data[1] == 0x4D && data[2] == 0x00 && data[3] == 0x2A)))
+            return "image/tiff";
+
+        // JPEG XR / HD Photo (Office .wdp): "II" followed by 0xBC.
+        if (data.Length >= 3 && data[0] == 0x49 && data[1] == 0x49 && data[2] == 0xBC)
+            return "image/vnd.ms-photo";
+
         return null;
     }
 
@@ -69,6 +79,8 @@ public static class ImageMimeTypeDetector
         if (lower.EndsWith(".svg")) return "image/svg+xml";
         if (lower.EndsWith(".emf")) return "image/emf";
         if (lower.EndsWith(".wmf")) return "image/wmf";
+        if (lower.EndsWith(".tif") || lower.EndsWith(".tiff")) return "image/tiff";
+        if (lower.EndsWith(".wdp") || lower.EndsWith(".jxr") || lower.EndsWith(".hdp")) return "image/vnd.ms-photo";
         return "application/octet-stream";
     }
 }
