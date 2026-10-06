@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.41.0] - Unreleased
+## [0.41.0] - 2026-10-06
 
 ### Added
 - **Readers carry tables as data.** The PDF, Word, PowerPoint, Excel (.xlsx) and HWP readers fill
