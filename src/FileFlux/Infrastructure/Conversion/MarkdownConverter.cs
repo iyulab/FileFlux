@@ -112,7 +112,9 @@ public class MarkdownConverter : IMarkdownConverter
     {
         var text = rawContent.Text ?? string.Empty;
         var sb = new StringBuilder();
-        var lines = text.Split(s_lineSeparators, StringSplitOptions.None);
+        var lines = options.ConvertTables
+            ? MarkdownTableLines.JoinDetachedHeaderRows(text.Split(s_lineSeparators, StringSplitOptions.None)).ToArray()
+            : text.Split(s_lineSeparators, StringSplitOptions.None);
 
         // RawContent.Hints에서 구조 정보 추출
         var hasHeadings = rawContent.Hints?.ContainsKey("HasHeadings") == true;
@@ -121,22 +123,6 @@ public class MarkdownConverter : IMarkdownConverter
                         rawContent.Hints?.ContainsKey("TableCount") == true;
         var hasLists = rawContent.Hints?.ContainsKey("HasLists") == true;
         var hasImages = rawContent.Hints?.ContainsKey("HasImages") == true;
-
-        // RawContent.Tables에서 추출된 테이블이 있으면 먼저 마크다운으로 변환하여 추가
-        if (options.ConvertTables && rawContent.HasTables)
-        {
-            foreach (var table in rawContent.Tables)
-            {
-                var tableMarkdown = ConvertTableDataToMarkdown(table);
-                if (!string.IsNullOrEmpty(tableMarkdown))
-                {
-                    sb.AppendLine(tableMarkdown);
-                    sb.AppendLine();
-                    stats.TableCount++;
-                }
-            }
-            sb.AppendLine();
-        }
 
         bool inCodeBlock = false;
         bool inTable = false;
@@ -351,17 +337,19 @@ public class MarkdownConverter : IMarkdownConverter
         }
         else
         {
-            // 단순 파이프 구분 테이블 → Markdown 테이블로 변환
-            for (int i = 0; i < tableLines.Count; i++)
+            // A pipe block without a delimiter row names no header: which row is the header is unknown, and promoting
+            // the first data row would mislabel every column. It gets an empty header row; a single pipe line is left
+            // as written (it may be prose with pipes).
+            if (tableLines.Count > 1)
             {
-                sb.AppendLine(tableLines[i]);
-                if (i == 0 && tableLines.Count > 1)
-                {
-                    // 헤더 후 구분선 추가
-                    var columnCount = tableLines[0].Count(c => c == '|') + 1;
-                    var separator = "|" + string.Join("|", Enumerable.Repeat(" --- ", Math.Max(1, columnCount - 1))) + "|";
-                    sb.AppendLine(separator);
-                }
+                var columns = tableLines.Max(MarkdownTableLines.CellCount);
+                sb.AppendLine("|" + string.Concat(Enumerable.Repeat("  |", columns)));
+                sb.AppendLine(MarkdownTableLines.Delimiter(columns));
+            }
+
+            foreach (var line in tableLines)
+            {
+                sb.AppendLine(line);
             }
         }
 
@@ -545,119 +533,4 @@ public class MarkdownConverter : IMarkdownConverter
 
     #endregion
 
-    #region TableData to Markdown Conversion
-
-    /// <summary>
-    /// Converts TableData (from PDF extraction) to Markdown table format.
-    /// </summary>
-    private static string ConvertTableDataToMarkdown(TableData table)
-    {
-        if (table.Cells == null || table.Cells.Length == 0)
-            return string.Empty;
-
-        var sb = new StringBuilder();
-        var columnCount = table.Cells.Max(row => row?.Length ?? 0);
-
-        if (columnCount == 0)
-            return string.Empty;
-
-        // Determine headers
-        // Note: TableData.Headers is a computed property that returns Cells[0] when HasHeader is true
-        // So we always use Cells[0] as header and start data from row 1 when HasHeader is true
-        string[] headers;
-        int dataStartRow;
-
-        if (table.HasHeader && table.Cells.Length > 0)
-        {
-            headers = table.Cells[0] ?? [];
-            dataStartRow = 1;  // Skip first row since it's the header
-        }
-        else
-        {
-            // Generate column headers (Col1, Col2, etc.)
-            headers = Enumerable.Range(1, columnCount).Select(i => $"Col{i}").ToArray();
-            dataStartRow = 0;
-        }
-
-        // Ensure headers match column count
-        if (headers.Length < columnCount)
-        {
-            var newHeaders = new string[columnCount];
-            Array.Copy(headers, newHeaders, headers.Length);
-            for (int i = headers.Length; i < columnCount; i++)
-            {
-                newHeaders[i] = $"Col{i + 1}";
-            }
-            headers = newHeaders;
-        }
-
-        // Header row
-        sb.Append('|');
-        foreach (var header in headers.Take(columnCount))
-        {
-            sb.Append(CultureInfo.InvariantCulture, $" {EscapeMarkdownTableCell(header ?? "")} |");
-        }
-        sb.AppendLine();
-
-        // Separator row with alignment
-        sb.Append('|');
-        for (int i = 0; i < columnCount; i++)
-        {
-            TextAlignment? alignment = table.ColumnAlignments != null && i < table.ColumnAlignments.Length
-                ? table.ColumnAlignments[i]
-                : null;
-
-            var separator = alignment switch
-            {
-                TextAlignment.Left => ":---",
-                TextAlignment.Right => "---:",
-                TextAlignment.Center => ":---:",
-                TextAlignment.Justify => ":---:",
-                _ => "---"
-            };
-            sb.Append(CultureInfo.InvariantCulture, $" {separator} |");
-        }
-        sb.AppendLine();
-
-        // Data rows
-        for (int rowIdx = dataStartRow; rowIdx < table.Cells.Length; rowIdx++)
-        {
-            var row = table.Cells[rowIdx];
-            if (row == null) continue;
-
-            sb.Append('|');
-            for (int colIdx = 0; colIdx < columnCount; colIdx++)
-            {
-                var cell = colIdx < row.Length ? row[colIdx] : "";
-                sb.Append(CultureInfo.InvariantCulture, $" {EscapeMarkdownTableCell(cell ?? "")} |");
-            }
-            sb.AppendLine();
-        }
-
-        // Add confidence warning comment if low confidence
-        if (table.NeedsLlmAssist)
-        {
-            sb.AppendLine(CultureInfo.InvariantCulture, $"<!-- Table confidence: {table.Confidence:F2} - may need verification -->");
-        }
-
-        return sb.ToString().TrimEnd();
-    }
-
-    /// <summary>
-    /// Escapes special characters in markdown table cells.
-    /// </summary>
-    private static string EscapeMarkdownTableCell(string content)
-    {
-        if (string.IsNullOrEmpty(content))
-            return "";
-
-        // Replace pipe characters and newlines
-        return content
-            .Replace("|", "\\|")
-            .Replace("\n", " ")
-            .Replace("\r", "")
-            .Trim();
-    }
-
-    #endregion
 }

@@ -347,11 +347,17 @@ if (content.Hints.TryGetValue("suppressed_text_runs", out var runs))
 
 `ReadAsync` (stage 0) carries the same signal in `DocumentProps`, with `ReadResult.Status` set to `Partial`.
 
-### Table Extraction
-FileFlux uses layout-based table detection with confidence scoring:
-- Tables with confidence score ≥ 0.5 are converted to Markdown format
-- Low-confidence tables fall back to plain text to prevent garbled output
-- Table quality metrics are exposed via `RawContent.Hints` for consumer applications
+### Tables
+Tables come out twice, in step: inline in `RawContent.Text` as GFM tables, and as structured `RawContent.Tables`
+(`TableData` — `Cells` grid, `HasHeader`, `MergedCells`, `PageNumber`, `Caption`, `DetectionMethod`, `Confidence`;
+for sheets and sections `Props["section_name"]`). Filled by the PDF, Word, PowerPoint, Excel (.xlsx) and HWP readers
+from the parser's table structure. The text is authoritative: refinement never writes `Tables` into the text again.
+- **Excel**: the text is written from the table structure (`TableMarkdown`), one `## sheet name` section per sheet, so
+  every value under a merged cell keeps its column; each sheet is a `RawContent.Spans` entry (`Page` = sheet position).
+- **PDF**: tables are inferred from page layout by the parser — `DetectionMethod = Heuristic`, `Confidence = 0.5`, and
+  the header flag is the parser's default rather than a detection.
+- `TableMarkdown.Render(table)` renders any `TableData` the same way (merged cells: text in the first position, the
+  covered positions empty; the delimiter row is always as wide as the grid).
 
 ### Document-Specific Notes
 - **Excel**: Very large worksheets (>100K rows) may impact memory usage
@@ -378,8 +384,7 @@ e.g. `Root Title > Sub Section`), and `Props[ChunkPropsKeys.HierarchyPath]` (`"h
 These come from `RawContent.Spans`: a reader describes where each stretch of its text came from (`SourceSpan` —
 `Page`, `StartTime`/`EndTime`), refinement carries the spans onto `RefinedContent.Spans`, and chunking writes the
 spans each chunk overlaps onto its `Location`. A custom `IDocumentReader` fills `Spans` to get the same. Spans are
-dropped (and chunk pages left null) when a step rebuilds the text from scratch — table/block conversion from
-structured reader output, or an LLM rewrite.
+dropped (and chunk pages left null) when a step rebuilds the text from scratch — an LLM rewrite.
 
 ## Advanced Features
 

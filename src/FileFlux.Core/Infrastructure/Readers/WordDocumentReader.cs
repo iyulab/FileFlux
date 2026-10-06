@@ -300,6 +300,7 @@ public partial class WordDocumentReader : IDocumentReader
 
         return new RawContent
         {
+            Tables = ParserTableJson.TryReadTables(() => doc.ToJson(compact: true), layoutInferred: false, warnings),
             Text = markdown.Trim(),
             File = new SourceFileInfo
             {
@@ -392,6 +393,7 @@ public partial class WordDocumentReader : IDocumentReader
 
         return new RawContent
         {
+            Tables = ParserTableJson.TryReadTables(() => doc.ToJson(compact: true), layoutInferred: false, warnings),
             Text = markdown.Trim(),
             File = new SourceFileInfo
             {

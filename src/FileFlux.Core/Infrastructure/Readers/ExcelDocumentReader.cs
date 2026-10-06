@@ -1,3 +1,4 @@
+using System.Text;
 using FileFlux.Core;
 using Undoc;
 
@@ -61,6 +62,7 @@ public class ExcelDocumentReader : IDocumentReader
                 result.DocumentProps["author"] = doc.Author;
 
             result.DocumentProps["section_count"] = doc.SectionCount;
+            var sheetNames = ParserTableJson.ReadSections(doc.ToJson(compact: true)).Select(sheet => sheet.Name).ToList();
 
             // Each section represents a worksheet
             for (int i = 1; i <= doc.SectionCount; i++)
@@ -71,7 +73,7 @@ public class ExcelDocumentReader : IDocumentReader
                     HasContent = true,
                     Props =
                     {
-                        ["sheet_name"] = $"Sheet{i}",
+                        ["sheet_name"] = sheetNames.ElementAtOrDefault(i - 1) ?? $"Sheet{i}",
                         ["file_type"] = "excel_worksheet"
                     }
                 });
@@ -127,6 +129,7 @@ public class ExcelDocumentReader : IDocumentReader
                 result.DocumentProps["author"] = doc.Author;
 
             result.DocumentProps["section_count"] = doc.SectionCount;
+            var sheetNames = ParserTableJson.ReadSections(doc.ToJson(compact: true)).Select(sheet => sheet.Name).ToList();
 
             for (int i = 1; i <= doc.SectionCount; i++)
             {
@@ -136,7 +139,7 @@ public class ExcelDocumentReader : IDocumentReader
                     HasContent = true,
                     Props =
                     {
-                        ["sheet_name"] = $"Sheet{i}",
+                        ["sheet_name"] = sheetNames.ElementAtOrDefault(i - 1) ?? $"Sheet{i}",
                         ["file_type"] = "excel_worksheet"
                     }
                 });
@@ -281,16 +284,8 @@ public class ExcelDocumentReader : IDocumentReader
 
         using var doc = UndocDocument.ParseFile(filePath);
 
-        // Convert to Markdown using Undoc native library
-        var markdown = doc.ToMarkdown(new MarkdownOptions
-        {
-            IncludeFrontmatter = false,
-            EscapeSpecialChars = false,
-            ParagraphSpacing = false
-        });
-
-        // Remove null bytes
-        markdown = TextSanitizer.RemoveNullBytes(markdown);
+        var workbook = RenderWorkbook(doc);
+        var markdown = workbook.Text;
 
         // Extract metadata
         if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -308,7 +303,9 @@ public class ExcelDocumentReader : IDocumentReader
 
         return new RawContent
         {
-            Text = markdown.Trim(),
+            Text = markdown,
+            Tables = workbook.Tables,
+            Spans = workbook.Spans,
             File = new SourceFileInfo
             {
                 Name = FileNameHelper.ExtractSafeFileName(fileInfo),
@@ -348,16 +345,8 @@ public class ExcelDocumentReader : IDocumentReader
 
         using var doc = UndocDocument.ParseBytes(bytes);
 
-        // Convert to Markdown using Undoc native library
-        var markdown = doc.ToMarkdown(new MarkdownOptions
-        {
-            IncludeFrontmatter = false,
-            EscapeSpecialChars = false,
-            ParagraphSpacing = false
-        });
-
-        // Remove null bytes
-        markdown = TextSanitizer.RemoveNullBytes(markdown);
+        var workbook = RenderWorkbook(doc);
+        var markdown = workbook.Text;
 
         // Extract metadata
         if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -375,7 +364,9 @@ public class ExcelDocumentReader : IDocumentReader
 
         return new RawContent
         {
-            Text = markdown.Trim(),
+            Text = markdown,
+            Tables = workbook.Tables,
+            Spans = workbook.Spans,
             File = new SourceFileInfo
             {
                 Name = fileName,
@@ -388,5 +379,58 @@ public class ExcelDocumentReader : IDocumentReader
             Warnings = warnings,
             ReaderType = "ExcelReader"
         };
+    }
+
+    /// <summary>
+    /// The workbook as text, written from Undoc's JSON rather than its Markdown: each sheet is a <c>## name</c> heading
+    /// followed by its tables (<see cref="TableMarkdown"/>) and text blocks, sheets separated by a rule. Undoc's own
+    /// Markdown pads a vertically merged cell twice and shifts the values to its right (undoc #792); its JSON places
+    /// every value. The tables come back as <see cref="TableData"/> too, and each sheet's text is a span whose page is
+    /// the sheet's 1-based position.
+    /// </summary>
+    internal static (string Text, List<TableData> Tables, List<SourceSpan> Spans) RenderWorkbook(UndocDocument doc)
+    {
+        var sections = ParserTableJson.ReadSections(doc.ToJson(compact: true));
+        if (sections.Count == 0)
+        {
+            var fallback = TextSanitizer.RemoveNullBytes(doc.ToMarkdown(new MarkdownOptions
+            {
+                IncludeFrontmatter = false,
+                EscapeSpecialChars = false,
+                ParagraphSpacing = false
+            })).Trim();
+            return (fallback, [], []);
+        }
+
+        var sb = new StringBuilder();
+        var tables = new List<TableData>();
+        var spans = new List<SourceSpan>();
+
+        foreach (var sheet in sections)
+        {
+            if (sb.Length > 0)
+                sb.Append("\n\n---\n\n");
+
+            var start = sb.Length;
+            sb.Append("## ").Append(TextSanitizer.RemoveNullBytes(sheet.Name ?? $"Sheet{sheet.Index + 1}"));
+            foreach (var item in sheet.Items)
+            {
+                sb.Append("\n\n");
+                if (item is TableData table)
+                {
+                    table.Cells = table.Cells.Select(row => row.Select(TextSanitizer.RemoveNullBytes).ToArray()).ToArray();
+                    sb.Append(TableMarkdown.Render(table));
+                    tables.Add(table);
+                }
+                else
+                {
+                    sb.Append(TextSanitizer.RemoveNullBytes((string)item));
+                }
+            }
+
+            spans.Add(new SourceSpan(start, sb.Length) { Page = sheet.Index + 1 });
+        }
+
+        return (sb.ToString(), tables, spans);
     }
 }

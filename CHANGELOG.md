@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.41.0] - Unreleased
+
+### Added
+- **Readers carry tables as data.** The PDF, Word, PowerPoint, Excel (.xlsx) and HWP readers fill
+  `RawContent.Tables` (`TableData`: cell grid, header flag, merged cells, page or sheet, caption, detection method and
+  confidence) from the parser's table structure — the same tables the text carries inline. PDF tables are inferred
+  from page layout and say so (`DetectionMethod = Heuristic`, `Confidence = 0.5`: the header flag is the parser's
+  default). New `TableMarkdown.Render(TableData)` renders any table the way FileFlux does.
+- **Excel sheets are spans.** Each sheet is a `RawContent.Spans` entry (`Page` = the sheet's position), so chunks know
+  their sheet; `ReadAsync` reports the real sheet names instead of `Sheet1`, `Sheet2`, ….
+
+### Fixed
+- **A merged cell in an .xlsx sheet no longer shifts the values to its right.** Sheet text is now written from the
+  parser's table structure instead of its Markdown, which padded a vertically merged cell twice (a 3-column sheet came
+  out as a 4-column table with values one column off).
+- Multimodal PDF/Word/PowerPoint/Excel readers kept the base reader's tables but dropped its page spans, status and
+  errors; they now carry all of them.
+
+### Removed
+- **Breaking — the pipeline no longer rebuilds or extends the text from `RawContent.Tables`/`Blocks`.** The refiner
+  replaced the whole text with a rendering of the structured view whenever a reader filled it (dropping cleanup and page
+  spans, and writing tables twice), the Markdown converter prepended the tables, and the extract-to-directory output
+  appended a `## Tables` section; all three rendered the header row twice. `RawContent.Text` is the document; `Tables`
+  is a structured view of the tables already in it. Migration: a custom `IDocumentReader` that filled `Tables` or
+  `Blocks` without writing them into `Text` must write them into `Text` (for tables, `TableMarkdown.Render`).
+
 ## [0.40.0] - 2026-10-06
 
 ### Changed

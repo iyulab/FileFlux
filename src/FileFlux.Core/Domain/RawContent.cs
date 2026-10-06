@@ -45,7 +45,8 @@ public class RawContent
     public List<TextBlock> Blocks { get; set; } = [];
 
     /// <summary>
-    /// Extracted tables with raw cell data (no markdown conversion).
+    /// The tables of <see cref="Text"/> as structured data — the same tables the text carries inline, not additional
+    /// ones. <see cref="Text"/> stays authoritative: nothing in the pipeline writes these into the text again.
     /// </summary>
     public List<TableData> Tables { get; set; } = [];
 

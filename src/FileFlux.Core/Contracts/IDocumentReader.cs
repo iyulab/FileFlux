@@ -64,10 +64,11 @@ public interface IDocumentReader
 /// Options for content extraction stage.
 /// </summary>
 /// <remarks>
-/// The readers shipped here produce Markdown text (tables and headings inline) plus images; none of them fills
-/// <see cref="RawContent.Tables"/> or <see cref="RawContent.Blocks"/>. The four switches that promised structured
-/// table/block extraction (<c>ExtractTables</c>, <c>DetectBlockTypes</c>, <c>PreserveCoordinates</c>,
-/// <c>MinTableConfidence</c>) and the <c>CustomOptions</c> bag were read by nothing and were removed in 0.25.0.
+/// The readers shipped here produce Markdown text (tables and headings inline) plus images. The PDF, Word, PowerPoint,
+/// Excel and HWP readers also fill <see cref="RawContent.Tables"/> with the same tables as structured data; none fills
+/// <see cref="RawContent.Blocks"/>. The four switches that promised structured table/block extraction
+/// (<c>ExtractTables</c>, <c>DetectBlockTypes</c>, <c>PreserveCoordinates</c>, <c>MinTableConfidence</c>) and the
+/// <c>CustomOptions</c> bag were read by nothing and were removed in 0.25.0.
 /// </remarks>
 public class ExtractOptions
 {

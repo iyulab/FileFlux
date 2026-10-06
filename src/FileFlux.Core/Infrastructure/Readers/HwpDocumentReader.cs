@@ -269,6 +269,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
         return new RawContent
         {
+            Tables = ParserTableJson.TryReadTables(() => doc.ToJson(compact: true), layoutInferred: false, warnings),
             Text = markdown.Trim(),
             File = new SourceFileInfo
             {
@@ -349,6 +350,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
         return new RawContent
         {
+            Tables = ParserTableJson.TryReadTables(() => doc.ToJson(compact: true), layoutInferred: false, warnings),
             Text = markdown.Trim(),
             File = new SourceFileInfo
             {

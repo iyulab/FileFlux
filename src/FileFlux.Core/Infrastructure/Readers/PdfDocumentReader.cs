@@ -523,6 +523,7 @@ public partial class PdfDocumentReader : IDocumentReader
 
         return new RawContent
         {
+            Tables = ParserTableJson.TryReadTables(() => doc.ToJson(compact: true), layoutInferred: true, warnings),
             Text = markdown,
             Spans = pageSpans,
             File = new SourceFileInfo

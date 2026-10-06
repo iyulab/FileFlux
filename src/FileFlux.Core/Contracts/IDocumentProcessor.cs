@@ -303,8 +303,8 @@ public class RefineOptions
     public bool CleanNoise { get; set; } = true;
 
     /// <summary>
-    /// Convert tables to markdown format.
-    /// Tables are converted from RawContent.Tables using rule-based or LLM approach.
+    /// Normalise the Markdown tables in the text (with <see cref="ConvertBlocksToMarkdown"/>, gates the Markdown
+    /// conversion step). <see cref="RawContent.Tables"/> is never written into the text: the text already carries them.
     /// </summary>
     public bool ConvertTablesToMarkdown { get; set; } = true;
 

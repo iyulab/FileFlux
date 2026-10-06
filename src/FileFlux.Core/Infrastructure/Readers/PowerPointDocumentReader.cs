@@ -300,6 +300,7 @@ public class PowerPointDocumentReader : IDocumentReader
 
         return new RawContent
         {
+            Tables = ParserTableJson.TryReadTables(() => doc.ToJson(compact: true), layoutInferred: false, warnings),
             Text = markdown.Trim(),
             File = new SourceFileInfo
             {
@@ -379,6 +380,7 @@ public class PowerPointDocumentReader : IDocumentReader
 
         return new RawContent
         {
+            Tables = ParserTableJson.TryReadTables(() => doc.ToJson(compact: true), layoutInferred: false, warnings),
             Text = markdown.Trim(),
             File = new SourceFileInfo
             {

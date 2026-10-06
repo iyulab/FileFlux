@@ -325,6 +325,10 @@ public partial class MarkdownNormalizer : IMarkdownNormalizer
         NormalizationStats stats,
         NormalizationOptions options)
     {
+        var joined = MarkdownTableLines.JoinDetachedHeaderRows(lines);
+        lines.Clear();
+        lines.AddRange(joined);
+
         var tableBlocks = FindTableBlocks(lines);
         stats.TablesFound = tableBlocks.Count;
 
@@ -422,16 +426,13 @@ public partial class MarkdownNormalizer : IMarkdownNormalizer
 
         foreach (var line in tableLines)
         {
-            if (TableSeparatorPattern().IsMatch(line))
+            if (MarkdownTableLines.IsDelimiter(line))
             {
                 hasSeparator = true;
                 continue;
             }
 
-            // Count columns by counting pipe characters (minus outer pipes)
-            var pipeCount = line.Count(c => c == '|');
-            var colCount = pipeCount > 1 ? pipeCount - 1 : pipeCount;
-            columnCounts.Add(colCount);
+            columnCounts.Add(MarkdownTableLines.CellCount(line));
         }
 
         if (columnCounts.Count == 0)
@@ -456,25 +457,6 @@ public partial class MarkdownNormalizer : IMarkdownNormalizer
             return (false, "Complex table structure (missing separator)");
         }
 
-        // Check for very wide variance in cell content length (might indicate merged cells)
-        var cellLengths = tableLines
-            .Where(l => !TableSeparatorPattern().IsMatch(l))
-            .SelectMany(l => l.Split('|', StringSplitOptions.RemoveEmptyEntries))
-            .Select(c => c.Trim().Length)
-            .ToList();
-
-        if (cellLengths.Count > 0)
-        {
-            var avgLength = cellLengths.Average();
-            var maxLength = cellLengths.Max();
-
-            // If max cell is more than 5x average, might be merged cell content
-            if (maxLength > avgLength * 5 && maxLength > 100)
-            {
-                return (false, "Complex table structure (possible merged cells)");
-            }
-        }
-
         return (true, string.Empty);
     }
 
@@ -489,22 +471,13 @@ public partial class MarkdownNormalizer : IMarkdownNormalizer
             "<table>"
         };
 
+        // Rows keep their pipes: an empty cell (often the position a merged cell covers) is what places the values
+        // after it, and trimming it to tab-separated text loses that column.
         foreach (var line in tableLines)
         {
-            // Remove pipe characters and clean up
-            var cleanedLine = line.Trim();
-            if (cleanedLine.StartsWith('|'))
-                cleanedLine = cleanedLine[1..];
-            if (cleanedLine.EndsWith('|'))
-                cleanedLine = cleanedLine[..^1];
-
-            // Replace remaining pipes with tabs or spaces
-            cleanedLine = cleanedLine.Replace('|', '\t').Trim();
-
-            if (!string.IsNullOrWhiteSpace(cleanedLine) &&
-                !TableSeparatorPattern().IsMatch(line))
+            if (!string.IsNullOrWhiteSpace(line) && !MarkdownTableLines.IsDelimiter(line))
             {
-                result.Add(cleanedLine);
+                result.Add(line.Trim());
             }
         }
 

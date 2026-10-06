@@ -206,6 +206,9 @@ public class MultiModalWordDocumentReader : IDocumentReader
                 Text = baseContent.Text,
                 Blocks = baseContent.Blocks,  // Preserve extracted blocks
                 Tables = baseContent.Tables,  // Preserve extracted tables
+                Spans = baseContent.Spans,
+                Status = baseContent.Status,
+                Errors = baseContent.Errors,
                 Images = baseContent.Images,  // Preserve extracted images
                 File = baseContent.File,
                 Hints = baseContent.Hints ?? new Dictionary<string, object>(),
@@ -219,6 +222,9 @@ public class MultiModalWordDocumentReader : IDocumentReader
             Text = enhancedText.ToString(),
             Blocks = baseContent.Blocks,  // Preserve extracted blocks
             Tables = baseContent.Tables,  // Preserve extracted tables
+            Spans = baseContent.Spans,
+            Status = baseContent.Status,
+            Errors = baseContent.Errors,
             Images = baseContent.Images,  // Preserve extracted images
             File = baseContent.File,
             Hints = structuralHints,

@@ -41,7 +41,7 @@ public class OptionsReachabilityRosterTests
         //   StrategyOptions A — removed (CustomProperties is the one bag; MarkdownConversionOptions.MaxHeadingLevel is a
         //   different, read concept). DeduplicateOverlaps/RecognizeKoreanSectionMarkers B — removed.
         // ExtractOptions: ExtractTables/DetectBlockTypes/PreserveCoordinates/MinTableConfidence/CustomOptions A — removed
-        //   (no reader fills RawContent.Tables/Blocks). ExtractImages/MaxImageSize wired 0.24.2 (ImageExtractionPolicy).
+        //   (no reader filled RawContent.Tables/Blocks then; since 0.41.0 readers fill Tables from parser structure). ExtractImages/MaxImageSize wired 0.24.2 (ImageExtractionPolicy).
         // GraphBuildOptions.IncludeReferenceEdges A (three edge builders, none for Reference) — removed.
         // LlmRefineOptions: VerboseLogging A — removed. CustomInstructions/DocumentType/TargetLanguage are CONTRACT
         //   members: FluxIndex.Integrations.FileFlux's LlmRefinerAdapter (an ILlmRefiner) reads all three into its prompt;
