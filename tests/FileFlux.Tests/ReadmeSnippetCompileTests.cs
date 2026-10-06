@@ -45,6 +45,7 @@ public class ReadmeSnippetCompileTests
         ("services", "IServiceCollection services = null!;"),
         ("provider", "IServiceProvider provider = null!;"),
         ("reader", "IDocumentReader reader = null!;"),
+        ("processor", "IDocumentProcessor processor = null!;"),
         ("logger", "ILogger logger = null!;"),
         ("storedText", "string storedText = \"\";"),
         ("storedSpans", "IReadOnlyList<SourceSpan> storedSpans = [];"),

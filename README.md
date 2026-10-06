@@ -183,6 +183,24 @@ if (processor.Result.Graph != null)
 | Chunk | `IChunkerFactory` | Optional | Content segmentation with various strategies |
 | Enrich | `IDocumentEnricher` | ✅ | LLM-powered summaries, keywords, contextual text |
 
+**Page-scoped, checked LLM refinement.** By default `LlmRefineAsync` rewrites the whole document in one pass, and the
+page spans are lost. With `Scope = LlmRefineScope.Pages`, each selected page goes to the refiner alone. An output is kept
+only if it keeps `MinTokenCoverage` (0.95) of the page's words and, with `RequireSameNumbers`, exactly its numbers.
+Otherwise the page keeps its text. The page spans are re-expressed over the result, so chunks still carry their pages.
+`Result.LlmRefined.Pages` lists every page's outcome (`Refined` / `Native` / `Rejected` / `Skipped`) and its reason.
+`SelectPages` picks pages from the reader's page record (`RawContent.Quality.Pages`).
+
+```csharp
+await processor.LlmRefineAsync(new LlmRefineOptions
+{
+    Scope = LlmRefineScope.Pages,
+    SelectPages = page => page.ReplacementCharacters > 0 || page.SuppressedTextRuns > 0,
+    MaxPageCharacters = 12_000,   // a longer page is skipped, not cut
+});
+foreach (var page in processor.Result.LlmRefined!.Pages)
+    Console.WriteLine($"page {page.Page}: {page.Outcome} {page.Reason}");
+```
+
 ### AI Service Interfaces
 
 FileFlux defines AI service interfaces - consumer applications provide implementations.

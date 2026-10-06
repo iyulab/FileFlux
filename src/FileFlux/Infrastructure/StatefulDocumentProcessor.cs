@@ -456,7 +456,10 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             // Use ILlmRefiner if available
             if (_llmRefiner != null && _llmRefiner.IsAvailable)
             {
-                Result.LlmRefined = await _llmRefiner.RefineAsync(Result.Refined!, options, cancellationToken).ConfigureAwait(false);
+                Result.LlmRefined = options.Scope == LlmRefineScope.Pages
+                    ? await PageScopedRefinement.RefineAsync(_llmRefiner, Result.Refined!, Result.Raw?.Quality.Pages ?? [],
+                        options, cancellationToken).ConfigureAwait(false)
+                    : await _llmRefiner.RefineAsync(Result.Refined!, options, cancellationToken).ConfigureAwait(false);
                 Result.Metrics.LlmRefineDuration = sw.Elapsed;
                 Result.Metrics.LlmRefineTokens = Result.LlmRefined.Info.InputTokens + Result.LlmRefined.Info.OutputTokens;
 
@@ -521,7 +524,8 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             Summary = refined.Summary,
             Keywords = refined.Keywords,
             Sections = sections,
-            Spans = [],
+            // Spans a page-scoped refinement re-expressed over its text; empty after a whole-document rewrite.
+            Spans = llm.Spans,
             Structures = llm.Structures,
             Metadata = llm.Metadata,
             Quality = refined.Quality,

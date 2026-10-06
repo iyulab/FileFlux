@@ -164,6 +164,8 @@ public sealed partial class LlmRefiner : ILlmRefiner
                 RawId = refined.RawId,
                 Text = outputText,
                 Sections = sections,
+                // Offsets into the input text hold only while the text is unchanged.
+                Spans = outputText == refined.Text ? refined.Spans : [],
                 Structures = refined.Structures,
                 Metadata = refined.Metadata,
                 Quality = quality,
@@ -194,6 +196,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
             RawId = refined.RawId,
             Text = refined.Text,
             Sections = refined.Sections,
+            Spans = refined.Spans,
             Structures = refined.Structures,
             Metadata = refined.Metadata,
             Quality = new LlmRefinementQuality

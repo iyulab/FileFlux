@@ -80,6 +80,50 @@ public class LlmRefineOptions
     /// </summary>
     public DocumentTypeHint DocumentType { get; set; } = DocumentTypeHint.Auto;
 
+    /// <summary>
+    /// What one pass rewrites. <see cref="LlmRefineScope.Document"/> (default) rewrites the whole text unchecked and drops
+    /// the page spans; <see cref="LlmRefineScope.Pages"/> refines page by page, checks each output against its page and
+    /// keeps the spans. The result lists every page's outcome in <see cref="LlmRefinedContent.Pages"/>.
+    /// </summary>
+    public LlmRefineScope Scope { get; set; } = LlmRefineScope.Document;
+
+    /// <summary>
+    /// <see cref="LlmRefineScope.Pages"/>: which pages to refine, from the reader's page record
+    /// (<see cref="RawContent.Quality"/>). Null refines every page. A page the reader reported nothing for is refined only
+    /// when this is null.
+    /// </summary>
+    public Func<PageQuality, bool>? SelectPages { get; set; }
+
+    /// <summary>
+    /// <see cref="LlmRefineScope.Pages"/>: a page longer than this is not sent (it keeps its text) rather than cut. Default
+    /// 12,000 characters — about 3–4k tokens, so a page and its prompt fit an 8k context.
+    /// </summary>
+    public int MaxPageCharacters { get; set; } = 12_000;
+
+    /// <summary>
+    /// <see cref="LlmRefineScope.Pages"/>: the share of the page's word tokens (case-folded) the output must keep. Default
+    /// 0.95. An output below it is rejected and the page keeps its text.
+    /// </summary>
+    public double MinTokenCoverage { get; set; } = 0.95;
+
+    /// <summary>
+    /// <see cref="LlmRefineScope.Pages"/>: reject an output whose numbers differ from the page's — one dropped, changed or
+    /// added. Default true.
+    /// </summary>
+    public bool RequireSameNumbers { get; set; } = true;
+
+    /// <summary>
+    /// A copy for one refiner call over a single text: every option as set, scope <see cref="LlmRefineScope.Document"/>
+    /// and no page selection. A memberwise copy, so an option added later is carried too.
+    /// </summary>
+    internal LlmRefineOptions ForSinglePass()
+    {
+        var copy = (LlmRefineOptions)MemberwiseClone();
+        copy.Scope = LlmRefineScope.Document;
+        copy.SelectPages = null;
+        return copy;
+    }
+
     // ========================================
     // Factory Methods
     // ========================================

@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   character count and U+FFFD count in `Text`, the parser's text/image/form operator counts, whether an unreadable OCR
   layer was dropped, and the suppressed text runs and undecodable content streams on that page. A consumer can pick the
   pages to read another way (a scanned page, a page with known loss, a garbled page) without re-parsing.
+- **Page-scoped, checked LLM refinement.** `LlmRefineOptions.Scope = LlmRefineScope.Pages` sends each selected page
+  (`SelectPages`, over the page record) to the refiner alone. Pages longer than `MaxPageCharacters` are skipped, not cut.
+  An output is kept only if it keeps `MinTokenCoverage` (default 0.95) of the page's words and, with
+  `RequireSameNumbers` (default on), exactly its numbers; otherwise the page keeps its text. The page spans are
+  re-expressed over the result, so chunks keep their pages. `LlmRefinedContent.Pages` reports each page's outcome and
+  reason. Works with any `ILlmRefiner`. The default scope stays `Document`.
+- **`LlmRefinedContent.Spans`.** Carried when the text is unchanged or refined page by page; empty after a whole-document
+  rewrite, as before.
 
 ### Changed
 - **The multimodal readers return everything their base reader produced.** They rebuilt the result member by member

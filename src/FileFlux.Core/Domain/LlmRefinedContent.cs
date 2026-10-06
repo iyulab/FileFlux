@@ -67,6 +67,18 @@ public class LlmRefinedContent
     public IReadOnlyList<ProcessingError> Errors { get; init; } = [];
 
     /// <summary>
+    /// Where <see cref="Text"/> came from in the source, as in <see cref="RefinedContent.Spans"/>. Carried when the text
+    /// is the refined text or a <see cref="LlmRefineScope.Pages"/> refinement re-expressed them; empty after a
+    /// <see cref="LlmRefineScope.Document"/> rewrite, whose offsets no longer apply.
+    /// </summary>
+    public IReadOnlyList<SourceSpan> Spans { get; init; } = [];
+
+    /// <summary>
+    /// Every page's outcome in a <see cref="LlmRefineScope.Pages"/> refinement, in page order; empty otherwise.
+    /// </summary>
+    public IReadOnlyList<PageRefinement> Pages { get; init; } = [];
+
+    /// <summary>
     /// Success indicator.
     /// </summary>
     public bool IsSuccess => Status == ProcessingStatus.Completed && Errors.Count == 0;
@@ -92,6 +104,7 @@ public class LlmRefinedContent
             RawId = refined.RawId,
             Text = refined.Text,
             Sections = refined.Sections,
+            Spans = refined.Spans,
             Structures = refined.Structures,
             Metadata = refined.Metadata,
             Quality = new LlmRefinementQuality
