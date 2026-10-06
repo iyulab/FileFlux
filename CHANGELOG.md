@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.40.0] - Unreleased
+## [0.40.0] - 2026-10-06
 
 ### Changed
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.106.1 -> 0.107.0, `LMSupply.Core` 0.106.1 -> 0.107.0, `LMSupply.Embedder` 0.106.1 -> 0.107.0, `LMSupply.Generator` 0.106.1 -> 0.107.0, `LMSupply.Ocr` 0.106.1 -> 0.107.0, `LMSupply.Transcriber` 0.106.1 -> 0.107.0.
