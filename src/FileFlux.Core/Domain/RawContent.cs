@@ -163,29 +163,53 @@ public class SourceFileInfo
 }
 
 /// <summary>
-/// Extraction quality metrics.
+/// How well the source was read, page by page. A reader that knows fills it; empty when it does not.
 /// </summary>
-public class ExtractionQuality
+public sealed class ExtractionQuality
 {
     /// <summary>
-    /// Confidence score (0.0 - 1.0).
+    /// One record per page, in page order — page numbers as in <see cref="RawContent.Spans"/>. Empty when the reader
+    /// has no page signals (only the PDF reader reports them today).
     /// </summary>
-    public double Confidence { get; set; } = 1.0;
+    public IReadOnlyList<PageQuality> Pages { get; init; } = [];
+}
+
+/// <summary>
+/// What a reader can say about one page's extraction — the facts a consumer needs to decide whether that page should
+/// be read another way (for example rendered and read by a vision model). Thresholds are the consumer's.
+/// </summary>
+/// <param name="Page">1-based page number, the numbering of <see cref="RawContent.Spans"/>.</param>
+public sealed record PageQuality(int Page)
+{
+    /// <summary>Length of this page's text in <see cref="RawContent.Text"/> (its span); 0 when the page produced no text.</summary>
+    public int Characters { get; init; }
+
+    /// <summary>U+FFFD replacement characters in this page's text — decode failures that survived as glyphs.</summary>
+    public int ReplacementCharacters { get; init; }
+
+    /// <summary>Text-showing operators the parser found on the page.</summary>
+    public int TextOperators { get; init; }
+
+    /// <summary>Image paints the parser found on the page.</summary>
+    public int ImageOperators { get; init; }
 
     /// <summary>
-    /// Character count.
+    /// Form XObject paints on the page. The text and images drawn inside a form are already counted in
+    /// <see cref="TextOperators"/> and <see cref="ImageOperators"/>.
     /// </summary>
-    public int CharCount { get; set; }
+    public int FormOperators { get; init; }
 
-    /// <summary>
-    /// Detected language.
-    /// </summary>
-    public string Language { get; set; } = "unknown";
+    /// <summary>The parser dropped this page's OCR text layer because it could not be read.</summary>
+    public bool OcrLayerSuppressed { get; init; }
 
-    /// <summary>
-    /// Quality issues detected.
-    /// </summary>
-    public List<string> Issues { get; set; } = new();
+    /// <summary>Text runs the font decoder could not read and discarded on this page; that text is missing.</summary>
+    public int SuppressedTextRuns { get; init; }
+
+    /// <summary>Content streams of this page the parser could not decode and left out; what they draw is missing.</summary>
+    public int UndecodableContentStreams { get; init; }
+
+    /// <summary>The page has a text layer the parser could read: text operators, and no suppressed OCR layer.</summary>
+    public bool HasTextLayer => TextOperators > 0 && !OcrLayerSuppressed;
 }
 
 /// <summary>

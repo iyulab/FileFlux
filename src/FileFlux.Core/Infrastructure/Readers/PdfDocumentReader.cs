@@ -408,6 +408,7 @@ public partial class PdfDocumentReader : IDocumentReader
         // Page markers → page spans, removed from the text (and trimmed, as the text always was) before anything
         // below measures or classifies it: a document of empty pages must still read as empty.
         (markdown, var pageSpans) = PageMarkers.Extract(markdown);
+        var pageQuality = ReadPageQuality(doc, markdown, pageSpans, warnings);
 
         // Unpdf 0.12.0 ExtractionQuality.SuppressedTextRuns: text runs the font decoder
         // could not resolve and discarded. Read before the empty-document classification
@@ -526,6 +527,7 @@ public partial class PdfDocumentReader : IDocumentReader
             Tables = ParserTableJson.TryReadTables(() => doc.ToJson(compact: true), layoutInferred: true, warnings),
             Text = markdown,
             Spans = pageSpans,
+            Quality = new ExtractionQuality { Pages = pageQuality },
             File = new SourceFileInfo
             {
                 Name = FileNameHelper.ExtractSafeFileName(fileInfo),
@@ -575,6 +577,57 @@ public partial class PdfDocumentReader : IDocumentReader
                && page.TryGetInt32(out var value) && value > 0
             ? value
             : null;
+    }
+
+    /// <summary>
+    /// One <see cref="PageQuality"/> per page: the parser's page statistics plus what the page's text span shows
+    /// (length, U+FFFD). All or nothing — when the parser cannot report a page, no page is reported, because a
+    /// record of zeros would read as «no text layer» and send a healthy page to a consumer's fallback.
+    /// </summary>
+    internal static IReadOnlyList<PageQuality> ReadPageQuality(
+        UnpdfDocument doc, string text, IReadOnlyList<SourceSpan> spans, List<string> warnings)
+    {
+        var byPage = new Dictionary<int, (int Characters, int Replacements)>();
+        foreach (var span in spans)
+        {
+            if (span.Page is not int page)
+                continue;
+            var slice = text.AsSpan(span.Start, span.End - span.Start);
+            var replacements = slice.Count('�');
+            byPage[page] = byPage.TryGetValue(page, out var seen)
+                ? (seen.Characters + slice.Length, seen.Replacements + replacements)
+                : (slice.Length, replacements);
+        }
+
+        try
+        {
+            var pages = new List<PageQuality>(doc.SectionCount);
+            for (var page = 1; page <= doc.SectionCount; page++)
+            {
+                var stats = doc.GetPageStats(page);
+                var (characters, replacements) = byPage.GetValueOrDefault(page);
+                pages.Add(new PageQuality(page)
+                {
+                    Characters = characters,
+                    ReplacementCharacters = replacements,
+                    TextOperators = Saturate(stats.TextOpCount),
+                    ImageOperators = Saturate(stats.ImageOpCount),
+                    FormOperators = Saturate(stats.FormOpCount),
+                    OcrLayerSuppressed = stats.OcrTextSuppressed,
+                    SuppressedTextRuns = Saturate(stats.SuppressedTextRuns),
+                    UndecodableContentStreams = Saturate(stats.UndecodableContentStreams)
+                });
+            }
+            return pages;
+        }
+        catch (UnpdfException ex)
+        {
+            warnings.Add($"Page quality signals are unavailable: the parser could not report page statistics " +
+                         $"[{ErrorKindKey}={FormatErrorKind(ex.Kind)}]");
+            return [];
+        }
+
+        static int Saturate(long value) => value > int.MaxValue ? int.MaxValue : (int)value;
     }
 
     /// <summary>

@@ -242,40 +242,20 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                   $"[{PdfDocumentReader.ErrorKindKey}={PdfDocumentReader.FormatErrorKind(unpdfEx.Kind)}]"
                 : $"Image processing failed: {ex.Message}");
 
-            return new RawContent
-            {
-                Text = baseContent.Text,
-                Blocks = baseContent.Blocks,
-                Tables = baseContent.Tables,
-                Spans = baseContent.Spans,
-                Status = baseContent.Status,
-                Errors = baseContent.Errors,
-                Images = baseContent.Images,
-                File = baseContent.File,
-                Hints = baseContent.Hints ?? new Dictionary<string, object>(),
-                Warnings = warnings,
-                ReaderType = ReaderType
-            };
+            var fallback = baseContent.WithText(baseContent.Text);
+            fallback.Warnings = warnings;
+            fallback.ReaderType = ReaderType;
+            return fallback;
         }
         finally
         {
             // No temp files to clean up (resources extracted directly from native library)
         }
 
-        return new RawContent
-        {
-            Text = enhancedText.ToString(),
-            Blocks = baseContent.Blocks,
-            Tables = baseContent.Tables,
-            Spans = baseContent.Spans,
-            Status = baseContent.Status,
-            Errors = baseContent.Errors,
-            Images = baseContent.Images,
-            File = baseContent.File,
-            Hints = structuralHints,
-            Warnings = baseContent.Warnings,
-            ReaderType = ReaderType
-        };
+        var enhanced = baseContent.WithText(enhancedText.ToString());
+        enhanced.Hints = structuralHints;
+        enhanced.ReaderType = ReaderType;
+        return enhanced;
     }
 
     /// <summary>

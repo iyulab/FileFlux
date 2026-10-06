@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.43.0] - Unreleased
+
+### Added
+- **Per-page extraction quality for PDFs.** `RawContent.Quality.Pages` carries one `PageQuality` per page: the page's
+  character count and U+FFFD count in `Text`, the parser's text/image/form operator counts, whether an unreadable OCR
+  layer was dropped, and the suppressed text runs and undecodable content streams on that page. A consumer can pick the
+  pages to read another way (a scanned page, a page with known loss, a garbled page) without re-parsing.
+
+### Changed
+- **The multimodal readers return everything their base reader produced.** They rebuilt the result member by member
+  and dropped what they did not list (`Quality`, `Duration`, `ReadId`); they now copy it and change only the text,
+  hints, warnings and reader type.
+
+### Removed
+- **Breaking**: `ExtractionQuality.Confidence`, `CharCount`, `Language` and `Issues`. No reader ever set them
+  (`Confidence` always read 1.0). Migration: use `Quality.Pages`, or `Text.Length` for the character count.
+
 ## [0.42.0] - 2026-10-06
 
 ### Changed
