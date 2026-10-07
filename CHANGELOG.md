@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.0] - Unreleased
+
+### Added
+- **A PDF page can be rendered and read by a vision model.** `ExtractOptions.PageReading` (`PageReadingOptions`:
+  `SelectPages` over the page record, `Dpi` default 150, `MaxPages`, `MinNativeCoverage` default 0.9) renders each
+  selected page (Unpdf `RenderPage`) and reads it through the registered `IImageToTextService`. The read replaces the
+  page's text — and the page spans are re-expressed — only where the page could not be read: no text layer, or lost
+  content (undecodable streams, discarded text runs, U+FFFD) when the read keeps the page's own words. A render that
+  could not paint everything (fonts not embedded, image codecs, inline images) never replaces text, and neither does a
+  read of a page with tables. Every selected page gets a `RawContent.PageReads` entry with its outcome, reason, the read
+  text and the render's gaps. Off unless `SelectPages` is set; on the multimodal PDF reader, file and stream alike.
+- **`PageQuality` reports the page's layout and image coverage.** `ImageCoverage` (0–1, a full-page scan is near 1),
+  `ColumnCount`, `ReadingRegions`, `AmbiguousLayoutRegions` (where the reading order guessed across two columns),
+  `RotatedTextRuns`, `RuledGrids`/`RuledTables` and `Rotation`, from the parser's page statistics.
+
 ## [0.46.1] - 2026-10-07
 
 ### Changed

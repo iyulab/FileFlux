@@ -92,6 +92,12 @@ public class ExtractOptions
     public (int Start, int End)? PageRange { get; set; }
 
     /// <summary>
+    /// Render pages the page record selects and read them through the registered <c>IImageToTextService</c> (PDF, with
+    /// the multimodal reader that <c>AddFileFlux</c> registers). Null (default): no page is rendered.
+    /// </summary>
+    public PageReadingOptions? PageReading { get; set; }
+
+    /// <summary>
     /// Default extraction options.
     /// </summary>
     public static ExtractOptions Default => new();

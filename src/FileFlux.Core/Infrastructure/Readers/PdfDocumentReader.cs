@@ -615,7 +615,15 @@ public partial class PdfDocumentReader : IDocumentReader
                     FormOperators = Saturate(stats.FormOpCount),
                     OcrLayerSuppressed = stats.OcrTextSuppressed,
                     SuppressedTextRuns = Saturate(stats.SuppressedTextRuns),
-                    UndecodableContentStreams = Saturate(stats.UndecodableContentStreams)
+                    UndecodableContentStreams = Saturate(stats.UndecodableContentStreams),
+                    ImageCoverage = stats.ImageCoverage,
+                    ColumnCount = Saturate(stats.ColumnCount),
+                    ReadingRegions = Saturate(stats.ReadingRegions),
+                    AmbiguousLayoutRegions = Saturate(stats.AmbiguousLayoutRegions),
+                    RotatedTextRuns = Saturate(stats.RotatedTextRuns),
+                    RuledGrids = Saturate(stats.RuledGrids),
+                    RuledTables = Saturate(stats.RuledTables),
+                    Rotation = stats.Rotation
                 });
             }
             return pages;

@@ -66,6 +66,12 @@ public class RawContent
     public ExtractionQuality Quality { get; set; } = new();
 
     /// <summary>
+    /// Pages rendered and read through an image-to-text service because <see cref="ExtractOptions.PageReading"/>
+    /// selected them, one record per selected page; empty when page reading was not asked for.
+    /// </summary>
+    public IReadOnlyList<PageRead> PageReads { get; set; } = [];
+
+    /// <summary>
     /// Extraction timestamp.
     /// </summary>
     public DateTime ExtractedAt { get; init; } = DateTime.UtcNow;
@@ -207,6 +213,36 @@ public sealed record PageQuality(int Page)
 
     /// <summary>Content streams of this page the parser could not decode and left out; what they draw is missing.</summary>
     public int UndecodableContentStreams { get; init; }
+
+    /// <summary>
+    /// Share of the page painted by images, 0 to 1, clipped to what the page shows. Tells a full-page scan (near 1) from a
+    /// logo (a few hundredths) when both report one image paint.
+    /// </summary>
+    public double ImageCoverage { get; init; }
+
+    /// <summary>The most text regions set side by side at any height: 1 for one column, 2 for two, 0 for no text.</summary>
+    public int ColumnCount { get; init; }
+
+    /// <summary>Text regions the reading order read one after another.</summary>
+    public int ReadingRegions { get; init; }
+
+    /// <summary>
+    /// Regions read line by line across although their text looked like two columns — where the reading order had to
+    /// guess, so the page's text may interleave two columns.
+    /// </summary>
+    public int AmbiguousLayoutRegions { get; init; }
+
+    /// <summary>Text runs not set horizontally left to right (rotated, vertical, upside down); their order may be wrong.</summary>
+    public int RotatedTextRuns { get; init; }
+
+    /// <summary>Ruling-line grids drawn on the page.</summary>
+    public int RuledGrids { get; init; }
+
+    /// <summary>Tables built from the page's ruling-line grids; fewer than <see cref="RuledGrids"/> means a drawn grid produced no table.</summary>
+    public int RuledTables { get; init; }
+
+    /// <summary>The page's rotation: 0, 90, 180 or 270 degrees clockwise.</summary>
+    public int Rotation { get; init; }
 
     /// <summary>The page has a text layer the parser could read: text operators, and no suppressed OCR layer.</summary>
     public bool HasTextLayer => TextOperators > 0 && !OcrLayerSuppressed;

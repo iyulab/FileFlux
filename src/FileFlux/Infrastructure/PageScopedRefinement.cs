@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 using System.Text.RegularExpressions;
 using FileFlux.Core;
 
@@ -40,14 +39,12 @@ internal static partial class PageScopedRefinement
         var byPage = quality.GroupBy(q => q.Page).ToDictionary(g => g.Key, g => g.First());
         var pageOptions = options.ForSinglePass();
         var text = refined.Text;
-        var output = new StringBuilder(text.Length);
-        var spans = new List<SourceSpan>(refined.Spans.Count);
+        var replace = new Dictionary<SourceSpan, string>();
         var pages = new List<PageRefinement>();
-        int inputTokens = 0, outputTokens = 0, cursor = 0;
+        int inputTokens = 0, outputTokens = 0;
 
         foreach (var span in refined.Spans.OrderBy(s => s.Start))
         {
-            output.Append(text, cursor, span.Start - cursor);
             var pageText = text[span.Start..span.End];
             var result = pageText;
 
@@ -82,18 +79,15 @@ internal static partial class PageScopedRefinement
                 pages.Add(record);
             }
 
-            var start = output.Length;
-            output.Append(result);
-            spans.Add(span with { Start = start, End = output.Length });
-            cursor = span.End;
+            if (result != pageText)
+                replace[span] = result;
         }
 
-        output.Append(text, cursor, text.Length - cursor);
+        var (newText, spans) = PageSplice.Apply(text, refined.Spans, replace);
         sw.Stop();
 
         var refinedCount = pages.Count(p => p.Outcome == PageRefinementOutcome.Refined);
         var rejected = pages.Where(p => p.Outcome == PageRefinementOutcome.Rejected).ToList();
-        var newText = output.ToString();
         return new LlmRefinedContent
         {
             RefinedId = refined.Id,
@@ -153,7 +147,7 @@ internal static partial class PageScopedRefinement
             return (record with { Outcome = PageRefinementOutcome.Rejected, Reason = PageRefinement.NumbersChanged }, native);
 
         // A page's text keeps its place between its neighbours: the refiner's surrounding whitespace is not its to set.
-        return (record with { Outcome = PageRefinementOutcome.Refined }, Reframe(native, candidate.Trim()));
+        return (record with { Outcome = PageRefinementOutcome.Refined }, PageSplice.Reframe(native, candidate.Trim()));
     }
 
     /// <summary>
@@ -192,13 +186,6 @@ internal static partial class PageScopedRefinement
         }
 
         return counts;
-    }
-
-    private static string Reframe(string native, string body)
-    {
-        var lead = native.Length - native.TrimStart().Length;
-        var trail = native.Length - native.TrimEnd().Length;
-        return lead + trail >= native.Length ? body : native[..lead] + body + native[^trail..];
     }
 
     private static RefinedContent PageContent(RefinedContent refined, string pageText) => new()

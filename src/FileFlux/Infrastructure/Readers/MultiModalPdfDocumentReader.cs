@@ -60,6 +60,12 @@ public class MultiModalPdfDocumentReader : IDocumentReader
         // Base PDF text extraction
         var baseContent = await _basePdfReader.ExtractAsync(filePath, options, cancellationToken);
 
+        if (options?.PageReading is { SelectPages: not null } pageReading)
+        {
+            using var doc = UnpdfDocument.ParseFile(filePath);
+            await ReadPagesAsync(doc, baseContent, pageReading, cancellationToken);
+        }
+
         // If no image service, return base result
         if (_imageToTextService == null)
             return baseContent;
@@ -70,15 +76,45 @@ public class MultiModalPdfDocumentReader : IDocumentReader
 
     public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
-        // Base PDF text extraction
-        var baseContent = await _basePdfReader.ExtractAsync(stream, fileName, options, cancellationToken);
+        if (options?.PageReading is not { SelectPages: not null } pageReading)
+            return await _basePdfReader.ExtractAsync(stream, fileName, options, cancellationToken);
 
-        // If no image service, return base result
-        if (_imageToTextService == null)
-            return baseContent;
+        // Page reading renders from the same bytes the text was extracted from.
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer, cancellationToken);
+        buffer.Position = 0;
+        var baseContent = await _basePdfReader.ExtractAsync(buffer, fileName, options, cancellationToken);
+        using var doc = UnpdfDocument.ParseBytes(buffer.ToArray());
+        await ReadPagesAsync(doc, baseContent, pageReading, cancellationToken);
 
-        // Stream-based image processing is complex, return base result (future extension)
+        // Image descriptions are added on the file path only; a stream returns the text with its pages read.
         return baseContent;
+    }
+
+    /// <summary>
+    /// <see cref="ExtractOptions.PageReading"/>: renders the selected pages of <paramref name="doc"/> and reads them through
+    /// the registered <see cref="IImageToTextService"/>. Without one, the content says so in its warnings.
+    /// </summary>
+    private async Task ReadPagesAsync(UnpdfDocument doc, RawContent content, PageReadingOptions options, CancellationToken cancellationToken)
+    {
+        if (_imageToTextService is null)
+        {
+            content.Warnings.Add("Page reading was requested but no IImageToTextService is registered; no page was rendered");
+            return;
+        }
+
+        await PageVisionReading.ApplyAsync(content, options, (page, dpi) =>
+        {
+            var rendered = doc.RenderPage(page, new RenderPageOptions { Dpi = dpi });
+            var gaps = rendered.Gaps;
+            return new RenderedPageImage(
+                rendered.Png,
+                Saturate(gaps.TextRuns),
+                Saturate((long)gaps.Images + gaps.InlineImages),
+                Saturate(gaps.UndecodableContentStreams));
+        }, _imageToTextService, cancellationToken);
+
+        static int Saturate(long value) => value > int.MaxValue ? int.MaxValue : (int)value;
     }
 
     /// <summary>

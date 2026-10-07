@@ -35,6 +35,19 @@ public class PdfPageQualityTests
         Assert.True(page.Characters > 0);
     }
 
+    // The parser's layout outcome (Unpdf 0.27+): two columns read as two regions, not guessed across; no image.
+    [Fact]
+    public async Task TwoColumnPage_ReportsItsColumnsAndRegions()
+    {
+        var page = Assert.Single((await Extract("two-column-narrow-gutter.pdf")).Quality.Pages);
+
+        Assert.Equal(2, page.ColumnCount);
+        Assert.Equal(2, page.ReadingRegions);
+        Assert.Equal(0, page.AmbiguousLayoutRegions);
+        Assert.Equal(0.0, page.ImageCoverage);
+        Assert.Equal(0, page.Rotation);
+    }
+
     [Fact]
     public async Task ImageOnlyPage_HasNoTextLayerAndPaintsAnImage()
     {
@@ -44,6 +57,9 @@ public class PdfPageQualityTests
         Assert.False(page.HasTextLayer);
         Assert.Equal(0, page.TextOperators);
         Assert.True(page.ImageOperators > 0);
+        // A full-page scan, told apart from a logo by how much of the page the images paint.
+        Assert.Equal(1.0, page.ImageCoverage, precision: 3);
+        Assert.Equal(0, page.ColumnCount);
     }
 
     [Fact]
