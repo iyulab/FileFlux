@@ -143,7 +143,7 @@ public class MisdeclaredFormatRoutingTests : IDisposable
     {
         using var processor = Create(CopyAs(Pdf, "가이드.docx"));
 
-        await processor.ExtractAsync(TestContext.Current.CancellationToken);
+        await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var raw = processor.Result.Raw!;
         Assert.False(string.IsNullOrWhiteSpace(raw.Text));
@@ -158,7 +158,7 @@ public class MisdeclaredFormatRoutingTests : IDisposable
     {
         using var processor = Create(CopyAs(Docx, "report.pdf"));
 
-        await processor.ExtractAsync(TestContext.Current.CancellationToken);
+        await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(".docx", processor.Result.Raw!.File.Extension);
         Assert.False(string.IsNullOrWhiteSpace(processor.Result.Raw.Text));
@@ -172,7 +172,7 @@ public class MisdeclaredFormatRoutingTests : IDisposable
     {
         using var processor = Create(CopyAs(Xls, name));
 
-        await processor.ExtractAsync(TestContext.Current.CancellationToken);
+        await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(".xls", processor.Result.Raw!.File.Extension);
         Assert.False(string.IsNullOrWhiteSpace(processor.Result.Raw.Text));
@@ -185,7 +185,7 @@ public class MisdeclaredFormatRoutingTests : IDisposable
         // Before content detection this was "No reader found" — the name selected nothing.
         using var processor = Create(CopyAs(Pdf, "download.bin"));
 
-        await processor.ExtractAsync(TestContext.Current.CancellationToken);
+        await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(".pdf", processor.Result.Raw!.File.Extension);
         Assert.Equal(".bin", processor.Result.Raw.Hints["declared_extension"]);
@@ -196,7 +196,7 @@ public class MisdeclaredFormatRoutingTests : IDisposable
     {
         using var processor = Factory().Create(File.ReadAllBytes(Pdf), ".docx", "가이드.docx");
 
-        await processor.ExtractAsync(TestContext.Current.CancellationToken);
+        await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(".pdf", processor.Result.Raw!.File.Extension);
         Assert.Contains(processor.Result.Raw.Warnings, w => w.Contains("[extension_mismatch]"));
@@ -208,7 +208,7 @@ public class MisdeclaredFormatRoutingTests : IDisposable
         await using var stream = new MemoryStream(File.ReadAllBytes(Pdf));
         using var processor = Factory().Create(stream, ".docx");
 
-        await processor.ExtractAsync(TestContext.Current.CancellationToken);
+        await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(".pdf", processor.Result.Raw!.File.Extension);
     }
@@ -245,7 +245,7 @@ public class MisdeclaredFormatRoutingTests : IDisposable
         {
             using var processor = Create(CopyAs(source, Path.GetFileName(source)));
 
-            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.False(processor.Result.Raw!.Hints.ContainsKey("declared_extension"));
             Assert.DoesNotContain(processor.Result.Raw.Warnings, w => w.Contains("[extension_mismatch]"));
@@ -260,7 +260,7 @@ public class MisdeclaredFormatRoutingTests : IDisposable
 
         using var processor = Create(path);
         var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => processor.ExtractAsync(TestContext.Current.CancellationToken));
+            () => processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("container_mismatch", ex.ToString());
         Assert.DoesNotContain("detected_extension", ex.ToString());

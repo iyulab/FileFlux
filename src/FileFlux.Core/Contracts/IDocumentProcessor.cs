@@ -48,7 +48,10 @@ public interface IDocumentProcessor : IAsyncDisposable, IDisposable
     /// Extract raw content from document.
     /// Populates Result.Raw.
     /// </summary>
-    Task ExtractAsync(CancellationToken cancellationToken = default);
+    /// <param name="options">What the reader extracts (images, page reading); null = the reader's defaults. A later stage
+    /// that extracts on its own (refine, chunk) uses the defaults, so call this first to set options.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task ExtractAsync(ExtractOptions? options = null, CancellationToken cancellationToken = default);
 
     // ========================================
     // Stage 2: Refine (RawContent → RefinedContent)

@@ -86,6 +86,31 @@ public class MultiModalPdfDocumentReaderTests
         Assert.Equal("Text read from the scanned page.", content.Text[span.Start..span.End]);
     }
 
+    // The processor (what AddFileFlux hands out) passes ExtractOptions to its reader; before 0.47.0 it always passed
+    // null, so no extraction option was reachable through it.
+    [Fact]
+    public async Task Processor_PassesExtractOptionsToTheReader()
+    {
+        var service = new RecordingImageToTextService("Text read from the scanned page.");
+        var services = new ServiceCollection();
+        services.AddFileFlux();
+        services.AddSingleton<IImageToTextService>(service);
+        var factory = services.BuildServiceProvider().GetRequiredService<FileFlux.Core.IDocumentProcessorFactory>();
+        var ct = TestContext.Current.CancellationToken;
+
+        await using var processor = factory.Create(ImageOnlyFixture);
+        await processor.ExtractAsync(new FileFlux.Core.ExtractOptions
+        {
+            ExtractImages = false,
+            PageReading = new FileFlux.Core.PageReadingOptions { SelectPages = q => !q.HasTextLayer }
+        }, ct);
+
+        var raw = processor.Result.Raw!;
+        Assert.Empty(raw.Images);
+        Assert.Equal(FileFlux.Core.PageReadOutcome.Replaced, Assert.Single(raw.PageReads).Outcome);
+        Assert.Contains("Text read from the scanned page.", raw.Text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task PageReading_WithoutAnImageToTextService_SaysSoAndRendersNothing()
     {

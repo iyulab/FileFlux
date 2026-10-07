@@ -22,6 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ColumnCount`, `ReadingRegions`, `AmbiguousLayoutRegions` (where the reading order guessed across two columns),
   `RotatedTextRuns`, `RuledGrids`/`RuledTables` and `Rotation`, from the parser's page statistics.
 
+### Changed
+- **Breaking**: `IDocumentProcessor.ExtractAsync(ExtractOptions? options = null, CancellationToken cancellationToken = default)`
+  replaces `ExtractAsync(CancellationToken)`, like `RefineAsync(RefineOptions?, …)`. Migration: a caller that passed the
+  token positionally writes `ExtractAsync(cancellationToken: token)`; an implementation adds the parameter.
+
+### Fixed
+- **Extraction options reach the reader through a processor.** `StatefulDocumentProcessor` (what `AddFileFlux` and
+  `IDocumentProcessorFactory` hand out) always called its reader with no options, so `ExtractImages`, `MaxImageSize` and
+  `PageRange` could only be set by calling a reader directly. Pass them to `ExtractAsync(options)`; a stage that extracts
+  on its own (refine, chunk) still uses the defaults.
+
 ## [0.46.1] - 2026-10-07
 
 ### Changed

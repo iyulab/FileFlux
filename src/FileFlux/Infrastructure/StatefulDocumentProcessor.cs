@@ -207,7 +207,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     #region Stage 1: Extract
 
     /// <inheritdoc/>
-    public async Task ExtractAsync(CancellationToken cancellationToken = default)
+    public async Task ExtractAsync(ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
@@ -226,15 +226,15 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
             if (_content != null)
             {
-                rawContent = await ExtractFromBytesAsync(cancellationToken).ConfigureAwait(false);
+                rawContent = await ExtractFromBytesAsync(options, cancellationToken).ConfigureAwait(false);
             }
             else if (_stream != null)
             {
-                rawContent = await ExtractFromStreamAsync(cancellationToken).ConfigureAwait(false);
+                rawContent = await ExtractFromStreamAsync(options, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                rawContent = await ExtractFromFileAsync(cancellationToken).ConfigureAwait(false);
+                rawContent = await ExtractFromFileAsync(options, cancellationToken).ConfigureAwait(false);
             }
 
             Result.Raw = rawContent;
@@ -254,34 +254,34 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         }
     }
 
-    private async Task<RawContent> ExtractFromFileAsync(CancellationToken cancellationToken)
+    private async Task<RawContent> ExtractFromFileAsync(ExtractOptions? options, CancellationToken cancellationToken)
     {
         var detected = FormatSignature.DetectFile(FilePath);
         var reader = _readerFactory.GetReader(FilePath, detected)
             ?? throw new UnsupportedFileFormatException(FilePath, $"No reader found for: {FilePath}");
-        var raw = await reader.ExtractAsync(FilePath, null, cancellationToken).ConfigureAwait(false);
+        var raw = await reader.ExtractAsync(FilePath, options, cancellationToken).ConfigureAwait(false);
         FormatSignature.NoteDeclaredMismatch(raw, FilePath, detected);
         return raw;
     }
 
-    private async Task<RawContent> ExtractFromStreamAsync(CancellationToken cancellationToken)
+    private async Task<RawContent> ExtractFromStreamAsync(ExtractOptions? options, CancellationToken cancellationToken)
     {
         // A non-seekable stream cannot be probed without consuming it; the declared extension decides.
         var detected = FormatSignature.DetectStream(_stream!);
         var reader = _readerFactory.GetReader(_extension, detected)
             ?? throw new UnsupportedFileFormatException(_extension, $"No reader found for extension: {_extension}");
-        var raw = await reader.ExtractAsync(_stream!, _fileName ?? $"stream{_extension}", null, cancellationToken).ConfigureAwait(false);
+        var raw = await reader.ExtractAsync(_stream!, _fileName ?? $"stream{_extension}", options, cancellationToken).ConfigureAwait(false);
         FormatSignature.NoteDeclaredMismatch(raw, _extension, detected);
         return raw;
     }
 
-    private async Task<RawContent> ExtractFromBytesAsync(CancellationToken cancellationToken)
+    private async Task<RawContent> ExtractFromBytesAsync(ExtractOptions? options, CancellationToken cancellationToken)
     {
         using var stream = new MemoryStream(_content!);
         var detected = FormatSignature.DetectBytes(_content!);
         var reader = _readerFactory.GetReader(_extension, detected)
             ?? throw new UnsupportedFileFormatException(_extension, $"No reader found for extension: {_extension}");
-        var raw = await reader.ExtractAsync(stream, _fileName ?? $"content{_extension}", null, cancellationToken).ConfigureAwait(false);
+        var raw = await reader.ExtractAsync(stream, _fileName ?? $"content{_extension}", options, cancellationToken).ConfigureAwait(false);
         FormatSignature.NoteDeclaredMismatch(raw, _extension, detected);
         return raw;
     }
@@ -304,7 +304,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         // Auto-run previous stage if needed
         if (_state < ProcessorState.Extracted)
         {
-            await ExtractAsync(cancellationToken).ConfigureAwait(false);
+            await ExtractAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         options ??= RefineOptions.Default;
@@ -833,7 +833,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         ChunkingStrategyMap.ToFluxCurator(options.Chunking?.Strategy);
 
 
-        await ExtractAsync(cancellationToken).ConfigureAwait(false);
+        await ExtractAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         await RefineAsync(options.Refine, cancellationToken).ConfigureAwait(false);
 
         if (options.IncludeLlmRefine)
@@ -859,7 +859,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         ChunkingStrategyMap.ToFluxCurator(options.Chunking?.Strategy);
 
 
-        await ExtractAsync(cancellationToken).ConfigureAwait(false);
+        await ExtractAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         await RefineAsync(options.Refine, cancellationToken).ConfigureAwait(false);
 
         if (options.IncludeLlmRefine)

@@ -63,7 +63,7 @@ public class StatefulDocumentProcessorTests
             using var processor = CreateProcessor(tempFile);
 
             // Act
-            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ProcessorState.Extracted, processor.State);
@@ -86,7 +86,7 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Act
             await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
@@ -139,7 +139,7 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
             await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Act
@@ -193,7 +193,7 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
             await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
             await processor.ChunkAsync(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -276,7 +276,7 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
             await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Act
@@ -331,11 +331,11 @@ public class StatefulDocumentProcessorTests
         try
         {
             using var processor = CreateProcessor(tempFile);
-            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
             var firstRawText = processor.Result.Raw!.Text;
 
             // Act - call Extract again
-            await processor.ExtractAsync(TestContext.Current.CancellationToken);
+            await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert - should be same result (not re-extracted)
             Assert.Equal(firstRawText, processor.Result.Raw!.Text);
