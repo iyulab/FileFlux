@@ -38,7 +38,7 @@
   <ItemGroup Label="Flux Packages">
     <PackageVersion Include="Flux.Abstractions" Version="0.27.0" />
     <PackageVersion Include="FluxCurator" Version="0.13.0" />
-    <PackageVersion Include="FluxImprover" Version="0.18.1" />
+    <PackageVersion Include="FluxImprover" Version="0.18.2" />
   </ItemGroup>
   <ItemGroup Label="LMSupply (Release - NuGet packages)">
     <PackageVersion Include="LMSupply.Core" Version="0.110.0" />
