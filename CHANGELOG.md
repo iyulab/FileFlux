@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.48.1] - Unreleased
+## [0.48.1] - 2026-10-07
 
 ### Fixed
 - **A page every refinement pass failed on is no longer recorded as `Refined`.** A page's span carries its surrounding
