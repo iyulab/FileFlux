@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.47.0] - Unreleased
+## [0.47.0] - 2026-10-07
 
 ### Added
 - **A PDF page can be rendered and read by a vision model.** `ExtractOptions.PageReading` (`PageReadingOptions`:
