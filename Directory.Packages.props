@@ -37,16 +37,16 @@
   </ItemGroup>
   <ItemGroup Label="Flux Packages">
     <PackageVersion Include="Flux.Abstractions" Version="0.27.0" />
-    <PackageVersion Include="FluxCurator" Version="0.13.0" />
-    <PackageVersion Include="FluxImprover" Version="0.18.2" />
+    <PackageVersion Include="FluxCurator" Version="0.14.0" />
+    <PackageVersion Include="FluxImprover" Version="0.18.3" />
   </ItemGroup>
   <ItemGroup Label="LMSupply (Release - NuGet packages)">
-    <PackageVersion Include="LMSupply.Core" Version="0.110.0" />
-    <PackageVersion Include="LMSupply.Embedder" Version="0.110.0" />
-    <PackageVersion Include="LMSupply.Generator" Version="0.110.0" />
-    <PackageVersion Include="LMSupply.Captioner" Version="0.110.0" />
-    <PackageVersion Include="LMSupply.Ocr" Version="0.110.0" />
-    <PackageVersion Include="LMSupply.Transcriber" Version="0.110.0" />
+    <PackageVersion Include="LMSupply.Core" Version="0.111.0" />
+    <PackageVersion Include="LMSupply.Embedder" Version="0.111.0" />
+    <PackageVersion Include="LMSupply.Generator" Version="0.111.0" />
+    <PackageVersion Include="LMSupply.Captioner" Version="0.111.0" />
+    <PackageVersion Include="LMSupply.Ocr" Version="0.111.0" />
+    <PackageVersion Include="LMSupply.Transcriber" Version="0.111.0" />
   </ItemGroup>
   <ItemGroup Label="CLI and UI">
     <PackageVersion Include="System.CommandLine" Version="2.0.8" />
@@ -65,7 +65,7 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.3.3" />
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
-    <PackageVersion Include="Iyu.Conventions.Testing" Version="0.4.0" />
+    <PackageVersion Include="Iyu.Conventions.Testing" Version="0.5.0" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
   </ItemGroup>
   <ItemGroup Label="Build Tools">
