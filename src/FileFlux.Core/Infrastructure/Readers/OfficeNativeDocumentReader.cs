@@ -616,7 +616,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
             if (string.IsNullOrEmpty(idsJson))
                 return images;
 
-            ids = System.Text.Json.JsonSerializer.Deserialize<string[]>(idsJson) ?? [];
+            ids = System.Text.Json.JsonSerializer.Deserialize(idsJson, Interop.UndocJsonContext.Default.StringArray) ?? [];
         }
         finally
         {
@@ -636,7 +636,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
                 if (string.IsNullOrEmpty(infoJson))
                     continue;
 
-                var resourceInfo = System.Text.Json.JsonSerializer.Deserialize<UndocResourceInfo>(infoJson);
+                var resourceInfo = System.Text.Json.JsonSerializer.Deserialize(infoJson, Interop.UndocJsonContext.Default.UndocResourceInfo);
                 if (resourceInfo == null || resourceInfo.Type != "image")
                     continue;
 

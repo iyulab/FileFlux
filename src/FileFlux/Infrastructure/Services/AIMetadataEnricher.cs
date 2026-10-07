@@ -426,7 +426,10 @@ Example:
             if (jsonStart >= 0 && jsonEnd > jsonStart)
             {
                 var jsonString = response.Substring(jsonStart, jsonEnd - jsonStart);
-                var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonString);
+                using var document = JsonDocument.Parse(jsonString);
+                var parsed = document.RootElement.ValueKind == JsonValueKind.Object
+                    ? document.RootElement.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone())
+                    : null;
 
                 if (parsed == null)
                     throw new InvalidOperationException("Failed to parse JSON");

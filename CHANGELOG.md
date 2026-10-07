@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.0] - Unreleased
+
+### Fixed
+- **The OpenAI-compatible analysis service, AI metadata enrichment and the native Office readers work in apps that turn
+  reflection-based JSON off** — trimmed and native AOT publishes, and file-based `dotnet run app.cs`, where it is off by
+  default. `OpenAICompatibleDocumentAnalysisService` threw «Reflection-based serialization has been disabled» on its
+  first call (0.48.1 measured), so every LLM refinement pass through it failed. Its request and response, the Office
+  parser's resource JSON and the enricher's metadata are now read without reflection. The language detector finds its
+  profile next to the application in a single-file app.
+
+### Changed
+- **Breaking**: `StructuredElement.GetData<T>()`, `GetTableData()`, `GetSpecData()` and `GetCodeData()` are removed — no
+  caller in this repository or its consumers, and the generic one cannot be made trim-safe. Migration: read
+  `StructuredElement.Data` (a `JsonElement`) directly.
+- `FileFlux.Core` builds with trim/AOT analysis as errors, so a new reflection-based call fails its build.
+  `AddDocumentReader<T>` / `AddDocumentParser<T>` keep `T`'s public constructors for the trimmer.
+- Still reflection-based: writing extract/chunk output to disk (`ExtractToDirectoryAsync`, `ChunkToDirectoryAsync`,
+  `ProcessToDirectoryAsync`, the CLI).
+
 ## [0.48.1] - 2026-10-07
 
 ### Fixed

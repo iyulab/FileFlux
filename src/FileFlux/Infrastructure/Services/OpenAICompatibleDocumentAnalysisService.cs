@@ -19,13 +19,6 @@ public sealed partial class OpenAICompatibleDocumentAnalysisService
     private readonly ILogger<OpenAICompatibleDocumentAnalysisService> _logger;
     private readonly bool _ownsHttpClient;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        PropertyNameCaseInsensitive = true
-    };
-
     /// <summary>
     /// Creates a new document analysis service with endpoint configuration.
     /// </summary>
@@ -228,12 +221,12 @@ public sealed partial class OpenAICompatibleDocumentAnalysisService
         };
 
         var response = await _httpClient.PostAsJsonAsync(
-            "chat/completions", request, JsonOptions, cancellationToken);
+            "chat/completions", request, ChatJsonContext.Default.ChatCompletionRequest, cancellationToken);
 
         response.EnsureSuccessStatusCode();
 
-        var result = await response.Content.ReadFromJsonAsync<ChatCompletionResponse>(
-            JsonOptions, cancellationToken);
+        var result = await response.Content.ReadFromJsonAsync(
+            ChatJsonContext.Default.ChatCompletionResponse, cancellationToken);
 
         var choice = result?.Choices?.FirstOrDefault();
         return (choice?.Message?.Content ?? string.Empty, choice?.FinishReason);
@@ -524,6 +517,18 @@ public sealed partial class OpenAICompatibleDocumentAnalysisService
     #endregion
 
     #region DTO Models
+
+    /// <summary>
+    /// Source-generated (snake_case, nulls omitted, case-insensitive reads) so the service works in an application that
+    /// disables reflection-based JSON (trimmed, native AOT, file-based <c>dotnet run app.cs</c>).
+    /// </summary>
+    [JsonSourceGenerationOptions(
+        PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNameCaseInsensitive = true)]
+    [JsonSerializable(typeof(ChatCompletionRequest))]
+    [JsonSerializable(typeof(ChatCompletionResponse))]
+    internal sealed partial class ChatJsonContext : JsonSerializerContext;
 
     internal sealed class ChatCompletionRequest
     {

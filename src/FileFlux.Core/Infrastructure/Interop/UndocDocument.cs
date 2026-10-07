@@ -235,7 +235,7 @@ public sealed class UndocDocument : IDisposable
             if (string.IsNullOrEmpty(idsJson))
                 return EmptyResources;
 
-            ids = JsonSerializer.Deserialize<string[]>(idsJson) ?? [];
+            ids = JsonSerializer.Deserialize(idsJson, UndocJsonContext.Default.StringArray) ?? [];
         }
         finally
         {
@@ -275,7 +275,7 @@ public sealed class UndocDocument : IDisposable
             if (string.IsNullOrEmpty(infoJson))
                 return null;
 
-            return JsonSerializer.Deserialize<UndocResourceInfo>(infoJson);
+            return JsonSerializer.Deserialize(infoJson, UndocJsonContext.Default.UndocResourceInfo);
         }
         finally
         {

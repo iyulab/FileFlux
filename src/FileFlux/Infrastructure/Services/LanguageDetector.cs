@@ -29,8 +29,9 @@ public static class LanguageDetector
                 return factory.Load(stream);
             }
 
-            // Fallback: try to load from a loose file alongside NTextCat's assembly
-            var assemblyPath = Path.GetDirectoryName(typeof(RankedLanguageIdentifierFactory).Assembly.Location);
+            // Fallback: try to load from a loose file in the application directory, where NTextCat's assembly is deployed
+            // (Assembly.Location is empty in a single-file app).
+            var assemblyPath = AppContext.BaseDirectory;
             if (assemblyPath != null)
             {
                 var profilePath = Path.Combine(assemblyPath, "Core14.profile.xml");

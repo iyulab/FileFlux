@@ -284,7 +284,7 @@ public static class ServiceCollectionExtensions
     /// Adds a custom document reader. It takes precedence over the built-in reader for the extensions it claims, whether it
     /// is registered before or after <c>AddFileFlux()</c>; among readers you add, the one registered last wins.
     /// </summary>
-    public static IServiceCollection AddDocumentReader<T>(this IServiceCollection services)
+    public static IServiceCollection AddDocumentReader<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)] T>(this IServiceCollection services)
         where T : class, IDocumentReader
     {
         services.AddTransient<IDocumentReader, T>();
@@ -339,7 +339,7 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Adds a custom document parser.
     /// </summary>
-    public static IServiceCollection AddDocumentParser<T>(this IServiceCollection services)
+    public static IServiceCollection AddDocumentParser<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)] T>(this IServiceCollection services)
         where T : class, IDocumentParser
     {
         services.AddTransient<IDocumentParser, T>();
