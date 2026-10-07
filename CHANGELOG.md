@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.1] - Unreleased
+
+### Fixed
+- **A page every refinement pass failed on is no longer recorded as `Refined`.** A page's span carries its surrounding
+  whitespace and the refiner trims its output, so a page that came back unchanged except for that trim was judged a
+  refinement (with the page's own text kept). It is now `Native` with its reason (`passes_failed`, `no_pass_needed`);
+  measured on a public central-bank report, 11 of 11 pages were mislabelled this way when the model endpoint failed.
+- **`NativeCoverage` is 1.0 for an output that keeps every word.** Matching longest words first anywhere let a long word
+  take the place a straddled shorter one needed, so a page compared with itself scored 0.991–0.998 on real Korean pages
+  («ab bbb» scored 0.6). Words are now matched in the page's order, each from where the previous one ended.
+
 ## [0.48.0] - 2026-10-07
 
 ### Changed

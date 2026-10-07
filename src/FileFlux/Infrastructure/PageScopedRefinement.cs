@@ -140,7 +140,9 @@ internal static partial class PageScopedRefinement
 
         var passes = refinedPage.Info.Passes;
         var notes = refinedPage.Info.Warnings;
-        if (candidate == native)
+        // The refiner's surrounding whitespace is not part of the page (it trims its output; PageSplice keeps the page's own),
+        // so an output that differs only there is the page unchanged — not a refinement.
+        if (candidate.AsSpan().Trim().SequenceEqual(native.AsSpan().Trim()))
         {
             return (new PageRefinement(page)
             {
@@ -195,31 +197,40 @@ internal static partial class PageScopedRefinement
     /// </summary>
     internal static double NativeCoverage(string native, string candidate)
     {
-        // Longest first, so a short word cannot take the place a longer one needs.
-        var words = Words().Matches(Fold(native)).Select(m => m.Value).OrderByDescending(w => w.Length).ToList();
+        var words = Words().Matches(Fold(native)).Select(m => m.Value).ToList();
         var total = words.Sum(w => w.Length);
         if (total == 0)
             return 1.0;
 
+        // In the page's order, each word looked for where the previous one ended, and anywhere only when it is not ahead:
+        // a rewrite keeps the order, so this pairs every word with its own place. (Matching longest-first anywhere let a
+        // long word take the place a straddled short one needed — «ab bbb» kept 0.6 of itself.)
         var text = Letters(candidate);
         var used = new bool[text.Length];
         var kept = 0;
+        var cursor = 0;
         foreach (var word in words)
         {
-            var at = FindUnused(text, used, word);
+            var at = FindUnused(text, used, word, cursor);
+            if (at < 0)
+                at = FindUnused(text, used, word, 0);
             if (at < 0)
                 continue;
 
             Array.Fill(used, true, at, word.Length);
             kept += word.Length;
+            cursor = at + word.Length;
         }
 
         return (double)kept / total;
     }
 
-    private static int FindUnused(string text, bool[] used, string word)
+    private static int FindUnused(string text, bool[] used, string word, int start)
     {
-        for (var at = text.IndexOf(word, StringComparison.Ordinal); at >= 0; at = text.IndexOf(word, at + 1, StringComparison.Ordinal))
+        if (start > text.Length)
+            return -1;
+
+        for (var at = text.IndexOf(word, start, StringComparison.Ordinal); at >= 0; at = text.IndexOf(word, at + 1, StringComparison.Ordinal))
         {
             if (Array.IndexOf(used, true, at, word.Length) < 0)
                 return at;

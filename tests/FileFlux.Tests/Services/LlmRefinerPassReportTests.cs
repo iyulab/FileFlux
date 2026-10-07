@@ -112,6 +112,31 @@ public sealed class LlmRefinerPassReportTests
         result.Info.Warnings.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// A page's span carries its surrounding whitespace and the refiner trims its output; a page every pass failed on is
+    /// still the page unchanged, not «refined» by the trim (measured on a real report before 0.48.1: 11 of 11 pages).
+    /// </summary>
+    [Fact]
+    public async Task Page_scope_a_page_with_surrounding_whitespace_that_every_pass_failed_on_is_native()
+    {
+        var service = new ScriptedService(_ => throw new HttpRequestException("503"));
+        var text = "\n" + BrokenKorean + " 대 응 하\n\n";
+        var content = new RefinedContent { Text = text, Spans = [new SourceSpan(0, text.Length) { Page = 1 }] };
+        var options = new LlmRefineOptions
+        {
+            Scope = LlmRefineScope.Pages, RestoreSentences = true, CorrectOcrErrors = true, RemoveNoise = false,
+            RestructureSections = false, MergeDuplicates = false,
+        };
+
+        var result = await PageScopedRefinement.RefineAsync(new LlmRefiner(service), content, [], options, TestContext.Current.CancellationToken);
+
+        var page = result.Pages.Single();
+        page.Outcome.Should().Be(PageRefinementOutcome.Native);
+        page.Reason.Should().Be(PageRefinement.PassesFailed);
+        page.Passes.Should().OnlyContain(p => p.Outcome == LlmRefinementPassOutcome.Failed && p.Reason == LlmRefinementPass.Error);
+        result.Text.Should().Be(text);
+    }
+
     /// <summary>The contrast for the two facts above: a model that was asked and kept the page leaves no reason.</summary>
     [Fact]
     public async Task Page_scope_the_model_kept_the_page_is_native_without_a_reason()

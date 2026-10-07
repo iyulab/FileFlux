@@ -213,6 +213,8 @@ public class PageScopedRefinementTests
     [InlineData("revenue rose", "revenue fell", 7.0 / 11)]
     [InlineData("", "anything", 1.0)]
     [InlineData("words", "", 0.0)]
+    [InlineData("ab bbb", "ab bbb", 1.0)]        // a long word must not take a straddled place first
+    [InlineData("가나 나나나", "가나 나나나", 1.0)]
     public void NativeCoverage_FindsEachWordHoweverItIsSpaced(string native, string output, double expected) =>
         Assert.Equal(expected, PageScopedRefinement.NativeCoverage(native, output), 3);
 
