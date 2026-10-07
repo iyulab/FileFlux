@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`PageQuality` reports the page's layout and image coverage.** `ImageCoverage` (0–1, a full-page scan is near 1),
   `ColumnCount`, `ReadingRegions`, `AmbiguousLayoutRegions` (where the reading order guessed across two columns),
   `RotatedTextRuns`, `RuledGrids`/`RuledTables` and `Rotation`, from the parser's page statistics.
+- **An image on a page replaced by its read is marked `ImageInfo.ReadAsPage`.** What it shows is already in the page's
+  text (a full-page scan is the common case), so a describer can skip it; the multimodal reader's own image pass skips it
+  instead of appending its text a second time.
 
 ### Changed
 - **Breaking**: `IDocumentProcessor.ExtractAsync(ExtractOptions? options = null, CancellationToken cancellationToken = default)`

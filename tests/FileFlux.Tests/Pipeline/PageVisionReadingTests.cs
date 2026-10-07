@@ -63,6 +63,19 @@ public class PageVisionReadingTests
     }
 
     [Fact]
+    public async Task ImagesOnAReplacedPage_AreMarkedReadAsPage()
+    {
+        var content = ThreePages();
+        content.Images.Add(new ImageInfo { Id = "scan", PageNumber = 2 });
+        content.Images.Add(new ImageInfo { Id = "logo", PageNumber = 1 });
+
+        await Apply(content, new PageReadingOptions { SelectPages = _ => true }, Render([]), "read");
+
+        Assert.True(content.Images.Single(i => i.Id == "scan").ReadAsPage);
+        Assert.False(content.Images.Single(i => i.Id == "logo").ReadAsPage);
+    }
+
+    [Fact]
     public async Task AnIncompleteRender_NeverReplacesText()
     {
         var content = ThreePages(new PageQuality(3) { Characters = Page3.Length, TextOperators = 3, SuppressedTextRuns = 2 });

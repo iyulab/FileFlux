@@ -141,6 +141,8 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             // calling these APIs.
             using var doc = UnpdfDocument.ParseFile(filePath, new ParseOptions { ExtractResources = true });
             var resourceIds = doc.GetResourceIds();
+            // A page replaced by a read of its render already carries what its images show.
+            var readPages = baseContent.PageReads.Where(r => r.Outcome == PageReadOutcome.Replaced).Select(r => r.Page).ToHashSet();
 
             var imageCount = 0;
             var includedImageCount = 0;
@@ -152,6 +154,9 @@ public class MultiModalPdfDocumentReader : IDocumentReader
             foreach (var id in resourceIds)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                if (readPages.Count > 0 && PdfDocumentReader.PageOfResource(doc, id) is int resourcePage && readPages.Contains(resourcePage))
+                    continue;
 
                 var imageBytes = doc.GetResourceData(id);
                 if (imageBytes == null || imageBytes.Length <= 100)

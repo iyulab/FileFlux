@@ -152,6 +152,9 @@ internal static class PageVisionReading
         }
 
         content.PageReads = reads;
+        var replacedPages = reads.Where(r => r.Outcome == PageReadOutcome.Replaced).Select(r => r.Page).ToHashSet();
+        foreach (var image in content.Images.Where(i => i.PageNumber is int p && replacedPages.Contains(p)))
+            image.ReadAsPage = true;
         var replaced = reads.Count(r => r.Outcome == PageReadOutcome.Replaced);
         content.Hints["page_reads"] = reads.Count;
         content.Hints["page_reads_replaced"] = replaced;

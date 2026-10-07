@@ -568,7 +568,7 @@ public partial class PdfDocumentReader : IDocumentReader
     /// The page an embedded image resource is drawn on, from the parser's resource metadata (<c>page</c>, 1-based, the
     /// numbering of the page markers), or null when the metadata does not say.
     /// </summary>
-    private static int? PageOfResource(UnpdfDocument doc, string resourceId)
+    internal static int? PageOfResource(UnpdfDocument doc, string resourceId)
     {
         using var info = doc.GetResourceInfo(resourceId);
         return info is not null

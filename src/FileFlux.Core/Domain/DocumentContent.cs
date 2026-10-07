@@ -89,6 +89,13 @@ public class ImageInfo
     public long OriginalSize { get; set; }
 
     /// <summary>
+    /// The image is on a page whose text was replaced by a read of the rendered page
+    /// (<see cref="ExtractOptions.PageReading"/>): what it shows is already in the text, so describing it again would
+    /// repeat that page — a full-page scan is the common case.
+    /// </summary>
+    public bool ReadAsPage { get; set; }
+
+    /// <summary>
     /// Additional properties
     /// </summary>
     public Dictionary<string, object> Properties { get; } = new();

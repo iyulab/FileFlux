@@ -46,6 +46,9 @@ public class MultiModalPdfDocumentReaderTests
 
     private static readonly string ImageOnlyFixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "image-only.pdf");
 
+    // A text-less page whose one image the reader returns (image-only.pdf's image is not a returned resource).
+    private static readonly string FormImageFixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "form-xobject-image.pdf");
+
     // A page with no text layer, selected by the page record, is rendered (a PNG reaches the service) and its read
     // becomes the page's text — on the file path and the stream path alike.
     [Theory]
@@ -86,6 +89,27 @@ public class MultiModalPdfDocumentReaderTests
         Assert.Equal("Text read from the scanned page.", content.Text[span.Start..span.End]);
     }
 
+    // The image on a page replaced by its read is marked, so a later describer can skip it; without page reading it
+    // is not.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PageReading_TheImageOfAReadPage_IsMarkedReadAsPage(bool readPages)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IImageToTextService>(new RecordingImageToTextService("Text read from the page."));
+        var reader = new MultiModalPdfDocumentReader(services.BuildServiceProvider());
+        var options = readPages
+            ? new FileFlux.Core.ExtractOptions { PageReading = new FileFlux.Core.PageReadingOptions { SelectPages = q => !q.HasTextLayer } }
+            : null;
+
+        var content = await reader.ExtractAsync(FormImageFixture, options, TestContext.Current.CancellationToken);
+
+        var image = Assert.Single(content.Images);
+        Assert.Equal(readPages, image.ReadAsPage);
+        Assert.Equal(readPages ? FileFlux.Core.PageReadOutcome.Replaced : (FileFlux.Core.PageReadOutcome?)null, content.PageReads.SingleOrDefault()?.Outcome);
+    }
+
     // The processor (what AddFileFlux hands out) passes ExtractOptions to its reader; before 0.47.0 it always passed
     // null, so no extraction option was reachable through it.
     [Fact]
@@ -98,7 +122,7 @@ public class MultiModalPdfDocumentReaderTests
         var factory = services.BuildServiceProvider().GetRequiredService<FileFlux.Core.IDocumentProcessorFactory>();
         var ct = TestContext.Current.CancellationToken;
 
-        await using var processor = factory.Create(ImageOnlyFixture);
+        await using var processor = factory.Create(FormImageFixture);
         await processor.ExtractAsync(new FileFlux.Core.ExtractOptions
         {
             ExtractImages = false,
@@ -109,6 +133,11 @@ public class MultiModalPdfDocumentReaderTests
         Assert.Empty(raw.Images);
         Assert.Equal(FileFlux.Core.PageReadOutcome.Replaced, Assert.Single(raw.PageReads).Outcome);
         Assert.Contains("Text read from the scanned page.", raw.Text, StringComparison.Ordinal);
+
+        // The same file with default options returns its image: the empty list above is the option, not the file.
+        await using var defaults = factory.Create(FormImageFixture);
+        await defaults.ExtractAsync(cancellationToken: ct);
+        Assert.Single(defaults.Result.Raw!.Images);
     }
 
     [Fact]
