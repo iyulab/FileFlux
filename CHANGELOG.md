@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.50.0] - Unreleased
+## [0.50.0] - 2026-10-08
 
 ### Added
 - **Word 97-2003 (`.doc`) and PowerPoint 97-2003 (`.ppt`) documents are read** by the Word and PowerPoint readers —
