@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ended and the next began with an ASCII lowercase letter, so it never ran on Korean, Japanese or Chinese text; it now
   fires on lowercase and caseless letters (and on CRLF text). The OCR pass's spaced-letter trigger is widened the same way.
 
+- **Parsers re-pinned: Unpdf 0.33.0, Undoc 0.15.0, Unhwp 0.14.0.** What changes in the output:
+  - Emphasis markers sit where Markdown reads them: punctuation goes outside `*`/`**` and a punctuation-only styled run is
+    written plain (a Korean report's `**｢**한국은행법**｣**` is now `｢한국은행법｣`). PDF italic is now read from the font
+    descriptor too, so italic captions and run-in headings gain `*…*` where they had none.
+  - Word and PowerPoint text no longer gets a space where two differently formatted runs meet (`H<sub>2</sub>O`, a word
+    with one bold letter).
+  - A page rendered for `PageReading` paints text in standard and common system fonts that are not embedded with a
+    stand-in face, so such a page is no longer kept back as `render_gaps` and its read may replace a lost text layer.
+    Composite (CJK), Type 3 and symbolic fonts that are not embedded still count as gaps.
+  - The renderer no longer depends on an unmaintained font parser (RUSTSEC-2026-0192).
+
 ### Added
 - **Every enabled refinement pass reports what became of it.** `LlmRefinementInfo.Passes` lists `LlmRefinementPass`
   entries (`NotNeeded` — no call made, `Kept`, `Applied`, `Failed` with `Reason` `truncated` / `context_too_small` /

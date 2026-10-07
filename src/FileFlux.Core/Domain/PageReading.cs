@@ -8,7 +8,8 @@ namespace FileFlux.Core;
 /// A read replaces a page's text when the page has no readable text (no text layer, no characters, or a suppressed OCR
 /// layer), or when it lost content (undecodable content streams, discarded text runs, U+FFFD) and the read keeps at least
 /// <see cref="MinNativeCoverage"/> of the text the page did have. A render that could not paint everything the page
-/// asks for (text in fonts that are not embedded, image codecs, inline images, undecodable content) never replaces text,
+/// asks for (text in a font that is not embedded and has no stand-in face — composite CJK fonts, Type 3 and symbolic fonts —
+/// image codecs, inline images, undecodable content) never replaces text,
 /// and a page with tables in <see cref="RawContent.Tables"/> keeps its text so tables and table blocks stay aligned. Every
 /// other read is kept in <see cref="RawContent.PageReads"/> for the consumer to use as it sees fit.
 /// </remarks>
@@ -85,7 +86,11 @@ public sealed record PageRead(int Page)
     /// <summary>The text read from the rendered page; null when nothing was read.</summary>
     public string? Text { get; init; }
 
-    /// <summary>Text runs the render could not paint (fonts not embedded or Type 3, codes without a glyph).</summary>
+    /// <summary>
+    /// Text runs the render could not paint: a font that is not embedded and has no stand-in face (composite CJK fonts,
+    /// Type 3, symbolic fonts), or codes without a glyph. Standard and common system fonts that are not embedded are painted
+    /// with a stand-in face and are not counted.
+    /// </summary>
     public int UnrenderedTextRuns { get; init; }
 
     /// <summary>Images and inline images the render could not paint.</summary>
