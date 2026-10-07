@@ -286,10 +286,10 @@ AI backend.
 | Format | Extension | Reader | Features |
 |--------|-----------|--------|----------|
 | PDF | .pdf | Unpdf (Rust FFI) | Text, tables, image extraction (each image with its `PageNumber`) |
-| Word | .docx | Undoc (Rust FFI) | Style and structure preservation |
+| Word | .docx, .doc | Undoc (Rust FFI) | Style and structure preservation; Word 97-2003 `.doc` since 0.50.0 (a Word 6.0/95 file fails with `extraction_error_kind=UnsupportedFormat`) |
 | Excel | .xlsx | Undoc (Rust FFI) | Multi-sheet and table structure |
 | Excel (legacy) | .xls | Built-in (ExcelDataReader) | BIFF binary workbooks; per-sheet tables (text + `RawContent.Tables`); CP949 (EUC-KR) fallback for codepage-less BIFF5/7 |
-| PowerPoint | .pptx | Undoc (Rust FFI) | Slide and notes extraction |
+| PowerPoint | .pptx, .ppt | Undoc (Rust FFI) | Slide and notes extraction; PowerPoint 97-2003 `.ppt` since 0.50.0 |
 | HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
 | Markdown | .md | Built-in | Structure preservation |
 | HTML | .html, .htm | Built-in | Web content extraction |
@@ -300,13 +300,16 @@ AI backend.
 > **The name is a claim, the content decides (since 0.35.0)** — when a file's name selects the wrong
 > reader, or none, reader selection consults the content: a PDF (`%PDF-` header), an OOXML
 > package (`.docx` / `.xlsx` / `.pptx`, told apart by the package's part folders), an HWPX
-> package (its `mimetype` entry), or a compound file whose directory holds an HWP 5 document or a
-> legacy workbook (since 0.36.0) is read by the reader for what it is. A browser's "Save as PDF"
+> package (its `mimetype` entry), or a compound file whose directory holds an HWP 5 document, a
+> legacy workbook (since 0.36.0), or a Word or PowerPoint 97-2003 document (since 0.50.0) is read by
+> the reader for what it is. A browser's "Save as PDF"
 > kept under a `.docx` name, an `.hwp` sent as `.doc`, or a download named `.bin`, extracts instead
 > of failing. The result says so: `RawContent.File.Extension` is the format that was parsed, the
 > `declared_extension` hint keeps the name's claim, and a warning carries `[extension_mismatch]`.
-> Content the detector cannot tell apart (text, HTML, legacy Word/PowerPoint, an encrypted Office
-> file, a damaged package) keeps the declared reader. `FormatSignature` (`DetectFile` /
+> Content the detector cannot tell apart (text, HTML, an encrypted Office file, a damaged package)
+> keeps the declared reader. A reader handed content another reader parses — a workbook under a
+> `.docx` name, given to the Word reader directly — fails with `container_mismatch` and
+> `detected_extension` rather than returning that content as its own format. `FormatSignature` (`DetectFile` /
 > `DetectStream` / `DetectBytes`) is public, and `IDocumentReaderFactory.GetReader(fileName,
 > detectedExtension)` selects with it; the PDF, OOXML, HWP and legacy Excel readers accept content
 > they parse whatever its name.

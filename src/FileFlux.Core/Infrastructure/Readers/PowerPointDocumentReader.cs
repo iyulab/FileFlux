@@ -4,20 +4,27 @@ using Undoc;
 namespace FileFlux.Core.Infrastructure.Readers;
 
 /// <summary>
-/// Microsoft PowerPoint document (.pptx) reader using Undoc (Rust FFI).
+/// Microsoft PowerPoint presentation reader (.pptx, and PowerPoint 97-2003 .ppt) using Undoc (Rust FFI).
 /// High-performance native library for Office document extraction.
 /// </summary>
 public class PowerPointDocumentReader : IDocumentReader
 {
     public string ReaderType => "PowerPointReader";
 
-    public IEnumerable<string> SupportedExtensions => [".pptx"];
+    // The OOXML package and its 97-2003 compound-file predecessor; the Office parser reads both.
+    private static readonly string[] Formats = [".pptx", ".ppt"];
+
+    public IEnumerable<string> SupportedExtensions => Formats;
+
+    /// <summary>The extension of what was parsed: the container, not the file name.</summary>
+    private static string ExtensionOf(OfficeContainer container)
+        => container == OfficeContainer.CompoundFile ? ".ppt" : ".pptx";
 
     public bool CanRead(string fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        return extension == ".pptx";
+        return extension is ".pptx" or ".ppt";
     }
 
     // ========================================
@@ -45,7 +52,7 @@ public class PowerPointDocumentReader : IDocumentReader
                 File = new SourceFileInfo
                 {
                     Name = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    Extension = ".pptx",
+                    Extension = ExtensionOf(ContainerSignature.DetectFile(filePath)),
                     Size = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
                     ModifiedAt = fileInfo.LastWriteTimeUtc
@@ -53,6 +60,7 @@ public class PowerPointDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
+            FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectFile(filePath), Formats, filePath, "Failed to read PowerPoint document");
             using var doc = UndocDocument.ParseFile(filePath);
 
             if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -82,8 +90,7 @@ public class PowerPointDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                filePath, UndocErrorKindFormatting.WithErrorKind($"Failed to read PowerPoint document: {ex.Message}", ex.Kind), ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, filePath, $"Failed to read PowerPoint document: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -114,7 +121,7 @@ public class PowerPointDocumentReader : IDocumentReader
                 File = new SourceFileInfo
                 {
                     Name = fileName,
-                    Extension = ".pptx",
+                    Extension = ExtensionOf(ContainerSignature.Detect(bytes)),
                     Size = bytes.Length,
                     CreatedAt = DateTime.UtcNow,
                     ModifiedAt = DateTime.UtcNow
@@ -122,6 +129,7 @@ public class PowerPointDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
+            FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectBytes(bytes), Formats, fileName, "Failed to read PowerPoint document");
             using var doc = UndocDocument.ParseBytes(bytes);
 
             if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -150,8 +158,7 @@ public class PowerPointDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                fileName, UndocErrorKindFormatting.WithErrorKind($"Failed to read PowerPoint document from stream: {ex.Message}", ex.Kind), ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, fileName, $"Failed to read PowerPoint document from stream: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -180,18 +187,13 @@ public class PowerPointDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                filePath,
-                UndocErrorKindFormatting.WithErrorKind(
-                    ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip),
-                    ex.Kind),
-                ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, filePath, ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip, OfficeContainer.CompoundFile));
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             throw new DocumentProcessingException(
                 filePath,
-                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip),
+                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip, OfficeContainer.CompoundFile),
                 ex);
         }
     }
@@ -216,18 +218,13 @@ public class PowerPointDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                fileName,
-                UndocErrorKindFormatting.WithErrorKind(
-                    ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip),
-                    ex.Kind),
-                ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, fileName, ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip, OfficeContainer.CompoundFile));
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             throw new DocumentProcessingException(
                 fileName,
-                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip),
+                ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip, OfficeContainer.CompoundFile),
                 ex);
         }
     }
@@ -245,6 +242,7 @@ public class PowerPointDocumentReader : IDocumentReader
         var structuralHints = new Dictionary<string, object>();
         var extractedImages = new List<ImageInfo>();
 
+        FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectFile(filePath), Formats, filePath, "Failed to extract PowerPoint document");
         using var doc = UndocDocument.ParseFile(filePath);
 
         // Convert to Markdown using Undoc native library
@@ -306,7 +304,7 @@ public class PowerPointDocumentReader : IDocumentReader
             File = new SourceFileInfo
             {
                 Name = FileNameHelper.ExtractSafeFileName(fileInfo),
-                Extension = ".pptx",
+                Extension = ExtensionOf(ContainerSignature.DetectFile(filePath)),
                 Size = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,
                 ModifiedAt = fileInfo.LastWriteTimeUtc
@@ -327,6 +325,7 @@ public class PowerPointDocumentReader : IDocumentReader
         var structuralHints = new Dictionary<string, object>();
         var extractedImages = new List<ImageInfo>();
 
+        FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectBytes(bytes), Formats, fileName, "Failed to extract PowerPoint document");
         using var doc = UndocDocument.ParseBytes(bytes);
 
         // Convert to Markdown using Undoc native library
@@ -387,7 +386,7 @@ public class PowerPointDocumentReader : IDocumentReader
             File = new SourceFileInfo
             {
                 Name = fileName,
-                Extension = ".pptx",
+                Extension = ExtensionOf(ContainerSignature.Detect(bytes)),
                 Size = bytes.Length,
                 CreatedAt = DateTime.UtcNow,
                 ModifiedAt = DateTime.UtcNow

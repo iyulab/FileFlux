@@ -5,20 +5,27 @@ using Undoc;
 namespace FileFlux.Core.Infrastructure.Readers;
 
 /// <summary>
-/// Microsoft Word document (.docx) reader using Undoc (Rust FFI).
+/// Microsoft Word document reader (.docx, and Word 97-2003 .doc) using Undoc (Rust FFI).
 /// High-performance native library for Office document extraction.
 /// </summary>
 public partial class WordDocumentReader : IDocumentReader
 {
     public string ReaderType => "WordReader";
 
-    public IEnumerable<string> SupportedExtensions => [".docx"];
+    // The OOXML package and its 97-2003 compound-file predecessor; the Office parser reads both.
+    private static readonly string[] Formats = [".docx", ".doc"];
+
+    public IEnumerable<string> SupportedExtensions => Formats;
+
+    /// <summary>The extension of what was parsed: the container, not the file name.</summary>
+    private static string ExtensionOf(OfficeContainer container)
+        => container == OfficeContainer.CompoundFile ? ".doc" : ".docx";
 
     public bool CanRead(string fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        return extension == ".docx";
+        return extension is ".docx" or ".doc";
     }
 
     // ========================================
@@ -46,7 +53,7 @@ public partial class WordDocumentReader : IDocumentReader
                 File = new SourceFileInfo
                 {
                     Name = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    Extension = ".docx",
+                    Extension = ExtensionOf(ContainerSignature.DetectFile(filePath)),
                     Size = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
                     ModifiedAt = fileInfo.LastWriteTimeUtc
@@ -54,6 +61,7 @@ public partial class WordDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
+            FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectFile(filePath), Formats, filePath, "Failed to read Word document");
             using var doc = UndocDocument.ParseFile(filePath);
 
             if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -76,8 +84,7 @@ public partial class WordDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                filePath, UndocErrorKindFormatting.WithErrorKind($"Failed to read Word document: {ex.Message}", ex.Kind), ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, filePath, $"Failed to read Word document: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -108,7 +115,7 @@ public partial class WordDocumentReader : IDocumentReader
                 File = new SourceFileInfo
                 {
                     Name = fileName,
-                    Extension = ".docx",
+                    Extension = ExtensionOf(ContainerSignature.Detect(bytes)),
                     Size = bytes.Length,
                     CreatedAt = DateTime.UtcNow,
                     ModifiedAt = DateTime.UtcNow
@@ -116,6 +123,7 @@ public partial class WordDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
+            FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectBytes(bytes), Formats, fileName, "Failed to read Word document");
             using var doc = UndocDocument.ParseBytes(bytes);
 
             if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -138,8 +146,7 @@ public partial class WordDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                fileName, UndocErrorKindFormatting.WithErrorKind($"Failed to read Word document from stream: {ex.Message}", ex.Kind), ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, fileName, $"Failed to read Word document from stream: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -168,18 +175,13 @@ public partial class WordDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                filePath,
-                UndocErrorKindFormatting.WithErrorKind(
-                    ContainerSignature.AnnotateFailure($"Failed to extract Word document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip),
-                    ex.Kind),
-                ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, filePath, ContainerSignature.AnnotateFailure($"Failed to extract Word document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip, OfficeContainer.CompoundFile));
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             throw new DocumentProcessingException(
                 filePath,
-                ContainerSignature.AnnotateFailure($"Failed to extract Word document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip),
+                ContainerSignature.AnnotateFailure($"Failed to extract Word document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip, OfficeContainer.CompoundFile),
                 ex);
         }
     }
@@ -204,18 +206,13 @@ public partial class WordDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                fileName,
-                UndocErrorKindFormatting.WithErrorKind(
-                    ContainerSignature.AnnotateFailure($"Failed to extract Word document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip),
-                    ex.Kind),
-                ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, fileName, ContainerSignature.AnnotateFailure($"Failed to extract Word document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip, OfficeContainer.CompoundFile));
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
             throw new DocumentProcessingException(
                 fileName,
-                ContainerSignature.AnnotateFailure($"Failed to extract Word document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip),
+                ContainerSignature.AnnotateFailure($"Failed to extract Word document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip, OfficeContainer.CompoundFile),
                 ex);
         }
     }
@@ -233,6 +230,7 @@ public partial class WordDocumentReader : IDocumentReader
         var structuralHints = new Dictionary<string, object>();
         var extractedImages = new List<ImageInfo>();
 
+        FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectFile(filePath), Formats, filePath, "Failed to extract Word document");
         using var doc = UndocDocument.ParseFile(filePath);
 
         // Convert to Markdown using Undoc native library
@@ -306,7 +304,7 @@ public partial class WordDocumentReader : IDocumentReader
             File = new SourceFileInfo
             {
                 Name = FileNameHelper.ExtractSafeFileName(fileInfo),
-                Extension = ".docx",
+                Extension = ExtensionOf(ContainerSignature.DetectFile(filePath)),
                 Size = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,
                 ModifiedAt = fileInfo.LastWriteTimeUtc
@@ -327,6 +325,7 @@ public partial class WordDocumentReader : IDocumentReader
         var structuralHints = new Dictionary<string, object>();
         var extractedImages = new List<ImageInfo>();
 
+        FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectBytes(bytes), Formats, fileName, "Failed to extract Word document");
         using var doc = UndocDocument.ParseBytes(bytes);
 
         // Convert to Markdown using Undoc native library
@@ -400,7 +399,7 @@ public partial class WordDocumentReader : IDocumentReader
             File = new SourceFileInfo
             {
                 Name = fileName,
-                Extension = ".docx",
+                Extension = ExtensionOf(ContainerSignature.Detect(bytes)),
                 Size = bytes.Length,
                 CreatedAt = DateTime.UtcNow,
                 ModifiedAt = DateTime.UtcNow

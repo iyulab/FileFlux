@@ -72,9 +72,12 @@ public class MisdeclaredFormatRoutingTests : IDisposable
         Assert.Equal(".hwp", FormatSignature.DetectBytes(
             CompoundFileEncryptionTests.CompoundFile(["Root Entry", "FileHeader", "DocInfo", "BodyText"])));
 
-        // Legacy Word has no reader to route to, and an encrypted OOXML document is left to the declared reader,
-        // which reports it as encrypted rather than as some other format.
-        Assert.Null(FormatSignature.DetectBytes(CompoundFileEncryptionTests.CompoundFile(["Root Entry", "WordDocument"])));
+        Assert.Equal(".doc", FormatSignature.DetectBytes(CompoundFileEncryptionTests.CompoundFile(["Root Entry", "WordDocument"])));
+        Assert.Equal(".ppt", FormatSignature.DetectBytes(
+            CompoundFileEncryptionTests.CompoundFile(["Root Entry", "PowerPoint Document", "Current User"])));
+
+        // An encrypted OOXML document is left to the declared reader, which reports it as encrypted rather
+        // than as some other format.
         Assert.Null(FormatSignature.DetectBytes(
             CompoundFileEncryptionTests.CompoundFile(["Root Entry", "EncryptionInfo", "EncryptedPackage", "Workbook"])));
     }

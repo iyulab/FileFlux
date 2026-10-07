@@ -40,7 +40,7 @@ public class PowerPointDocumentReaderTests
     [InlineData("presentation.pptx", true)]
     [InlineData("TEST.PPTX", true)]
     [InlineData("slides.pptx", true)]
-    [InlineData("presentation.ppt", false)]
+    [InlineData("presentation.ppt", true)]
     [InlineData("test.pdf", false)]
     [InlineData("test.docx", false)]
     [InlineData("", false)]

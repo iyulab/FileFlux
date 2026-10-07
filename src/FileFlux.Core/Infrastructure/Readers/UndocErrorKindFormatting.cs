@@ -31,4 +31,19 @@ internal static class UndocErrorKindFormatting
     /// <summary>Appends the error-kind token to a failure message, tail-anchored.</summary>
     internal static string WithErrorKind(string message, UndocErrorKind kind)
         => $"{message} [{ErrorKindKey}={FormatErrorKind(kind)}]";
+
+    /// <summary>
+    /// The exception a caller branches on for an Undoc failure. An encrypted document is an
+    /// <see cref="EncryptedDocumentException"/> — the type the container probe throws for an encrypted
+    /// OOXML file, so a password-protected <c>.doc</c> (which carries no <c>EncryptedPackage</c> stream
+    /// for the probe to see) fails the same way; anything else is a
+    /// <see cref="DocumentProcessingException"/> carrying the kind.
+    /// </summary>
+    /// <param name="ex">The parser's failure.</param>
+    /// <param name="fileName">The document, as the caller named it.</param>
+    /// <param name="message">The failure message for the non-encrypted case.</param>
+    internal static FileFluxException ToFailure(UndocException ex, string fileName, string message)
+        => ex.Kind == UndocErrorKind.Encrypted
+            ? EncryptedDocumentException.ForDocument(fileName, ex)
+            : new DocumentProcessingException(fileName, WithErrorKind(message, ex.Kind), ex);
 }

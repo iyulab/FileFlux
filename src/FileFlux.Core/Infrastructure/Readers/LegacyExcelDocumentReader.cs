@@ -95,7 +95,7 @@ public class LegacyExcelDocumentReader : IDocumentReader
             // EncryptedPackage stream, so the container probe cannot see it - ExcelDataReader is
             // where it becomes knowable. Same condition as the OOXML case, so the same answer:
             // permanent, and named as encryption rather than as a generic read failure.
-            throw new EncryptedDocumentException(filePath, ex);
+            throw EncryptedDocumentException.ForDocument(filePath, ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -159,7 +159,7 @@ public class LegacyExcelDocumentReader : IDocumentReader
             // EncryptedPackage stream, so the container probe cannot see it - ExcelDataReader is
             // where it becomes knowable. Same condition as the OOXML case, so the same answer:
             // permanent, and named as encryption rather than as a generic read failure.
-            throw new EncryptedDocumentException(fileName, ex);
+            throw EncryptedDocumentException.ForDocument(fileName, ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -214,7 +214,7 @@ public class LegacyExcelDocumentReader : IDocumentReader
             // EncryptedPackage stream, so the container probe cannot see it - ExcelDataReader is
             // where it becomes knowable. Same condition as the OOXML case, so the same answer:
             // permanent, and named as encryption rather than as a generic read failure.
-            throw new EncryptedDocumentException(filePath, ex);
+            throw EncryptedDocumentException.ForDocument(filePath, ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -261,7 +261,7 @@ public class LegacyExcelDocumentReader : IDocumentReader
             // EncryptedPackage stream, so the container probe cannot see it - ExcelDataReader is
             // where it becomes knowable. Same condition as the OOXML case, so the same answer:
             // permanent, and named as encryption rather than as a generic read failure.
-            throw new EncryptedDocumentException(fileName, ex);
+            throw EncryptedDocumentException.ForDocument(fileName, ex);
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {

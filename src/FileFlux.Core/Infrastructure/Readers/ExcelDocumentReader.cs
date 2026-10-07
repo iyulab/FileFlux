@@ -14,6 +14,9 @@ public class ExcelDocumentReader : IDocumentReader
 
     public IEnumerable<string> SupportedExtensions => [".xlsx"];
 
+    // What this reader parses: the OOXML workbook, and a legacy workbook it routes to the legacy reader.
+    private static readonly string[] Workbooks = [".xlsx", ".xls"];
+
     public bool CanRead(string fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;
@@ -54,6 +57,7 @@ public class ExcelDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
+            FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectFile(filePath), Workbooks, filePath, "Failed to read Excel document");
             using var doc = UndocDocument.ParseFile(filePath);
 
             if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -84,8 +88,7 @@ public class ExcelDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                filePath, UndocErrorKindFormatting.WithErrorKind($"Failed to read Excel document: {ex.Message}", ex.Kind), ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, filePath, $"Failed to read Excel document: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -121,6 +124,7 @@ public class ExcelDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
+            FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectBytes(bytes), Workbooks, fileName, "Failed to read Excel document");
             using var doc = UndocDocument.ParseBytes(bytes);
 
             if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -150,8 +154,7 @@ public class ExcelDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                fileName, UndocErrorKindFormatting.WithErrorKind($"Failed to read Excel document from stream: {ex.Message}", ex.Kind), ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, fileName, $"Failed to read Excel document from stream: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -180,11 +183,7 @@ public class ExcelDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                filePath,
-                UndocErrorKindFormatting.WithErrorKind(
-                    DescribeExtractionFailure(filePath, ex.Message), ex.Kind),
-                ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, filePath, DescribeExtractionFailure(filePath, ex.Message));
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -222,10 +221,7 @@ public class ExcelDocumentReader : IDocumentReader
         }
         catch (UndocException ex)
         {
-            throw new DocumentProcessingException(
-                fileName,
-                UndocErrorKindFormatting.WithErrorKind($"Failed to extract Excel document from stream: {ex.Message}", ex.Kind),
-                ex);
+            throw UndocErrorKindFormatting.ToFailure(ex, fileName, $"Failed to extract Excel document from stream: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException)
         {
@@ -282,6 +278,7 @@ public class ExcelDocumentReader : IDocumentReader
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
 
+        FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectFile(filePath), Workbooks, filePath, "Failed to extract Excel document");
         using var doc = UndocDocument.ParseFile(filePath);
 
         var workbook = RenderWorkbook(doc);
@@ -343,6 +340,7 @@ public class ExcelDocumentReader : IDocumentReader
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
 
+        FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectBytes(bytes), Workbooks, fileName, "Failed to extract Excel document");
         using var doc = UndocDocument.ParseBytes(bytes);
 
         var workbook = RenderWorkbook(doc);

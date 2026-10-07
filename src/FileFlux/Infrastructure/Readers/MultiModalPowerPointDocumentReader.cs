@@ -21,7 +21,7 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
 
     public string ReaderType => "MultiModalPowerPointReader";
 
-    public IEnumerable<string> SupportedExtensions => new[] { ".pptx" };
+    public IEnumerable<string> SupportedExtensions => _basePowerPointReader.SupportedExtensions;
 
     public MultiModalPowerPointDocumentReader(IServiceProvider serviceProvider)
     {

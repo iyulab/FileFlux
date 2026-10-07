@@ -12,12 +12,14 @@ namespace FileFlux.Core.Infrastructure.Readers;
 /// selects and fails there, although the content is a format another registered reader parses.
 /// </para>
 /// <para>
-/// Only formats that can be told apart without guessing are detected: a PDF by its header, and the
+/// Only formats that can be told apart without guessing are detected: a PDF by its header, the
 /// three OOXML packages by the part directory the package carries (<c>word/</c>, <c>xl/</c>,
-/// <c>ppt/</c>). <see cref="ContainerSignature"/> stops at the container because ZIP alone does not
-/// distinguish a spreadsheet from a presentation; the package entries do. Anything else — plain
-/// text, HTML, a legacy compound file, a damaged package — returns <see langword="null"/>, and the
-/// declared name stays in charge. A wrong route would be worse than the reader's own diagnosis.
+/// <c>ppt/</c>), and the compound-file formats by the streams the container holds (HWP 5 and the
+/// Office 97-2003 document, workbook and presentation). <see cref="ContainerSignature"/> stops at
+/// the container because neither ZIP nor a compound file alone distinguishes a spreadsheet from a
+/// presentation; the entries do. Anything else — plain text, HTML, an encrypted Office document, a
+/// damaged container — returns <see langword="null"/>, and the declared name stays in charge. A
+/// wrong route would be worse than the reader's own diagnosis.
 /// </para>
 /// </remarks>
 public static class FormatSignature
@@ -120,10 +122,11 @@ public static class FormatSignature
     }
 
     /// <summary>
-    /// A compound file holds several formats. Two have a reader here and are told apart by their streams: an HWP 5
-    /// document (<c>FileHeader</c> with <c>BodyText</c> or <c>DocInfo</c>) and a legacy workbook (<c>Workbook</c> or
-    /// <c>Book</c>). An encrypted OOXML document is a compound file too, and is left to the declared reader, which
-    /// reports it as encrypted; a legacy Word or PowerPoint file has no reader and stays undetected.
+    /// A compound file holds several formats, told apart by their streams: an HWP 5 document (<c>FileHeader</c> with
+    /// <c>BodyText</c> or <c>DocInfo</c>), a legacy workbook (<c>Workbook</c> or <c>Book</c>), a Word 97-2003
+    /// document (<c>WordDocument</c>) and a PowerPoint 97-2003 presentation (<c>PowerPoint Document</c>). An
+    /// encrypted OOXML document is a compound file too, and is left to the declared reader, which reports it as
+    /// encrypted.
     /// </summary>
     private static string? DetectCompoundFile(ReadOnlySpan<byte> content)
     {
@@ -136,6 +139,10 @@ public static class FormatSignature
             return ".hwp";
         if (Has("Workbook") || Has("Book"))
             return ".xls";
+        if (Has("WordDocument"))
+            return ".doc";
+        if (Has("PowerPoint Document"))
+            return ".ppt";
         return null;
     }
 
@@ -209,6 +216,28 @@ public static class FormatSignature
             + $", which is {Describe(detectedExtension)}; it was read as {detectedExtension}. [extension_mismatch]");
     }
 
+    /// <summary>
+    /// Fails when the content is a format another reader parses. The Office parser reads whatever
+    /// container it is handed, so a workbook under a <c>.docx</c> name would otherwise come back from
+    /// the Word reader as a Word document; the reader factory routes by content, and a caller holding
+    /// a reader directly gets the mismatch named instead.
+    /// </summary>
+    /// <param name="detectedExtension">What the content was recognised as, or <see langword="null"/>.</param>
+    /// <param name="supportedExtensions">The formats the calling reader parses.</param>
+    /// <param name="fileName">The document, as the caller named it.</param>
+    /// <param name="failure">The leading text of the message, e.g. <c>Failed to extract Word document</c>.</param>
+    internal static void ThrowIfAnotherReadersFormat(
+        string? detectedExtension, IEnumerable<string> supportedExtensions, string fileName, string failure)
+    {
+        if (detectedExtension is null || supportedExtensions.Contains(detectedExtension, StringComparer.OrdinalIgnoreCase))
+            return;
+
+        throw new DocumentProcessingException(
+            fileName,
+            $"{failure}: the content is {Describe(detectedExtension)}, which this reader does not parse; it reads as " +
+            $"{detectedExtension}. [extraction_failure_reason=container_mismatch] [detected_extension={detectedExtension}]");
+    }
+
     /// <summary>The human name of a detected format, for messages.</summary>
     internal static string Describe(string extension) => extension switch
     {
@@ -219,6 +248,8 @@ public static class FormatSignature
         ".hwp" => "an HWP 5 document",
         ".hwpx" => "an HWPX document",
         ".xls" => "a legacy Excel workbook",
+        ".doc" => "a legacy Word document",
+        ".ppt" => "a legacy PowerPoint presentation",
         _ => $"a {extension} document"
     };
 

@@ -41,7 +41,7 @@ public class WordDocumentReaderTests
     [InlineData("test.docx", true)]
     [InlineData("TEST.DOCX", true)]
     [InlineData("document.docx", true)]
-    [InlineData("test.doc", false)]
+    [InlineData("test.doc", true)]
     [InlineData("test.pdf", false)]
     [InlineData("test.txt", false)]
     [InlineData("", false)]

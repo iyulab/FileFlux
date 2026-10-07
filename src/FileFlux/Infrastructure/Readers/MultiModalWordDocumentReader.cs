@@ -21,7 +21,7 @@ public class MultiModalWordDocumentReader : IDocumentReader
 
     public string ReaderType => "MultiModalWordReader";
 
-    public IEnumerable<string> SupportedExtensions => new[] { ".docx" };
+    public IEnumerable<string> SupportedExtensions => _baseWordReader.SupportedExtensions;
 
     public MultiModalWordDocumentReader(IServiceProvider serviceProvider)
     {

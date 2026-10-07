@@ -106,10 +106,9 @@ public static class ContainerSignature
     /// consumer can say "this is a PDF" instead of "unreadable".
     /// </param>
     /// <param name="acceptable">
-    /// The containers this reader can actually handle. What counts as a mismatch differs per reader:
-    /// the Excel readers accept both, because a workbook exists in both containers and they route
-    /// between them, while Word and PowerPoint accept only the package — there is no legacy reader
-    /// for them to hand a compound file to, so for them a compound file is the mismatch itself.
+    /// The containers this reader can actually handle. The Office readers accept both — a workbook,
+    /// a document and a presentation each exist as an OOXML package and as a 97-2003 compound file.
+    /// A reader that parses one container only passes just that one.
     /// </param>
     public static string AnnotateFailure(
         string message,

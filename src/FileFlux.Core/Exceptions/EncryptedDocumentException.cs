@@ -40,11 +40,34 @@ public class EncryptedDocumentException : FileFluxException
     /// <summary>Creates the exception for a named document.</summary>
     /// <param name="fileName">The document that is encrypted.</param>
     public EncryptedDocumentException(string fileName)
-        : base($"The document is encrypted (password-protected) and cannot be extracted without a " +
-               $"password: {fileName}. [extraction_failure_reason=encrypted_document]")
+        : base(DefaultMessage(fileName))
     {
         FileName = fileName;
     }
+
+    /// <summary>Creates the exception for a named document, wrapping the failure that revealed the encryption.</summary>
+    /// <param name="fileName">The document that is encrypted.</param>
+    /// <param name="message">The message; <see cref="ForDocument"/> supplies the standard one.</param>
+    /// <param name="innerException">The parser's failure that reported the encryption.</param>
+    public EncryptedDocumentException(string fileName, string message, Exception innerException)
+        : base(message, innerException)
+    {
+        FileName = fileName;
+    }
+
+    /// <summary>
+    /// The exception for a named document whose parser reported the encryption: the standard message
+    /// (with its <c>extraction_failure_reason</c> token), <see cref="FileName"/> set, and the parser's
+    /// failure kept as the inner exception.
+    /// </summary>
+    /// <param name="fileName">The document that is encrypted.</param>
+    /// <param name="innerException">The parser's failure that reported the encryption.</param>
+    public static EncryptedDocumentException ForDocument(string fileName, Exception innerException)
+        => new(fileName, DefaultMessage(fileName), innerException);
+
+    private static string DefaultMessage(string fileName)
+        => $"The document is encrypted (password-protected) and cannot be extracted without a " +
+           $"password: {fileName}. [extraction_failure_reason=encrypted_document]";
 
     /// <summary>Creates the exception with an explicit message.</summary>
     public EncryptedDocumentException(string fileName, string message)

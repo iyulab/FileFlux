@@ -142,9 +142,9 @@ public class MisdeclaredContainerRoutingTests : IDisposable
     }
 
     /// <summary>
-    /// Word and PowerPoint get the diagnosis but not the routing: there is no legacy .doc/.ppt
-    /// reader to hand off to, so the honest outcome is to say what the file is rather than to
-    /// borrow the OOXML parser's complaint about a ZIP archive.
+    /// A workbook handed to the Word or PowerPoint reader under their names is not theirs to read. The
+    /// Office parser would read it anyway — and the result would come back labelled as a document — so
+    /// the reader names what the content is; the reader factory routes it to the Excel reader.
     /// </summary>
     [Theory]
     [InlineData("renamed.docx")]

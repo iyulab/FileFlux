@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.50.0] - Unreleased
+
+### Added
+- **Word 97-2003 (`.doc`) and PowerPoint 97-2003 (`.ppt`) documents are read** by the Word and PowerPoint readers —
+  paragraphs, headings, tables (also as `RawContent.Tables`), slides with their notes. `RawContent.File.Extension` is
+  `.doc` / `.ppt`; a `.doc` saved under a `.docx` name is read and carries `[extension_mismatch]`. A Word 6.0/95 file
+  fails with `extraction_error_kind=UnsupportedFormat`.
+
+### Fixed
+- **A password-protected `.doc`, `.ppt` or `.xls` fails with `EncryptedDocumentException`**, as an encrypted OOXML
+  file does. The legacy `.xls` reader threw that type already, but with the file path as its whole message — no
+  `extraction_failure_reason=encrypted_document` token and no `FileName`; both are set now
+  (`EncryptedDocumentException.ForDocument`).
+- **A reader handed another reader's format says so instead of reading it as its own.** The Office parser reads any
+  Office container, so a workbook given to the Word reader under a `.docx` name could come back as a Word document; it now
+  fails with `container_mismatch` and `detected_extension` (the reader factory routes such a file by its content, as
+  before).
+
+### Changed
+- **Korean, Chinese and Japanese PDF text no longer splits words at line breaks** (Unpdf 0.33.0 -> 0.34.0). A word
+  broken across lines used to come out with a space inside it (`둔 화`, `기준금리 를`), so a search for the word missed
+  the sentence. On a justified Korean annual report about 1,800 such breaks are now joined; about one in five joins two
+  separate words (`중앙은행들은정책금리를`) where the layout gives no way to tell them apart. Page numbers set in a side
+  margin are no longer read into the body text (`증 8 가` -> `증가`); superscripts set with a text rise and text in a
+  horizontally scaled matrix keep their place and size.
+  Unchanged and now more frequent (22 lines on the same report, 14 before): a negative number that begins a line of
+  text outside a detected table is read as a list item and loses its sign (`-0.2` -> `- 0.2`); reported upstream.
+- **A `.docx` paragraph that starts at a tab stop is no longer a code block** (Undoc 0.15.0 -> 0.16.0).
+- Unhwp 0.14.0 -> 0.15.0 (no change to extracted text).
+
 ## [0.49.2] - 2026-10-07
 
 ### Changed

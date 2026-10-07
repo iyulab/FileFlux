@@ -219,10 +219,10 @@ public class EncryptedWorkbookExtractionTests : IDisposable
     }
 
     [Fact]
-    public async Task AMisdeclaredLegacyDocument_StillReportsAContainerMismatch()
+    public async Task ADamagedLegacyDocument_FailsAsAProcessingError_NotAsEncrypted()
     {
-        // The guard must not swallow the case it sits next to: a real .doc saved as .docx is a
-        // mistake somebody made, and saying so is what the mismatch annotation is for.
+        // The guard must not swallow the case it sits next to: a compound file with a WordDocument
+        // stream and nothing a parser can read is damaged, not password-protected.
         var path = Path.Combine(_dir, "memo.docx");
         await File.WriteAllBytesAsync(
             path,
