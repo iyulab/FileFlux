@@ -229,8 +229,14 @@ public class LlmRefinementInfo
 
     /// <summary>
     /// Enabled passes that were not applied, each as <c>"&lt;pass&gt;: &lt;reason&gt;"</c> — a response truncated at the
-    /// output token limit, a prompt that does not fit the model context, or a failed call. The text those passes would
-    /// have rewritten is kept as it was. Empty when every enabled pass ran (whether or not it changed the text).
+    /// output token limit, a prompt that does not fit the model context, an empty answer, or a failed call. The text those
+    /// passes would have rewritten is kept as it was. Empty when every enabled pass ran (whether or not it changed the text).
     /// </summary>
     public IReadOnlyList<string> Warnings { get; init; } = [];
+
+    /// <summary>
+    /// Every enabled pass in the order it ran, and what became of it — whether the model was consulted at all, kept the
+    /// text, replaced it, or failed. Null when the refiner does not report passes (a single-call refiner, for one).
+    /// </summary>
+    public IReadOnlyList<LlmRefinementPass>? Passes { get; init; }
 }

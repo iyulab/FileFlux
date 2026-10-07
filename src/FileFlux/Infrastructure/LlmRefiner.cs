@@ -64,7 +64,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
         try
         {
             var improvements = new List<string>();
-            var skipped = new List<string>();
+            var log = new PassLog();
             var refinedText = refined.Text;
             var inputTokens = 0;
             var outputTokens = 0;
@@ -84,7 +84,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.RestoreSentences)
             {
-                var (text, improved, tokens) = await RestoreBrokenSentencesAsync(refinedText, context, settings, skipped, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RestoreBrokenSentencesAsync(refinedText, context, settings, log, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -96,7 +96,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.RemoveNoise)
             {
-                var (text, improved, tokens) = await RemoveNoiseAsync(refinedText, options.PreserveFormatting, context, settings, skipped, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RemoveNoiseAsync(refinedText, options.PreserveFormatting, context, settings, log, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -108,7 +108,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.CorrectOcrErrors)
             {
-                var (text, improved, tokens) = await CorrectOcrErrorsAsync(refinedText, options.PreserveFormatting, context, settings, skipped, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await CorrectOcrErrorsAsync(refinedText, options.PreserveFormatting, context, settings, log, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -120,7 +120,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.RestructureSections)
             {
-                var (text, improved, tokens) = await RestructureSectionsAsync(refinedText, options.PreserveFormatting, context, settings, skipped, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await RestructureSectionsAsync(refinedText, options.PreserveFormatting, context, settings, log, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -132,7 +132,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
             if (options.MergeDuplicates)
             {
-                var (text, improved, tokens) = await MergeDuplicatesAsync(refinedText, context, settings, skipped, cancellationToken).ConfigureAwait(false);
+                var (text, improved, tokens) = await MergeDuplicatesAsync(refinedText, context, settings, log, cancellationToken).ConfigureAwait(false);
                 if (improved)
                 {
                     refinedText = text;
@@ -177,7 +177,8 @@ public sealed partial class LlmRefiner : ILlmRefiner
                     OutputTokens = outputTokens,
                     Duration = sw.Elapsed,
                     Improvements = improvements,
-                    Warnings = skipped
+                    Warnings = log.Warnings,
+                    Passes = log.Passes
                 }
             };
         }
@@ -187,6 +188,64 @@ public sealed partial class LlmRefiner : ILlmRefiner
             return CreatePassthroughResult(refined, $"LLM refinement failed: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Sends one pass and records what became of it: an answer that changes the text and meets the pass's own rule
+    /// (<paramref name="accept"/>) replaces it; an empty answer, a truncated one, a prompt over the model context and a
+    /// failed call keep the text and are recorded as failures, with a note in <see cref="LlmRefinementInfo.Warnings"/>.
+    /// </summary>
+    private async Task<(string Text, bool Improved, int Tokens)> RunPassAsync(
+        string pass, string prompt, string text, GenerationSettings settings, Func<string, bool> accept,
+        Action<ILogger, Exception> logFailed, PassLog log, CancellationToken cancellationToken)
+    {
+        string result;
+        try
+        {
+            result = await GenerateBoundedAsync(prompt, text, settings, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logFailed(_logger, ex);
+            log.Failed(pass, FailureReason(ex), SkipNote(pass, ex));
+            return (text, false, 0);
+        }
+
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            log.Failed(pass, LlmRefinementPass.EmptyOutput, $"{pass}: the model returned no text; the pass was not applied");
+            return (text, false, EstimateTokens(prompt));
+        }
+
+        var improved = result != text && accept(result);
+        log.Passes.Add(new LlmRefinementPass(pass) { Outcome = improved ? LlmRefinementPassOutcome.Applied : LlmRefinementPassOutcome.Kept });
+        return (improved ? result : text, improved, EstimateTokens(prompt));
+    }
+
+    private static string FailureReason(Exception ex) => ex switch
+    {
+        Flux.Abstractions.TextCompletionTruncatedException => LlmRefinementPass.Truncated,
+        ContextTooSmallException => LlmRefinementPass.ContextTooSmall,
+        _ => LlmRefinementPass.Error
+    };
+
+    /// <summary>The passes of one refinement and the notes for the ones that were not applied.</summary>
+    private sealed class PassLog
+    {
+        public List<LlmRefinementPass> Passes { get; } = [];
+
+        public List<string> Warnings { get; } = [];
+
+        public void NotNeeded(string pass) => Passes.Add(new LlmRefinementPass(pass) { Outcome = LlmRefinementPassOutcome.NotNeeded });
+
+        public void Failed(string pass, string reason, string note)
+        {
+            Passes.Add(new LlmRefinementPass(pass) { Outcome = LlmRefinementPassOutcome.Failed, Reason = reason, Detail = note });
+            Warnings.Add(note);
+        }
+    }
+
+    /// <summary>The prompt and the output budget do not fit the model context; the pass was not sent.</summary>
+    private sealed class ContextTooSmallException(string message) : InvalidOperationException(message);
 
     private static LlmRefinedContent CreatePassthroughResult(RefinedContent refined, string reason)
     {
@@ -218,14 +277,17 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// Restore broken sentences caused by PDF line breaks.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RestoreBrokenSentencesAsync(
-        string text, string context, GenerationSettings settings, List<string> skipped, CancellationToken cancellationToken)
+        string text, string context, GenerationSettings settings, PassLog log, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
 
         // Only process if there are potential broken sentences
         if (!HasPotentialBrokenSentences(text))
+        {
+            log.NotNeeded("RestoreSentences");
             return (text, false, 0);
+        }
 
         var prompt = $"""
             Fix broken sentences in the following text. PDF documents often have line breaks
@@ -244,32 +306,24 @@ public sealed partial class LlmRefiner : ILlmRefiner
             Return only the fixed text without any explanation.
             """;
 
-        try
-        {
-            var result = await GenerateBoundedAsync(prompt, text, settings, cancellationToken).ConfigureAwait(false);
-            var improved = !string.IsNullOrWhiteSpace(result) && result != text;
-            return (improved ? result : text, improved, EstimateTokens(prompt));
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            LogRestoreSentencesFailed(_logger, ex);
-            skipped.Add(SkipNote("RestoreSentences", ex));
-            return (text, false, 0);
-        }
+        return await RunPassAsync("RestoreSentences", prompt, text, settings, static _ => true, LogRestoreSentencesFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Remove noise content (ads, legal notices, irrelevant content).
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RemoveNoiseAsync(
-        string text, bool preserveFormatting, string context, GenerationSettings settings, List<string> skipped, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, string context, GenerationSettings settings, PassLog log, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
 
         // Only process if text is long enough to potentially have noise
         if (text.Length < 500)
+        {
+            log.NotNeeded("RemoveNoise");
             return (text, false, 0);
+        }
 
         var prompt = $"""
             Remove noise content from the following document while preserving all meaningful content.
@@ -295,32 +349,24 @@ public sealed partial class LlmRefiner : ILlmRefiner
             Return only the cleaned text without any explanation.
             """;
 
-        try
-        {
-            var result = await GenerateBoundedAsync(prompt, text, settings, cancellationToken).ConfigureAwait(false);
-            var improved = !string.IsNullOrWhiteSpace(result) && result.Length < text.Length * 0.95;
-            return (improved ? result : text, improved, EstimateTokens(prompt));
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            LogRemoveNoiseFailed(_logger, ex);
-            skipped.Add(SkipNote("RemoveNoise", ex));
-            return (text, false, 0);
-        }
+        return await RunPassAsync("RemoveNoise", prompt, text, settings, result => result.Length < text.Length * 0.95, LogRemoveNoiseFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Correct OCR errors in scanned documents.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> CorrectOcrErrorsAsync(
-        string text, bool preserveFormatting, string context, GenerationSettings settings, List<string> skipped, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, string context, GenerationSettings settings, PassLog log, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
 
         // Only process if there are potential OCR errors
         if (!HasPotentialOcrErrors(text))
+        {
+            log.NotNeeded("CorrectOcrErrors");
             return (text, false, 0);
+        }
 
         var prompt = $"""
             Fix OCR (optical character recognition) errors in the following text.
@@ -346,32 +392,24 @@ public sealed partial class LlmRefiner : ILlmRefiner
             Return only the corrected text without any explanation.
             """;
 
-        try
-        {
-            var result = await GenerateBoundedAsync(prompt, text, settings, cancellationToken).ConfigureAwait(false);
-            var improved = !string.IsNullOrWhiteSpace(result) && result != text;
-            return (improved ? result : text, improved, EstimateTokens(prompt));
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            LogCorrectOcrFailed(_logger, ex);
-            skipped.Add(SkipNote("CorrectOcrErrors", ex));
-            return (text, false, 0);
-        }
+        return await RunPassAsync("CorrectOcrErrors", prompt, text, settings, static _ => true, LogCorrectOcrFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Restructure document sections for better organization.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RestructureSectionsAsync(
-        string text, bool preserveFormatting, string context, GenerationSettings settings, List<string> skipped, CancellationToken cancellationToken)
+        string text, bool preserveFormatting, string context, GenerationSettings settings, PassLog log, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
 
         // Only process if there are headings to restructure
         if (!HasHeadings(text))
+        {
+            log.NotNeeded("RestructureSections");
             return (text, false, 0);
+        }
 
         var prompt = $"""
             Improve the heading structure of the following document.
@@ -396,32 +434,24 @@ public sealed partial class LlmRefiner : ILlmRefiner
             Return only the restructured text without any explanation.
             """;
 
-        try
-        {
-            var result = await GenerateBoundedAsync(prompt, text, settings, cancellationToken).ConfigureAwait(false);
-            var improved = !string.IsNullOrWhiteSpace(result) && result != text;
-            return (improved ? result : text, improved, EstimateTokens(prompt));
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            LogRestructureSectionsFailed(_logger, ex);
-            skipped.Add(SkipNote("RestructureSections", ex));
-            return (text, false, 0);
-        }
+        return await RunPassAsync("RestructureSections", prompt, text, settings, static _ => true, LogRestructureSectionsFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Merge semantically duplicate content.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> MergeDuplicatesAsync(
-        string text, string context, GenerationSettings settings, List<string> skipped, CancellationToken cancellationToken)
+        string text, string context, GenerationSettings settings, PassLog log, CancellationToken cancellationToken)
     {
         if (_textCompletionService == null)
             return (text, false, 0);
 
         // Only process if text is long enough to potentially have duplicates
         if (text.Length < 1000)
+        {
+            log.NotNeeded("MergeDuplicates");
             return (text, false, 0);
+        }
 
         var prompt = $"""
             Identify and merge duplicate content in the following document.
@@ -444,26 +474,14 @@ public sealed partial class LlmRefiner : ILlmRefiner
             Return only the deduplicated text without any explanation.
             """;
 
-        try
-        {
-            var result = await GenerateBoundedAsync(prompt, text, settings, cancellationToken).ConfigureAwait(false);
-            // Consider improved if text was reduced by more than 5%
-            var improved = !string.IsNullOrWhiteSpace(result) && result.Length < text.Length * 0.95;
-            return (improved ? result : text, improved, EstimateTokens(prompt));
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            LogMergeDuplicatesFailed(_logger, ex);
-            skipped.Add(SkipNote("MergeDuplicates", ex));
-            return (text, false, 0);
-        }
+        return await RunPassAsync("MergeDuplicates", prompt, text, settings, result => result.Length < text.Length * 0.95, LogMergeDuplicatesFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     // Helper methods
 
     private static bool HasPotentialBrokenSentences(string text)
     {
-        // Check for lines ending without punctuation followed by lowercase letter
+        // Check for lines ending without punctuation followed by a lowercase or caseless letter
         return BrokenSentenceRegex().IsMatch(text);
     }
 
@@ -559,7 +577,7 @@ public sealed partial class LlmRefiner : ILlmRefiner
         var promptTokens = PromptTokens(prompt);
         if (contextLength > 0 && promptTokens + maxTokens > contextLength)
         {
-            throw new InvalidOperationException(
+            throw new ContextTooSmallException(
                 $"the prompt (~{promptTokens} tokens) and the output budget ({maxTokens} tokens) exceed the model context ({contextLength} tokens); the pass was not sent");
         }
 
@@ -616,10 +634,12 @@ public sealed partial class LlmRefiner : ILlmRefiner
 
     #endregion
 
-    [GeneratedRegex(@"[a-z,]\n[a-z]", RegexOptions.Compiled)]
+    // A line that ends in a lowercase or caseless letter, a digit or a comma, followed by a line that starts with one: the
+    // same test in every script (the Latin-only [a-z] before 0.48.0 never fired on Korean, Japanese or Chinese text).
+    [GeneratedRegex(@"[\p{Ll}\p{Lo}\p{Nd},]\r?\n[\p{Ll}\p{Lo}]", RegexOptions.Compiled)]
     private static partial Regex BrokenSentenceRegex();
 
-    [GeneratedRegex(@"[Il1O0]{2,}|[a-z]\s[a-z]\s[a-z]|rn(?=[aeiou])", RegexOptions.Compiled)]
+    [GeneratedRegex(@"[Il1O0]{2,}|[\p{Ll}\p{Lo}]\s[\p{Ll}\p{Lo}]\s[\p{Ll}\p{Lo}]|rn(?=[aeiou])", RegexOptions.Compiled)]
     private static partial Regex OcrErrorPatternRegex();
 
     [GeneratedRegex(@"^#{1,6}\s", RegexOptions.Multiline | RegexOptions.Compiled)]

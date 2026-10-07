@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using FileFlux.Core;
 
@@ -87,7 +89,6 @@ internal static partial class PageScopedRefinement
         sw.Stop();
 
         var refinedCount = pages.Count(p => p.Outcome == PageRefinementOutcome.Refined);
-        var rejected = pages.Where(p => p.Outcome == PageRefinementOutcome.Rejected).ToList();
         return new LlmRefinedContent
         {
             RefinedId = refined.Id,
@@ -114,7 +115,10 @@ internal static partial class PageScopedRefinement
                 OutputTokens = outputTokens,
                 Duration = sw.Elapsed,
                 Improvements = refinedCount > 0 ? [$"Refined {refinedCount} of {pages.Count} page(s)"] : [],
-                Warnings = rejected.Select(p => $"Page {p.Page} kept its text: {p.Reason}").ToList()
+                Warnings = pages
+                    .Where(p => p.Outcome == PageRefinementOutcome.Rejected || p.Reason == PageRefinement.PassesFailed)
+                    .Select(p => $"Page {p.Page} kept its text: {p.Reason}")
+                    .ToList()
             }
         };
     }
@@ -134,20 +138,117 @@ internal static partial class PageScopedRefinement
         if (string.IsNullOrWhiteSpace(candidate))
             return (new PageRefinement(page) { Outcome = PageRefinementOutcome.Rejected, Reason = PageRefinement.EmptyOutput }, native);
 
+        var passes = refinedPage.Info.Passes;
+        var notes = refinedPage.Info.Warnings;
         if (candidate == native)
-            return (new PageRefinement(page) { Outcome = PageRefinementOutcome.Native }, native);
+        {
+            return (new PageRefinement(page)
+            {
+                Outcome = PageRefinementOutcome.Native,
+                Reason = UnchangedReason(passes),
+                Passes = passes,
+                Notes = notes
+            }, native);
+        }
 
-        var coverage = TokenCoverage(native, candidate);
+        var coverage = NativeCoverage(native, candidate);
         var numbersMatched = SameNumbers(native, candidate);
-        var record = new PageRefinement(page) { TokenCoverage = coverage, NumbersMatched = numbersMatched };
+        var record = new PageRefinement(page)
+        {
+            NativeCoverage = coverage,
+            TokenCoverage = TokenCoverage(native, candidate),
+            NumbersMatched = numbersMatched,
+            Passes = passes,
+            Notes = notes
+        };
 
-        if (coverage < options.MinTokenCoverage)
+        if (coverage < options.MinNativeCoverage)
             return (record with { Outcome = PageRefinementOutcome.Rejected, Reason = PageRefinement.LowCoverage }, native);
         if (options.RequireSameNumbers && !numbersMatched)
             return (record with { Outcome = PageRefinementOutcome.Rejected, Reason = PageRefinement.NumbersChanged }, native);
 
         // A page's text keeps its place between its neighbours: the refiner's surrounding whitespace is not its to set.
         return (record with { Outcome = PageRefinementOutcome.Refined }, PageSplice.Reframe(native, candidate.Trim()));
+    }
+
+    /// <summary>
+    /// Why a page the refiner returned unchanged was not changed by the model: none of its passes was needed, or every
+    /// pass that was sent failed. Null when the model kept the page, or when the refiner does not report its passes.
+    /// </summary>
+    private static string? UnchangedReason(IReadOnlyList<LlmRefinementPass>? passes)
+    {
+        if (passes is null)
+            return null;
+
+        var sent = passes.Where(p => p.Outcome != LlmRefinementPassOutcome.NotNeeded).ToList();
+        if (sent.Count == 0)
+            return PageRefinement.NoPassNeeded;
+        return sent.All(p => p.Outcome == LlmRefinementPassOutcome.Failed) ? PageRefinement.PassesFailed : null;
+    }
+
+    /// <summary>
+    /// The share of <paramref name="native"/>'s text that <paramref name="candidate"/> still contains, however it is
+    /// spaced: each of the page's words (letters and marks, or digits — compatibility-normalized, case-folded) counts as
+    /// kept when it occurs in the output with every space, punctuation mark and symbol removed, each occurrence used once,
+    /// weighted by its length. Joining a word a line wrap split, splitting a run-on word, re-wrapping or reordering keeps
+    /// 1; a dropped or reworded passage lowers it by its share. 1 when the page has no words.
+    /// </summary>
+    internal static double NativeCoverage(string native, string candidate)
+    {
+        // Longest first, so a short word cannot take the place a longer one needs.
+        var words = Words().Matches(Fold(native)).Select(m => m.Value).OrderByDescending(w => w.Length).ToList();
+        var total = words.Sum(w => w.Length);
+        if (total == 0)
+            return 1.0;
+
+        var text = Letters(candidate);
+        var used = new bool[text.Length];
+        var kept = 0;
+        foreach (var word in words)
+        {
+            var at = FindUnused(text, used, word);
+            if (at < 0)
+                continue;
+
+            Array.Fill(used, true, at, word.Length);
+            kept += word.Length;
+        }
+
+        return (double)kept / total;
+    }
+
+    private static int FindUnused(string text, bool[] used, string word)
+    {
+        for (var at = text.IndexOf(word, StringComparison.Ordinal); at >= 0; at = text.IndexOf(word, at + 1, StringComparison.Ordinal))
+        {
+            if (Array.IndexOf(used, true, at, word.Length) < 0)
+                return at;
+        }
+
+        return -1;
+    }
+
+    private static string Fold(string text) => text.Normalize(NormalizationForm.FormKC).ToLowerInvariant();
+
+    /// <summary>The letters, marks and digits of <paramref name="text"/>, folded as the words are, with nothing between them.</summary>
+    private static string Letters(string text)
+    {
+        var folded = Fold(text);
+        var sb = new StringBuilder(folded.Length);
+        foreach (var c in folded)
+        {
+            switch (char.GetUnicodeCategory(c))
+            {
+                case UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter or UnicodeCategory.TitlecaseLetter
+                    or UnicodeCategory.ModifierLetter or UnicodeCategory.OtherLetter
+                    or UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark or UnicodeCategory.EnclosingMark
+                    or UnicodeCategory.DecimalDigitNumber:
+                    sb.Append(c);
+                    break;
+            }
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>

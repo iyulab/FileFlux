@@ -34,6 +34,12 @@ public class PageScopedRefinementTests
         };
     }
 
+    private static RefinedContent OnePage(string text) => new()
+    {
+        Text = text,
+        Spans = [new SourceSpan(0, text.Length) { Page = 1 }]
+    };
+
     private static readonly LlmRefineOptions PageScope = new() { Scope = LlmRefineScope.Pages };
 
     private static Task<LlmRefinedContent> Refine(Func<string, string> rewrite, LlmRefineOptions? options = null,
@@ -55,7 +61,7 @@ public class PageScopedRefinementTests
 
         var page2 = result.Pages.Single(p => p.Page == 2);
         Assert.Equal(PageRefinementOutcome.Refined, page2.Outcome);
-        Assert.Equal(1.0, page2.TokenCoverage);
+        Assert.Equal(1.0, page2.NativeCoverage);
         Assert.Equal("In Ulsan: second page text about the plant.", TextOf(result, 2));
         Assert.Equal(Page1, TextOf(result, 1));
         Assert.Equal(Page3, TextOf(result, 3));
@@ -70,7 +76,7 @@ public class PageScopedRefinementTests
         var page1 = result.Pages.Single(p => p.Page == 1);
         Assert.Equal(PageRefinementOutcome.Rejected, page1.Outcome);
         Assert.Equal(PageRefinement.LowCoverage, page1.Reason);
-        Assert.True(page1.TokenCoverage < 0.95);
+        Assert.True(page1.NativeCoverage < 0.95);
         Assert.Equal(Page1, TextOf(result, 1));
         Assert.Contains(result.Info.Warnings, w => w.Contains("Page 1", StringComparison.Ordinal));
     }
@@ -79,7 +85,7 @@ public class PageScopedRefinementTests
     public async Task AnOutputThatChangesANumber_IsRejected()
     {
         var result = await Refine(t => t == Page3 ? "Third page lists 3 risks and 13 mitigations." : t,
-            new LlmRefineOptions { Scope = LlmRefineScope.Pages, MinTokenCoverage = 0.5 });
+            new LlmRefineOptions { Scope = LlmRefineScope.Pages, MinNativeCoverage = 0.5 });
 
         var page3 = result.Pages.Single(p => p.Page == 3);
         Assert.Equal(PageRefinementOutcome.Rejected, page3.Outcome);
@@ -92,7 +98,7 @@ public class PageScopedRefinementTests
     public async Task AnOutputThatAddsANumber_IsRejected()
     {
         var result = await Refine(t => t == Page2 ? Page2 + " Built in 1998." : t,
-            new LlmRefineOptions { Scope = LlmRefineScope.Pages, MinTokenCoverage = 0.5 });
+            new LlmRefineOptions { Scope = LlmRefineScope.Pages, MinNativeCoverage = 0.5 });
 
         Assert.Equal(PageRefinement.NumbersChanged, result.Pages.Single(p => p.Page == 2).Reason);
     }
@@ -164,6 +170,61 @@ public class PageScopedRefinementTests
         Assert.Null(seen.SelectPages);
         Assert.Equal(0.05, seen.Temperature);
     }
+
+    /// <summary>
+    /// A justified line wrap splits words without a hyphen; joining them back is the repair page refinement is for, and
+    /// drops nothing. The word view sees two words lost per join; the gate does not.
+    /// </summary>
+    [Fact]
+    public async Task AnOutputThatOnlyJoinsWordsALineWrapSplit_ReplacesItsPage()
+    {
+        const string native = "단기자금시 장의 금리가 상승하였으며 이에 대응하 여 상호저 축은행과 자산운용 사의 신 탁계정이 증가 등 으로 확대되었다.";
+        const string joined = "단기자금시장의 금리가 상승하였으며 이에 대응하여 상호저축은행과 자산운용사의 신탁계정이 증가 등으로 확대되었다.";
+        var result = await PageScopedRefinement.RefineAsync(new ScriptedRefiner(t => t == native ? joined : t), OnePage(native), [],
+            PageScope, TestContext.Current.CancellationToken);
+
+        var page = result.Pages.Single();
+        Assert.Equal(PageRefinementOutcome.Refined, page.Outcome);
+        Assert.Equal(1.0, page.NativeCoverage);
+        Assert.True(page.TokenCoverage < 0.95, $"the word view should see the joins as losses: {page.TokenCoverage}");
+        Assert.Equal(joined, result.Text);
+    }
+
+    /// <summary>The positive control for the fact above: the same page with a clause dropped is still rejected.</summary>
+    [Fact]
+    public async Task AnOutputThatJoinsWordsButDropsAClause_IsRejected()
+    {
+        const string native = "단기자금시 장의 금리가 상승하였으며 이에 대응하 여 상호저 축은행과 자산운용 사의 신 탁계정이 증가 등 으로 확대되었다.";
+        const string dropped = "단기자금시장의 금리가 상승하였으며 이에 대응하여 상호저축은행이 확대되었다.";
+        var result = await PageScopedRefinement.RefineAsync(new ScriptedRefiner(t => t == native ? dropped : t), OnePage(native), [],
+            PageScope, TestContext.Current.CancellationToken);
+
+        var page = result.Pages.Single();
+        Assert.Equal(PageRefinement.LowCoverage, page.Reason);
+        Assert.Equal(native, result.Text);
+    }
+
+    [Theory]
+    [InlineData("대응하 여", "대응하여", 1.0)]
+    [InlineData("단기자금시장", "단기자금시 장", 1.0)]
+    [InlineData("infor-\nmation retrieval", "information retrieval", 1.0)]
+    [InlineData("the plant in Ulsan", "in Ulsan, the plant", 1.0)]
+    [InlineData("a b c d", "a b", 0.5)]
+    [InlineData("revenue rose", "revenue fell", 7.0 / 11)]
+    [InlineData("", "anything", 1.0)]
+    [InlineData("words", "", 0.0)]
+    public void NativeCoverage_FindsEachWordHoweverItIsSpaced(string native, string output, double expected) =>
+        Assert.Equal(expected, PageScopedRefinement.NativeCoverage(native, output), 3);
+
+    /// <summary>A page whose text layer is decomposed Hangul (NFD) read against composed output keeps every word.</summary>
+    [Fact]
+    public void NativeCoverage_FoldsUnicodeNormalization() =>
+        Assert.Equal(1.0, PageScopedRefinement.NativeCoverage("대응하 여".Normalize(System.Text.NormalizationForm.FormD), "대응하여"), 3);
+
+    /// <summary>Each occurrence counts once: a repeated word needs as many occurrences in the output.</summary>
+    [Fact]
+    public void NativeCoverage_UsesEachOccurrenceOnce() =>
+        Assert.Equal(0.5, PageScopedRefinement.NativeCoverage("plant plant", "plant"), 3);
 
     [Theory]
     [InlineData("a b c d", "d c b a", 1.0)]

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.0] - Unreleased
+
+### Changed
+- **Breaking**: **page-scoped refinement no longer rejects a re-spacing as lost content.** `LlmRefineOptions.MinTokenCoverage`
+  is now `MinNativeCoverage` (default 0.95) and measures something else: each of the page's words counts as kept when it
+  occurs in the output with spaces and punctuation removed (case- and compatibility-folded, weighted by length), so
+  joining words a line wrap split («대응하 여» → «대응하여») keeps 1.0 where the old whitespace-word count dropped below
+  0.9 on most Korean pages. A dropped or reworded passage still lowers it. `PageRefinement.NativeCoverage` is the gated
+  number; `TokenCoverage` stays as the word view for comparison. Migration: rename `MinTokenCoverage` to
+  `MinNativeCoverage`.
+- **Breaking**: **`PageReadingOptions.MinNativeCoverage` and `PageRead.NativeCoverage` use the same measure**, so a
+  vision read that spaces words differently from the text layer is no longer kept back as low coverage. A threshold
+  tuned against the old word count may now let more reads replace their page.
+- **The sentence and OCR passes look for their trigger in every script.** `RestoreSentences` was sent only when a line
+  ended and the next began with an ASCII lowercase letter, so it never ran on Korean, Japanese or Chinese text; it now
+  fires on lowercase and caseless letters (and on CRLF text). The OCR pass's spaced-letter trigger is widened the same way.
+
+### Added
+- **Every enabled refinement pass reports what became of it.** `LlmRefinementInfo.Passes` lists `LlmRefinementPass`
+  entries (`NotNeeded` — no call made, `Kept`, `Applied`, `Failed` with `Reason` `truncated` / `context_too_small` /
+  `empty_output` / `error` and the note). An empty answer is now a failure with a note instead of a silent "no change".
+- **A `Native` page in page-scoped refinement says why.** `PageRefinement.Reason` is `no_pass_needed` when no pass
+  applied to the page and `passes_failed` when every pass that was sent failed (also listed in the document's warnings);
+  no reason means the model kept the page. `PageRefinement.Passes` and `Notes` carry the refiner's report for the page
+  instead of dropping it.
+
 ## [0.47.0] - 2026-10-07
 
 ### Added

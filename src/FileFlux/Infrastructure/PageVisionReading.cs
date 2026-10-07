@@ -120,7 +120,7 @@ internal static class PageVisionReading
 
             if (!absent)
             {
-                var coverage = PageScopedRefinement.TokenCoverage(native, read);
+                var coverage = PageScopedRefinement.NativeCoverage(native, read);
                 record = record with { NativeCoverage = coverage };
                 if (coverage < options.MinNativeCoverage)
                 {

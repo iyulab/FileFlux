@@ -7,7 +7,7 @@ namespace FileFlux.Core;
 /// <remarks>
 /// A read replaces a page's text when the page has no readable text (no text layer, no characters, or a suppressed OCR
 /// layer), or when it lost content (undecodable content streams, discarded text runs, U+FFFD) and the read keeps at least
-/// <see cref="MinNativeCoverage"/> of the words the page did have. A render that could not paint everything the page
+/// <see cref="MinNativeCoverage"/> of the text the page did have. A render that could not paint everything the page
 /// asks for (text in fonts that are not embedded, image codecs, inline images, undecodable content) never replaces text,
 /// and a page with tables in <see cref="RawContent.Tables"/> keeps its text so tables and table blocks stay aligned. Every
 /// other read is kept in <see cref="RawContent.PageReads"/> for the consumer to use as it sees fit.
@@ -24,8 +24,10 @@ public sealed class PageReadingOptions
     public int? MaxPages { get; set; }
 
     /// <summary>
-    /// For a page that lost part of its content: the share of the page's own word tokens (case-folded) the read must keep
-    /// to replace the page's text, so a read that drops what the page had does not win. Default 0.9.
+    /// For a page that lost part of its content: the share of the page's own text the read must keep to replace it, so a
+    /// read that drops what the page had does not win. Each of the page's words counts as kept when it occurs in the read
+    /// with spaces and punctuation removed (case- and compatibility-folded, weighted by length), so a read that spaces or
+    /// orders words differently from the text layer keeps everything. Default 0.9.
     /// </summary>
     public double MinNativeCoverage { get; set; } = 0.9;
 }
@@ -56,7 +58,7 @@ public sealed record PageRead(int Page)
     /// <summary>The page has readable text and lost none, so the read is guidance only.</summary>
     public const string NativeTextReadable = "native_text_readable";
 
-    /// <summary>The read kept less than <see cref="PageReadingOptions.MinNativeCoverage"/> of the page's words.</summary>
+    /// <summary>The read kept less than <see cref="PageReadingOptions.MinNativeCoverage"/> of the page's text.</summary>
     public const string LowCoverage = "low_coverage";
 
     /// <summary>The render could not paint everything the page asks for (see the gap counts).</summary>
@@ -92,6 +94,9 @@ public sealed record PageRead(int Page)
     /// <summary>Content streams of the page the render could not decode.</summary>
     public int UnrenderedContentStreams { get; init; }
 
-    /// <summary>Share of the page's word tokens the read kept; null when it was not compared.</summary>
+    /// <summary>
+    /// Share of the page's text the read kept (word by word, however spaced — see
+    /// <see cref="PageReadingOptions.MinNativeCoverage"/>); null when it was not compared.
+    /// </summary>
     public double? NativeCoverage { get; init; }
 }

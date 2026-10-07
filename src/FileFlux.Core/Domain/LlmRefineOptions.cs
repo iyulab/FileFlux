@@ -101,10 +101,12 @@ public class LlmRefineOptions
     public int MaxPageCharacters { get; set; } = 12_000;
 
     /// <summary>
-    /// <see cref="LlmRefineScope.Pages"/>: the share of the page's word tokens (case-folded) the output must keep. Default
-    /// 0.95. An output below it is rejected and the page keeps its text.
+    /// <see cref="LlmRefineScope.Pages"/>: the share of the page's text the output must keep. Default 0.95. An output below
+    /// it is rejected and the page keeps its text. Each of the page's words counts as kept when it occurs in the output with
+    /// spaces and punctuation removed (case- and compatibility-folded, weighted by length): joining a word a line wrap split («대응하 여» → «대응하여») keeps everything, while
+    /// a dropped or summarised passage does not. Was <c>MinTokenCoverage</c> (whitespace-separated words) before 0.48.0.
     /// </summary>
-    public double MinTokenCoverage { get; set; } = 0.95;
+    public double MinNativeCoverage { get; set; } = 0.95;
 
     /// <summary>
     /// <see cref="LlmRefineScope.Pages"/>: reject an output whose numbers differ from the page's — one dropped, changed or
