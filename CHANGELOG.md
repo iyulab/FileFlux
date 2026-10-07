@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.48.0] - Unreleased
+## [0.48.0] - 2026-10-07
 
 ### Changed
 - **Breaking**: **page-scoped refinement no longer rejects a re-spacing as lost content.** `LlmRefineOptions.MinTokenCoverage`
