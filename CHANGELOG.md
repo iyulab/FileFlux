@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Images from a presentation carry the slide that shows them** (`ImageInfo.PageNumber`, 1-based), pictures inside groups
-  and tables included; media no slide references keeps it unset. The field was set for PDF images only, so an image
+  included; media no slide references keeps it unset. The field was set for PDF images only, so an image
   description from a deck could not be attributed to its slide. The multimodal PowerPoint reader labels each described
   image with its slide (`Presentation Image 2 (slide 3):`).
 
