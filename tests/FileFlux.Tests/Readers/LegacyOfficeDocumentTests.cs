@@ -135,6 +135,27 @@ public class LegacyOfficeDocumentTests : IDisposable
         Assert.Contains("detected_extension=", ex.Message);
     }
 
+    // === Slides of the pictures ===
+
+    [Fact]
+    public async Task PresentationImages_CarryTheSlideThatShowsThem_FromAFileAndFromBytes()
+    {
+        // slide-images.pptx (made with python-pptx): slide 1 shows one picture, slide 2 none, slide 3 a group of two.
+        var path = Fixture("slide-images.pptx");
+        var reader = new PowerPointDocumentReader();
+
+        var fromFile = await reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+        await using var stream = File.OpenRead(path);
+        var fromBytes = await reader.ExtractAsync(stream, "deck.pptx", cancellationToken: TestContext.Current.CancellationToken);
+
+        foreach (var content in new[] { fromFile, fromBytes })
+        {
+            Assert.Equal(3, content.Images.Count);
+            Assert.Equal([1, 3, 3], content.Images.Select(i => i.PageNumber ?? 0).Order().ToArray());
+            Assert.DoesNotContain(content.Images, i => i.PageNumber == 2);
+        }
+    }
+
     // === What cannot be read ===
 
     [Theory]

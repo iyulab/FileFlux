@@ -266,6 +266,7 @@ public class PowerPointDocumentReader : IDocumentReader
 
         // Extract embedded resources (images)
         var resources = UndocImageResources.Shown(doc);
+        var slides = UndocImageResources.SectionOfResources(doc);
         foreach (var (resourceId, altText) in resources)
         {
             var resourceData = doc.GetResourceData(resourceId);
@@ -278,7 +279,9 @@ public class PowerPointDocumentReader : IDocumentReader
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
-                    SourceUrl = $"embedded:{resourceId}"
+                    SourceUrl = $"embedded:{resourceId}",
+                    // The slide that shows it; unset for media no slide references
+                    PageNumber = slides.TryGetValue(resourceId, out var slide) ? slide : null
                 };
                 extractedImages.Add(imageInfo);
             }
@@ -349,6 +352,7 @@ public class PowerPointDocumentReader : IDocumentReader
 
         // Extract embedded resources (images)
         var resources = UndocImageResources.Shown(doc);
+        var slides = UndocImageResources.SectionOfResources(doc);
         foreach (var (resourceId, altText) in resources)
         {
             var resourceData = doc.GetResourceData(resourceId);
@@ -361,7 +365,9 @@ public class PowerPointDocumentReader : IDocumentReader
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
-                    SourceUrl = $"embedded:{resourceId}"
+                    SourceUrl = $"embedded:{resourceId}",
+                    // The slide that shows it; unset for media no slide references
+                    PageNumber = slides.TryGetValue(resourceId, out var slide) ? slide : null
                 };
                 extractedImages.Add(imageInfo);
             }

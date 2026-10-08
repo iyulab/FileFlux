@@ -30,6 +30,55 @@ internal static class UndocImageResources
         }
     }
 
+    /// <summary>
+    /// The 1-based section each image resource is shown in — for a presentation, its slide. Read from the document's
+    /// JSON, where a paragraph names the images it shows by <c>resource_id</c>, in groups and table cells too. A
+    /// resource shown in several sections maps to the first; one the content does not reference is absent.
+    /// </summary>
+    public static IReadOnlyDictionary<string, int> SectionOfResources(UndocDocument doc)
+    {
+        var sections = new Dictionary<string, int>(StringComparer.Ordinal);
+        try
+        {
+            using var json = JsonDocument.Parse(doc.ToJson(compact: true));
+            if (!json.RootElement.TryGetProperty("sections", out var list) || list.ValueKind != JsonValueKind.Array)
+                return sections;
+
+            var number = 0;
+            foreach (var section in list.EnumerateArray())
+            {
+                number++;
+                Collect(section, number, sections);
+            }
+        }
+        catch (Exception ex) when (ex is UndocException or JsonException)
+        {
+            // Without the content's JSON no image can be placed; the images themselves are unaffected.
+        }
+
+        return sections;
+
+        static void Collect(JsonElement element, int number, Dictionary<string, int> into)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        if (property.NameEquals("resource_id") && property.Value.ValueKind == JsonValueKind.String)
+                            into.TryAdd(property.Value.GetString()!, number);
+                        else
+                            Collect(property.Value, number, into);
+                    }
+                    break;
+                case JsonValueKind.Array:
+                    foreach (var item in element.EnumerateArray())
+                        Collect(item, number, into);
+                    break;
+            }
+        }
+    }
+
     private static bool TryRead(UndocDocument doc, string id, out string? altText)
     {
         altText = null;

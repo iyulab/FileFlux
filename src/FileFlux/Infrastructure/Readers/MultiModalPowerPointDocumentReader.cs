@@ -115,7 +115,7 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                 List<ImageRelevanceResult>? relevanceResults = null;
                 if (_relevanceEvaluator != null)
                 {
-                    var imageTexts = documentImages.Select(img => img.ExtractedText).ToList();
+                    var imageTexts = documentImages.Select(img => img.Result.ExtractedText).ToList();
                     relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
                         imageTexts, documentContext, cancellationToken)).ToList();
                 }
@@ -126,7 +126,7 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
 
                 for (int i = 0; i < documentImages.Count; i++)
                 {
-                    var imageResult = documentImages[i];
+                    var (imageResult, slide) = documentImages[i];
                     imageCount++;
 
                     // 관련성 평가 결과 확인
@@ -157,7 +157,9 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                         }
 
                         documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_START:IMG_{imageCount} -->");
-                        documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"Presentation Image {imageCount}:");
+                        documentImageTexts.AppendLine(slide is int number
+                            ? string.Create(CultureInfo.InvariantCulture, $"Presentation Image {imageCount} (slide {number}):")
+                            : string.Create(CultureInfo.InvariantCulture, $"Presentation Image {imageCount}:"));
                         documentImageTexts.AppendLine(processedText);
                         documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_END:IMG_{imageCount} -->");
 
@@ -214,11 +216,11 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
     /// <summary>
     /// 문서에서 이미지를 추출하고 텍스트 변환 처리 (Undoc 사용)
     /// </summary>
-    private async Task<List<ImageToTextResult>> ExtractDocumentImages(
+    private async Task<List<(ImageToTextResult Result, int? Slide)>> ExtractDocumentImages(
         UndocDocument doc,
         CancellationToken cancellationToken)
     {
-        var results = new List<ImageToTextResult>();
+        var results = new List<(ImageToTextResult Result, int? Slide)>();
 
         if (_imageToTextService == null)
             return results;
@@ -227,6 +229,7 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
         {
             // Undoc의 GetResourceIds()를 사용하여 이미지 추출
             var resourceIds = UndocImageResources.Shown(doc).Select(resource => resource.Id);
+            var slides = UndocImageResources.SectionOfResources(doc);
 
             foreach (var resourceId in resourceIds)
             {
@@ -258,7 +261,7 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                     var result = await _imageToTextService.ExtractTextAsync(imageBytes, options, cancellationToken);
                     if (!string.IsNullOrWhiteSpace(result.ExtractedText))
                     {
-                        results.Add(result);
+                        results.Add((result, slides.TryGetValue(resourceId, out var slide) ? slide : null));
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)

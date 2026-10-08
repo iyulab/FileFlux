@@ -289,7 +289,7 @@ AI backend.
 | Word | .docx, .doc | Undoc (Rust FFI) | Style and structure preservation; Word 97-2003 `.doc` since 0.50.0 (a Word 6.0/95 file fails with `extraction_error_kind=UnsupportedFormat`) |
 | Excel | .xlsx | Undoc (Rust FFI) | Multi-sheet and table structure |
 | Excel (legacy) | .xls | Built-in (ExcelDataReader) | BIFF binary workbooks; per-sheet tables (text + `RawContent.Tables`); CP949 (EUC-KR) fallback for codepage-less BIFF5/7 |
-| PowerPoint | .pptx, .ppt | Undoc (Rust FFI) | Slide and notes extraction; PowerPoint 97-2003 `.ppt` since 0.50.0 |
+| PowerPoint | .pptx, .ppt | Undoc (Rust FFI) | Slide and notes extraction; PowerPoint 97-2003 `.ppt` since 0.50.0; each image with the slide that shows it (`PageNumber`, since 0.50.1) |
 | HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
 | Markdown | .md | Built-in | Structure preservation |
 | HTML | .html, .htm | Built-in | Web content extraction |
