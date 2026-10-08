@@ -219,7 +219,7 @@ FileFlux defines AI service interfaces - consumer applications provide implement
 | `IDocumentAnalysisService` | Text generation, intelligent chunking. Override `GenerateAsync(prompt, GenerationSettings, ct)` so `LlmRefineOptions`/`ParsingOptions` `Temperature`/`MaxTokens` reach your model, and throw `GenerationTruncatedException` (or, from a service on the shared completion port, its base `Flux.Abstractions.TextCompletionTruncatedException`) when the model stops at the token limit so a cut-off rewrite is never adopted. Set `ProviderInfo.MaxContextLength` and the refiner will not send a pass that cannot fit | OpenAI, Anthropic, LMSupply |
 | `IImageToTextService` | Image captioning, OCR | OpenAI Vision, LMSupply Captioner/OCR |
 | `IAudioToTextService` | Speech transcription — makes audio files readable (0.30.0+); without one, audio is unsupported | LMSupply Transcriber |
-| `IEmbeddingService` | Embedding generation for your own use. The pipeline does not consume it yet — `Semantic` chunking takes FluxCurator's `IEmbedder` (see [Chunking Strategies](#chunking-strategies)) | OpenAI, LMSupply Embedder |
+| `IEmbeddingService` | Embedding generation. Registered as a singleton, it also drives `Semantic` chunking — `AddFileFlux()` presents it to FluxCurator as an `IEmbedder` (see [Chunking Strategies](#chunking-strategies)) | OpenAI, LMSupply Embedder |
 
 `OpenAICompatibleDocumentAnalysisService` (in `FileFlux`) is a ready `IDocumentAnalysisService` for OpenAI, Azure OpenAI,
 Ollama and other OpenAI-compatible endpoints.
@@ -263,7 +263,7 @@ using Microsoft.Extensions.DependencyInjection;
 var services = new ServiceCollection();
 
 services.AddLMSupplyDocumentAnalysis();          // "default": LMSupply picks a GGUF model for this host
-services.AddLMSupplyEmbedding("default");        // an IEmbeddingService for your own use (not read by the pipeline)
+services.AddLMSupplyEmbedding("default");        // an IEmbeddingService; also the embedder of Semantic chunking
 services.AddLMSupplyCaptioner();   // or AddLMSupplyOcr() for scanned/text-bearing images
 services.AddLMSupplyTranscriber(); // .wav/.mp3 become readable; chunks carry Location.StartTime/EndTime
 // services.AddLMSupplyTranscriber(configure: o => { o.Diarize = true; o.NumSpeakers = 3; }); // label who said what
@@ -409,7 +409,7 @@ from the table structure (a section with an empty table yields none). The text i
 | `Paragraph` | Paragraph-boundary chunks; best for Markdown/blogs; oversized paragraphs fall back to sentence splits | — |
 | `Token` | Token-budget chunks for unstructured text | — |
 | `Hierarchical` | Heading-structure-aware chunks | — |
-| `Semantic` | Embedding-similarity boundaries | Requires a FluxCurator `IEmbedder` in the container — otherwise chunker creation throws `ArgumentException` |
+| `Semantic` | Embedding-similarity boundaries | Needs an embedder: a FileFlux `IEmbeddingService` (e.g. `AddLMSupplyEmbedding`) or a FluxCurator `IEmbedder` registered before `AddFileFlux()` (which wins) — otherwise chunker creation throws `ArgumentException` |
 
 Structural metadata: every `ProcessAsync`/`ChunkAsync` chunk carries `Location.StartChar/EndChar`
 (offsets into the refined text), `Location.HeadingPath`/`Section` (hierarchical heading context,

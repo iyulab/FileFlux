@@ -128,6 +128,11 @@ public static class ServiceCollectionExtensions
             lifetime));
 
         // === FluxCurator: Chunking ===
+        // Semantic chunking runs on FluxCurator, which reads FluxCurator's IEmbedder. A FileFlux IEmbeddingService
+        // (AddLMSupplyEmbedding, an adapter, your own - registered as a singleton) reaches it through this bridge; an IEmbedder
+        // registered before AddFileFlux wins. With neither, the factory yields null and Semantic reports the missing embedder.
+        services.TryAddSingleton<IEmbedder>(sp =>
+            sp.GetService<IEmbeddingService>() is { } embeddingService ? new EmbeddingServiceEmbedder(embeddingService) : null!);
         services.AddFluxCurator();
 
         // === FluxImprover: Enhancement (optional, configurable lifetime) ===

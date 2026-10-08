@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FILEFLUX_NATIVE_AUTOUPDATE` variable are unaffected.
 
 ### Fixed
+- **An embedding service registered for FileFlux drives `Semantic` chunking.** Semantic chunking runs on FluxCurator, which
+  reads its own `IEmbedder`, so `AddLMSupplyEmbedding()` (or any `IEmbeddingService`) with `Strategy = "Semantic"` failed with
+  «requires an embedder». `AddFileFlux()` now presents a singleton `IEmbeddingService` to FluxCurator as an `IEmbedder`; an
+  `IEmbedder` registered before `AddFileFlux()` still wins.
 - **The `FileFlux.Core`, `FileFlux.Providers.LMSupply` and `FileFlux.CLI` package pages show the README.** The packages carried
   `README.md` but did not declare it, so the gallery showed only the one-line description.
 - **The disk output writer works in trimmed, Native AOT and file-based apps.** `FileSystemOutputWriter` serialized
