@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.50.1] - Unreleased
+## [0.50.1] - 2026-10-08
 
 ### Fixed
 - **Images from a presentation carry the slide that shows them** (`ImageInfo.PageNumber`, 1-based), pictures inside groups
