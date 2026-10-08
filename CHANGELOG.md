@@ -5,7 +5,13 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.52.0] - Unreleased
+
+### Removed
+- **Breaking** — **`UnhwpNativeLoader` is gone.** No reader used it: HWP and HWPX are read through the `Unhwp` package's
+  bundled native binary, which is unchanged. The class only downloaded and self-updated a second copy of that binary from
+  GitHub releases. Migration: drop any `UnhwpNativeLoader.AutoUpdateEnabled` assignment; `UndocNativeLoader` and the
+  `FILEFLUX_NATIVE_AUTOUPDATE` variable are unaffected.
 
 ### Fixed
 - **The disk output writer works in trimmed, Native AOT and file-based apps.** `FileSystemOutputWriter` serialized

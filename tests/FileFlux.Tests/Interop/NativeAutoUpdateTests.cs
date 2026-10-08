@@ -87,21 +87,4 @@ public class NativeAutoUpdateTests
             UndocNativeLoader.ResetAutoUpdateOverride();
         }
     }
-
-    [Fact]
-    public void UnhwpLoader_AutoUpdateEnabled_DefaultsToFalse()
-    {
-        var original = Environment.GetEnvironmentVariable(NativeAutoUpdate.EnvVar);
-        try
-        {
-            Environment.SetEnvironmentVariable(NativeAutoUpdate.EnvVar, null);
-            UnhwpNativeLoader.ResetAutoUpdateOverride();
-            UnhwpNativeLoader.AutoUpdateEnabled.Should().BeFalse();
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(NativeAutoUpdate.EnvVar, original);
-            UnhwpNativeLoader.ResetAutoUpdateOverride();
-        }
-    }
 }
