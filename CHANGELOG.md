@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Picture alt text no longer carries the author's file paths or Office's generated descriptions into the body.** Word,
+  PowerPoint, Excel and HWP readers keep a picture's alt text (`![alt](…)` in the text, `ImageInfo.Caption`) only when
+  an author wrote it. An absolute path, `file:` URI or bare image file name recorded at insert time is dropped; a
+  description Office generated (its «AI-generated content may be incorrect» disclaimer, or «Description automatically
+  generated») moves to `ImageInfo.Properties["generated_alt_text"]` without the disclaimer. Alt text spanning several
+  lines is joined, so the image reference stays one Markdown image instead of leaving its tail as a paragraph.
+
 ## [0.50.1] - 2026-10-08
 
 ### Fixed

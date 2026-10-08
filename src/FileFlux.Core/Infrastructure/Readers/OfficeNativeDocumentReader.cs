@@ -656,7 +656,6 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
                 var image = new ImageInfo
                 {
                     Id = $"img_{imageIndex++:D3}",
-                    Caption = resourceInfo.AltText,
                     MimeType = resourceInfo.MimeType ?? ImageMimeTypeDetector.Detect(data, resourceInfo.Filename ?? id),
                     Data = data,
                     SourceUrl = $"embedded:{id}",
@@ -668,6 +667,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
                     image.Properties["width"] = resourceInfo.Width.Value;
                 if (resourceInfo.Height.HasValue)
                     image.Properties["height"] = resourceInfo.Height.Value;
+                ImageAltText.Attach(image, resourceInfo.AltText);
                 image.Properties["resource_id"] = id;
                 if (!string.IsNullOrEmpty(resourceInfo.Filename))
                     image.Properties["filename"] = resourceInfo.Filename;
@@ -706,6 +706,9 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
 
         // Remove null bytes
         markdown = TextSanitizer.RemoveNullBytes(markdown);
+
+        // Keep only authored alt text in image references (no file paths, no generated descriptions)
+        markdown = ImageAltText.CleanMarkdown(markdown);
 
         // Convert HTML lists to markdown
         markdown = ConvertHtmlListsToMarkdown(markdown);

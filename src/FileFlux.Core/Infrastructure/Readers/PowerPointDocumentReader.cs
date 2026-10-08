@@ -254,7 +254,7 @@ public class PowerPointDocumentReader : IDocumentReader
         });
 
         // Remove null bytes
-        markdown = TextSanitizer.RemoveNullBytes(markdown);
+        markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
 
         // Extract metadata
         if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -275,7 +275,6 @@ public class PowerPointDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = resourceId,
-                    Caption = altText,
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
@@ -283,6 +282,7 @@ public class PowerPointDocumentReader : IDocumentReader
                     // The slide that shows it; unset for media no slide references
                     PageNumber = slides.TryGetValue(resourceId, out var slide) ? slide : null
                 };
+                ImageAltText.Attach(imageInfo, altText);
                 extractedImages.Add(imageInfo);
             }
         }
@@ -340,7 +340,7 @@ public class PowerPointDocumentReader : IDocumentReader
         });
 
         // Remove null bytes
-        markdown = TextSanitizer.RemoveNullBytes(markdown);
+        markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
 
         // Extract metadata
         if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -361,7 +361,6 @@ public class PowerPointDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = resourceId,
-                    Caption = altText,
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
@@ -369,6 +368,7 @@ public class PowerPointDocumentReader : IDocumentReader
                     // The slide that shows it; unset for media no slide references
                     PageNumber = slides.TryGetValue(resourceId, out var slide) ? slide : null
                 };
+                ImageAltText.Attach(imageInfo, altText);
                 extractedImages.Add(imageInfo);
             }
         }

@@ -297,6 +297,12 @@ AI backend.
 | Text | .txt, .json | Built-in | Basic text processing |
 | Audio | .wav, .mp3 | `IAudioToTextService` (e.g. `AddLMSupplyTranscriber()`) | Speech as text, one paragraph per segment (speaker-labelled when the service separates speakers); chunks carry `Location.StartTime`/`EndTime`. Unsupported when no service is registered |
 
+> **Picture alt text is content only when an author wrote it** (Word, PowerPoint, Excel, HWP) — that text reaches the
+> body (`![alt](…)`) and `ImageInfo.Caption`, on one line. A file path or bare file name Office recorded when the picture
+> was inserted is dropped. A description Office generated (ending with its «AI-generated content may be incorrect»
+> disclaimer, or the older «Description automatically generated») stays out of the body and is exposed as
+> `ImageInfo.Properties["generated_alt_text"]`, without the disclaimer.
+
 > **The name is a claim, the content decides (since 0.35.0)** — when a file's name selects the wrong
 > reader, or none, reader selection consults the content: a PDF (`%PDF-` header), an OOXML
 > package (`.docx` / `.xlsx` / `.pptx`, told apart by the package's part folders), an HWPX

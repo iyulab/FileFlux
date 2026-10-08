@@ -242,7 +242,7 @@ public partial class WordDocumentReader : IDocumentReader
         });
 
         // Remove null bytes
-        markdown = TextSanitizer.RemoveNullBytes(markdown);
+        markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
 
         // Extract metadata
         if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -262,12 +262,12 @@ public partial class WordDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = resourceId,
-                    Caption = altText,
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
                     SourceUrl = $"embedded:{resourceId}"
                 };
+                ImageAltText.Attach(imageInfo, altText);
                 extractedImages.Add(imageInfo);
             }
         }
@@ -337,7 +337,7 @@ public partial class WordDocumentReader : IDocumentReader
         });
 
         // Remove null bytes
-        markdown = TextSanitizer.RemoveNullBytes(markdown);
+        markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
 
         // Extract metadata
         if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -357,12 +357,12 @@ public partial class WordDocumentReader : IDocumentReader
                 var imageInfo = new ImageInfo
                 {
                     Id = resourceId,
-                    Caption = altText,
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
                     Data = resourceData,
                     OriginalSize = resourceData.Length,
                     SourceUrl = $"embedded:{resourceId}"
                 };
+                ImageAltText.Attach(imageInfo, altText);
                 extractedImages.Add(imageInfo);
             }
         }

@@ -222,7 +222,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         });
 
         // Remove null bytes
-        markdown = TextSanitizer.RemoveNullBytes(markdown);
+        markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
 
         structuralHints["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
         structuralHints["section_count"] = doc.SectionCount;
@@ -303,7 +303,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         });
 
         // Remove null bytes
-        markdown = TextSanitizer.RemoveNullBytes(markdown);
+        markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
 
         structuralHints["hwp_format"] = extension == ".hwpx" ? "HWPX" : "HWP5";
         structuralHints["section_count"] = doc.SectionCount;
