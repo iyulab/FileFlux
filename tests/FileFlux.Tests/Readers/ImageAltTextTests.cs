@@ -15,10 +15,10 @@ public class ImageAltTextTests
     private const string KoreanDisclaimer = "AI가 생성한 콘텐츠는 올바르지 않을 수 있습니다.";
 
     [Theory]
-    [InlineData(@"C:\Users\Hong\Desktop\AcmeCorp\photo.png")]
+    [InlineData(@"D:\Projects\Author\Desktop\AcmeCorp\photo.png")]
     [InlineData(@"d:/work/client/diagram.emf")]
     [InlineData(@"\\fileserver\share\images\logo.png")]
-    [InlineData("file:///C:/Users/Hong/Pictures/chart.png")]
+    [InlineData("file:///D:/Projects/Author/Pictures/chart.png")]
     [InlineData("/Users/hong/Desktop/screenshot.png")]
     [InlineData("/home/hong/pictures/plot.svg")]
     [InlineData("back.png")]
@@ -50,7 +50,7 @@ public class ImageAltTextTests
     [Fact]
     public void CleanMarkdown_RewritesEveryImageAlt()
     {
-        var markdown = "Intro\n\n![C:\\Users\\Hong\\a.png](image1.jpeg)\n\n![A dog\n\n" + KoreanDisclaimer + "](image2.png)\n\n![Revenue  by\nregion](image3.png) tail";
+        var markdown = "Intro\n\n![D:\\Projects\\Author\\a.png](image1.jpeg)\n\n![A dog\n\n" + KoreanDisclaimer + "](image2.png)\n\n![Revenue  by\nregion](image3.png) tail";
 
         Assert.Equal("Intro\n\n![](image1.jpeg)\n\n![](image2.png)\n\n![Revenue by region](image3.png) tail", ImageAltText.CleanMarkdown(markdown));
     }
@@ -69,7 +69,7 @@ public class ImageAltTextTests
     /// End to end through the PowerPoint reader (Undoc renders the picture's <c>descr</c> as the Markdown image alt).
     /// </summary>
     [Theory]
-    [InlineData(@"C:\Users\Hong\Desktop\AcmeCorp\photo.png", null, null, "AcmeCorp")]
+    [InlineData(@"D:\Projects\Author\Desktop\AcmeCorp\photo.png", null, null, "AcmeCorp")]
     [InlineData("A person standing in front of a building\n\n" + KoreanDisclaimer, null, "A person standing in front of a building", "AI가 생성한")]
     [InlineData("Quarterly revenue chart", "Quarterly revenue chart", null, null)]
     public async Task PowerPoint_BodyAndCaptionCarryOnlyAuthoredAltText(string descr, string? caption, string? generated, string? notInBody)
@@ -108,7 +108,7 @@ public class ImageAltTextTests
             using (var zip = ZipFile.Open(path, ZipArchiveMode.Update))
             {
                 await RewriteAsync(zip, "word/document.xml", xml => xml.Replace("descr=\"back.png\"",
-                    "descr=\"C:\\Users\\Hong\\Documents\\AcmeCorp\\back.png\"", StringComparison.Ordinal));
+                    "descr=\"D:\\Projects\\Author\\Documents\\AcmeCorp\\back.png\"", StringComparison.Ordinal));
             }
 
             var content = await new WordDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
