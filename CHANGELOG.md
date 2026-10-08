@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.51.0] - 2026-10-08
 
 ### Added
 - **An image a presentation shows on several slides names every slide** — `ImageInfo.PageNumbers` (ascending;
@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   description Office generated (its «AI-generated content may be incorrect» disclaimer, or «Description automatically
   generated») moves to `ImageInfo.Properties["generated_alt_text"]` without the disclaimer. Alt text spanning several
   lines is joined, so the image reference stays one Markdown image instead of leaving its tail as a paragraph.
+
+### Dependencies
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.111.0 -> 0.113.0, `LMSupply.Core` 0.111.0 -> 0.113.0, `LMSupply.Embedder` 0.111.0 -> 0.113.0, `LMSupply.Generator` 0.111.0 -> 0.113.0, `LMSupply.Ocr` 0.111.0 -> 0.113.0, `LMSupply.Transcriber` 0.111.0 -> 0.113.0.
 
 ## [0.50.1] - 2026-10-08
 
