@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FILEFLUX_NATIVE_AUTOUPDATE` variable are unaffected.
 
 ### Fixed
+- **A PDF line that starts with a negative number keeps its sign.** A statistical table drawn as text lines (`-0.2 4.5`)
+  came out as a list item without the sign (`- 0.2 4.5`). Unpdf 0.35.0 reads a dash printed against a digit as the number's
+  sign; a dash followed by a space (`- 2023년 …`) is still a list item. On a 45 MB Korean annual report, lines that lost their
+  sign went from 65 to 0. Unpdf 0.35.0 also reads composite fonts with an embedded or inline CMap and vertical writing, so
+  some CJK PDFs that extracted no text now do.
 - **An embedding service registered for FileFlux drives `Semantic` chunking.** Semantic chunking runs on FluxCurator, which
   reads its own `IEmbedder`, so `AddLMSupplyEmbedding()` (or any `IEmbeddingService`) with `Strategy = "Semantic"` failed with
   «requires an embedder». `AddFileFlux()` now presents a singleton `IEmbeddingService` to FluxCurator as an `IEmbedder`; an
