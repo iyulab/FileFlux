@@ -32,9 +32,10 @@ internal static class UndocImageResources
 
     /// <summary>
     /// The 1-based sections each image resource is shown in, ascending — for a presentation, its slides. Read from the
-    /// document's JSON, where the content names the images it shows by <c>resource_id</c>, pictures inside groups too.
-    /// A resource shown in several sections lists each; one the content does not reference is absent (Undoc 0.16 does
-    /// not reference picture bullets or picture fills).
+    /// document's JSON, where the content names the images it shows: an image block (a picture, pictures inside groups,
+    /// a shape filled with a picture) by <c>resource_id</c>, a picture bullet by its list item's <c>marker_image</c>, and
+    /// a section or table-cell background by <c>background_image</c> (Undoc 0.17). A resource shown in several sections
+    /// lists each; one the content does not reference is absent.
     /// </summary>
     public static IReadOnlyDictionary<string, IReadOnlyList<int>> SectionsOfResources(UndocDocument doc)
     {
@@ -66,7 +67,7 @@ internal static class UndocImageResources
                 case JsonValueKind.Object:
                     foreach (var property in element.EnumerateObject())
                     {
-                        if (property.NameEquals("resource_id") && property.Value.ValueKind == JsonValueKind.String)
+                        if (IsImageReference(property) && property.Value.ValueKind == JsonValueKind.String)
                         {
                             var id = property.Value.GetString()!;
                             if (!into.TryGetValue(id, out var numbers))
@@ -85,6 +86,10 @@ internal static class UndocImageResources
             }
         }
     }
+
+    // The members of Undoc's JSON whose value is the id of an image resource the content shows.
+    private static bool IsImageReference(JsonProperty property) =>
+        property.NameEquals("resource_id") || property.NameEquals("marker_image") || property.NameEquals("background_image");
 
     private static bool TryRead(UndocDocument doc, string id, out string? altText)
     {

@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Picture bullets, shapes filled with a picture and slide backgrounds name the slide that shows them.** Their
+  `ImageInfo.PageNumbers` was empty because the parser did not reference them from the slide; with Undoc 0.17.0 a filled
+  shape is an image of its slide, and FileFlux also follows the picture a bullet uses and the picture a slide (or a table
+  cell) has as its background.
+- **A picture description with a blank line or a `]` no longer breaks the image Markdown** of Word, PowerPoint and Excel
+  documents (Undoc 0.17.0 writes the alt text on one line and escapes it).
+
 ### Dependencies
+- `Undoc` 0.16.0 -> 0.17.0 (also reads Excel 5.0/95 and Excel 2.x–4.0 workbooks).
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.113.0 -> 0.115.1, `LMSupply.Core` 0.113.0 -> 0.115.1, `LMSupply.Embedder` 0.113.0 -> 0.115.1, `LMSupply.Generator` 0.113.0 -> 0.115.1, `LMSupply.Ocr` 0.113.0 -> 0.115.1, `LMSupply.Transcriber` 0.113.0 -> 0.115.1.
 
 ## [0.52.0] - 2026-10-09

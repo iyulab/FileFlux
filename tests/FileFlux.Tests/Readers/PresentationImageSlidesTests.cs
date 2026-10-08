@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure.Readers;
@@ -38,10 +39,12 @@ public class PresentationImageSlidesTests
             Assert.Equal([1, 2], reused.PageNumbers);
             Assert.Equal(1, reused.PageNumber);
 
-            // Undoc 0.16 does not reference a picture bullet or a picture fill from the content, so their slide is
-            // unknown; the images themselves are still returned.
-            Assert.Empty(Assert.Single(content.Images, i => i.Id == "fill1.png").PageNumbers);
-            Assert.Empty(Assert.Single(content.Images, i => i.Id == "bullet1.png").PageNumbers);
+            // A shape filled with a picture and a picture bullet are attributed to the slide that shows them too
+            // (Undoc 0.17: the fill is an image block, the bullet is named by its list item's marker_image).
+            Assert.Equal([1], Assert.Single(content.Images, i => i.Id == "fill1.png").PageNumbers);
+            Assert.Equal([1], Assert.Single(content.Images, i => i.Id == "bullet1.png").PageNumbers);
+            // A slide background picture is named by the slide's background_image.
+            Assert.Equal([2], Assert.Single(content.Images, i => i.Id == "bg1.png").PageNumbers);
         }
         finally
         {
@@ -79,7 +82,8 @@ public class PresentationImageSlidesTests
                 "<Default Extension=\"png\" ContentType=\"image/png\"/><Default Extension=\"xml\"", StringComparison.Ordinal));
             const string rels = "<Relationship Id=\"rIdPic99\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/image1.jpeg\"/>"
                 + "<Relationship Id=\"rIdFill\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/fill1.png\"/>"
-                + "<Relationship Id=\"rIdBullet\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/bullet1.png\"/>";
+                + "<Relationship Id=\"rIdBullet\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/bullet1.png\"/>"
+                + "<Relationship Id=\"rIdBg\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/bg1.png\"/>";
             await RewriteAsync(zip, "ppt/slides/_rels/slide1.xml.rels", xml => xml.Replace("</Relationships>", rels + "</Relationships>", StringComparison.Ordinal));
             await RewriteAsync(zip, "ppt/slides/_rels/slide2.xml.rels", xml => xml.Replace("</Relationships>", rels + "</Relationships>", StringComparison.Ordinal));
             const string pic = "<p:pic><p:nvPicPr><p:cNvPr id=\"99\" name=\"Picture 99\"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr>"
@@ -93,8 +97,11 @@ public class PresentationImageSlidesTests
                 + "<p:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"914400\" cy=\"914400\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr>"
                 + "<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr marL=\"285750\" indent=\"-285750\"><a:buBlip><a:blip r:embed=\"rIdBullet\"/></a:buBlip></a:pPr><a:r><a:rPr lang=\"en-US\"/><a:t>Picture bullet item</a:t></a:r></a:p></p:txBody></p:sp>";
             await RewriteAsync(zip, "ppt/slides/slide1.xml", xml => xml.Replace("</p:spTree>", pic + fill + bullet + "</p:spTree>", StringComparison.Ordinal));
-            await RewriteAsync(zip, "ppt/slides/slide2.xml", xml => xml.Replace("</p:spTree>", pic + "</p:spTree>", StringComparison.Ordinal));
-            foreach (var name in new[] { "ppt/media/fill1.png", "ppt/media/bullet1.png" })
+            // Slide 2's background is a picture.
+            const string background = "<p:bg><p:bgPr><a:blipFill><a:blip r:embed=\"rIdBg\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg>";
+            await RewriteAsync(zip, "ppt/slides/slide2.xml", xml => Regex.Replace(
+                xml.Replace("</p:spTree>", pic + "</p:spTree>", StringComparison.Ordinal), "<p:cSld[^>]*>", m => m.Value + background, RegexOptions.None, TimeSpan.FromSeconds(1)));
+            foreach (var name in new[] { "ppt/media/fill1.png", "ppt/media/bullet1.png", "ppt/media/bg1.png" })
             {
                 using var s = zip.CreateEntry(name).Open();
                 await s.WriteAsync(Png, TestContext.Current.CancellationToken);
