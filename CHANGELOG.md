@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FILEFLUX_NATIVE_AUTOUPDATE` variable are unaffected.
 
 ### Fixed
+- **The `FileFlux.Core`, `FileFlux.Providers.LMSupply` and `FileFlux.CLI` package pages show the README.** The packages carried
+  `README.md` but did not declare it, so the gallery showed only the one-line description.
 - **The disk output writer works in trimmed, Native AOT and file-based apps.** `FileSystemOutputWriter` serialized
   anonymous objects and `DocumentChunk.Props` through reflection-based JSON, which those apps turn off — every write threw
   «Reflection-based serialization has been disabled». It now builds the JSON as `JsonNode` trees; the `FileFlux` package is

@@ -113,9 +113,8 @@
     <PackageReleaseNotes>Complete FileFlux SDK with document readers, intelligent chunking strategies, and RAG optimization</PackageReleaseNotes>
   </PropertyGroup>
 
-  <!-- FileFlux.CLI - Local testing tool (not published to NuGet) -->
+  <!-- FileFlux.CLI - published as a dotnet tool (its csproj sets IsPackable/PackAsTool) -->
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'FileFlux.CLI'">
-    <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <OutputType>Exe</OutputType>
     <!-- CLI tool uses logging for diagnostic output, not production perf -->
@@ -157,8 +156,10 @@
   </ItemGroup>
 
   <!-- Ship the README inside the package so the gallery page is not blank.
-       Placed after the project-specific overrides so IsPackable is already set. -->
-  <PropertyGroup Condition="'$(IsPackable)' == 'true' AND Exists('$(MSBuildThisFileDirectory)README.md')">
+       The property is not conditioned on IsPackable: this file is evaluated before the project body, so a csproj that
+       sets IsPackable itself would never see it (the package then carries README.md without declaring it). PackageReadmeFile
+       only takes effect when a project is packed. -->
+  <PropertyGroup Condition="Exists('$(MSBuildThisFileDirectory)README.md')">
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup Condition="'$(IsPackable)' == 'true' AND Exists('$(MSBuildThisFileDirectory)README.md')">
