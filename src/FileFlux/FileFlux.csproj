@@ -16,6 +16,9 @@
 
   <PropertyGroup>
     <IsPackable>true</IsPackable>
+    <!-- Trim/AOT analysis as errors, as in FileFlux.Core: the disk output writer builds its JSON as JsonNode trees, so
+         nothing here needs reflection-based serialization. -->
+    <IsAotCompatible>true</IsAotCompatible>
     <PackageId>FileFlux</PackageId>
     <Title>FileFlux - Document Processing SDK for RAG</Title>
     <Description>Complete document processing SDK optimized for RAG systems. Transform PDF, DOCX, Excel, PowerPoint, Markdown and other formats into high-quality chunks with intelligent semantic boundary detection. Includes advanced chunking strategies, metadata extraction, and performance optimization.</Description>

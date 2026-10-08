@@ -1,0 +1,43 @@
+{
+  "command": "process",
+  "input": "report.pdf",
+  "format": "md",
+  "document": {
+    "summary": "Opening paragraph",
+    "topics": [
+      "Finance"
+    ],
+    "keywords": [
+      "report",
+      "opening",
+      "second",
+      "words"
+    ]
+  },
+  "chunkingOptions": {
+    "strategy": "Paragraph",
+    "maxChunkSize": 512,
+    "overlapSize": 32
+  },
+  "statistics": {
+    "chunkCount": 2,
+    "totalCharacters": 42,
+    "averageChunkSize": 21,
+    "minChunkSize": 8,
+    "maxChunkSize": 34,
+    "varianceRatio": 4.25,
+    "isBalanced": false,
+    "pageCount": 3,
+    "language": "ko",
+    "imagesExtracted": 2,
+    "imagesSkipped": 1,
+    "enrichedChunks": 1,
+    "skippedEnrichments": 1
+  },
+  "aiAnalysis": {
+    "provider": "test-provider",
+    "enrichedChunks": 1,
+    "imagesAnalyzed": 1
+  },
+  "processedAt": "2026-01-02T03:04:05.0000000Z"
+}

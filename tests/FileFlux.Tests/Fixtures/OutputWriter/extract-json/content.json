@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "title": "Quarterly \"Report\"",
+    "source": "report.pdf",
+    "author": "A. Writer",
+    "pages": 3,
+    "words": 42,
+    "language": "ko",
+    "fileType": "PDF",
+    "fileSize": 12345,
+    "processedAt": "2026-01-02T03:04:05.0000000Z"
+  },
+  "content": "첫 문단입니다.\n\nSecond paragraph with three words.",
+  "statistics": {
+    "totalCharacters": 44,
+    "totalWords": 7
+  }
+}

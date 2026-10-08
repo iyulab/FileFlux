@@ -1,0 +1,34 @@
+{
+  "command": "extract",
+  "input": "report.pdf",
+  "format": "json",
+  "statistics": {
+    "totalCharacters": 44,
+    "totalWords": 42,
+    "pageCount": 3,
+    "language": "ko",
+    "imagesExtracted": 2,
+    "imagesSkipped": 1
+  },
+  "aiAnalysis": {
+    "provider": "test-provider",
+    "imagesAnalyzed": 1,
+    "images": [
+      {
+        "fileName": "img-1.png",
+        "dimensions": "640x480",
+        "fileSize": 2048,
+        "description": "A bar chart",
+        "error": null
+      },
+      {
+        "fileName": "img-2.png",
+        "dimensions": "10x10",
+        "fileSize": 64,
+        "description": null,
+        "error": "too small"
+      }
+    ]
+  },
+  "processedAt": "2026-01-02T03:04:05.0000000Z"
+}

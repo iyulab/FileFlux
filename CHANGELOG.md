@@ -5,6 +5,21 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **The disk output writer works in trimmed, Native AOT and file-based apps.** `FileSystemOutputWriter` serialized
+  anonymous objects and `DocumentChunk.Props` through reflection-based JSON, which those apps turn off — every write threw
+  «Reflection-based serialization has been disabled». It now builds the JSON as `JsonNode` trees; the `FileFlux` package is
+  `IsAotCompatible` like `FileFlux.Core`. A `Props` value of a type the writer does not know is serialized by reflection
+  where the app allows it (as before) and written as its `ToString()` text where it does not.
+- **JSON and JSON Lines output files have no byte order mark** (RFC 8259); a JSON Lines reader no longer finds three stray
+  bytes before the first record, and Markdown front matter starts with `---`.
+- **Breaking: with format `jsonl`, the document is written to `content.md`.** It was Markdown written to `content.jsonl`.
+- **Breaking: `chunks.jsonl` names the metadata members in camelCase** (`fileName`, `pageCount`, …), like every other key in
+  the line and like the `json` format. They were PascalCase. Migration: read `metadata.fileName` instead of
+  `metadata.FileName`.
+
 ## [0.51.0] - 2026-10-08
 
 ### Added

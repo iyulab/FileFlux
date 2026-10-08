@@ -2,12 +2,14 @@ using FileFlux.Core;
 using FileFlux.Domain;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Globalization;
 
 namespace FileFlux.Infrastructure.Output;
 
 /// <summary>
-/// File system based output writer
+/// File system based output writer. The JSON it writes is built as <see cref="JsonNode"/> trees (see <see cref="OutputJson"/>),
+/// so it does not depend on reflection-based serialization.
 /// </summary>
 public class FileSystemOutputWriter : IOutputWriter
 {
@@ -17,6 +19,10 @@ public class FileSystemOutputWriter : IOutputWriter
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
+
+    // RFC 8259 §8.1: JSON text has no byte order mark, and a JSON Lines reader takes the first line as JSON. Markdown front
+    // matter readers expect "---" as the first bytes too.
+    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private static readonly JsonSerializerOptions JsonlOptions = new()
     {
@@ -32,7 +38,7 @@ public class FileSystemOutputWriter : IOutputWriter
         Directory.CreateDirectory(outputDirectory);
 
         var format = options.Format.ToLowerInvariant();
-        var contentPath = Path.Combine(outputDirectory, $"content.{format}");
+        var contentPath = ContentPath(outputDirectory, format);
         var infoPath = Path.Combine(outputDirectory, "info.json");
 
         // Write content
@@ -60,7 +66,7 @@ public class FileSystemOutputWriter : IOutputWriter
         var format = options.Format.ToLowerInvariant();
 
         // Write extracted content
-        var contentPath = Path.Combine(outputDirectory, $"content.{format}");
+        var contentPath = ContentPath(outputDirectory, format);
         if (format == "json")
         {
             await WriteJsonContentAsync(result.Extraction, contentPath, cancellationToken);
@@ -113,7 +119,7 @@ public class FileSystemOutputWriter : IOutputWriter
 
         sb.AppendLine(result.ProcessedText);
 
-        await File.WriteAllTextAsync(outputPath, sb.ToString(), Encoding.UTF8, cancellationToken);
+        await File.WriteAllTextAsync(outputPath, sb.ToString(), Utf8NoBom, cancellationToken);
     }
 
     private static async Task WriteJsonContentAsync(
@@ -122,30 +128,30 @@ public class FileSystemOutputWriter : IOutputWriter
         CancellationToken cancellationToken)
     {
         var metadata = result.ParsedContent.Metadata;
-        var data = new
+        var data = new JsonObject
         {
-            metadata = new
+            ["metadata"] = new JsonObject
             {
-                title = metadata.Title,
-                source = metadata.FileName,
-                author = metadata.Author,
-                pages = metadata.PageCount,
-                words = metadata.WordCount,
-                language = metadata.Language,
-                fileType = metadata.FileType,
-                fileSize = metadata.FileSize,
-                processedAt = metadata.ProcessedAt.ToString("o")
+                ["title"] = metadata.Title,
+                ["source"] = metadata.FileName,
+                ["author"] = metadata.Author,
+                ["pages"] = metadata.PageCount,
+                ["words"] = metadata.WordCount,
+                ["language"] = metadata.Language,
+                ["fileType"] = metadata.FileType,
+                ["fileSize"] = metadata.FileSize,
+                ["processedAt"] = metadata.ProcessedAt.ToString("o")
             },
-            content = result.ProcessedText,
-            statistics = new
+            ["content"] = result.ProcessedText,
+            ["statistics"] = new JsonObject
             {
-                totalCharacters = result.ProcessedText.Length,
-                totalWords = CountWords(result.ProcessedText)
+                ["totalCharacters"] = result.ProcessedText.Length,
+                ["totalWords"] = CountWords(result.ProcessedText)
             }
         };
 
-        var json = JsonSerializer.Serialize(data, JsonOptions);
-        await File.WriteAllTextAsync(outputPath, json, Encoding.UTF8, cancellationToken);
+        var json = data.ToJsonString(JsonOptions);
+        await File.WriteAllTextAsync(outputPath, json, Utf8NoBom, cancellationToken);
     }
 
     private static async Task WriteExtractionInfoAsync(
@@ -155,38 +161,38 @@ public class FileSystemOutputWriter : IOutputWriter
         CancellationToken cancellationToken)
     {
         var metadata = result.ParsedContent.Metadata;
-        var data = new
+        var data = new JsonObject
         {
-            command = "extract",
-            input = metadata.FileName,
-            format = options.Format,
-            statistics = new
+            ["command"] = "extract",
+            ["input"] = metadata.FileName,
+            ["format"] = options.Format,
+            ["statistics"] = new JsonObject
             {
-                totalCharacters = result.ProcessedText.Length,
-                totalWords = metadata.WordCount,
-                pageCount = metadata.PageCount,
-                language = metadata.Language,
-                imagesExtracted = result.Images.Count,
-                imagesSkipped = result.SkippedImageCount
+                ["totalCharacters"] = result.ProcessedText.Length,
+                ["totalWords"] = metadata.WordCount,
+                ["pageCount"] = metadata.PageCount,
+                ["language"] = metadata.Language,
+                ["imagesExtracted"] = result.Images.Count,
+                ["imagesSkipped"] = result.SkippedImageCount
             },
-            aiAnalysis = result.AIProvider != null ? new
+            ["aiAnalysis"] = result.AIProvider != null ? new JsonObject
             {
-                provider = result.AIProvider,
-                imagesAnalyzed = result.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription)),
-                images = result.Images.Select(i => new
+                ["provider"] = result.AIProvider,
+                ["imagesAnalyzed"] = result.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription)),
+                ["images"] = new JsonArray(result.Images.Select(i => (JsonNode)new JsonObject
                 {
-                    fileName = i.FileName,
-                    dimensions = $"{i.Width}x{i.Height}",
-                    fileSize = i.FileSize,
-                    description = i.AIDescription,
-                    error = i.AIError
-                }).ToArray()
+                    ["fileName"] = i.FileName,
+                    ["dimensions"] = $"{i.Width}x{i.Height}",
+                    ["fileSize"] = i.FileSize,
+                    ["description"] = i.AIDescription,
+                    ["error"] = i.AIError
+                }).ToArray())
             } : null,
-            processedAt = metadata.ProcessedAt.ToString("o")
+            ["processedAt"] = metadata.ProcessedAt.ToString("o")
         };
 
-        var json = JsonSerializer.Serialize(data, JsonOptions);
-        await File.WriteAllTextAsync(infoPath, json, Encoding.UTF8, cancellationToken);
+        var json = data.ToJsonString(JsonOptions);
+        await File.WriteAllTextAsync(infoPath, json, Utf8NoBom, cancellationToken);
     }
 
     private static async Task WriteChunksAsync(
@@ -215,54 +221,57 @@ public class FileSystemOutputWriter : IOutputWriter
                 sb.AppendLine("---");
                 sb.AppendLine();
                 sb.AppendLine(chunk.Content);
-                await File.WriteAllTextAsync(mdPath, sb.ToString(), Encoding.UTF8, cancellationToken);
+                await File.WriteAllTextAsync(mdPath, sb.ToString(), Utf8NoBom, cancellationToken);
 
                 // Write JSON metadata (content is in .md file, JSON contains only chunk-specific metadata)
                 var jsonPath = Path.Combine(outputDirectory, $"{index}.json");
                 var chunkData = BuildChunkJsonData(chunk, i + 1);
-                var json = JsonSerializer.Serialize(chunkData, JsonOptions);
-                await File.WriteAllTextAsync(jsonPath, json, Encoding.UTF8, cancellationToken);
+                var json = chunkData.ToJsonString(JsonOptions);
+                await File.WriteAllTextAsync(jsonPath, json, Utf8NoBom, cancellationToken);
             }
             else if (format == "json")
             {
                 var jsonPath = Path.Combine(outputDirectory, $"{index}.json");
-                var chunkData = new
+                var chunkData = new JsonObject
                 {
-                    index = i + 1,
-                    id = chunk.Id,
-                    content = chunk.Content,
-                    location = new
-                    {
-                        startChar = chunk.Location.StartChar,
-                        endChar = chunk.Location.EndChar
-                    },
-                    metadata = chunk.Metadata,
-                    properties = chunk.Props
+                    ["index"] = i + 1,
+                    ["id"] = chunk.Id,
+                    ["content"] = chunk.Content,
+                    ["location"] = Location(chunk),
+                    ["metadata"] = OutputJson.Metadata(chunk.Metadata, JsonNamingPolicy.CamelCase),
+                    ["properties"] = OutputJson.Object(chunk.Props, JsonNamingPolicy.CamelCase)
                 };
-                var json = JsonSerializer.Serialize(chunkData, JsonOptions);
-                await File.WriteAllTextAsync(jsonPath, json, Encoding.UTF8, cancellationToken);
+                var json = chunkData.ToJsonString(JsonOptions);
+                await File.WriteAllTextAsync(jsonPath, json, Utf8NoBom, cancellationToken);
             }
             else if (format == "jsonl")
             {
                 // For jsonl, append to single file
                 var jsonlPath = Path.Combine(outputDirectory, "chunks.jsonl");
-                var chunkData = new
+                var chunkData = new JsonObject
                 {
-                    index = i + 1,
-                    id = chunk.Id,
-                    content = chunk.Content,
-                    location = new
-                    {
-                        startChar = chunk.Location.StartChar,
-                        endChar = chunk.Location.EndChar
-                    },
-                    metadata = chunk.Metadata
+                    ["index"] = i + 1,
+                    ["id"] = chunk.Id,
+                    ["content"] = chunk.Content,
+                    ["location"] = Location(chunk),
+                    ["metadata"] = OutputJson.Metadata(chunk.Metadata, JsonNamingPolicy.CamelCase)
                 };
-                var line = JsonSerializer.Serialize(chunkData, JsonlOptions);
-                await File.AppendAllTextAsync(jsonlPath, line + Environment.NewLine, Encoding.UTF8, cancellationToken);
+                var line = chunkData.ToJsonString(JsonlOptions);
+                await File.AppendAllTextAsync(jsonlPath, line + Environment.NewLine, Utf8NoBom, cancellationToken);
             }
         }
     }
+
+    // The document itself is one JSON object for "json" and Markdown otherwise; "jsonl" is a format for the chunks, so its
+    // document is Markdown and is named for what it holds.
+    private static string ContentPath(string outputDirectory, string format) =>
+        Path.Combine(outputDirectory, format == "json" ? "content.json" : "content.md");
+
+    private static JsonObject Location(DocumentChunk chunk) => new()
+    {
+        ["startChar"] = chunk.Location.StartChar,
+        ["endChar"] = chunk.Location.EndChar
+    };
 
     private static async Task WriteChunkingInfoAsync(
         ChunkingResult result,
@@ -277,53 +286,53 @@ public class FileSystemOutputWriter : IOutputWriter
         // Aggregate document-level summary and keywords from enriched chunks
         var documentAnalysis = AggregateDocumentAnalysis(chunks);
 
-        var data = new
+        var data = new JsonObject
         {
-            command = result.Options.Strategy == "Auto" ? "chunk" : "process",
-            input = metadata.FileName,
-            format = options.Format,
+            ["command"] = result.Options.Strategy == "Auto" ? "chunk" : "process",
+            ["input"] = metadata.FileName,
+            ["format"] = options.Format,
             // Document-level analysis (aggregated from chunks)
-            document = documentAnalysis,
-            chunkingOptions = new
+            ["document"] = documentAnalysis,
+            ["chunkingOptions"] = new JsonObject
             {
-                strategy = result.Options.Strategy,
-                maxChunkSize = result.Options.MaxChunkSize,
-                overlapSize = result.Options.OverlapSize
+                ["strategy"] = result.Options.Strategy,
+                ["maxChunkSize"] = result.Options.MaxChunkSize,
+                ["overlapSize"] = result.Options.OverlapSize
             },
-            statistics = new
+            ["statistics"] = new JsonObject
             {
-                chunkCount = chunks.Length,
-                totalCharacters = totalChars,
-                averageChunkSize = chunks.Length > 0 ? totalChars / chunks.Length : 0,
-                minChunkSize = chunks.Length > 0 ? chunks.Min(c => c.Content.Length) : 0,
-                maxChunkSize = chunks.Length > 0 ? chunks.Max(c => c.Content.Length) : 0,
-                varianceRatio = CalculateVarianceRatio(chunks),
-                isBalanced = IsBalanced(chunks, result.Options.MaxChunkSize),
-                pageCount = metadata.PageCount,
-                language = metadata.Language,
-                imagesExtracted = result.Extraction.Images.Count,
-                imagesSkipped = result.Extraction.SkippedImageCount,
-                enrichedChunks = chunks.Count(c => ChunkPropsKeys.HasEnrichment(c.Props)),
-                skippedEnrichments = chunks.Count(c => c.Props.TryGetValue(ChunkPropsKeys.EnrichmentSkipped, out var v) && v is true)
+                ["chunkCount"] = chunks.Length,
+                ["totalCharacters"] = totalChars,
+                ["averageChunkSize"] = chunks.Length > 0 ? totalChars / chunks.Length : 0,
+                ["minChunkSize"] = chunks.Length > 0 ? chunks.Min(c => c.Content.Length) : 0,
+                ["maxChunkSize"] = chunks.Length > 0 ? chunks.Max(c => c.Content.Length) : 0,
+                ["varianceRatio"] = CalculateVarianceRatio(chunks),
+                ["isBalanced"] = IsBalanced(chunks, result.Options.MaxChunkSize),
+                ["pageCount"] = metadata.PageCount,
+                ["language"] = metadata.Language,
+                ["imagesExtracted"] = result.Extraction.Images.Count,
+                ["imagesSkipped"] = result.Extraction.SkippedImageCount,
+                ["enrichedChunks"] = chunks.Count(c => ChunkPropsKeys.HasEnrichment(c.Props)),
+                ["skippedEnrichments"] = chunks.Count(c => c.Props.TryGetValue(ChunkPropsKeys.EnrichmentSkipped, out var v) && v is true)
             },
-            aiAnalysis = result.Extraction.AIProvider != null ? new
+            ["aiAnalysis"] = result.Extraction.AIProvider != null ? new JsonObject
             {
-                provider = result.Extraction.AIProvider,
-                enrichedChunks = chunks.Count(c => ChunkPropsKeys.HasEnrichment(c.Props)),
-                imagesAnalyzed = result.Extraction.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription))
+                ["provider"] = result.Extraction.AIProvider,
+                ["enrichedChunks"] = chunks.Count(c => ChunkPropsKeys.HasEnrichment(c.Props)),
+                ["imagesAnalyzed"] = result.Extraction.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription))
             } : null,
-            processedAt = metadata.ProcessedAt.ToString("o")
+            ["processedAt"] = metadata.ProcessedAt.ToString("o")
         };
 
-        var json = JsonSerializer.Serialize(data, JsonOptions);
-        await File.WriteAllTextAsync(infoPath, json, Encoding.UTF8, cancellationToken);
+        var json = data.ToJsonString(JsonOptions);
+        await File.WriteAllTextAsync(infoPath, json, Utf8NoBom, cancellationToken);
     }
 
     /// <summary>
     /// Aggregates document-level analysis from enriched chunks.
     /// Extracts topics, keywords, and generates a document summary.
     /// </summary>
-    private static object? AggregateDocumentAnalysis(DocumentChunk[] chunks)
+    private static JsonObject? AggregateDocumentAnalysis(DocumentChunk[] chunks)
     {
         if (chunks.Length == 0) return null;
 
@@ -397,11 +406,11 @@ public class FileSystemOutputWriter : IOutputWriter
         if (keywordCounts.Count == 0 && uniqueTopics.Count == 0 && string.IsNullOrEmpty(documentSummary))
             return null;
 
-        return new
+        return new JsonObject
         {
-            summary = documentSummary,
-            topics = uniqueTopics.Count > 0 ? uniqueTopics : null,
-            keywords = keywordCounts.Count > 0 ? keywordCounts : null
+            ["summary"] = documentSummary,
+            ["topics"] = uniqueTopics.Count > 0 ? new JsonArray(uniqueTopics.Select(t => (JsonNode?)t).ToArray()) : null,
+            ["keywords"] = keywordCounts.Count > 0 ? new JsonArray(keywordCounts.Select(k => (JsonNode?)k).ToArray()) : null
         };
     }
 
@@ -410,7 +419,7 @@ public class FileSystemOutputWriter : IOutputWriter
     /// Builds chunk JSON data with cleaned-up metadata structure.
     /// Removes file-level metadata duplicates and organizes enrichment data.
     /// </summary>
-    private static Dictionary<string, object?> BuildChunkJsonData(DocumentChunk chunk, int index)
+    private static JsonObject BuildChunkJsonData(DocumentChunk chunk, int index)
     {
         // Extract enrichment data separately for cleaner structure
         var enrichment = ExtractEnrichmentData(chunk.Props);
@@ -448,7 +457,7 @@ public class FileSystemOutputWriter : IOutputWriter
         };
 
         // Remove null values for cleaner JSON
-        return result.Where(kvp => kvp.Value != null).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        return OutputJson.Object(result.Where(kvp => kvp.Value != null).ToDictionary(kvp => kvp.Key, kvp => kvp.Value), JsonNamingPolicy.CamelCase);
     }
 
     /// <summary>

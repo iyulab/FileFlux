@@ -25,6 +25,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 - **IEnrichedChunk Interface**: Standardized interface for RAG system integration
 - **Extensible Architecture**: Interface-based design for easy customization
 - **Async Processing**: Streaming and parallel processing for large documents
+- **Trimmed, Native AOT and file-based apps**: `FileFlux.Core` and `FileFlux` are `IsAotCompatible` — nothing in them needs reflection-based JSON. `FileSystemOutputWriter` (the CLI's disk output) writes UTF-8 JSON without a byte order mark; a `Props` value of a type it does not know is serialized by reflection where the app allows it and written as its `ToString()` text where it does not
 
 ## Installation
 

@@ -1,0 +1,59 @@
+{
+  "index": 1,
+  "id": "11111111-1111-1111-1111-111111111111",
+  "content": "첫 문단입니다.",
+  "location": {
+    "startChar": 0,
+    "endChar": 8
+  },
+  "metadata": {
+    "fileName": "report.pdf",
+    "fileType": "PDF",
+    "fileSize": 12345,
+    "title": "Quarterly \"Report\"",
+    "author": "A. Writer",
+    "createdAt": "2025-12-01T00:00:00Z",
+    "modifiedAt": null,
+    "processedAt": "2026-01-02T03:04:05Z",
+    "language": "ko",
+    "languageConfidence": 0.875,
+    "pageCount": 3,
+    "wordCount": 42,
+    "customProperties": {
+      "sheetName": "Q1",
+      "sectionCount": 4,
+      "undecodableStreams": [
+        "s1",
+        "s2"
+      ]
+    }
+  },
+  "properties": {
+    "enriched.summary": "Opening paragraph",
+    "enriched.keywords": [
+      "report",
+      "opening"
+    ],
+    "document.topic": "Finance",
+    "hierarchy.path": "Report > Intro",
+    "enriched.contextualText": "Report: opening paragraph",
+    "quality.semanticCompleteness": 0.75,
+    "quality.contextIndependence": 0.5,
+    "custom.flag": true,
+    "custom.count": 3,
+    "custom.when": "2026-01-02T03:04:05Z",
+    "custom.kind": 5,
+    "custom.tags": [
+      "a",
+      "b"
+    ],
+    "custom.nested": {
+      "inner": 1.5,
+      "label": "x"
+    },
+    "custom.record": {
+      "name": "r",
+      "value": 2
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "index": 1,
+  "id": "11111111-1111-1111-1111-111111111111",
+  "length": 8,
+  "tokens": 7,
+  "location": {
+    "startChar": 0,
+    "endChar": 8,
+    "headingPath": [
+      "Report",
+      "Intro"
+    ],
+    "section": "Intro"
+  },
+  "quality": {
+    "overall": 0.9,
+    "density": 0.4,
+    "importance": 0.6,
+    "semanticCompleteness": 0.75,
+    "contextIndependence": 0.5
+  },
+  "enrichment": {
+    "summary": "Opening paragraph",
+    "keywords": [
+      "report",
+      "opening"
+    ],
+    "topic": "Finance",
+    "hierarchyPath": "Report > Intro",
+    "contextualText": "Report: opening paragraph"
+  }
+}

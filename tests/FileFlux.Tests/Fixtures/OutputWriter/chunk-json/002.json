@@ -1,0 +1,38 @@
+{
+  "index": 2,
+  "id": "22222222-2222-2222-2222-222222222222",
+  "content": "Second paragraph with three words.",
+  "location": {
+    "startChar": 10,
+    "endChar": 44
+  },
+  "metadata": {
+    "fileName": "report.pdf",
+    "fileType": "PDF",
+    "fileSize": 12345,
+    "title": "Quarterly \"Report\"",
+    "author": "A. Writer",
+    "createdAt": "2025-12-01T00:00:00Z",
+    "modifiedAt": null,
+    "processedAt": "2026-01-02T03:04:05Z",
+    "language": "ko",
+    "languageConfidence": 0.875,
+    "pageCount": 3,
+    "wordCount": 42,
+    "customProperties": {
+      "sheetName": "Q1",
+      "sectionCount": 4,
+      "undecodableStreams": [
+        "s1",
+        "s2"
+      ]
+    }
+  },
+  "properties": {
+    "document.keywords": [
+      "second",
+      "words"
+    ],
+    "enriched.skipped": true
+  }
+}
