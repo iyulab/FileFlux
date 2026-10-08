@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Presentation Image 2 (slides 1, 4):`. Picture bullets and picture fills still carry no slide — the parser does not
   reference them from slide content yet.
 
+### Changed
+- **Breaking** — **`LMSupplyOcrService` no longer accepts TIFF.** LMSupply 0.113.0 replaced its image library and decodes
+  JPEG, PNG, WebP, GIF (first frame) and BMP; a TIFF now fails with `InvalidDataException`, and `SupportedImageFormats` no
+  longer lists `tiff`. Migration: convert TIFF pages to PNG before OCR, or route `.tif`/`.tiff` to another
+  `IImageToTextService`.
+- **`LMSupplyEmbedderService` embeds with the model's default prefix on prefix-trained models** (LMSupply 0.112.0
+  `EmbedAsync`): with an E5 or Nomic model (the `fast` alias is multilingual-e5-small) the semantic-chunking similarities
+  change; the `default` model (BGE-M3, no prefix) is unchanged.
+
 ### Fixed
 - **Picture alt text no longer carries the author's file paths or Office's generated descriptions into the body.** Word,
   PowerPoint, Excel and HWP readers keep a picture's alt text (`![alt](…)` in the text, `ImageInfo.Caption`) only when

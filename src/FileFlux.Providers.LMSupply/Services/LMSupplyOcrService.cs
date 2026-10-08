@@ -15,7 +15,9 @@ public sealed class LMSupplyOcrService : IImageToTextService, IAsyncDisposable, 
     private readonly IOcr _ocr;
     private bool _disposed;
 
-    private static readonly string[] SupportedFormats = ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "webp"];
+    // What LMSupply.Ocr decodes (LMSupply 0.113.0: JPEG, PNG, WebP, GIF first frame, BMP). TIFF is not among them; a TIFF
+    // handed to this service fails with InvalidDataException from the decoder.
+    private static readonly string[] SupportedFormats = ["png", "jpg", "jpeg", "gif", "bmp", "webp"];
 
     /// <summary>
     /// Creates a new instance of LMSupplyOcrService with the specified OCR pipeline.
