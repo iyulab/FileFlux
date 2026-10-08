@@ -64,9 +64,27 @@ public class ImageInfo
 
     /// <summary>
     /// The page the image is drawn on (1-based, the numbering of the document's page spans), when the reader knows
-    /// it - PDF. Null for formats without pages and when the reader cannot tell.
+    /// it - a PDF page, a presentation's slide. For an image shown on several pages, the first; see
+    /// <see cref="PageNumbers"/>. Null for formats without pages and when the reader cannot tell.
     /// </summary>
     public int? PageNumber { get; set; }
+
+    /// <summary>
+    /// Every page that shows the image, ascending - a picture a presentation reuses on several slides lists each slide.
+    /// When the reader knows a single page this is <see cref="PageNumber"/> alone; empty when the page is unknown.
+    /// Setting it sets <see cref="PageNumber"/> to its first element.
+    /// </summary>
+    public IReadOnlyList<int> PageNumbers
+    {
+        get => _pageNumbers ?? (PageNumber is { } page ? [page] : []);
+        set
+        {
+            _pageNumbers = value is { Count: > 0 } ? value : null;
+            PageNumber = _pageNumbers?[0];
+        }
+    }
+
+    private IReadOnlyList<int>? _pageNumbers;
 
     /// <summary>
     /// MIME type (e.g., "image/png", "image/jpeg")

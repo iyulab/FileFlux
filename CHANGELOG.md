@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **An image a presentation shows on several slides names every slide** — `ImageInfo.PageNumbers` (ascending;
+  `PageNumber` stays the first). A picture reused across slides was attributed to its first slide only. Readers that know
+  a single page (PDF) report it alone; the multimodal PowerPoint reader labels such a description
+  `Presentation Image 2 (slides 1, 4):`. Picture bullets and picture fills still carry no slide — the parser does not
+  reference them from slide content yet.
+
 ### Fixed
 - **Picture alt text no longer carries the author's file paths or Office's generated descriptions into the body.** Word,
   PowerPoint, Excel and HWP readers keep a picture's alt text (`![alt](…)` in the text, `ImageInfo.Caption`) only when

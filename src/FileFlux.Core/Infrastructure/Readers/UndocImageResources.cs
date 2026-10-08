@@ -31,18 +31,19 @@ internal static class UndocImageResources
     }
 
     /// <summary>
-    /// The 1-based section each image resource is shown in — for a presentation, its slide. Read from the document's
-    /// JSON, where a paragraph names the images it shows by <c>resource_id</c>, in groups and table cells too. A
-    /// resource shown in several sections maps to the first; one the content does not reference is absent.
+    /// The 1-based sections each image resource is shown in, ascending — for a presentation, its slides. Read from the
+    /// document's JSON, where the content names the images it shows by <c>resource_id</c>, pictures inside groups too.
+    /// A resource shown in several sections lists each; one the content does not reference is absent (Undoc 0.16 does
+    /// not reference picture bullets or picture fills).
     /// </summary>
-    public static IReadOnlyDictionary<string, int> SectionOfResources(UndocDocument doc)
+    public static IReadOnlyDictionary<string, IReadOnlyList<int>> SectionsOfResources(UndocDocument doc)
     {
-        var sections = new Dictionary<string, int>(StringComparer.Ordinal);
+        var sections = new Dictionary<string, List<int>>(StringComparer.Ordinal);
         try
         {
             using var json = JsonDocument.Parse(doc.ToJson(compact: true));
             if (!json.RootElement.TryGetProperty("sections", out var list) || list.ValueKind != JsonValueKind.Array)
-                return sections;
+                return new Dictionary<string, IReadOnlyList<int>>(StringComparer.Ordinal);
 
             var number = 0;
             foreach (var section in list.EnumerateArray())
@@ -56,9 +57,9 @@ internal static class UndocImageResources
             // Without the content's JSON no image can be placed; the images themselves are unaffected.
         }
 
-        return sections;
+        return sections.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<int>)pair.Value, StringComparer.Ordinal);
 
-        static void Collect(JsonElement element, int number, Dictionary<string, int> into)
+        static void Collect(JsonElement element, int number, Dictionary<string, List<int>> into)
         {
             switch (element.ValueKind)
             {
@@ -66,7 +67,13 @@ internal static class UndocImageResources
                     foreach (var property in element.EnumerateObject())
                     {
                         if (property.NameEquals("resource_id") && property.Value.ValueKind == JsonValueKind.String)
-                            into.TryAdd(property.Value.GetString()!, number);
+                        {
+                            var id = property.Value.GetString()!;
+                            if (!into.TryGetValue(id, out var numbers))
+                                into[id] = numbers = [];
+                            if (numbers.Count == 0 || numbers[^1] != number)
+                                numbers.Add(number);
+                        }
                         else
                             Collect(property.Value, number, into);
                     }
