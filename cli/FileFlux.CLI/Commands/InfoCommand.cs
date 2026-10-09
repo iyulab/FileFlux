@@ -26,19 +26,18 @@ public class InfoCommand : Command
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
             var input = parseResult.GetValue(inputArg);
-            if (input != null)
-            {
-                await ExecuteAsync(input, cancellationToken);
-            }
+            return input is null
+                ? ExitCodes.Failure
+                : await ExecuteAsync(input, cancellationToken);
         });
     }
 
-    private static async Task ExecuteAsync(string input, CancellationToken cancellationToken)
+    private static async Task<int> ExecuteAsync(string input, CancellationToken cancellationToken)
     {
         if (!File.Exists(input))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         var fileInfo = new FileInfo(input);
@@ -64,11 +63,15 @@ public class InfoCommand : Command
         AnsiConsole.Write(panel);
         AnsiConsole.WriteLine();
 
-        // Check if format is supported
-        var supportedFormats = new[] { ".pdf", ".docx", ".xlsx", ".pptx", ".md", ".txt", ".json", ".csv", ".html", ".htm" };
-        var isSupported = supportedFormats.Contains(fileInfo.Extension.ToLowerInvariant());
+        // Ask the registered readers, so the answer matches what extract/chunk/process can read
+        var services = new ServiceCollection();
+        services.AddFileFlux();
+        await using var serviceProvider = services.BuildServiceProvider();
+        var isSupported = serviceProvider.GetRequiredService<IDocumentReaderFactory>().CanRead(input);
 
         AnsiConsole.MarkupLine($"[bold]Supported format:[/] {(isSupported ? "[green]Yes[/]" : "[red]No[/]")}");
+
+        var exitCode = ExitCodes.Success;
 
         if (isSupported)
         {
@@ -78,10 +81,7 @@ public class InfoCommand : Command
                     .Spinner(Spinner.Known.Dots)
                     .StartAsync("Analyzing document...", async ctx =>
                     {
-                        var services = new ServiceCollection();
-                        services.AddFileFlux();
-                        await using var provider = services.BuildServiceProvider();
-                        var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+                        var factory = serviceProvider.GetRequiredService<IDocumentProcessorFactory>();
 
                         await using var processor = factory.Create(input);
                         await processor.ProcessAsync(new ProcessingOptions
@@ -121,6 +121,7 @@ public class InfoCommand : Command
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine($"\n[red]Error analyzing document:[/] {Markup.Escape(ex.Message)}");
+                exitCode = ExitCodes.Failure;
             }
         }
 
@@ -140,11 +141,11 @@ public class InfoCommand : Command
             var provider = config.DetectProvider();
             if (provider == "openai")
             {
-                envGrid.AddRow("[bold]Model:[/]", config.OpenAIModel ?? "gpt-5-nano");
+                envGrid.AddRow("[bold]Model:[/]", config.OpenAIModel);
             }
             else if (provider == "anthropic")
             {
-                envGrid.AddRow("[bold]Model:[/]", config.AnthropicModel ?? "claude-3-haiku-20240307");
+                envGrid.AddRow("[bold]Model:[/]", config.AnthropicModel);
             }
         }
 
@@ -155,6 +156,8 @@ public class InfoCommand : Command
         };
 
         AnsiConsole.Write(envPanel);
+
+        return exitCode;
     }
 
     private static string FormatFileSize(long bytes)

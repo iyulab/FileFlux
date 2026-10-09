@@ -156,8 +156,8 @@ public class AIProviderFactory
             "openai" => new ModelInfo
             {
                 Provider = "OpenAI",
-                TextModel = _config.OpenAIModel ?? "gpt-5-nano",
-                VisionModel = _enableVision ? _config.OpenAIModel ?? "gpt-5-nano" : null,
+                TextModel = _config.OpenAIModel,
+                VisionModel = _enableVision ? _config.OpenAIModel : null,
                 VisionEnabled = _enableVision,
                 IsLocal = false,
                 AdditionalInfo = new()
@@ -168,8 +168,8 @@ public class AIProviderFactory
             "anthropic" => new ModelInfo
             {
                 Provider = "Anthropic",
-                TextModel = _config.AnthropicModel ?? "claude-3-haiku-20240307",
-                VisionModel = _enableVision ? _config.AnthropicModel ?? "claude-3-haiku-20240307" : null,
+                TextModel = _config.AnthropicModel,
+                VisionModel = _enableVision ? _config.AnthropicModel : null,
                 VisionEnabled = _enableVision,
                 IsLocal = false,
                 AdditionalInfo = new()
@@ -193,8 +193,8 @@ public class AIProviderFactory
             "google" => new ModelInfo
             {
                 Provider = "Google Gemini",
-                TextModel = _config.GoogleModel ?? "gemini-2.0-flash",
-                VisionModel = _enableVision ? _config.GoogleModel ?? "gemini-2.0-flash" : null,
+                TextModel = _config.GoogleModel,
+                VisionModel = _enableVision ? _config.GoogleModel : null,
                 VisionEnabled = _enableVision,
                 IsLocal = false,
                 AdditionalInfo = new()
@@ -352,14 +352,14 @@ public class AIProviderFactory
     private Providers.FluxImprover.OpenAICompletionService CreateOpenAIFluxImproverService()
     {
         var apiKey = _config.OpenAIApiKey ?? throw new InvalidOperationException("OpenAI API key not configured");
-        var model = _config.OpenAIModel ?? "gpt-5-nano";
+        var model = _config.OpenAIModel;
         return new Providers.FluxImprover.OpenAICompletionService(apiKey, model);
     }
 
     private Providers.FluxImprover.AnthropicCompletionService CreateAnthropicFluxImproverService()
     {
         var apiKey = _config.AnthropicApiKey ?? throw new InvalidOperationException("Anthropic API key not configured");
-        var model = _config.AnthropicModel ?? "claude-3-5-sonnet-20241022";
+        var model = _config.AnthropicModel;
         return new Providers.FluxImprover.AnthropicCompletionService(apiKey, model);
     }
 
@@ -374,7 +374,7 @@ public class AIProviderFactory
     private Providers.FluxImprover.GoogleCompletionService CreateGoogleFluxImproverService()
     {
         var apiKey = _config.GoogleApiKey ?? throw new InvalidOperationException("Google API key not configured");
-        var model = _config.GoogleModel ?? "gemini-2.0-flash";
+        var model = _config.GoogleModel;
         return new Providers.FluxImprover.GoogleCompletionService(apiKey, model);
     }
 
@@ -392,12 +392,12 @@ public class AIProviderFactory
     private void ConfigureOpenAI(IServiceCollection services)
     {
         var apiKey = _config.OpenAIApiKey;
-        var model = _config.OpenAIModel ?? "gpt-5-nano";
+        var model = _config.OpenAIModel;
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new InvalidOperationException(
-                "OpenAI API key not found. Set OPENAI_API_KEY or FILEFLUX_OPENAI_API_KEY environment variable.");
+                "OpenAI API key not found. Set the OPENAI_API_KEY environment variable or run 'fileflux set OPENAI_API_KEY <key>'.");
         }
 
         // Register text completion service
@@ -415,7 +415,7 @@ public class AIProviderFactory
     private void ConfigureAnthropic(IServiceCollection services)
     {
         var apiKey = _config.AnthropicApiKey;
-        var model = _config.AnthropicModel ?? "claude-3-5-sonnet-20241022";
+        var model = _config.AnthropicModel;
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -468,7 +468,7 @@ public class AIProviderFactory
     private void ConfigureGoogle(IServiceCollection services)
     {
         var apiKey = _config.GoogleApiKey;
-        var model = _config.GoogleModel ?? "gemini-2.0-flash";
+        var model = _config.GoogleModel;
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {

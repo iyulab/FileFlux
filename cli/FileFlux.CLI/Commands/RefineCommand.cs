@@ -125,16 +125,15 @@ public class RefineCommand : Command
             var quiet = parseResult.GetValue(quietOpt);
             var verbose = parseResult.GetValue(verboseOpt);
 
-            if (input != null)
-            {
-                await ExecuteAsync(input, output, format, !noCleanWhitespace, !noRemoveHeaders,
+            return input is null
+                ? ExitCodes.Failure
+                : await ExecuteAsync(input, output, format, !noCleanWhitespace, !noRemoveHeaders,
                     !noRemovePageNumbers, !noRestructure, enableAI, !noExtractImages,
                     minImageSize, minImageDimension, quiet, verbose, cancellationToken);
-            }
         });
     }
 
-    private static async Task ExecuteAsync(
+    private static async Task<int> ExecuteAsync(
         string input,
         string? output,
         string? format,
@@ -153,7 +152,7 @@ public class RefineCommand : Command
         if (!File.Exists(input))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         // Setup services
@@ -252,7 +251,7 @@ public class RefineCommand : Command
                 if (extracted?.Text == null)
                 {
                     AnsiConsole.MarkupLine("[red]Error:[/] Invalid extracted content JSON");
-                    return;
+                    return ExitCodes.Failure;
                 }
 
                 originalLength = extracted.Text.Length;
@@ -342,7 +341,10 @@ public class RefineCommand : Command
             {
                 AnsiConsole.WriteException(ex);
             }
+            return ExitCodes.Failure;
         }
+
+        return ExitCodes.Success;
     }
 
     private class ExtractedContent

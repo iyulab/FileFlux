@@ -121,24 +121,24 @@ export OPENAI_API_KEY="sk-..."
 export OPENAI_MODEL="gpt-5-nano"  # 선택사항
 ```
 
-### Anthropic 설정 (향후 지원 예정)
+### Anthropic 설정
 
 ```bash
-# Windows (PowerShell)
-$env:ANTHROPIC_API_KEY = "sk-ant-..."
-$env:ANTHROPIC_MODEL = "claude-3-haiku-20240307"  # 선택사항
-
-# Linux/Mac
 export ANTHROPIC_API_KEY="sk-ant-..."
-export ANTHROPIC_MODEL="claude-3-haiku-20240307"  # 선택사항
+export ANTHROPIC_MODEL="claude-haiku-5-5"  # 선택사항, 기본값: claude-haiku-5-5
 ```
 
-### 환경 변수 우선순위
+### Google Gemini 설정
 
-CLI는 다음 순서로 환경 변수를 확인합니다:
+```bash
+export GOOGLE_API_KEY="..."            # 또는 GEMINI_API_KEY
+export GOOGLE_MODEL="gemini-flash-latest"  # 선택사항, 기본값: gemini-flash-latest
+```
 
-1. `FILEFLUX_OPENAI_API_KEY` → `OPENAI_API_KEY` → `API_KEY`
-2. `FILEFLUX_PROVIDER` (명시적 공급자 지정)
+### 설정 값을 찾는 순서와 공급자 선택
+
+- 각 값은 환경 변수를 먼저 보고, 없으면 `fileflux set <key> <value>` 로 저장한 설정 파일을 본다. `fileflux get` 은 저장된 값과 쓸 수 있는 키를 보여 준다.
+- 공급자는 `MODEL_PROVIDER`(`openai` · `anthropic` · `google` · `gpustack` · `local`)로 지정한다. 지정하지 않으면 API 키가 하나뿐일 때 그 공급자를 쓰고, 둘 이상이면 `MODEL_PROVIDER` 를 요구하며, 하나도 없으면 LMSupply 로컬 모델을 쓴다(`LMSUPPLY_AUTO_FALLBACK=false` 로 끈다).
 
 ## 출력 형식
 
@@ -193,16 +193,21 @@ Document content...
 
 ## 지원 형식
 
-- **PDF** (.pdf) - 텍스트 및 이미지 추출
-- **Word** (.docx) - 전체 서식 및 메타데이터
-- **Excel** (.xlsx) - 시트, 셀, 수식
-- **PowerPoint** (.pptx) - 슬라이드 및 노트
-- **Markdown** (.md) - 구조 보존
-- **Text** (.txt) - 일반 텍스트
-- **JSON** (.json) - 구조화된 데이터
-- **CSV** (.csv) - 표 형식 데이터
-- **HTML** (.html, .htm) - 웹 콘텐츠
-- **ZIP** (.zip) - 압축 파일 내 문서 (재귀 처리)
+CLI 는 FileFlux 라이브러리가 읽는 형식을 그대로 읽는다 — 목록은 [FileFlux README 의 지원 형식 표](../../README.md)를 본다.
+`fileflux info <file>` 의 «Supported format» 도 같은 리더 목록에서 답한다.
+
+## 종료 코드
+
+| 코드 | 뜻 |
+|---|---|
+| `0` | 명령이 끝까지 실행됐다 (입력에 청크·QA 쌍이 없다는 경고만 낸 경우 포함) |
+| `1` | 명령이 실패했다 — 입력 파일 없음, AI 공급자 미설정·초기화 실패, 문서를 읽거나 처리하다 난 오류, 알 수 없는 설정 키 |
+
+스크립트·CI 에서 실패를 종료 코드로 판정할 수 있다:
+
+```bash
+fileflux extract report.pdf -o out -q || echo "extract failed"
+```
 
 ## 사용 예제
 
@@ -274,7 +279,7 @@ AI 강화를 사용하려면 환경 변수를 설정하세요:
 # OpenAI
 export OPENAI_API_KEY="sk-..."
 
-# 또는 Anthropic (향후)
+# 또는 Anthropic · Google (위 «AI 공급자 설정» 참조)
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 

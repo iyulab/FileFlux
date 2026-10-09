@@ -45,7 +45,7 @@ public class StatusCommand : Command
         table.AddRow(
             "OpenAI",
             openAIStatus ? "[green]Configured[/]" : "[grey]Not configured[/]",
-            config.OpenAIModel ?? "-",
+            config.OpenAIModel,
             openAIKeyDisplay
         );
 
@@ -55,7 +55,7 @@ public class StatusCommand : Command
         table.AddRow(
             "Anthropic",
             anthropicStatus ? "[green]Configured[/]" : "[grey]Not configured[/]",
-            config.AnthropicModel ?? "-",
+            config.AnthropicModel,
             anthropicKeyDisplay
         );
 
@@ -75,7 +75,7 @@ public class StatusCommand : Command
         table.AddRow(
             "Google Gemini",
             googleStatus ? "[green]Configured[/]" : "[grey]Not configured[/]",
-            config.GoogleModel ?? "-",
+            config.GoogleModel,
             googleKeyDisplay
         );
 

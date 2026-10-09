@@ -30,7 +30,7 @@ public class AnthropicTextCompletionService : IDocumentAnalysisService, IDisposa
     {
         Name = "Anthropic",
         Type = DocumentAnalysisProviderType.Anthropic,
-        SupportedModels = new[] { "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229" },
+        SupportedModels = [_model],
         MaxContextLength = 200000,
         InputTokenCost = 0.003m,
         OutputTokenCost = 0.015m,

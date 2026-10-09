@@ -82,14 +82,13 @@ public class QACommand : Command
             var quiet = parseResult.GetValue(quietOpt);
             var verbose = parseResult.GetValue(verboseOpt);
 
-            if (input != null)
-            {
-                await ExecuteAsync(input, output, format, pairsPerChunk, skipFilter, includeMultiHop, quiet, verbose, cancellationToken);
-            }
+            return input is null
+                ? ExitCodes.Failure
+                : await ExecuteAsync(input, output, format, pairsPerChunk, skipFilter, includeMultiHop, quiet, verbose, cancellationToken);
         });
     }
 
-    private static async Task ExecuteAsync(
+    private static async Task<int> ExecuteAsync(
         string input,
         string? output,
         string? format,
@@ -103,7 +102,7 @@ public class QACommand : Command
         if (!File.Exists(input))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         // Check AI provider
@@ -113,7 +112,7 @@ public class QACommand : Command
         if (!factory.HasAIProvider())
         {
             AnsiConsole.MarkupLine("[red]Error:[/] No AI provider configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY.");
-            return;
+            return ExitCodes.Failure;
         }
 
         FluxImproverResult? fluxImproverResult = null;
@@ -123,13 +122,13 @@ public class QACommand : Command
             if (fluxImproverResult is null)
             {
                 AnsiConsole.MarkupLine("[red]Error:[/] Failed to initialize FluxImprover services.");
-                return;
+                return ExitCodes.Failure;
             }
         }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] Failed to initialize AI services: {Markup.Escape(ex.Message)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         var fluxImprover = fluxImproverResult.Services;
@@ -156,7 +155,7 @@ public class QACommand : Command
             if (chunks.Count == 0)
             {
                 AnsiConsole.MarkupLine("[yellow]Warning:[/] No chunks found in input file.");
-                return;
+                return ExitCodes.Success;
             }
 
             if (!quiet)
@@ -278,6 +277,7 @@ public class QACommand : Command
             {
                 AnsiConsole.WriteException(ex);
             }
+            return ExitCodes.Failure;
         }
         finally
         {
@@ -287,6 +287,8 @@ public class QACommand : Command
                 await fluxImproverResult.DisposeAsync().ConfigureAwait(false);
             }
         }
+
+        return ExitCodes.Success;
     }
 
     private static async Task<List<ChunkInput>> LoadChunksAsync(string path, CancellationToken cancellationToken)

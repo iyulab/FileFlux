@@ -90,14 +90,13 @@ public class EvaluateCommand : Command
             var quiet = parseResult.GetValue(quietOpt);
             var verbose = parseResult.GetValue(verboseOpt);
 
-            if (input != null)
-            {
-                await ExecuteAsync(input, output, format, faithfulness, relevancy, answerability, threshold, quiet, verbose, cancellationToken);
-            }
+            return input is null
+                ? ExitCodes.Failure
+                : await ExecuteAsync(input, output, format, faithfulness, relevancy, answerability, threshold, quiet, verbose, cancellationToken);
         });
     }
 
-    private static async Task ExecuteAsync(
+    private static async Task<int> ExecuteAsync(
         string input,
         string? output,
         string? format,
@@ -112,7 +111,7 @@ public class EvaluateCommand : Command
         if (!File.Exists(input))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         // Check AI provider
@@ -122,7 +121,7 @@ public class EvaluateCommand : Command
         if (!factory.HasAIProvider())
         {
             AnsiConsole.MarkupLine("[red]Error:[/] No AI provider configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY.");
-            return;
+            return ExitCodes.Failure;
         }
 
         FluxImproverResult? fluxImproverResult = null;
@@ -132,13 +131,13 @@ public class EvaluateCommand : Command
             if (fluxImproverResult is null)
             {
                 AnsiConsole.MarkupLine("[red]Error:[/] Failed to initialize FluxImprover services.");
-                return;
+                return ExitCodes.Failure;
             }
         }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] Failed to initialize AI services: {Markup.Escape(ex.Message)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         var fluxImprover = fluxImproverResult.Services;
@@ -169,7 +168,7 @@ public class EvaluateCommand : Command
             if (qaPairs.Count == 0)
             {
                 AnsiConsole.MarkupLine("[yellow]Warning:[/] No QA pairs found in input file.");
-                return;
+                return ExitCodes.Success;
             }
 
             if (!quiet)
@@ -318,6 +317,7 @@ public class EvaluateCommand : Command
             {
                 AnsiConsole.WriteException(ex);
             }
+            return ExitCodes.Failure;
         }
         finally
         {
@@ -327,6 +327,8 @@ public class EvaluateCommand : Command
                 await fluxImproverResult.DisposeAsync().ConfigureAwait(false);
             }
         }
+
+        return ExitCodes.Success;
     }
 
     private static async Task<List<QAInput>> LoadQAPairsAsync(string path, CancellationToken cancellationToken)

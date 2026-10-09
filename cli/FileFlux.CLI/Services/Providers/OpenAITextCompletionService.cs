@@ -13,6 +13,7 @@ namespace FileFlux.CLI.Services.Providers;
 public class OpenAIDocumentAnalysisService : IDocumentAnalysisService
 {
     private readonly ChatClient _chatClient;
+    private readonly string _model;
 
     public OpenAIDocumentAnalysisService(string apiKey, string model, string? endpoint = null)
     {
@@ -31,13 +32,14 @@ public class OpenAIDocumentAnalysisService : IDocumentAnalysisService
             client = new OpenAIClient(apiKey);
         }
         _chatClient = client.GetChatClient(model);
+        _model = model;
     }
 
     public DocumentAnalysisServiceInfo ProviderInfo => new()
     {
         Name = "OpenAI",
         Type = DocumentAnalysisProviderType.OpenAI,
-        SupportedModels = new[] { "gpt-5-nano", "gpt-4o", "gpt-4o-mini" },
+        SupportedModels = [_model],
         MaxContextLength = 128000,
         InputTokenCost = 0.00015m,
         OutputTokenCost = 0.0006m,

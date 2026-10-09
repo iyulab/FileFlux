@@ -19,14 +19,20 @@ public class ConfigManager
     // Valid configuration keys
     public static readonly Dictionary<string, string> ValidKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["MODEL_PROVIDER"] = "AI provider (openai, anthropic, gpustack)",
+        ["MODEL_PROVIDER"] = "AI provider (openai, anthropic, google, gpustack, local)",
         ["OPENAI_API_KEY"] = "OpenAI API key",
-        ["OPENAI_MODEL"] = "OpenAI model name",
+        ["OPENAI_MODEL"] = $"OpenAI model name (default {CliEnvironmentConfig.DefaultOpenAIModel})",
         ["ANTHROPIC_API_KEY"] = "Anthropic API key",
-        ["ANTHROPIC_MODEL"] = "Anthropic model name",
+        ["ANTHROPIC_MODEL"] = $"Anthropic model name (default {CliEnvironmentConfig.DefaultAnthropicModel})",
+        ["GOOGLE_API_KEY"] = "Google Gemini API key",
+        ["GOOGLE_MODEL"] = $"Google Gemini model name (default {CliEnvironmentConfig.DefaultGoogleModel})",
         ["GPUSTACK_API_KEY"] = "GPU-Stack API key",
         ["GPUSTACK_ENDPOINT"] = "GPU-Stack endpoint URL",
-        ["GPUSTACK_MODEL"] = "GPU-Stack model name"
+        ["GPUSTACK_MODEL"] = "GPU-Stack model name",
+        ["LMSUPPLY_ENABLED"] = "Local AI through LMSupply (true/false, default true)",
+        ["LMSUPPLY_AUTO_FALLBACK"] = "Use local AI when no API key is set (true/false, default true)",
+        ["LMSUPPLY_MODEL"] = "LMSupply generator model (default: LMSupply's default)",
+        ["LMSUPPLY_USE_GPU"] = "GPU acceleration for local AI (true/false, default true)"
     };
 
     public ConfigManager()

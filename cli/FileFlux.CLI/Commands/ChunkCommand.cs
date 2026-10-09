@@ -127,16 +127,15 @@ public class ChunkCommand : Command
             var minImageDimension = parseResult.GetValue(minImageDimensionOpt);
             var verbose = parseResult.GetValue(verboseOpt);
 
-            if (input != null)
-            {
-                await ExecuteAsync(input, output, format, strategy, maxSize, overlap,
+            return input is null
+                ? ExitCodes.Failure
+                : await ExecuteAsync(input, output, format, strategy, maxSize, overlap,
                     enableRefine, enableEnrich && enableAI, enableAI, quiet,
                     !noExtractImages, minImageSize, minImageDimension, verbose, cancellationToken);
-            }
         });
     }
 
-    private static async Task ExecuteAsync(
+    private static async Task<int> ExecuteAsync(
         string input,
         string? output,
         string? format,
@@ -156,7 +155,7 @@ public class ChunkCommand : Command
         if (!File.Exists(input))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         // Setup services
@@ -513,6 +512,7 @@ public class ChunkCommand : Command
             {
                 AnsiConsole.WriteException(ex);
             }
+            return ExitCodes.Failure;
         }
         finally
         {
@@ -522,6 +522,8 @@ public class ChunkCommand : Command
                 await fluxImproverResult.DisposeAsync().ConfigureAwait(false);
             }
         }
+
+        return ExitCodes.Success;
     }
 
     #region CJK Detection

@@ -143,16 +143,15 @@ public class ProcessCommand : Command
             // AI enabled by default (via LMSupply), disabled with --no-ai
             var enableAI = !noAi;
 
-            if (input != null)
-            {
-                await ExecuteAsync(input, output, format, !noRefine, !noEnrich && enableAI,
+            return input is null
+                ? ExitCodes.Failure
+                : await ExecuteAsync(input, output, format, !noRefine, !noEnrich && enableAI,
                     strategy, maxSize, overlap, enableAI, !noExtractImages,
                     minImageSize, minImageDimension, quiet, verbose, cancellationToken);
-            }
         });
     }
 
-    private static async Task ExecuteAsync(
+    private static async Task<int> ExecuteAsync(
         string input,
         string? output,
         string? format,
@@ -172,7 +171,7 @@ public class ProcessCommand : Command
         if (!File.Exists(input))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         // Setup services
@@ -747,6 +746,7 @@ public class ProcessCommand : Command
             {
                 AnsiConsole.WriteException(ex);
             }
+            return ExitCodes.Failure;
         }
         finally
         {
@@ -756,6 +756,8 @@ public class ProcessCommand : Command
                 await fluxImproverResult.DisposeAsync().ConfigureAwait(false);
             }
         }
+
+        return ExitCodes.Success;
     }
 
     #region CJK Detection

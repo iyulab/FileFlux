@@ -25,19 +25,18 @@ public class SetCommand : Command
         Arguments.Add(keyArg);
         Arguments.Add(valueArg);
 
-        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        this.SetAction(parseResult =>
         {
             var key = parseResult.GetValue(keyArg);
             var value = parseResult.GetValue(valueArg);
 
-            if (key != null && value != null)
-            {
-                await ExecuteAsync(key, value);
-            }
+            return key is null || value is null
+                ? ExitCodes.Failure
+                : Execute(key, value);
         });
     }
 
-    private static Task ExecuteAsync(string key, string value)
+    private static int Execute(string key, string value)
     {
         // Validate key
         if (!ConfigManager.IsValidKey(key))
@@ -49,7 +48,7 @@ public class SetCommand : Command
             {
                 AnsiConsole.MarkupLine($"  [grey]{k,-20}[/] {desc}");
             }
-            return Task.CompletedTask;
+            return ExitCodes.Failure;
         }
 
         var configManager = new ConfigManager();
@@ -62,7 +61,7 @@ public class SetCommand : Command
         configManager.Set(key, value);
         AnsiConsole.MarkupLine($"[green]✓[/] Set [blue]{key.ToUpperInvariant()}[/] = {displayValue}");
 
-        return Task.CompletedTask;
+        return ExitCodes.Success;
     }
 
     private static string MaskValue(string value)

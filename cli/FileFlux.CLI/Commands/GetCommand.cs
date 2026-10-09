@@ -20,14 +20,10 @@ public class GetCommand : Command
 
         Arguments.Add(keyArg);
 
-        this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
-        {
-            var key = parseResult.GetValue(keyArg);
-            await ExecuteAsync(key);
-        });
+        this.SetAction(parseResult => Execute(parseResult.GetValue(keyArg)));
     }
 
-    private static Task ExecuteAsync(string? key)
+    private static int Execute(string? key)
     {
         var configManager = new ConfigManager();
 
@@ -35,14 +31,11 @@ public class GetCommand : Command
         {
             // List all configuration
             ListAll(configManager);
-        }
-        else
-        {
-            // Get specific key
-            GetSpecific(configManager, key);
+            return ExitCodes.Success;
         }
 
-        return Task.CompletedTask;
+        // Get specific key
+        return GetSpecific(configManager, key);
     }
 
     private static void ListAll(ConfigManager configManager)
@@ -86,14 +79,14 @@ public class GetCommand : Command
         AnsiConsole.Write(table);
     }
 
-    private static void GetSpecific(ConfigManager configManager, string key)
+    private static int GetSpecific(ConfigManager configManager, string key)
     {
         var normalizedKey = key.ToUpperInvariant().Replace("-", "_");
 
         if (!ConfigManager.IsValidKey(key))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] Unknown configuration key: {Markup.Escape(key)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         var value = configManager.Get(key);
@@ -119,6 +112,8 @@ public class GetCommand : Command
                 : value;
             AnsiConsole.MarkupLine($"[blue]{normalizedKey}[/] = {displayValue}");
         }
+
+        return ExitCodes.Success;
     }
 
     private static string MaskValue(string value)

@@ -14,18 +14,24 @@ public class CliEnvironmentConfig
         _configManager = new ConfigManager();
     }
 
+    // Models used when none is configured. Google's default is the provider's moving alias, so it keeps
+    // working when a dated model is retired.
+    public const string DefaultOpenAIModel = "gpt-5-nano";
+    public const string DefaultAnthropicModel = "claude-haiku-5-5";
+    public const string DefaultGoogleModel = "gemini-flash-latest";
+
     // Provider selection
     public string? Provider => GetValue("MODEL_PROVIDER");
 
     // OpenAI configuration
     public string? OpenAIApiKey => GetValue("OPENAI_API_KEY");
 
-    public string? OpenAIModel => GetValue("OPENAI_MODEL") ?? "gpt-5-nano";
+    public string OpenAIModel => GetValue("OPENAI_MODEL") ?? DefaultOpenAIModel;
 
     // Anthropic configuration
     public string? AnthropicApiKey => GetValue("ANTHROPIC_API_KEY");
 
-    public string? AnthropicModel => GetValue("ANTHROPIC_MODEL") ?? "claude-3-haiku-20240307";
+    public string AnthropicModel => GetValue("ANTHROPIC_MODEL") ?? DefaultAnthropicModel;
 
     // GPU-Stack configuration
     public string? GpuStackApiKey => GetValue("GPUSTACK_API_KEY");
@@ -37,7 +43,7 @@ public class CliEnvironmentConfig
     // Google Gemini configuration
     public string? GoogleApiKey => GetValue("GOOGLE_API_KEY") ?? GetValue("GEMINI_API_KEY");
 
-    public string? GoogleModel => GetValue("GOOGLE_MODEL") ?? GetValue("GEMINI_MODEL") ?? "gemini-2.0-flash";
+    public string GoogleModel => GetValue("GOOGLE_MODEL") ?? GetValue("GEMINI_MODEL") ?? DefaultGoogleModel;
 
     // LMSupply configuration (local AI fallback)
     public bool LMSupplyEnabled => GetValue("LMSUPPLY_ENABLED")?.ToLowerInvariant() != "false";

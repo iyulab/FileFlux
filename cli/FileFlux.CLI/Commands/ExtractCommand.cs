@@ -87,15 +87,14 @@ public class ExtractCommand : Command
             var minImageDimension = parseResult.GetValue(minImageDimensionOpt);
             var verbose = parseResult.GetValue(verboseOpt);
 
-            if (input != null)
-            {
-                await ExecuteAsync(input, output, format, quiet, enableAI, !noExtractImages,
+            return input is null
+                ? ExitCodes.Failure
+                : await ExecuteAsync(input, output, format, quiet, enableAI, !noExtractImages,
                     minImageSize, minImageDimension, verbose, cancellationToken);
-            }
         });
     }
 
-    private static async Task ExecuteAsync(
+    private static async Task<int> ExecuteAsync(
         string input,
         string? output,
         string? format,
@@ -110,7 +109,7 @@ public class ExtractCommand : Command
         if (!File.Exists(input))
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] File not found: {Markup.Escape(input)}");
-            return;
+            return ExitCodes.Failure;
         }
 
         // Setup services
@@ -233,6 +232,9 @@ public class ExtractCommand : Command
             {
                 AnsiConsole.WriteException(ex);
             }
+            return ExitCodes.Failure;
         }
+
+        return ExitCodes.Success;
     }
 }

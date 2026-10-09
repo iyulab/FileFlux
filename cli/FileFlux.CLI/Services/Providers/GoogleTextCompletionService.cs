@@ -37,7 +37,7 @@ public class GoogleTextCompletionService : IDocumentAnalysisService, IDisposable
     {
         Name = "Google Gemini",
         Type = DocumentAnalysisProviderType.Google,
-        SupportedModels = new[] { "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro" },
+        SupportedModels = [_model],
         MaxContextLength = 1000000,
         InputTokenCost = 0.00015m,
         OutputTokenCost = 0.0006m,

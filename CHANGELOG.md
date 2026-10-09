@@ -5,6 +5,25 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Breaking** — **`fileflux` exits with code 1 when a command fails** (missing input, no AI provider, an error while
+  reading or processing, an unknown configuration key); it exited 0 after printing the error, so a script or CI step could
+  not tell failure from success. A command that only warns that its input holds no chunks or QA pairs still exits 0. The
+  CLI README lists the codes. Migration: a script that ran `fileflux` and ignored failures now sees them.
+
+### Fixed
+- **The CLI's default Anthropic and Google models work again.** With no `ANTHROPIC_MODEL`/`GOOGLE_MODEL` set the CLI asked
+  for `claude-3-haiku-20240307`, `claude-3-5-sonnet-20241022` or `gemini-2.0-flash`, which the providers no longer serve.
+  The defaults are now `claude-haiku-5-5` and `gemini-flash-latest`, defined once (`OPENAI_MODEL` still defaults to
+  `gpt-5-nano`).
+- **`fileflux info` says a format is supported when FileFlux reads it.** It checked a fixed list that left out `.doc`,
+  `.xls`, `.ppt`, `.hwp`, `.hwpx`, audio and more; it now asks the registered readers.
+- **`fileflux set`/`get` accept every key the CLI reads**: `GOOGLE_API_KEY`, `GOOGLE_MODEL` and the `LMSUPPLY_*` keys were
+  read from the configuration file but refused by `set`. `fileflux get` shows each model key's default.
+- The CLI banner shows the installed version (it always said 0.4.4).
+
 ## [0.53.0] - 2026-10-09
 
 ### Changed

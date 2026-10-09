@@ -62,7 +62,7 @@ class Program
         AnsiConsole.Write(banner);
 
         AnsiConsole.MarkupLine("[grey]Document Processing CLI for RAG Systems[/]");
-        AnsiConsole.MarkupLine("[grey]Version 0.4.4[/]");
+        AnsiConsole.MarkupLine($"[grey]Version {typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "unknown"}[/]");
         AnsiConsole.WriteLine();
 
         var table = new Table();
