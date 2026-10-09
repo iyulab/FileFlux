@@ -1,149 +1,46 @@
 namespace FileFlux.Core;
 
 /// <summary>
-/// Standard property keys for DocumentChunk.Props dictionary.
-/// Ensures consistent key naming across all chunking strategies and processors.
+/// Keys under which FileFlux writes values into <see cref="DocumentChunk.Props"/>.
+/// Every key listed here is set by a FileFlux component; a key is absent from a chunk when the step that writes it did
+/// not run or had nothing to record.
 ///
-/// <para><b>Usage Guidelines:</b></para>
+/// <para><b>Who writes which group:</b></para>
 /// <list type="bullet">
 ///   <item>
-///     <term>DocumentChunk.Props</term>
-///     <description>Chunk-specific properties added during processing (enrichment, quality metrics, navigation)</description>
+///     <term><c>hierarchy.*</c></term>
+///     <description>The chunking pipeline: the heading path of the chunk (<see cref="HierarchyPath"/>) and the Markdown
+///     heading level lifted from its structural marker (<see cref="HierarchyHeadingLevel"/>).</description>
 ///   </item>
 ///   <item>
-///     <term>DocumentMetadata.CustomProperties</term>
-///     <description>Document-level metadata inherited from source (author, title, processing options)</description>
+///     <term><c>document.*</c></term>
+///     <description><c>FluxDocumentProcessor.ProcessAsync</c>, from the parsed document structure (topic and
+///     keywords), on every chunk of the document. The stateful processor from <c>IDocumentProcessorFactory</c> does
+///     not set them.</description>
+///   </item>
+///   <item>
+///     <term><c>enriched.*</c></term>
+///     <description>LLM enrichment (FluxImprover), when an enrichment service is configured and enrichment is enabled:
+///     summary, keywords and contextual text, by both processors (the CLI sets summary and keywords). The pre-assessment quality score
+///     (<see cref="QualityScore"/>) and the skip flag (<see cref="EnrichmentSkipped"/>) are set only by
+///     <c>FluxDocumentProcessor.ProcessAsync</c> with <c>ChunkingOptions.EnableConditionalEnrichment</c>.</description>
 ///   </item>
 /// </list>
 ///
-/// <para><b>Key Naming Convention:</b></para>
-/// <list type="bullet">
-///   <item>Format: "category.propertyName" (e.g., "enriched.summary", "quality.overall")</item>
-///   <item>Categories: context, nav, quality, hierarchy, source, embedding, metadata, enriched, document</item>
-/// </list>
+/// <para>Document-level metadata inherited from the source (author, title, processing options) lives in
+/// <c>DocumentMetadata.CustomProperties</c>, not here.</para>
 /// </summary>
 public static class ChunkPropsKeys
 {
     // ========================================
-    // Context-related keys
+    // Hierarchy keys (chunking pipeline)
     // ========================================
 
-    /// <summary>Breadcrumb path showing chunk location in document hierarchy</summary>
-    public const string ContextBreadcrumb = "context.breadcrumb";
-
-    /// <summary>Title of the source document</summary>
-    public const string ContextDocumentTitle = "context.documentTitle";
-
-    /// <summary>Type/category of the source document</summary>
-    public const string ContextDocumentType = "context.documentType";
-
-    // ========================================
-    // Navigation keys for chunk linking
-    // ========================================
-
-    /// <summary>ID of the previous chunk in sequence</summary>
-    public const string PreviousChunkId = "nav.previousChunkId";
-
-    /// <summary>ID of the next chunk in sequence</summary>
-    public const string NextChunkId = "nav.nextChunkId";
-
-    /// <summary>ID of the parent chunk in hierarchy</summary>
-    public const string ParentChunkId = "nav.parentChunkId";
-
-    // ========================================
-    // Quality metrics keys
-    // ========================================
-
-    /// <summary>Semantic completeness score (0.0-1.0)</summary>
-    public const string QualitySemanticCompleteness = "quality.semanticCompleteness";
-
-    /// <summary>Context independence score (0.0-1.0)</summary>
-    public const string QualityContextIndependence = "quality.contextIndependence";
-
-    /// <summary>Information density score (0.0-1.0)</summary>
-    public const string QualityInformationDensity = "quality.informationDensity";
-
-    /// <summary>Boundary sharpness score (0.0-1.0)</summary>
-    public const string QualityBoundarySharpness = "quality.boundarySharpness";
-
-    /// <summary>Overall quality score (0.0-1.0)</summary>
-    public const string QualityOverall = "quality.overall";
-
-    /// <summary>Relevance score for retrieval (0.0-1.0)</summary>
-    public const string QualityRelevanceScore = "quality.relevanceScore";
-
-    /// <summary>Completeness score for content coverage (0.0-1.0)</summary>
-    public const string QualityCompleteness = "quality.completeness";
-
-    // ========================================
-    // Hierarchy keys
-    // ========================================
-
-    /// <summary>Level in document hierarchy (0 = root)</summary>
-    public const string HierarchyLevel = "hierarchy.level";
-
-    /// <summary>Type of hierarchy node (section, paragraph, etc.)</summary>
-    public const string HierarchyType = "hierarchy.type";
-
-    /// <summary>Path in hierarchy tree</summary>
+    /// <summary>Heading path of the chunk, joined with <c>" &gt; "</c> (string).</summary>
     public const string HierarchyPath = "hierarchy.path";
 
     /// <summary>Markdown heading level (1-6) lifted from the chunk's structural marker before the marker is stripped from content.</summary>
     public const string HierarchyHeadingLevel = "hierarchy.headingLevel";
-
-    /// <summary>Chunk type classification</summary>
-    public const string HierarchyChunkType = "hierarchy.chunkType";
-
-    /// <summary>Group ID for merged chunks</summary>
-    public const string MergeGroupId = "hierarchy.mergeGroupId";
-
-    /// <summary>IDs of child chunks</summary>
-    public const string ChildChunkIds = "hierarchy.childChunkIds";
-
-    // ========================================
-    // Source position keys
-    // ========================================
-
-    /// <summary>Starting page number in source document</summary>
-    public const string SourceStartPage = "source.startPage";
-
-    /// <summary>Ending page number in source document</summary>
-    public const string SourceEndPage = "source.endPage";
-
-    /// <summary>Starting character offset in source text</summary>
-    public const string SourceStartOffset = "source.startOffset";
-
-    /// <summary>Ending character offset in source text</summary>
-    public const string SourceEndOffset = "source.endOffset";
-
-    // ========================================
-    // Embedding-related keys
-    // ========================================
-
-    /// <summary>Embedding vector (float array)</summary>
-    public const string EmbeddingVector = "embedding.vector";
-
-    /// <summary>Model used for embedding generation</summary>
-    public const string EmbeddingModel = "embedding.model";
-
-    /// <summary>Embedding vector dimensions</summary>
-    public const string EmbeddingDimensions = "embedding.dimensions";
-
-    // ========================================
-    // Metadata keys
-    // ========================================
-
-    /// <summary>Detected language (ISO 639-1 code)</summary>
-    public const string MetadataLanguage = "metadata.language";
-
-    /// <summary>Estimated token count</summary>
-    public const string MetadataTokenCount = "metadata.tokenCount";
-
-    /// <summary>Word count</summary>
-    public const string MetadataWordCount = "metadata.wordCount";
-
-    /// <summary>Chunk creation timestamp</summary>
-    public const string MetadataCreatedAt = "metadata.createdAt";
 
     // ========================================
     // Document-level keys (from parsed structure)
@@ -154,16 +51,6 @@ public static class ChunkPropsKeys
 
     /// <summary>Document keywords extracted from structure</summary>
     public const string DocumentKeywords = "document.keywords";
-
-    // ========================================
-    // Content classification keys
-    // ========================================
-
-    /// <summary>Content type (text, code, table, list, heading)</summary>
-    public const string ContentType = "content.type";
-
-    /// <summary>Structural role (content, title, code_block, table_content, list_content)</summary>
-    public const string StructuralRole = "content.structuralRole";
 
     // ========================================
     // Enrichment keys (from FluxImprover)
@@ -178,13 +65,10 @@ public static class ChunkPropsKeys
     /// <summary>Contextualized text with surrounding context</summary>
     public const string EnrichedContextualText = "enriched.contextualText";
 
-    /// <summary>AI-generated topics (string, comma-separated)</summary>
-    public const string EnrichedTopics = "enriched.topics";
-
-    /// <summary>Quality score from heuristic assessment (0.0-1.0)</summary>
+    /// <summary>Quality score from the conditional-enrichment pre-assessment (float, 0.0-1.0)</summary>
     public const string QualityScore = "enriched.qualityScore";
 
-    /// <summary>Whether enrichment was skipped due to high quality score</summary>
+    /// <summary>Whether conditional enrichment skipped the chunk because its quality score was high enough (bool)</summary>
     public const string EnrichmentSkipped = "enriched.skipped";
 
     // ========================================

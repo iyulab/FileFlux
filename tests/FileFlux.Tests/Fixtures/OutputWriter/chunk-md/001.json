@@ -15,9 +15,7 @@
   "quality": {
     "overall": 0.9,
     "density": 0.4,
-    "importance": 0.6,
-    "semanticCompleteness": 0.75,
-    "contextIndependence": 0.5
+    "importance": 0.6
   },
   "enrichment": {
     "summary": "Opening paragraph",

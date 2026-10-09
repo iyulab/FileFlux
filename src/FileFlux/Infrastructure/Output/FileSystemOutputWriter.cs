@@ -501,12 +501,6 @@ public class FileSystemOutputWriter : IOutputWriter
         if (chunk.Importance > 0)
             quality["importance"] = Math.Round(chunk.Importance, 3);
 
-        if (chunk.Props.TryGetValue(ChunkPropsKeys.QualitySemanticCompleteness, out var semantic))
-            quality["semanticCompleteness"] = semantic;
-
-        if (chunk.Props.TryGetValue(ChunkPropsKeys.QualityContextIndependence, out var independence))
-            quality["contextIndependence"] = independence;
-
         return quality.Count > 0 ? quality : null;
     }
 

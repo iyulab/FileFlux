@@ -473,7 +473,7 @@ public class ChunkCommand : Command
                 // Summary table
                 var totalChars = chunks.Sum(c => c.Content.Length);
                 var avgChunkSize = chunks.Length > 0 ? totalChars / chunks.Length : 0;
-                var enrichedCount = chunks.Count(c => c.Props.Keys.Any(k => k.StartsWith("enriched_")));
+                var enrichedCount = chunks.Count(c => ChunkPropsKeys.HasEnrichment(c.Props));
 
                 var table = new Table();
                 table.AddColumn("Metric");

@@ -766,9 +766,9 @@ public sealed partial class FluxDocumentProcessor
                         chunks[i].Props[ChunkPropsKeys.EnrichedKeywords] = keywords;
 
                     // Include quality metrics if available
-                    if (enrichedChunks[i].Metadata?.TryGetValue("quality_score", out var qualityScore) == true)
+                    if (enrichedChunks[i].Metadata?.TryGetValue(EnrichmentMetadataKeys.QualityScore, out var qualityScore) == true)
                         chunks[i].Props[ChunkPropsKeys.QualityScore] = qualityScore;
-                    if (enrichedChunks[i].Metadata?.TryGetValue("was_skipped", out var wasSkipped) == true)
+                    if (enrichedChunks[i].Metadata?.TryGetValue(EnrichmentMetadataKeys.WasSkipped, out var wasSkipped) == true)
                         chunks[i].Props[ChunkPropsKeys.EnrichmentSkipped] = wasSkipped;
                 }
             }

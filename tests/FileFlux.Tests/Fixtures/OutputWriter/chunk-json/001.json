@@ -37,8 +37,6 @@
     "document.topic": "Finance",
     "hierarchy.path": "Report > Intro",
     "enriched.contextualText": "Report: opening paragraph",
-    "quality.semanticCompleteness": 0.75,
-    "quality.contextIndependence": 0.5,
     "custom.flag": true,
     "custom.count": 3,
     "custom.when": "2026-01-02T03:04:05Z",

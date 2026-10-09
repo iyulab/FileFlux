@@ -25,11 +25,6 @@ public class MarkdownOutputWriter : IOutputWriter
             sb.AppendLine();
             sb.AppendLine(CultureInfo.InvariantCulture, $"**Length:** {chunk.Content.Length} characters");
 
-            if (ChunkPropsKeys.TryGetValue<string>(chunk.Props, ChunkPropsKeys.EnrichedTopics, out var topicsStr) && !string.IsNullOrEmpty(topicsStr))
-            {
-                sb.AppendLine(CultureInfo.InvariantCulture, $"**Topics:** {topicsStr}");
-            }
-
             if (chunk.EnrichedKeywords is { Count: > 0 } keywordsList)
             {
                 sb.AppendLine(CultureInfo.InvariantCulture, $"**Keywords:** {string.Join(", ", keywordsList)}");

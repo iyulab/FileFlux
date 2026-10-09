@@ -187,7 +187,6 @@ Document content...
 **Metadata**:
 - Chunk Index: 0
 - Position: 0-512
-- Topics: AI, machine learning
 - Quality Score: 0.95
 ```
 

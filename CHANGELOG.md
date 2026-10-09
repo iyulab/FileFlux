@@ -36,6 +36,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking** — **`FileFlux.Core.DocumentContent`, `TableInfo` and `ContentSection` are gone** (package `FileFlux.Core`);
   `ImageInfo` stays. Nothing produced or read them. Migration: read `RawContent` (`Text`, `Tables`, `Images`) from an
   `IDocumentReader`.
+- **Breaking** — **`ChunkPropsKeys` keeps only the keys FileFlux writes** (package `FileFlux.Core`). 32 constants are
+  gone because no FileFlux code ever put a value under them, so a reader of those keys always got nothing:
+  `context.breadcrumb|documentTitle|documentType`, `nav.previousChunkId|nextChunkId|parentChunkId`,
+  `quality.semanticCompleteness|contextIndependence|informationDensity|boundarySharpness|overall|relevanceScore|completeness`,
+  `hierarchy.level|type|chunkType|mergeGroupId|childChunkIds`, `source.startPage|endPage|startOffset|endOffset`,
+  `embedding.vector|model|dimensions`, `metadata.language|tokenCount|wordCount|createdAt`,
+  `content.type|structuralRole`, `enriched.topics`. The keys that remain are `hierarchy.path`, `hierarchy.headingLevel`,
+  `document.topic`, `document.keywords` and `enriched.*` (`summary`, `keywords`, `contextualText`, `qualityScore`,
+  `skipped`). Migration: a value under these keys never existed; drop the lookup. Where FileFlux has the fact, it is a
+  typed member of `DocumentChunk` (`Location.StartPage`/`EndPage`/`StartChar`/`EndChar`/`HeadingPath`, `Tokens`,
+  `Quality`).
+
+### Fixed
+- **`enriched.qualityScore` and `enriched.skipped` are now set when conditional enrichment runs.** The processor looked
+  for the enrichment service's quality score and skip flag under names the service never used, so neither key was ever
+  written and the output's `skippedEnrichments` count was always 0.
+- **The CLI's "enriched chunks" count in the run summary counts enriched chunks.** It matched an `enriched_` key prefix
+  that no chunk carries and always showed 0.
+
+### Dependencies
+- Undoc 0.18.0 -> 0.19.0. Slide rendering (`ExtractOptions.SlideRendering`) now paints the pictures and backgrounds a slide
+  inherits from its layout and master. A template deck with a picture background and white text rendered as an almost
+  blank page before, with the pictures counted in `RenderedPage.UnpaintedImages`. Tables, SmartArt and gradients are now
+  drawn too.
 
 ## [0.55.0] - 2026-10-09
 
