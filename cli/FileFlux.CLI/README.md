@@ -73,7 +73,7 @@ fileflux chunk document.docx -m 1024 -l 128
 - `-l, --overlap <size>` - 청크 간 중복 크기 (토큰 단위, 기본값: 64)
 - `-r, --refine` - 청킹 전에 정제 단계 실행 (머리글·바닥글·공백 정리, 구조 재정렬)
 - `-a, --ai` - AI 기능 사용 (청크 강화, 이미지 분석). AI 공급자 필요
-- `-e, --enrich` - 청킹 뒤 AI 강화 단계 실행 (요약·키워드). **`--ai` 와 함께 줘야 한다** — `--ai` 없이 주면 아무 일도 하지 않는다
+- `-e, --enrich` - 청킹 뒤 AI 강화 단계 실행 (요약·키워드). **`--ai` 와 함께 줘야 한다** — `--ai` 없이 주면 입력을 읽기 전에 오류(종료 코드 1)로 끝난다
 - `--no-extract-images` · `--min-image-size <bytes>` · `--min-image-dimension <px>` - 이미지 추출 설정
 - `-q, --quiet` - 최소 출력 · `-v, --verbose` - 상세 출력
 
