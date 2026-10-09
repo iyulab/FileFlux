@@ -5,6 +5,25 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Presentation slides can be rendered as images.** `ExtractOptions.SlideRendering` (`.pptx`): the slides
+  `SlideRenderingOptions.SelectSlides` picks are rendered (Undoc 0.18.0) and added to `RawContent.Images` as PNGs with
+  their slide number and `ImageInfo.RenderedPage` (size and what the renderer could not paint). Selection reads each
+  slide's `SlideComposition`; `SlideRenderingOptions.DrawnSlides` picks slides drawn with connectors, charts/SmartArt
+  or several shapes — the flow and architecture diagrams that reach the text only as a list of labels. With an
+  image-to-text service the multimodal reader describes each rendered slide as `Slide N (rendered):`.
+
+### Fixed
+- **Breaking** — **The multimodal presentation reader describes images on the stream path.** It described pictures only
+  when given a file path; a caller reading from a stream got none. Both paths now describe the images the base reader
+  extracted, so `ExtractImages = false` and `MaxImageSize` apply to the descriptions too. Migration: stream callers with
+  an `IImageToTextService` registered see image descriptions appended to the text, as file callers always did.
+
+### Dependencies
+- `Undoc` 0.17.0 → 0.18.0 (slide rendering).
+
 ## [0.54.0] - 2026-10-09
 
 ### Changed

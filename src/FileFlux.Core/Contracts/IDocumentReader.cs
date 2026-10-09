@@ -98,6 +98,13 @@ public class ExtractOptions
     public PageReadingOptions? PageReading { get; set; }
 
     /// <summary>
+    /// Render the presentation slides <see cref="SlideRenderingOptions.SelectSlides"/> picks and add each to
+    /// <see cref="RawContent.Images"/> as a PNG with its slide number (<c>.pptx</c>). Null (default): no slide is rendered.
+    /// With <see cref="ExtractImages"/> false nothing is rendered and a warning says so.
+    /// </summary>
+    public SlideRenderingOptions? SlideRendering { get; set; }
+
+    /// <summary>
     /// Default extraction options.
     /// </summary>
     public static ExtractOptions Default => new();

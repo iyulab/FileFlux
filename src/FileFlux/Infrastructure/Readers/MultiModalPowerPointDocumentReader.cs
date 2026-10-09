@@ -2,7 +2,6 @@ using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
-using Undoc;
 using System.Globalization;
 
 namespace FileFlux.Infrastructure.Readers;
@@ -57,79 +56,62 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
 
     public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
-        // 기본 PowerPoint 텍스트 추출
-        var baseContent = await _basePowerPointReader.ExtractAsync(filePath, options, cancellationToken);
-
-        // 이미지 서비스가 없으면 기본 결과 반환
-        if (_imageToTextService == null)
-            return baseContent;
-
-        // 이미지 처리가 가능한 경우 향상된 추출 수행
-        return await ExtractWithImageProcessing(filePath, baseContent, cancellationToken);
+        var baseContent = await _basePowerPointReader.ExtractAsync(filePath, options, cancellationToken).ConfigureAwait(false);
+        return await DescribeImagesAsync(baseContent, Path.GetFileNameWithoutExtension(filePath), cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
-        // 기본 PowerPoint 텍스트 추출
-        var baseContent = await _basePowerPointReader.ExtractAsync(stream, fileName, options, cancellationToken);
-
-        // 이미지 서비스가 없으면 기본 결과 반환
-        if (_imageToTextService == null)
-            return baseContent;
-
-        // 스트림 기반 이미지 처리는 복잡하므로 기본 결과 반환 (향후 확장 가능)
-        return baseContent;
+        var baseContent = await _basePowerPointReader.ExtractAsync(stream, fileName, options, cancellationToken).ConfigureAwait(false);
+        return await DescribeImagesAsync(baseContent, Path.GetFileNameWithoutExtension(fileName), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 이미지 처리를 포함한 향상된 PowerPoint 텍스트 추출
+    /// Describes the images the base reader extracted — embedded pictures and rendered slides
+    /// (<see cref="ExtractOptions.SlideRendering"/>) — through the registered <see cref="IImageToTextService"/>, and appends
+    /// each description with the slides it is on. Works from <see cref="RawContent.Images"/>, so the file and stream paths
+    /// describe the same images and the extraction options (<see cref="ExtractOptions.ExtractImages"/>,
+    /// <see cref="ExtractOptions.MaxImageSize"/>) apply. Without a service the base content is returned as is.
     /// </summary>
-    private async Task<RawContent> ExtractWithImageProcessing(
-        string filePath,
-        RawContent baseContent,
-        CancellationToken cancellationToken)
+    private async Task<RawContent> DescribeImagesAsync(RawContent baseContent, string title, CancellationToken cancellationToken)
     {
+        if (_imageToTextService == null)
+            return baseContent;
+
         var enhancedText = new StringBuilder(baseContent.Text);
         var imageProcessingResults = new List<string>();
         var structuralHints = baseContent.Hints?.ToDictionary(kv => kv.Key, kv => kv.Value)
                              ?? new Dictionary<string, object>();
 
-        // 문서 컨텍스트 준비 (관련성 평가용)
-        var documentContext = PrepareDocumentContext(baseContent, filePath);
+        var documentContext = PrepareDocumentContext(baseContent, title);
+        documentContext.SurroundingText = TruncateText(baseContent.Text, 500);
 
         try
         {
-            using var doc = UndocDocument.ParseFile(filePath);
-
             var imageCount = 0;
             var includedImageCount = 0;
             var excludedImageCount = 0;
 
-            documentContext.SurroundingText = TruncateText(baseContent.Text, 500);
-
-            var documentImages = await ExtractDocumentImages(doc, cancellationToken);
+            var documentImages = await DescribeAsync(baseContent.Images, cancellationToken).ConfigureAwait(false);
 
             if (documentImages.Count != 0)
             {
-                // 관련성 평가가 활성화된 경우 배치 평가 수행
                 List<ImageRelevanceResult>? relevanceResults = null;
                 if (_relevanceEvaluator != null)
                 {
                     var imageTexts = documentImages.Select(img => img.Result.ExtractedText).ToList();
                     relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
-                        imageTexts, documentContext, cancellationToken)).ToList();
+                        imageTexts, documentContext, cancellationToken).ConfigureAwait(false)).ToList();
                 }
 
-                // 프레젠테이션 이미지 섹션 시작
                 var hasRelevantImages = false;
                 var documentImageTexts = new StringBuilder();
 
                 for (int i = 0; i < documentImages.Count; i++)
                 {
-                    var (imageResult, slides) = documentImages[i];
+                    var (imageResult, image) = documentImages[i];
                     imageCount++;
 
-                    // 관련성 평가 결과 확인
                     bool shouldInclude = true;
                     string? processedText = imageResult.ExtractedText;
                     string inclusionReason = "No relevance evaluation";
@@ -157,12 +139,7 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                         }
 
                         documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_START:IMG_{imageCount} -->");
-                        documentImageTexts.AppendLine(slides.Count switch
-                        {
-                            0 => string.Create(CultureInfo.InvariantCulture, $"Presentation Image {imageCount}:"),
-                            1 => string.Create(CultureInfo.InvariantCulture, $"Presentation Image {imageCount} (slide {slides[0]}):"),
-                            _ => string.Create(CultureInfo.InvariantCulture, $"Presentation Image {imageCount} (slides {string.Join(", ", slides)}):"),
-                        });
+                        documentImageTexts.AppendLine(Label(image, imageCount));
                         documentImageTexts.AppendLine(processedText);
                         documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_END:IMG_{imageCount} -->");
 
@@ -183,7 +160,6 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
                 }
             }
 
-            // 구조적 힌트에 이미지 처리 정보 추가
             if (imageCount > 0)
             {
                 structuralHints["HasImages"] = true;
@@ -200,7 +176,6 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            // 이미지 처리 실패 시 기본 결과 사용하되 경고 추가
             var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
             warnings.Add($"Image processing failed: {ex.Message}");
 
@@ -216,66 +191,61 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
         return enhanced;
     }
 
+    // A rendered slide is the slide itself; an embedded picture names the slides that show it.
+    private static string Label(ImageInfo image, int number)
+    {
+        if (image.RenderedPage is not null && image.PageNumber is { } renderedSlide)
+            return string.Create(CultureInfo.InvariantCulture, $"Slide {renderedSlide} (rendered):");
+
+        var slides = image.PageNumbers;
+        return slides.Count switch
+        {
+            0 => string.Create(CultureInfo.InvariantCulture, $"Presentation Image {number}:"),
+            1 => string.Create(CultureInfo.InvariantCulture, $"Presentation Image {number} (slide {slides[0]}):"),
+            _ => string.Create(CultureInfo.InvariantCulture, $"Presentation Image {number} (slides {string.Join(", ", slides)}):"),
+        };
+    }
+
     /// <summary>
-    /// 문서에서 이미지를 추출하고 텍스트 변환 처리 (Undoc 사용)
+    /// Describes each image that has data and is not decorative (rendered slides are never decorative). An image the service
+    /// fails on is skipped; the others are still described.
     /// </summary>
-    private async Task<List<(ImageToTextResult Result, IReadOnlyList<int> Slides)>> ExtractDocumentImages(
-        UndocDocument doc,
+    private async Task<List<(ImageToTextResult Result, ImageInfo Image)>> DescribeAsync(
+        IEnumerable<ImageInfo> images,
         CancellationToken cancellationToken)
     {
-        var results = new List<(ImageToTextResult Result, IReadOnlyList<int> Slides)>();
+        var results = new List<(ImageToTextResult Result, ImageInfo Image)>();
 
-        if (_imageToTextService == null)
-            return results;
-
-        try
+        foreach (var image in images)
         {
-            // Undoc의 GetResourceIds()를 사용하여 이미지 추출
-            var resourceIds = UndocImageResources.Shown(doc).Select(resource => resource.Id);
-            var slides = UndocImageResources.SectionsOfResources(doc);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (image.Data is not { Length: > 0 } imageBytes)
+                continue;
 
-            foreach (var resourceId in resourceIds)
+            if (image.RenderedPage is null)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    var imageBytes = doc.GetResourceData(resourceId);
-                    if (imageBytes == null || imageBytes.Length == 0)
-                        continue;
-
-                    // 이미지 크기 확인
-                    var (width, height) = GetImageDimensions(imageBytes);
-
-                    if (ImageProcessingConstants.IsDecorativeImage(width, height))
-                    {
-                        // 작은 이미지(아이콘, 로고, 장식) 제외
-                        continue;
-                    }
-
-                    // 이미지 타입 힌트 결정
-                    var options = new ImageToTextOptions
-                    {
-                        ImageTypeHint = "slide", // PowerPoint 이미지는 주로 슬라이드/다이어그램
-                        Quality = "medium",
-                        ExtractStructure = true
-                    };
-
-                    var result = await _imageToTextService.ExtractTextAsync(imageBytes, options, cancellationToken);
-                    if (!string.IsNullOrWhiteSpace(result.ExtractedText))
-                    {
-                        results.Add((result, slides.TryGetValue(resourceId, out var shownOn) ? shownOn : []));
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-                {
-                    // 개별 이미지 처리 실패는 무시하고 계속 진행
-                }
+                var (width, height) = GetImageDimensions(imageBytes);
+                if (ImageProcessingConstants.IsDecorativeImage(width, height))
+                    continue;
             }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            // 문서 전체 이미지 처리 실패
+
+            try
+            {
+                var options = new ImageToTextOptions
+                {
+                    ImageTypeHint = "slide",
+                    Quality = "medium",
+                    ExtractStructure = true
+                };
+
+                var result = await _imageToTextService!.ExtractTextAsync(imageBytes, options, cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(result.ExtractedText))
+                    results.Add((result, image));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                // One image the service cannot read does not stop the others.
+            }
         }
 
         return results;
@@ -317,7 +287,7 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
     /// <summary>
     /// 문서 컨텍스트 준비 (관련성 평가용)
     /// </summary>
-    private static DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
+    private static DocumentContext PrepareDocumentContext(RawContent baseContent, string title)
     {
         var context = new DocumentContext
         {
@@ -326,7 +296,7 @@ public class MultiModalPowerPointDocumentReader : IDocumentReader
         };
 
         // 파일명에서 제목 추출
-        context.Title = System.IO.Path.GetFileNameWithoutExtension(filePath);
+        context.Title = title;
 
         // 구조적 힌트에서 메타데이터 추출
         if (baseContent.Hints != null)

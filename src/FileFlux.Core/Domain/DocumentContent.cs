@@ -114,6 +114,12 @@ public class ImageInfo
     public bool ReadAsPage { get; set; }
 
     /// <summary>
+    /// Set when the image is a rendering of a whole page or slide rather than a picture the document embeds
+    /// (<see cref="ExtractOptions.SlideRendering"/>): its size and what the renderer could not paint. Null for embedded images.
+    /// </summary>
+    public RenderedPage? RenderedPage { get; set; }
+
+    /// <summary>
     /// Additional properties
     /// </summary>
     public Dictionary<string, object> Properties { get; } = new();

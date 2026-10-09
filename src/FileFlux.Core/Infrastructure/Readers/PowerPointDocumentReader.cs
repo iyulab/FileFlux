@@ -183,7 +183,7 @@ public class PowerPointDocumentReader : IDocumentReader
 
         try
         {
-            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractPowerPointContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false), options);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractPowerPointContent(filePath, options, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UndocException ex)
         {
@@ -214,7 +214,7 @@ public class PowerPointDocumentReader : IDocumentReader
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             bytes = memoryStream.ToArray();
 
-            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractPowerPointContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false), options);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractPowerPointContentFromBytes(bytes, fileName, options, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UndocException ex)
         {
@@ -229,7 +229,7 @@ public class PowerPointDocumentReader : IDocumentReader
         }
     }
 
-    private static RawContent ExtractPowerPointContent(string filePath, CancellationToken cancellationToken)
+    private static RawContent ExtractPowerPointContent(string filePath, ExtractOptions? options, CancellationToken cancellationToken)
     {
 
         // An encrypted document is a compound file wrapping the real package, so without this it
@@ -287,6 +287,9 @@ public class PowerPointDocumentReader : IDocumentReader
             }
         }
 
+        SlideRenderer.Render(doc, () => File.OpenRead(filePath), ContainerSignature.DetectFile(filePath) == OfficeContainer.CompoundFile,
+            options, extractedImages, warnings, structuralHints, cancellationToken);
+
         structuralHints["file_type"] = "powerpoint_presentation";
         structuralHints["character_count"] = markdown.Length;
         structuralHints["conversion_method"] = "undoc_native";
@@ -319,7 +322,7 @@ public class PowerPointDocumentReader : IDocumentReader
         };
     }
 
-    private static RawContent ExtractPowerPointContentFromBytes(byte[] bytes, string fileName, CancellationToken cancellationToken)
+    private static RawContent ExtractPowerPointContentFromBytes(byte[] bytes, string fileName, ExtractOptions? options, CancellationToken cancellationToken)
     {
 
         // Same check as the file path — see ExtractWordContent / ExtractPowerPointContent.
@@ -372,6 +375,9 @@ public class PowerPointDocumentReader : IDocumentReader
                 extractedImages.Add(imageInfo);
             }
         }
+
+        SlideRenderer.Render(doc, () => new MemoryStream(bytes, writable: false), ContainerSignature.Detect(bytes) == OfficeContainer.CompoundFile,
+            options, extractedImages, warnings, structuralHints, cancellationToken);
 
         structuralHints["file_type"] = "powerpoint_presentation";
         structuralHints["character_count"] = markdown.Length;
