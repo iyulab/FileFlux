@@ -5,6 +5,38 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+- **Breaking** — **The standalone batch processors are gone**: `FileFlux.Infrastructure.Optimization.MemoryEfficientProcessor`,
+  `IMemoryEfficientProcessor`, `MemoryOptimizationOptions`, `BatchProcessingResult`, `MemoryStatistics`,
+  `ParallelBatchProcessor`, `IParallelBatchProcessor`, `BatchResult`, `DocumentProcessingResult` and
+  `FileFlux.Infrastructure.Optimization.ProcessingError` (`FileFlux.Core.ProcessingError` stays), together with the LRU
+  cache only they used (`FileFlux.Infrastructure.Caching.LruMemoryCache`, `LruMemoryCacheExtensions`,
+  `FileFlux.Core.IDocumentCache`, `FileFlux.Core.CacheStatistics`). Nothing used them: no registration, no caller.
+  Migration: create one processor per file with `IDocumentProcessorFactory.Create(path)` and call `ProcessAsync`,
+  running files in parallel yourself (for example `Parallel.ForEachAsync`).
+- **Breaking** — **The document result cache is gone**: `FileFlux.Infrastructure.Caching.DocumentCacheService`,
+  `FileFlux.IDocumentCacheService`, `CachedDocumentResult`, `DocumentCacheOptions`, `DocumentCacheStats`. It was never
+  registered and nothing called it. Migration: cache processed chunks in the host (for example `IMemoryCache`).
+- **Breaking** — **The late-chunking contract is gone**: `FileFlux.Core.ILateChunkingProvider`, `LateChunkingDocument`
+  and `FileFlux.Core.ChunkBoundary`. It had no implementation. Migration: take chunk spans from
+  `DocumentChunk.Location` (`StartChar`/`EndChar`).
+- **Breaking** — **The unwired boundary and coherence analyzers are gone**: `FileFlux.Infrastructure.Services.ChunkCoherenceAnalyzer`,
+  `FileFlux.IChunkCoherenceAnalyzer`, `CoherenceAnalysisResult`, `FileFlux.ChunkBoundary`, `CoherenceIssue`,
+  `CoherenceIssueType`, `IssueSeverity`, `CohesionLevel`; `HybridBoundaryDetector`, `FileFlux.IHybridBoundaryDetector`,
+  `HybridDetectionOptions`, `HybridBoundaryResult`, `HybridBoundaryPoint`; `SemanticBoundaryDetector`,
+  `FileFlux.ISemanticBoundaryDetector`, `BoundaryDetectionResult`, `BoundaryPoint`, `BoundaryType`;
+  `MockStatisticalBoundaryDetector`, `FileFlux.IStatisticalBoundaryDetector`, `StatisticalBoundaryResult`,
+  `TokenProbability`, `StatisticalBoundaryPoint`. No chunking strategy or registration used them. Migration: choose a
+  chunking strategy (`ChunkingOptions.Strategy`, for example `ChunkingStrategies.Semantic`) instead.
+- **Breaking** — **`FileFlux.Infrastructure.Services.ChunkMetadataEnricher` and `FileFlux.Domain.DocumentContext` are
+  gone** (`FileFlux.DocumentContext`, used by image relevance evaluation, stays). Nothing called the enricher, so no
+  chunk ever carried the scores it computed. Migration: compute such scores in the host, or use `IMetadataEnricher`.
+- **Breaking** — **`FileFlux.Core.DocumentContent`, `TableInfo` and `ContentSection` are gone** (package `FileFlux.Core`);
+  `ImageInfo` stays. Nothing produced or read them. Migration: read `RawContent` (`Text`, `Tables`, `Images`) from an
+  `IDocumentReader`.
+
 ## [0.55.0] - 2026-10-09
 
 ### Added

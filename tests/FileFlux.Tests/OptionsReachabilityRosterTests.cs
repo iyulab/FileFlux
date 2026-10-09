@@ -48,7 +48,8 @@ public class OptionsReachabilityRosterTests
         //   this repository's own LlmRefiner did not (D) — wired in 0.25.0 (ContextRules). MaxTokens/Temperature wired 0.25.0.
         // MetadataEnrichmentOptions.EnableAdaptiveSampling A — removed (ExtractionStrategy is the sampling knob).
         // ParsingOptions.Extra A — removed. RefineOptions.LlmModel/MaxLlmTokens A (DocumentRefiner calls no LLM) — removed.
-        // DocumentCacheOptions.MinHitRatio A (no hit ratio is computed) — removed.
+        // The document cache options' MinHitRatio A (no hit ratio is computed) — removed; the cache service and its
+        //   options were later removed whole (nothing used them).
         // DocumentParsingOptions.CustomSettings/StructuringLevel (+ enum) A — removed (BasicDocumentParser has one prompt).
         // ImageToTextOptions.CustomOptions A — removed (no implementation in the tree reads it, unlike Language).
         // LMSupplyOptions.AutoSelectMultilingualModel A — removed with GetEmbeddingModelForLanguage (no callers); the CLI
