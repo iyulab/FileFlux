@@ -178,11 +178,6 @@ public sealed partial class DocumentEnricher : IDocumentEnricher
             edges.AddRange(BuildHierarchicalEdges(chunks));
         }
 
-        // Add shared entity edges
-        if (options.IncludeSharedEntityEdges && chunks.Any(e => e.Entities?.Count > 0))
-        {
-            edges.AddRange(BuildSharedEntityEdges(chunks, options));
-        }
 
         // Discover semantic relationships via LLM
         if (options.DiscoverSemanticRelationships && _improverServices?.ChunkRelationship != null)
@@ -366,62 +361,6 @@ public sealed partial class DocumentEnricher : IDocumentEnricher
         return edges;
     }
 
-    private static List<ChunkEdge> BuildSharedEntityEdges(
-        IReadOnlyList<EnrichedDocumentChunk> chunks,
-        GraphBuildOptions options)
-    {
-        var edges = new List<ChunkEdge>();
-        var entityIndex = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-
-        // Build entity index
-        for (int i = 0; i < chunks.Count; i++)
-        {
-            var entities = chunks[i].Entities;
-            if (entities == null) continue;
-
-            foreach (var entity in entities)
-            {
-                if (!entityIndex.TryGetValue(entity, out var list))
-                {
-                    list = new List<int>();
-                    entityIndex[entity] = list;
-                }
-                list.Add(i);
-            }
-        }
-
-        // Create edges between chunks sharing entities
-        foreach (var (entity, indices) in entityIndex)
-        {
-            for (int i = 0; i < indices.Count; i++)
-            {
-                for (int j = i + 1; j < indices.Count; j++)
-                {
-                    var sourceIdx = indices[i];
-                    var targetIdx = indices[j];
-
-                    // Only add if within reasonable distance
-                    if (Math.Abs(sourceIdx - targetIdx) > 10)
-                        continue;
-
-                    edges.Add(new ChunkEdge
-                    {
-                        SourceId = chunks[sourceIdx].Chunk.Id,
-                        TargetId = chunks[targetIdx].Chunk.Id,
-                        Type = EdgeType.SharedEntity,
-                        Weight = 0.6,
-                        Label = $"shares: {entity}",
-                        Properties = new Dictionary<string, object>
-                        {
-                            ["entity"] = entity
-                        }
-                    });
-                }
-            }
-        }
-
-        return edges;
-    }
 
     private async Task<IEnumerable<ChunkEdge>> DiscoverSemanticRelationshipsAsync(
         IReadOnlyList<EnrichedDocumentChunk> chunks,

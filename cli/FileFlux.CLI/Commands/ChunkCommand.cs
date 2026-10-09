@@ -106,6 +106,13 @@ public class ChunkCommand : Command
         Options.Add(minImageDimensionOpt);
         Options.Add(verboseOpt);
 
+        // Enrichment calls the AI provider; without --ai it used to be dropped without a word.
+        Validators.Add(result =>
+        {
+            if (result.GetValue(enrichOpt) && !result.GetValue(aiOpt))
+                result.AddError("--enrich needs --ai: enrichment calls the AI provider. Add --ai, or drop --enrich.");
+        });
+
         this.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
             var input = parseResult.GetValue(inputArg);

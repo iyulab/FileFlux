@@ -342,17 +342,10 @@ public partial class RuleBasedMetadataExtractor
     {
         var keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Common stop words to exclude
-        var stopWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "the", "is", "at", "which", "on", "a", "an", "and", "or", "but",
-            "in", "with", "to", "for", "of", "as", "by", "this", "that", "these", "those"
-        };
-
         // Split into words
         var words = Regex.Split(content, @"\W+")
             .Where(w => w.Length > 3 && w.Length < 30)
-            .Where(w => !stopWords.Contains(w))
+            .Where(w => !Languages.EnglishStopWords.Contains(w))
             .Where(w => !Regex.IsMatch(w, @"^\d+$")); // Exclude pure numbers
 
         // Count word frequency

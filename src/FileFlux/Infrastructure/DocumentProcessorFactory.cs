@@ -21,7 +21,6 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
     private readonly IDocumentEnricher? _documentEnricher;
     private readonly FluxImproverServices? _improverServices;
     private readonly IMarkdownConverter? _markdownConverter;
-    private readonly IImageToTextService? _imageToTextService;
     private readonly ILoggerFactory _loggerFactory;
 
     /// <summary>
@@ -32,9 +31,8 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
         IChunkerFactory chunkerFactory,
         FluxImproverServices? improverServices = null,
         IMarkdownConverter? markdownConverter = null,
-        IImageToTextService? imageToTextService = null,
         ILoggerFactory? loggerFactory = null)
-        : this(readerFactory, chunkerFactory, null, null, null, improverServices, markdownConverter, imageToTextService, loggerFactory)
+        : this(readerFactory, chunkerFactory, null, null, null, improverServices, markdownConverter, loggerFactory)
     {
     }
 
@@ -49,7 +47,6 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
         IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices = null,
         IMarkdownConverter? markdownConverter = null,
-        IImageToTextService? imageToTextService = null,
         ILoggerFactory? loggerFactory = null)
     {
         _readerFactory = readerFactory ?? throw new ArgumentNullException(nameof(readerFactory));
@@ -59,7 +56,6 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
         _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
-        _imageToTextService = imageToTextService;
         _loggerFactory = loggerFactory ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
     }
 
@@ -75,7 +71,6 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
             _documentEnricher,
             _improverServices,
             _markdownConverter,
-            _imageToTextService,
             _loggerFactory.CreateLogger<StatefulDocumentProcessor>());
     }
 
@@ -92,7 +87,6 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
             _documentEnricher,
             _improverServices,
             _markdownConverter,
-            _imageToTextService,
             _loggerFactory.CreateLogger<StatefulDocumentProcessor>());
     }
 
@@ -108,7 +102,6 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
             _documentEnricher,
             _improverServices,
             _markdownConverter,
-            _imageToTextService,
             _loggerFactory.CreateLogger<StatefulDocumentProcessor>());
     }
 
@@ -126,7 +119,6 @@ public class DocumentProcessorFactory : IDocumentProcessorFactory
             _documentEnricher,
             _improverServices,
             _markdownConverter,
-            _imageToTextService,
             _loggerFactory.CreateLogger<StatefulDocumentProcessor>());
     }
 }
@@ -143,7 +135,6 @@ public class DocumentProcessorFactoryBuilder
     private IDocumentEnricher? _documentEnricher;
     private FluxImproverServices? _improverServices;
     private IMarkdownConverter? _markdownConverter;
-    private IImageToTextService? _imageToTextService;
     private ILoggerFactory? _loggerFactory;
 
     /// <summary>
@@ -210,15 +201,6 @@ public class DocumentProcessorFactoryBuilder
     }
 
     /// <summary>
-    /// Set image to text service.
-    /// </summary>
-    public DocumentProcessorFactoryBuilder WithImageToTextService(IImageToTextService service)
-    {
-        _imageToTextService = service;
-        return this;
-    }
-
-    /// <summary>
     /// Set logger factory.
     /// </summary>
     public DocumentProcessorFactoryBuilder WithLoggerFactory(ILoggerFactory factory)
@@ -245,7 +227,6 @@ public class DocumentProcessorFactoryBuilder
             _documentEnricher,
             _improverServices,
             _markdownConverter,
-            _imageToTextService,
             _loggerFactory);
     }
 

@@ -31,7 +31,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     private readonly FluxImproverServices? _improverServices;
     private readonly TextRefiner _textRefiner;
     private readonly IMarkdownConverter? _markdownConverter;
-    private readonly IImageToTextService? _imageToTextService;
     private readonly ILogger<StatefulDocumentProcessor> _logger;
 
     private readonly Stream? _stream;
@@ -66,7 +65,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
-        IImageToTextService? imageToTextService,
         ILogger<StatefulDocumentProcessor> logger)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -85,7 +83,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
-        _imageToTextService = imageToTextService;
         _textRefiner = new TextRefiner();
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<StatefulDocumentProcessor>.Instance;
     }
@@ -103,7 +100,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
-        IImageToTextService? imageToTextService,
         ILogger<StatefulDocumentProcessor> logger)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -122,7 +118,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
-        _imageToTextService = imageToTextService;
         _textRefiner = new TextRefiner();
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<StatefulDocumentProcessor>.Instance;
     }
@@ -141,7 +136,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
-        IImageToTextService? imageToTextService,
         ILogger<StatefulDocumentProcessor> logger)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -160,7 +154,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
-        _imageToTextService = imageToTextService;
         _textRefiner = new TextRefiner();
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<StatefulDocumentProcessor>.Instance;
     }
@@ -177,7 +170,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         IDocumentEnricher? documentEnricher,
         FluxImproverServices? improverServices,
         IMarkdownConverter? markdownConverter,
-        IImageToTextService? imageToTextService,
         ILogger<StatefulDocumentProcessor> logger)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -194,7 +186,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         _documentEnricher = documentEnricher;
         _improverServices = improverServices;
         _markdownConverter = markdownConverter;
-        _imageToTextService = imageToTextService;
         _textRefiner = new TextRefiner();
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<StatefulDocumentProcessor>.Instance;
 
@@ -797,9 +788,6 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
             if (!string.IsNullOrEmpty(enrichedChunk.ContextualText))
                 chunk.Props[ChunkPropsKeys.EnrichedContextualText] = enrichedChunk.ContextualText;
-
-            if (enrichedChunk.Entities != null && enrichedChunk.Entities.Count > 0)
-                chunk.Props["entities"] = enrichedChunk.Entities;
 
             if (enrichedChunk.Topics != null && enrichedChunk.Topics.Count > 0)
                 chunk.Props["topics"] = enrichedChunk.Topics;

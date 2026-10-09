@@ -194,7 +194,6 @@ public static class ServiceCollectionExtensions
                 var documentEnricher = provider.GetService<IDocumentEnricher>();
                 var improverServices = provider.GetService<FluxImproverServices>();
                 var markdownConverter = provider.GetService<IMarkdownConverter>();
-                var imageToTextService = provider.GetService<IImageToTextService>();
                 var loggerFactory = provider.GetService<ILoggerFactory>();
 
                 return new DocumentProcessorFactory(
@@ -205,7 +204,6 @@ public static class ServiceCollectionExtensions
                     documentEnricher,
                     improverServices,
                     markdownConverter,
-                    imageToTextService,
                     loggerFactory);
             },
             lifetime));

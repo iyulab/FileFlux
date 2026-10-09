@@ -671,7 +671,7 @@ public partial class PdfDocumentReader : IDocumentReader
                     continue;
 
                 var id = ImageIdOf(resourceId);
-                images.Add(new ImageInfo
+                var image = new ImageInfo
                 {
                     Id = id,
                     MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
@@ -679,7 +679,9 @@ public partial class PdfDocumentReader : IDocumentReader
                     OriginalSize = resourceData.Length,
                     SourceUrl = $"embedded:{id}",
                     PageNumber = PageOfResource(doc, resourceId)
-                });
+                };
+                AttachPixelSize(doc, resourceId, image);
+                images.Add(image);
             }
         }
         catch (UnpdfException ex)
@@ -689,6 +691,26 @@ public partial class PdfDocumentReader : IDocumentReader
         }
 
         return images;
+    }
+
+    /// <summary>
+    /// The image's pixel size from the parser's resource metadata, as <c>width</c> and <c>height</c> in
+    /// <see cref="ImageInfo.Properties"/> (the keys the native Office reader uses); nothing when the metadata does not say.
+    /// </summary>
+    private static void AttachPixelSize(UnpdfDocument doc, string resourceId, ImageInfo image)
+    {
+        using var info = doc.GetResourceInfo(resourceId);
+        if (info is null)
+            return;
+
+        if (info.RootElement.TryGetProperty("width", out var width) && width.ValueKind == System.Text.Json.JsonValueKind.Number
+            && width.TryGetInt32(out var w)
+            && info.RootElement.TryGetProperty("height", out var height) && height.ValueKind == System.Text.Json.JsonValueKind.Number
+            && height.TryGetInt32(out var h))
+        {
+            image.Properties["width"] = w;
+            image.Properties["height"] = h;
+        }
     }
 
     /// <summary>

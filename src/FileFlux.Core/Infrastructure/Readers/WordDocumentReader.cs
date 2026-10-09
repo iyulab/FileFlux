@@ -171,7 +171,7 @@ public partial class WordDocumentReader : IDocumentReader
 
         try
         {
-            return await Task.Run(() => ExtractWordContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractWordContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UndocException ex)
         {
@@ -202,7 +202,7 @@ public partial class WordDocumentReader : IDocumentReader
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             bytes = memoryStream.ToArray();
 
-            return await Task.Run(() => ExtractWordContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractWordContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UndocException ex)
         {

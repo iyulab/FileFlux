@@ -151,6 +151,27 @@ public class BasicDocumentParserTests
     }
 
     [Fact]
+    public async Task ParseAsync_KeywordsAndTopic_SkipFunctionWords()
+    {
+        // The most frequent long words of English prose are function words; without a stop list the topic of a
+        // document about vectors came out as «that».
+        var text = string.Join("\n\n", Enumerable.Repeat(
+            "This shows that vectors with embeddings from that index have that property, which that search uses.", 4));
+        var rawContent = new RawContent
+        {
+            Text = text,
+            File = new SourceFileInfo { Name = "test.txt", Extension = ".txt", Size = text.Length },
+            Hints = new Dictionary<string, object> { { "has_headers", false } }
+        };
+
+        var result = await _parser.ParseAsync(rawContent, new DocumentParsingOptions { UseLlmParsing = false }, TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain(result.Keywords, k => k is "that" or "with" or "this" or "from" or "have" or "which");
+        Assert.Contains("vectors", result.Keywords);
+        Assert.NotEqual("that", result.Topic);
+    }
+
+    [Fact]
     public async Task ParseAsync_ParagraphsWithoutHeaders_ExtractsFlatSections()
     {
         // Arrange
@@ -183,6 +204,8 @@ public class BasicDocumentParserTests
             Assert.Empty(section.Children); // Paragraphs don't have children
             Assert.True(section.Start >= 0);
             Assert.True(section.End > section.Start);
+            // A paragraph has no heading: a made-up «Paragraph N» title would reach heading paths as if the author wrote it.
+            Assert.Equal(string.Empty, section.Title);
         }
     }
 

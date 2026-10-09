@@ -183,11 +183,6 @@ public class EnrichedDocumentChunk
     public string? ContextualText { get; init; }
 
     /// <summary>
-    /// List of entity mentions found in chunk.
-    /// </summary>
-    public IReadOnlyList<string>? Entities { get; init; }
-
-    /// <summary>
     /// Chunk topics/categories.
     /// </summary>
     public IReadOnlyList<string>? Topics { get; init; }
@@ -243,12 +238,6 @@ public class GraphBuildOptions
     public int MaxEdgesPerChunk { get; init; } = 10;
 
     /// <summary>
-    /// Include shared entity edges. (The three edge kinds the builder produces are sequential, hierarchical and
-    /// shared-entity; a fourth switch, <c>IncludeReferenceEdges</c>, had no builder behind it and was removed in 0.25.0.)
-    /// </summary>
-    public bool IncludeSharedEntityEdges { get; init; } = true;
-
-    /// <summary>
     /// Default graph build options.
     /// </summary>
     public static GraphBuildOptions Default { get; } = new();
@@ -260,8 +249,7 @@ public class GraphBuildOptions
     {
         IncludeSequentialEdges = true,
         IncludeHierarchicalEdges = true,
-        DiscoverSemanticRelationships = false,
-        IncludeSharedEntityEdges = false
+        DiscoverSemanticRelationships = false
     };
 
     /// <summary>
@@ -272,7 +260,6 @@ public class GraphBuildOptions
         IncludeSequentialEdges = true,
         IncludeHierarchicalEdges = true,
         DiscoverSemanticRelationships = true,
-        IncludeSharedEntityEdges = true,
         MinRelationshipConfidence = 0.3,
         MaxEdgesPerChunk = 20
     };

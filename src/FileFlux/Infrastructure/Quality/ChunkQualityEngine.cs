@@ -474,11 +474,7 @@ public class ChunkQualityEngine
 
     #region Helper Methods
 
-    private static bool IsStopWord(string word)
-    {
-        var stopWords = new HashSet<string> { "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "is", "are", "was", "were", "be", "been", "have", "has", "had", "do", "does", "did" };
-        return stopWords.Contains(word.ToLowerInvariant());
-    }
+    private static bool IsStopWord(string word) => Languages.EnglishStopWords.Contains(word);
 
     private static double CalculateSimilarity(string text1, string text2)
     {

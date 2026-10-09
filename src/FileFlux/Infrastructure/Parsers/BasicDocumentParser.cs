@@ -305,7 +305,8 @@ public partial class BasicDocumentParser : IDocumentParser
             sections.Add(new Section
             {
                 Id = $"paragraph_{i + 1}",
-                Title = $"Paragraph {i + 1}",
+                // No title: the author gave this paragraph none, and a made-up one would reach chunk heading paths.
+                Title = string.Empty,
                 Type = "Paragraph",
                 Content = paragraph,
                 Level = 1,
@@ -469,7 +470,7 @@ public partial class BasicDocumentParser : IDocumentParser
         // 단순 빈도 기반 키워드 추출
         var words = text.ToLowerInvariant()
             .Split(s_wordSeparators, StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.Length > 3) // 3글자 이상
+            .Where(w => w.Length > 3 && !Languages.EnglishStopWords.Contains(w))
             .GroupBy(w => w)
             .OrderByDescending(g => g.Count())
             .Take(maxKeywords)
@@ -519,7 +520,7 @@ public partial class BasicDocumentParser : IDocumentParser
             {
                 sb.Append(s.Content);
             }
-            else if (s.Type == "Paragraph" && s.Title.StartsWith("Paragraph ", StringComparison.OrdinalIgnoreCase))
+            else if (string.IsNullOrEmpty(s.Title))
             {
                 // For paragraph sections without real titles, just return content without adding artificial headers
                 sb.Append(s.Content);

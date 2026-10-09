@@ -1,7 +1,6 @@
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
 using Unpdf;
-using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
 
@@ -14,7 +13,16 @@ namespace FileFlux.Infrastructure.Readers;
 /// </summary>
 public class MultiModalPdfDocumentReader : IDocumentReader
 {
-    private static readonly char[] s_keywordSeparators = [' ', '\n', '\r', '\t'];
+    private static readonly ImageDescriptionFormat s_format = new()
+    {
+        DocumentType = "PDF",
+        ImageTypeHint = "document",
+        // PDF descriptions follow the text without a section marker.
+        SectionMarker = null,
+        Label = (_, number) => string.Create(CultureInfo.InvariantCulture, $"Image {number}:"),
+        ResultSubject = (number, imageType) => string.Create(CultureInfo.InvariantCulture, $"Image {number}: {imageType}"),
+    };
+
     private readonly IImageToTextService? _imageToTextService;
     private readonly IImageRelevanceEvaluator? _relevanceEvaluator;
     private readonly PdfDocumentReader _basePdfReader;
@@ -55,41 +63,49 @@ public class MultiModalPdfDocumentReader : IDocumentReader
     // Stage 1: Extract (Raw Content)
     // ========================================
 
+    /// <summary>
+    /// The PDF's text, with the pages <see cref="ExtractOptions.PageReading"/> selects read, and a description of each
+    /// image the base reader extracted appended, when an <see cref="IImageToTextService"/> is registered. The extraction
+    /// options (<see cref="ExtractOptions.ExtractImages"/>, <see cref="ExtractOptions.MaxImageSize"/>) decide which images
+    /// there are; an image on a page replaced by its read is not described again. The stream path does the same.
+    /// </summary>
     public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
-        // Base PDF text extraction
-        var baseContent = await _basePdfReader.ExtractAsync(filePath, options, cancellationToken);
+        var baseContent = await _basePdfReader.ExtractAsync(filePath, options, cancellationToken).ConfigureAwait(false);
 
         if (options?.PageReading is { SelectPages: not null } pageReading)
         {
             using var doc = UnpdfDocument.ParseFile(filePath);
-            await ReadPagesAsync(doc, baseContent, pageReading, cancellationToken);
+            await ReadPagesAsync(doc, baseContent, pageReading, cancellationToken).ConfigureAwait(false);
         }
 
-        // If no image service, return base result
-        if (_imageToTextService == null)
-            return baseContent;
-
-        // If image service available, perform enhanced extraction
-        return await ExtractWithImageProcessing(filePath, baseContent, cancellationToken);
+        return await DescribeImagesAsync(baseContent, Path.GetFileNameWithoutExtension(filePath), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc cref="ExtractAsync(string, ExtractOptions?, CancellationToken)"/>
     public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (options?.PageReading is not { SelectPages: not null } pageReading)
-            return await _basePdfReader.ExtractAsync(stream, fileName, options, cancellationToken);
+        RawContent baseContent;
+        if (options?.PageReading is { SelectPages: not null } pageReading)
+        {
+            // Page reading renders from the same bytes the text was extracted from.
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+            buffer.Position = 0;
+            baseContent = await _basePdfReader.ExtractAsync(buffer, fileName, options, cancellationToken).ConfigureAwait(false);
+            using var doc = UnpdfDocument.ParseBytes(buffer.ToArray());
+            await ReadPagesAsync(doc, baseContent, pageReading, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            baseContent = await _basePdfReader.ExtractAsync(stream, fileName, options, cancellationToken).ConfigureAwait(false);
+        }
 
-        // Page reading renders from the same bytes the text was extracted from.
-        using var buffer = new MemoryStream();
-        await stream.CopyToAsync(buffer, cancellationToken);
-        buffer.Position = 0;
-        var baseContent = await _basePdfReader.ExtractAsync(buffer, fileName, options, cancellationToken);
-        using var doc = UnpdfDocument.ParseBytes(buffer.ToArray());
-        await ReadPagesAsync(doc, baseContent, pageReading, cancellationToken);
-
-        // Image descriptions are added on the file path only; a stream returns the text with its pages read.
-        return baseContent;
+        return await DescribeImagesAsync(baseContent, Path.GetFileNameWithoutExtension(fileName), cancellationToken).ConfigureAwait(false);
     }
+
+    private Task<RawContent> DescribeImagesAsync(RawContent baseContent, string title, CancellationToken cancellationToken) =>
+        ImageDescriptions.AppendAsync(baseContent, title, ReaderType, s_format, _imageToTextService, _relevanceEvaluator, cancellationToken);
 
     /// <summary>
     /// <see cref="ExtractOptions.PageReading"/>: renders the selected pages of <paramref name="doc"/> and reads them through
@@ -112,235 +128,8 @@ public class MultiModalPdfDocumentReader : IDocumentReader
                 Saturate(gaps.TextRuns),
                 Saturate((long)gaps.Images + gaps.InlineImages),
                 Saturate(gaps.UndecodableContentStreams));
-        }, _imageToTextService, cancellationToken);
+        }, _imageToTextService, cancellationToken).ConfigureAwait(false);
 
         static int Saturate(long value) => value > int.MaxValue ? int.MaxValue : (int)value;
-    }
-
-    /// <summary>
-    /// Enhanced PDF text extraction with image processing.
-    /// </summary>
-    private async Task<RawContent> ExtractWithImageProcessing(
-        string filePath,
-        RawContent baseContent,
-        CancellationToken cancellationToken)
-    {
-        var enhancedText = new StringBuilder(baseContent.Text);
-        var imageProcessingResults = new List<string>();
-        var structuralHints = baseContent.Hints?.ToDictionary(kv => kv.Key, kv => kv.Value)
-                             ?? new Dictionary<string, object>();
-
-        // Prepare document context (for relevance evaluation)
-        var documentContext = PrepareDocumentContext(baseContent, filePath);
-
-        try
-        {
-            // Extract images using Unpdf native library. ExtractResources (Unpdf 0.15.0+) opts
-            // into the resource inventory — without it GetResourceIds() always returns empty,
-            // which is why this path has never actually produced an image before now despite
-            // calling these APIs.
-            using var doc = UnpdfDocument.ParseFile(filePath, new ParseOptions { ExtractResources = true });
-            var resourceIds = doc.GetResourceIds();
-            // A page replaced by a read of its render already carries what its images show.
-            var readPages = baseContent.PageReads.Where(r => r.Outcome == PageReadOutcome.Replaced).Select(r => r.Page).ToHashSet();
-
-            var imageCount = 0;
-            var includedImageCount = 0;
-            var excludedImageCount = 0;
-
-            // Process extracted image resources
-            var imagesToProcess = new List<byte[]>();
-
-            foreach (var id in resourceIds)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (readPages.Count > 0 && PdfDocumentReader.PageOfResource(doc, id) is int resourcePage && readPages.Contains(resourcePage))
-                    continue;
-
-                var imageBytes = doc.GetResourceData(id);
-                if (imageBytes == null || imageBytes.Length <= 100)
-                    continue;
-
-                // Filter decorative images by size using resource metadata
-                int width = 0, height = 0;
-                using var resourceInfo = doc.GetResourceInfo(id);
-                if (resourceInfo != null)
-                {
-                    if (resourceInfo.RootElement.TryGetProperty("width", out var w))
-                        width = w.GetInt32();
-                    if (resourceInfo.RootElement.TryGetProperty("height", out var h))
-                        height = h.GetInt32();
-                }
-
-                if (ImageProcessingConstants.IsDecorativeImage(width, height))
-                    continue;
-
-                imagesToProcess.Add(imageBytes);
-            }
-
-            // Process images through IImageToTextService
-            var imageTextResults = new List<ImageToTextResult>();
-            foreach (var bytes in imagesToProcess)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    var options = new ImageToTextOptions
-                    {
-                        ImageTypeHint = "document",
-                        Quality = "medium",
-                        ExtractStructure = true
-                    };
-
-                    var result = await _imageToTextService!.ExtractTextAsync(bytes, options, cancellationToken);
-                    if (!string.IsNullOrWhiteSpace(result.ExtractedText))
-                    {
-                        imageTextResults.Add(result);
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-                {
-                    // Individual image processing failure is ignored
-                }
-            }
-
-            // Batch relevance evaluation if evaluator is available
-            List<ImageRelevanceResult>? relevanceResults = null;
-            if (_relevanceEvaluator != null && imageTextResults.Count != 0)
-            {
-                var imageTexts = imageTextResults.Select(r => r.ExtractedText).ToList();
-                relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
-                    imageTexts, documentContext, cancellationToken)).ToList();
-            }
-
-            // Build enhanced content
-            for (int i = 0; i < imageTextResults.Count; i++)
-            {
-                var imageResult = imageTextResults[i];
-                imageCount++;
-
-                // Check relevance evaluation result
-                bool shouldInclude = true;
-                string? processedText = imageResult.ExtractedText;
-                string inclusionReason = "No relevance evaluation";
-
-                if (relevanceResults != null && i < relevanceResults.Count)
-                {
-                    var relevance = relevanceResults[i];
-                    shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
-                                  relevance.Recommendation != InclusionRecommendation.ShouldExclude;
-
-                    if (!string.IsNullOrEmpty(relevance.ProcessedText))
-                    {
-                        processedText = relevance.ProcessedText;
-                    }
-
-                    inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
-                }
-
-                if (shouldInclude)
-                {
-                    enhancedText.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_START:IMG_{imageCount} -->");
-                    enhancedText.AppendLine(CultureInfo.InvariantCulture, $"Image {imageCount}:");
-                    enhancedText.AppendLine(processedText);
-                    enhancedText.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_END:IMG_{imageCount} -->");
-
-                    includedImageCount++;
-                    imageProcessingResults.Add($"Image {imageCount}: {imageResult.ImageType} INCLUDED - {inclusionReason}");
-                }
-                else
-                {
-                    excludedImageCount++;
-                    imageProcessingResults.Add($"Image {imageCount}: {imageResult.ImageType} EXCLUDED - {inclusionReason}");
-                }
-            }
-
-            // Add image processing info to structural hints
-            if (imageCount > 0)
-            {
-                structuralHints["HasImages"] = true;
-                structuralHints["TotalImageCount"] = imageCount;
-                structuralHints["IncludedImageCount"] = includedImageCount;
-                structuralHints["ExcludedImageCount"] = excludedImageCount;
-                structuralHints["ImageProcessingResults"] = imageProcessingResults;
-
-                if (_relevanceEvaluator != null)
-                {
-                    structuralHints["ImageRelevanceEvaluationEnabled"] = true;
-                }
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            // On image processing failure, use base result with warning. Name the Unpdf
-            // error kind when the native layer is the one that failed — the message alone
-            // cannot be classified programmatically.
-            var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
-            warnings.Add(ex is UnpdfException unpdfEx
-                ? $"Image processing failed: {ex.Message} " +
-                  $"[{PdfDocumentReader.ErrorKindKey}={PdfDocumentReader.FormatErrorKind(unpdfEx.Kind)}]"
-                : $"Image processing failed: {ex.Message}");
-
-            var fallback = baseContent.WithText(baseContent.Text);
-            fallback.Warnings = warnings;
-            fallback.ReaderType = ReaderType;
-            return fallback;
-        }
-        finally
-        {
-            // No temp files to clean up (resources extracted directly from native library)
-        }
-
-        var enhanced = baseContent.WithText(enhancedText.ToString());
-        enhanced.Hints = structuralHints;
-        enhanced.ReaderType = ReaderType;
-        return enhanced;
-    }
-
-    /// <summary>
-    /// Prepare document context for relevance evaluation.
-    /// </summary>
-    private static DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
-    {
-        var context = new DocumentContext
-        {
-            DocumentType = "PDF",
-            DocumentText = TruncateText(baseContent.Text, 1000)
-        };
-
-        // Extract title from filename
-        context.Title = Path.GetFileNameWithoutExtension(filePath);
-
-        // Extract metadata from structural hints
-        if (baseContent.Hints != null)
-        {
-            foreach (var hint in baseContent.Hints)
-            {
-                context.Metadata[hint.Key.ToString()] = hint.Value?.ToString() ?? "";
-            }
-        }
-
-        // Simple keyword extraction (words with length >= 5)
-        var words = baseContent.Text.Split(s_keywordSeparators, StringSplitOptions.RemoveEmptyEntries);
-        context.Keywords = words
-            .Where(w => w.Length >= 5)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(20)
-            .ToList();
-
-        return context;
-    }
-
-    /// <summary>
-    /// Text truncation helper.
-    /// </summary>
-    private static string TruncateText(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
-            return text;
-
-        return string.Concat(text.AsSpan(0, maxLength), "...");
     }
 }

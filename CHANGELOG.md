@@ -26,12 +26,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Markdown reader output uses `\n` line endings on every platform.** On Windows the text mixed `\r\n` (from block
   separators) with `\n` (inside paragraphs and code), and quoted lines kept a stray `\r`.
 
+- **Breaking** — **`BasicDocumentParser` no longer invents section titles.** A document without headings is split into
+  paragraph sections whose `Title` was `Paragraph 1`, `Paragraph 2`, …; such a title could reach a chunk's heading path
+  as if the author had written it. Old → new: `Section.Title` `"Paragraph N"` → empty (`Type` stays `"Paragraph"`, `Id`
+  stays `paragraph_N`). Migration: use `Id` or the position if you need a label.
+- **Rule-based keywords and topics skip English function words.** `BasicDocumentParser` ranked words longer than three
+  letters by frequency with no stop list, so `Keywords` led with «that», «with», «this» and `Topic` was often one of
+  them. It now uses the same stop list as the rule-based metadata extractor and the chunk quality engine, which had two
+  different lists of their own; the quality engine's «meaningful word» count shifts slightly with the shared list.
+- **Breaking** (CLI) — **`chunk --enrich` without `--ai` is an error.** Enrichment calls the AI provider; without `--ai`
+  the flag was dropped without a word and the command exited 0 with no enrichment. It now exits 1 before reading the input
+  and says to add `--ai` or drop `--enrich`.
+
+- **PDF, Word and Excel documents get image descriptions on the stream path too, and the image options decide what is
+  described.** With an `IImageToTextService` registered (`AddFileFlux`), the multimodal PDF, Word and Excel readers
+  re-opened the file to find images. They described every image even with `ExtractOptions.ExtractImages = false` or
+  above `MaxImageSize`, and a processor created from a `Stream` or bytes got no descriptions at all. They now describe the
+  images the base reader extracted (as the PowerPoint reader already did), on both paths. Old → new:
+  - stream/bytes processors: no descriptions, `ReaderType` `PdfReader`/… → the same `IMAGE_START` blocks and
+    `HasImages`/`TotalImageCount` hints as the file path, `ReaderType` `MultiModal…Reader`;
+  - `ExtractImages = false`: every image still sent to the service → none;
+  - `MaxImageSize`: ignored for descriptions → an image above it is neither extracted nor described.
+- **`WordDocumentReader` applies `ExtractOptions.ExtractImages` and `MaxImageSize`** (it ignored both), and
+  **`ExcelDocumentReader` returns the workbook's pictures in `RawContent.Images`** (bytes, MIME type, alt text, the sheet
+  as `PageNumber`) with `has_images`/`image_count` hints. The workbook text is unchanged; directory output now also writes
+  workbook images.
+- **An image description block starts on its own line.** When a document's text did not end with a line break, the first
+  marker was appended to its last line (`| Q4 | 120 |<!-- DOCUMENT_IMAGES_START -->`), breaking a trailing table row or
+  heading.
+
 ### Removed
 - **Breaking** — **`IDocumentAnalysisService` loses the four members nothing in FileFlux called:** `AnalyzeStructureAsync`,
   `SummarizeContentAsync`, `ExtractMetadataAsync` and `AssessQualityAsync`, with their result types `StructureAnalysisResult`,
   `SectionInfo`, `CoreDocumentStructure`, `ContentSummary`, `MetadataExtractionResult` and `QualityAssessment`. FileFlux uses
   the two `GenerateAsync` overloads, `ProviderInfo` and `IsAvailableAsync`. Migration: delete those members from your
   implementation; `OpenAICompatibleDocumentAnalysisService` and the LMSupply service no longer have them.
+
+- **Breaking** — **The shared-entity graph edge is removed: nothing could produce it.** `EnrichedDocumentChunk.Entities` had
+  no writer anywhere (FileFlux's enricher fills keywords, summaries and topics; FluxImprover's entity option is not
+  implemented), so `GraphBuildOptions.IncludeSharedEntityEdges` (default true) never added an edge and the
+  `entities` chunk property never appeared. Removed: `EnrichedDocumentChunk.Entities`,
+  `GraphBuildOptions.IncludeSharedEntityEdges`, `EdgeType.SharedEntity`. The other `EdgeType` values keep their numbers
+  (4 stays unused). Migration: delete the property assignments; graphs are unchanged.
+
+- **Breaking** — **`DocumentProcessorFactory` no longer takes an `IImageToTextService`, and
+  `DocumentProcessorFactoryBuilder.WithImageToTextService` is removed.** The factory handed the service to the processor,
+  which never used it: image descriptions come from the readers, which take the service registered by `AddFileFlux`
+  (`AddFileFlux(…, imageToTextService)` stays). A caller passing a service to the factory got no descriptions. Migration:
+  drop the argument (it is the parameter before `loggerFactory`), and register the service with `AddFileFlux` instead.
 
 ### Documentation
 - **The rest of the tutorial uses the API that exists, and its samples are compiled by the test suite.** The stateful

@@ -215,50 +215,46 @@ public enum EdgeType
     /// <summary>
     /// Sequential order (chunk A comes before chunk B).
     /// </summary>
-    Sequential,
+    Sequential = 0,
 
     /// <summary>
     /// Hierarchical relationship (chunk A is parent of chunk B).
     /// </summary>
-    Hierarchical,
+    Hierarchical = 1,
 
     /// <summary>
     /// Cross-reference (chunk A references chunk B).
     /// </summary>
-    Reference,
+    Reference = 2,
 
     /// <summary>
     /// Semantic similarity (chunks share similar meaning).
     /// </summary>
-    Semantic,
+    Semantic = 3,
 
-    /// <summary>
-    /// Shared entity (chunks mention same entity).
-    /// </summary>
-    SharedEntity,
 
     /// <summary>
     /// Shared structure (chunks reference same table/code/list).
     /// </summary>
-    SharedStructure,
+    SharedStructure = 5,
 
     /// <summary>
     /// Continuation (chunk B continues topic from chunk A).
     /// </summary>
-    Continuation,
+    Continuation = 6,
 
     /// <summary>
     /// Contrast (chunk B presents opposing view to chunk A).
     /// </summary>
-    Contrast,
+    Contrast = 7,
 
     /// <summary>
     /// Example (chunk B provides example for chunk A).
     /// </summary>
-    Example,
+    Example = 8,
 
     /// <summary>
     /// Definition (chunk B defines concept from chunk A).
     /// </summary>
-    Definition
+    Definition = 9
 }

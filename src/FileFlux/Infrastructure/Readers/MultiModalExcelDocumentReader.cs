@@ -1,8 +1,6 @@
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.DependencyInjection;
-using System.Text;
-using Undoc;
 using System.Globalization;
 
 namespace FileFlux.Infrastructure.Readers;
@@ -14,7 +12,15 @@ namespace FileFlux.Infrastructure.Readers;
 /// </summary>
 public class MultiModalExcelDocumentReader : IDocumentReader
 {
-    private static readonly char[] s_keywordSeparators = [' ', '\n', '\r', '\t', '|'];
+    private static readonly ImageDescriptionFormat s_format = new()
+    {
+        DocumentType = "Excel",
+        ImageTypeHint = "chart",
+        SectionMarker = "SPREADSHEET_IMAGES",
+        Label = (_, number) => string.Create(CultureInfo.InvariantCulture, $"Spreadsheet Image {number}:"),
+        ResultSubject = (_, imageType) => $"Spreadsheet: {imageType} image",
+    };
+
     private readonly IImageToTextService? _imageToTextService;
     private readonly IImageRelevanceEvaluator? _relevanceEvaluator;
     private readonly ExcelDocumentReader _baseExcelReader;
@@ -55,301 +61,24 @@ public class MultiModalExcelDocumentReader : IDocumentReader
     // Stage 1: Extract (Raw Content)
     // ========================================
 
+    /// <summary>
+    /// The document's text, with a description of each image the base reader extracted appended, when an
+    /// <see cref="IImageToTextService"/> is registered. The extraction options (<see cref="ExtractOptions.ExtractImages"/>,
+    /// <see cref="ExtractOptions.MaxImageSize"/>) decide which images there are; the stream path describes the same ones.
+    /// </summary>
     public async Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
-        // 기본 Excel 텍스트 추출
-        var baseContent = await _baseExcelReader.ExtractAsync(filePath, options, cancellationToken);
-
-        // 이미지 서비스가 없으면 기본 결과 반환
-        if (_imageToTextService == null)
-            return baseContent;
-
-        // 이미지 처리가 가능한 경우 향상된 추출 수행
-        return await ExtractWithImageProcessing(filePath, baseContent, cancellationToken);
+        var baseContent = await _baseExcelReader.ExtractAsync(filePath, options, cancellationToken).ConfigureAwait(false);
+        return await DescribeImagesAsync(baseContent, Path.GetFileNameWithoutExtension(filePath), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc cref="ExtractAsync(string, ExtractOptions?, CancellationToken)"/>
     public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
-        // 기본 Excel 텍스트 추출
-        var baseContent = await _baseExcelReader.ExtractAsync(stream, fileName, options, cancellationToken);
-
-        // 이미지 서비스가 없으면 기본 결과 반환
-        if (_imageToTextService == null)
-            return baseContent;
-
-        // 스트림 기반 이미지 처리는 복잡하므로 기본 결과 반환 (향후 확장 가능)
-        return baseContent;
+        var baseContent = await _baseExcelReader.ExtractAsync(stream, fileName, options, cancellationToken).ConfigureAwait(false);
+        return await DescribeImagesAsync(baseContent, Path.GetFileNameWithoutExtension(fileName), cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// 이미지 처리를 포함한 향상된 Excel 텍스트 추출
-    /// </summary>
-    private async Task<RawContent> ExtractWithImageProcessing(
-        string filePath,
-        RawContent baseContent,
-        CancellationToken cancellationToken)
-    {
-        var enhancedText = new StringBuilder(baseContent.Text);
-        var imageProcessingResults = new List<string>();
-        var structuralHints = baseContent.Hints?.ToDictionary(kv => kv.Key, kv => kv.Value)
-                             ?? new Dictionary<string, object>();
-
-        // 문서 컨텍스트 준비 (관련성 평가용)
-        var documentContext = PrepareDocumentContext(baseContent, filePath);
-
-        try
-        {
-            using var doc = UndocDocument.ParseFile(filePath);
-
-            var imageCount = 0;
-            var includedImageCount = 0;
-            var excludedImageCount = 0;
-
-            documentContext.SurroundingText = TruncateText(baseContent.Text, 500);
-
-            var documentImages = await ExtractDocumentImages(doc, cancellationToken);
-
-            if (documentImages.Count != 0)
-            {
-                // 관련성 평가가 활성화된 경우 배치 평가 수행
-                List<ImageRelevanceResult>? relevanceResults = null;
-                if (_relevanceEvaluator != null)
-                {
-                    var imageTexts = documentImages.Select(img => img.ExtractedText).ToList();
-                    relevanceResults = (await _relevanceEvaluator.EvaluateBatchAsync(
-                        imageTexts, documentContext, cancellationToken)).ToList();
-                }
-
-                // 문서 이미지 섹션 시작
-                var hasRelevantImages = false;
-                var documentImageTexts = new StringBuilder();
-
-                for (int i = 0; i < documentImages.Count; i++)
-                {
-                    var imageResult = documentImages[i];
-                    imageCount++;
-
-                    // 관련성 평가 결과 확인
-                    bool shouldInclude = true;
-                    string? processedText = imageResult.ExtractedText;
-                    string inclusionReason = "No relevance evaluation";
-
-                    if (relevanceResults != null && i < relevanceResults.Count)
-                    {
-                        var relevance = relevanceResults[i];
-                        shouldInclude = relevance.Recommendation != InclusionRecommendation.MustExclude &&
-                                      relevance.Recommendation != InclusionRecommendation.ShouldExclude;
-
-                        if (!string.IsNullOrEmpty(relevance.ProcessedText))
-                        {
-                            processedText = relevance.ProcessedText;
-                        }
-
-                        inclusionReason = $"{relevance.Category}: {relevance.Reasoning} (Score: {relevance.RelevanceScore:F2})";
-                    }
-
-                    if (shouldInclude)
-                    {
-                        if (!hasRelevantImages)
-                        {
-                            documentImageTexts.AppendLine($"<!-- SPREADSHEET_IMAGES_START -->");
-                            hasRelevantImages = true;
-                        }
-
-                        documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_START:IMG_{imageCount} -->");
-                        documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"Spreadsheet Image {imageCount}:");
-                        documentImageTexts.AppendLine(processedText);
-                        documentImageTexts.AppendLine(CultureInfo.InvariantCulture, $"<!-- IMAGE_END:IMG_{imageCount} -->");
-
-                        includedImageCount++;
-                        imageProcessingResults.Add($"Spreadsheet: {imageResult.ImageType} image INCLUDED - {inclusionReason}");
-                    }
-                    else
-                    {
-                        excludedImageCount++;
-                        imageProcessingResults.Add($"Spreadsheet: {imageResult.ImageType} image EXCLUDED - {inclusionReason}");
-                    }
-                }
-
-                if (hasRelevantImages)
-                {
-                    documentImageTexts.AppendLine($"<!-- SPREADSHEET_IMAGES_END -->");
-                    enhancedText.AppendLine(documentImageTexts.ToString());
-                }
-            }
-
-            // 구조적 힌트에 이미지 처리 정보 추가
-            if (imageCount > 0)
-            {
-                structuralHints["HasImages"] = true;
-                structuralHints["TotalImageCount"] = imageCount;
-                structuralHints["IncludedImageCount"] = includedImageCount;
-                structuralHints["ExcludedImageCount"] = excludedImageCount;
-                structuralHints["ImageProcessingResults"] = imageProcessingResults;
-
-                if (_relevanceEvaluator != null)
-                {
-                    structuralHints["ImageRelevanceEvaluationEnabled"] = true;
-                }
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            // 이미지 처리 실패 시 기본 결과 사용하되 경고 추가
-            var warnings = baseContent.Warnings?.ToList() ?? new List<string>();
-            warnings.Add($"Image processing failed: {ex.Message}");
-
-            var fallback = baseContent.WithText(baseContent.Text);
-            fallback.Warnings = warnings;
-            fallback.ReaderType = ReaderType;
-            return fallback;
-        }
-
-        var enhanced = baseContent.WithText(enhancedText.ToString());
-        enhanced.Hints = structuralHints;
-        enhanced.ReaderType = ReaderType;
-        return enhanced;
-    }
-
-    /// <summary>
-    /// 문서에서 이미지를 추출하고 텍스트 변환 처리 (Undoc 사용)
-    /// </summary>
-    private async Task<List<ImageToTextResult>> ExtractDocumentImages(
-        UndocDocument doc,
-        CancellationToken cancellationToken)
-    {
-        var results = new List<ImageToTextResult>();
-
-        if (_imageToTextService == null)
-            return results;
-
-        try
-        {
-            // Undoc의 GetResourceIds()를 사용하여 이미지 추출
-            var resourceIds = UndocImageResources.Shown(doc).Select(resource => resource.Id);
-
-            foreach (var resourceId in resourceIds)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    var imageBytes = doc.GetResourceData(resourceId);
-                    if (imageBytes == null || imageBytes.Length == 0)
-                        continue;
-
-                    // 이미지 크기 확인
-                    var (width, height) = GetImageDimensions(imageBytes);
-
-                    if (ImageProcessingConstants.IsDecorativeImage(width, height))
-                    {
-                        // 작은 이미지(아이콘, 로고, 장식) 제외
-                        continue;
-                    }
-
-                    // 이미지 타입 힌트 결정
-                    var options = new ImageToTextOptions
-                    {
-                        ImageTypeHint = "chart", // Excel 이미지는 주로 차트/그래프
-                        Quality = "medium",
-                        ExtractStructure = true
-                    };
-
-                    var result = await _imageToTextService.ExtractTextAsync(imageBytes, options, cancellationToken);
-                    if (!string.IsNullOrWhiteSpace(result.ExtractedText))
-                    {
-                        results.Add(result);
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-                {
-                    // 개별 이미지 처리 실패는 무시하고 계속 진행
-                }
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            // 문서 전체 이미지 처리 실패
-        }
-
-        return results;
-    }
-
-    /// <summary>
-    /// 이미지 바이트에서 크기 정보 추출
-    /// </summary>
-    private static (int width, int height) GetImageDimensions(byte[] imageBytes)
-    {
-        try
-        {
-            // PNG signature
-            if (imageBytes.Length > 24 &&
-                imageBytes[0] == 0x89 && imageBytes[1] == 0x50 &&
-                imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
-            {
-                var width = (imageBytes[16] << 24) | (imageBytes[17] << 16) |
-                           (imageBytes[18] << 8) | imageBytes[19];
-                var height = (imageBytes[20] << 24) | (imageBytes[21] << 16) |
-                            (imageBytes[22] << 8) | imageBytes[23];
-                return (width, height);
-            }
-
-            // JPEG signature
-            if (imageBytes.Length > 2 && imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
-            {
-                return (1000, 1000);
-            }
-
-            return (1000, 1000);
-        }
-        catch
-        {
-            return (1000, 1000);
-        }
-    }
-
-    /// <summary>
-    /// 문서 컨텍스트 준비 (관련성 평가용)
-    /// </summary>
-    private static DocumentContext PrepareDocumentContext(RawContent baseContent, string filePath)
-    {
-        var context = new DocumentContext
-        {
-            DocumentType = "Excel",
-            DocumentText = TruncateText(baseContent.Text, 1000)
-        };
-
-        // 파일명에서 제목 추출
-        context.Title = System.IO.Path.GetFileNameWithoutExtension(filePath);
-
-        // 구조적 힌트에서 메타데이터 추출
-        if (baseContent.Hints != null)
-        {
-            foreach (var hint in baseContent.Hints)
-            {
-                context.Metadata[hint.Key.ToString()] = hint.Value?.ToString() ?? "";
-            }
-        }
-
-        // 간단한 키워드 추출 (공백으로 분리된 단어 중 길이가 5 이상인 것들)
-        var words = baseContent.Text.Split(s_keywordSeparators, StringSplitOptions.RemoveEmptyEntries);
-        context.Keywords = words
-            .Where(w => w.Length >= 5)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(20)
-            .ToList();
-
-        return context;
-    }
-
-    /// <summary>
-    /// 텍스트 자르기 헬퍼
-    /// </summary>
-    private static string TruncateText(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
-            return text;
-
-        return string.Concat(text.AsSpan(0, maxLength), "...");
-    }
+    private Task<RawContent> DescribeImagesAsync(RawContent baseContent, string title, CancellationToken cancellationToken) =>
+        ImageDescriptions.AppendAsync(baseContent, title, ReaderType, s_format, _imageToTextService, _relevanceEvaluator, cancellationToken);
 }

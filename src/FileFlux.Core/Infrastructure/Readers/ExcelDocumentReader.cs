@@ -193,7 +193,7 @@ public class ExcelDocumentReader : IDocumentReader
 
         try
         {
-            return await Task.Run(() => ExtractExcelContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractExcelContent(filePath, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UndocException ex)
         {
@@ -237,7 +237,7 @@ public class ExcelDocumentReader : IDocumentReader
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             var bytes = memoryStream.ToArray();
 
-            return await Task.Run(() => ExtractExcelContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false);
+            return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractExcelContentFromBytes(bytes, fileName, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
         catch (UndocException ex)
         {
@@ -289,6 +289,7 @@ public class ExcelDocumentReader : IDocumentReader
 
         // A workbook whose sheets are all empty has no table.
         structuralHints["has_tables"] = workbook.Tables.Count > 0;
+        var images = ExtractImages(doc, structuralHints);
 
         return new RawContent
         {
@@ -307,6 +308,7 @@ public class ExcelDocumentReader : IDocumentReader
             },
             Hints = structuralHints,
             Warnings = warnings,
+            Images = images,
             ReaderType = "ExcelReader"
         };
     }
@@ -342,6 +344,7 @@ public class ExcelDocumentReader : IDocumentReader
 
         // A workbook whose sheets are all empty has no table.
         structuralHints["has_tables"] = workbook.Tables.Count > 0;
+        var images = ExtractImages(doc, structuralHints);
 
         return new RawContent
         {
@@ -358,8 +361,46 @@ public class ExcelDocumentReader : IDocumentReader
             },
             Hints = structuralHints,
             Warnings = warnings,
+            Images = images,
             ReaderType = "ExcelReader"
         };
+    }
+
+    /// <summary>
+    /// The pictures the workbook shows, each with the sheets that show it (<see cref="ImageInfo.PageNumbers"/>, the
+    /// sheet's 1-based position, when the parser places it) and its alt text; sets <c>image_count</c>/<c>has_images</c>.
+    /// The text does not reference them.
+    /// </summary>
+    private static List<ImageInfo> ExtractImages(UndocDocument doc, Dictionary<string, object> structuralHints)
+    {
+        var images = new List<ImageInfo>();
+        var sheets = UndocImageResources.SectionsOfResources(doc);
+        foreach (var (resourceId, altText) in UndocImageResources.Shown(doc))
+        {
+            var resourceData = doc.GetResourceData(resourceId);
+            if (resourceData is not { Length: > 0 })
+                continue;
+
+            var image = new ImageInfo
+            {
+                Id = resourceId,
+                MimeType = ImageMimeTypeDetector.Detect(resourceData, resourceId),
+                Data = resourceData,
+                OriginalSize = resourceData.Length,
+                SourceUrl = $"embedded:{resourceId}",
+                PageNumbers = sheets.TryGetValue(resourceId, out var shownOn) ? shownOn : []
+            };
+            ImageAltText.Attach(image, altText);
+            images.Add(image);
+        }
+
+        if (images.Count > 0)
+        {
+            structuralHints["image_count"] = images.Count;
+            structuralHints["has_images"] = true;
+        }
+
+        return images;
     }
 
     /// <summary>

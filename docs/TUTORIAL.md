@@ -426,9 +426,11 @@ instead of failing the batch.
 
 Register an `IImageToTextService` and the PDF, Word, Excel and PowerPoint readers send the images in a document to it.
 Each description that comes back with text is added after the document's own text, so it is refined and chunked with the
-rest. The PDF, Word and Excel readers do this when the processor reads a file path (`factory.Create(path)`); a
-processor over a `Stream` or `byte[]` gets their text without image descriptions. The PowerPoint reader describes images
-on both. `FileFlux.Providers.LMSupply` has local ones (`AddLMSupplyCaptioner()`, `AddLMSupplyOcr()`); for any other vision model,
+rest. The readers describe the images extraction returned (`RawContent.Images`), so a processor over a file path, a
+`Stream` or a `byte[]` gets the same descriptions, and the image options decide what is sent:
+`ExtractOptions.ExtractImages = false` sends nothing, `MaxImageSize` leaves out a larger image (pass the options to
+`processor.ExtractAsync`). Icon-sized pictures (under 100 x 100 pixels) and an image on a PDF page replaced by its `PageReading` read are not sent.
+`FileFlux.Providers.LMSupply` has local ones (`AddLMSupplyCaptioner()`, `AddLMSupplyOcr()`); for any other vision model,
 implement the interface. The readers pass the image bytes (the `byte[]` overload) and use `ExtractedText`:
 
 ```csharp

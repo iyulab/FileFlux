@@ -86,6 +86,28 @@ public class CommandExitCodeTests : IDisposable
         Assert.False(Directory.Exists(_outputDir), $"{command} -f {format} wrote output before rejecting the format");
     }
 
+    [Fact]
+    public async Task Chunk_enrich_without_ai_fails_before_any_output()
+    {
+        // --enrich needs the AI provider; it used to be dropped silently and the command exited 0 without enrichment.
+        var inputDir = _outputDir + "-input";
+        Directory.CreateDirectory(inputDir);
+        var input = Path.Combine(inputDir, "guide.md");
+        await File.WriteAllTextAsync(input, "# Guide\n\nA short paragraph about installing the tool.\n", TestContext.Current.CancellationToken);
+        int exitCode;
+        try
+        {
+            exitCode = await InvokeAsync("chunk", input, "-o", _outputDir, "-q", "--no-extract-images", "--enrich");
+        }
+        finally
+        {
+            Directory.Delete(inputDir, recursive: true);
+        }
+
+        Assert.Equal(1, exitCode);
+        Assert.False(Directory.Exists(_outputDir), "chunk --enrich without --ai wrote output");
+    }
+
     [Theory]
     [InlineData("extract", "md, json")]
     [InlineData("chunk", "md, json, jsonl")]
