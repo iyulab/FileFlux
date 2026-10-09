@@ -34,12 +34,6 @@ public class DocsSnippetRosterTests
     /// </summary>
     private static readonly HashSet<string> KnownExternal = new(StringComparer.Ordinal)
     {
-        "AddConsole",        // Microsoft.Extensions.Logging.Console
-        "GetChatClient",     // OpenAI SDK, in the tutorial's own vision service
-        "CompleteChatAsync", // OpenAI SDK, same
-        "CreateImagePart",   // OpenAI SDK, same
-        "FromBytes",         // System.BinaryData (System.Memory.Data), same
-        "StoreAsync",        // the reader's vector store in the tutorial's pipeline sample
     };
 
     /// <summary>
@@ -53,6 +47,7 @@ public class DocsSnippetRosterTests
     /// <summary>Option-shaped types from other SDKs that a document legitimately shows (not ours to declare).</summary>
     private static readonly HashSet<string> KnownExternalTypes = new(StringComparer.Ordinal)
     {
+        "ParallelOptions",   // System.Threading.Tasks, in the tutorial's batch sample
     };
 
     [Fact]
@@ -376,7 +371,7 @@ public class DocsSnippetRosterTests
         typeof(object).Assembly, typeof(Enumerable).Assembly, typeof(Task).Assembly, typeof(Console).Assembly,
         typeof(File).Assembly, typeof(System.Text.Json.JsonSerializer).Assembly, typeof(Regex).Assembly,
         typeof(System.Collections.Concurrent.ConcurrentDictionary<,>).Assembly, typeof(HttpClient).Assembly,
-        typeof(System.Diagnostics.Stopwatch).Assembly,
+        typeof(System.Diagnostics.Stopwatch).Assembly, typeof(Parallel).Assembly,
     ];
 
     private static Dictionary<string, List<Type>> OptionTypes() =>

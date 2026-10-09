@@ -34,7 +34,13 @@ public class ReadmeSnippetCompileTests
     private static readonly (string File, string Heading)[] CompiledSections =
     [
         ("docs/TUTORIAL.md", "Basic Usage"),
-        ("docs/TUTORIAL.md", "Metadata Enrichment"),
+        ("docs/TUTORIAL.md", "Stateful Pipeline"),
+        ("docs/TUTORIAL.md", "Document Formats"),
+        ("docs/TUTORIAL.md", "Chunking Strategies"),
+        ("docs/TUTORIAL.md", "Advanced Features"),
+        ("docs/TUTORIAL.md", "RAG Integration"),
+        ("docs/TUTORIAL.md", "Error Handling"),
+        ("docs/TUTORIAL.md", "Customization"),
         ("docs/ARCHITECTURE.md", "Extensibility Pattern"),
     ];
 
@@ -56,6 +62,7 @@ public class ReadmeSnippetCompileTests
         ("provider", "IServiceProvider provider = null!;"),
         ("reader", "IDocumentReader reader = null!;"),
         ("processor", "IDocumentProcessor processor = null!;"),
+        ("factory", "IDocumentProcessorFactory factory = null!;"),
         ("logger", "ILogger logger = null!;"),
         ("storedText", "string storedText = \"\";"),
         ("storedSpans", "IReadOnlyList<SourceSpan> storedSpans = [];"),

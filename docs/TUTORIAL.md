@@ -130,31 +130,34 @@ await processor.ProcessAsync(new ProcessingOptions
 
 ## Stateful Pipeline
 
-The stateful pipeline (v0.9.0+) provides explicit control over each processing stage with state management.
+A processor runs one document through five stages and keeps every stage's output in `Result`. Each stage method first runs
+the earlier stages it needs (Extract before Refine, Refine before LlmRefine and Chunk, Chunk before Enrich) and skips a stage
+that has already run.
 
 ### Creating a Stateful Processor
 
 ```csharp
 using FileFlux;
-using FileFlux.Infrastructure.Factories;
+using FileFlux.Core;
+using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 services.AddFileFlux();
-var provider = services.BuildServiceProvider();
+using var provider = services.BuildServiceProvider();
 
-// Create processor via factory
+// One processor per document
 var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
-using var processor = factory.Create("document.pdf");
+await using var processor = factory.Create("document.pdf");
 ```
 
 ### Stage-by-Stage Execution
 
 ```csharp
-// Stage 1: Extract raw content
+// Stage 1: extract the raw text (ExtractOptions selects images, page reading and slide rendering)
 await processor.ExtractAsync();
 Console.WriteLine($"Extracted: {processor.Result.Raw?.Text.Length} chars");
 
-// Stage 2: Refine content with structure analysis
+// Stage 2: rule-based refinement
 await processor.RefineAsync(new RefineOptions
 {
     CleanNoise = true,
@@ -163,15 +166,20 @@ await processor.RefineAsync(new RefineOptions
 });
 Console.WriteLine($"Sections: {processor.Result.Refined?.Sections.Count}");
 
-// Stage 3: Chunk content
+// Stage 3: LLM refinement - skipped when no IDocumentAnalysisService is registered
+await processor.LlmRefineAsync();
+Console.WriteLine($"LLM used: {processor.Result.LlmWasUsed}");
+
+// Stage 4: chunking (from the LLM-refined text when there is one)
 await processor.ChunkAsync(new ChunkingOptions
 {
-    Strategy = "Auto",
-    MaxChunkSize = 512
+    Strategy = ChunkingStrategies.Auto,
+    MaxChunkSize = 512,
+    OverlapSize = 64
 });
 Console.WriteLine($"Chunks: {processor.Result.Chunks?.Count}");
 
-// Stage 4: Enrich with LLM (optional)
+// Stage 5: enrichment and the chunk graph (see below)
 await processor.EnrichAsync(new EnrichOptions
 {
     BuildGraph = true,
@@ -183,117 +191,115 @@ Console.WriteLine($"Graph nodes: {processor.Result.Graph?.NodeCount}");
 
 ### Full Pipeline Execution
 
+`ProcessAsync` runs Extract, Refine, LlmRefine (unless `IncludeLlmRefine = false`) and Chunk, and Enrich when
+`IncludeEnrich` is set. It extracts with the reader's default `ExtractOptions`; to pass your own, call `ExtractAsync` first —
+`ProcessAsync` then continues from the extracted text.
+
 ```csharp
-// Run all stages at once
 await processor.ProcessAsync(new ProcessingOptions
 {
+    Chunking = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 512 },
     IncludeEnrich = true,
-    Chunking = new ChunkingOptions { Strategy = "Auto", MaxChunkSize = 512 },
     Enrich = new EnrichOptions { BuildGraph = true }
 });
 
-// Access all results
+// Every stage's output
 var raw = processor.Result.Raw;
 var refined = processor.Result.Refined;
+var llmRefined = processor.Result.LlmRefined;
 var chunks = processor.Result.Chunks;
 var graph = processor.Result.Graph;
+var timing = processor.Result.Metrics.TotalDuration;
 ```
 
 ### Processing State
 
 ```csharp
-// Check current state
+// Created, Extracted, Refined, LlmRefined, Chunked, Enriched - or Failed, Disposed
 Console.WriteLine($"State: {processor.State}");
-// Created → Extracted → Refined → Chunked → Enriched
 
-// State transitions are automatic
-await processor.ChunkAsync();  // Auto-runs Extract + Refine if needed
+// On a new processor, ChunkAsync extracts and refines first (it does not run the LLM refinement)
+await processor.ChunkAsync();
 ```
 
 ### Document Graph
 
-```csharp
-// Build graph showing relationships between chunks
-var graph = processor.Result.Graph;
+`EnrichAsync` builds `Result.Graph` when `EnrichOptions.BuildGraph` is true (the default): one node per chunk, and edges
+between chunks. Without an AI service the edges are `Sequential` (each chunk to the next, label `follows`) and
+`Hierarchical` (from the nearest earlier chunk whose heading path is a shorter prefix of this chunk's, label `contains`). With an
+`IDocumentAnalysisService` registered, edges for the relationships the model finds between chunks are added (`Semantic`,
+`Reference`, `Contrast`, `Continuation`, `Example`, `Sequential`). At most 10 edges leave one chunk.
 
-// Graph contains nodes (chunks) and edges (relationships)
+```csharp
+await processor.EnrichAsync();
+var graph = processor.Result.Graph!;
+
 foreach (var node in graph.Nodes)
 {
-    Console.WriteLine($"Node {node.Index}: {node.ChunkId}");
+    Console.WriteLine($"Node {node.Index}: {node.ChunkId} ({string.Join(" > ", node.SectionPath)})");
 }
 
 foreach (var edge in graph.Edges)
 {
-    Console.WriteLine($"Edge: {edge.FromIndex} → {edge.ToIndex} ({edge.Type})");
+    Console.WriteLine($"Edge: {edge.SourceId} -> {edge.TargetId} {edge.Type} ({edge.Label}, weight {edge.Weight})");
 }
 
-// Edge types: Sequential, Hierarchical, Semantic
+// The chunks one chunk is connected to, in either direction
+var first = graph.Nodes[0].ChunkId;
+var neighbours = graph.GetConnectedChunks(first).ToList();
+var hierarchy = graph.GetEdgesByType(EdgeType.Hierarchical).Count();
 ```
 
-### Streaming Enrichment
+### Enrichment Results
+
+With an `IDocumentAnalysisService` registered, `EnrichAsync` writes a summary, keywords and a contextual description of
+each chunk into its `Props`, which `DocumentChunk` exposes as typed properties. Up to `EnrichOptions.MaxConcurrency` chunks
+are enriched at a time; a chunk whose call fails keeps its other values. Without an analysis service the chunks are left
+as they are and only the graph is built.
 
 ```csharp
-// Process chunks as they're enriched
-await foreach (var enrichedChunk in processor.EnrichStreamAsync())
+await processor.EnrichAsync(new EnrichOptions
 {
-    Console.WriteLine($"Chunk {enrichedChunk.Chunk.Index}: {enrichedChunk.Summary}");
+    GenerateSummaries = true,
+    ExtractKeywords = true,
+    AddContextualText = true
+});
+
+foreach (var chunk in processor.Result)
+{
+    if (!chunk.HasEnrichment)
+        continue;
+
+    Console.WriteLine($"Chunk {chunk.ChunkIndex}: {chunk.EnrichedSummary}");
+    Console.WriteLine($"  Keywords: {string.Join(", ", chunk.EnrichedKeywords ?? [])}");
+    Console.WriteLine($"  Context: {chunk.EnrichedContextualText}");
 }
 ```
 
 ## Document Formats
 
-FileFlux supports the following document formats:
-
-| Format | Extension | Text Extraction | Image Processing |
-|--------|-----------|----------------|------------------|
-| PDF | `.pdf` | ✅ | ✅ |
-| Word | `.docx`, `.doc` | ✅ | Planned |
-| Excel | `.xlsx`, `.xls` | ✅ | ❌ |
-| PowerPoint | `.pptx`, `.ppt` | ✅ | Planned |
-| Markdown | `.md` | ✅ | ❌ |
-| HTML | `.html`, `.htm` | ✅ | ✅ |
-| Text | `.txt` | ✅ | ❌ |
-| JSON | `.json` | ✅ | ❌ |
-| CSV | `.csv` | ✅ | ❌ |
-
-### Format-Specific Features
-
-**PDF**: Text and image extraction, structure recognition, metadata preservation
-
-**Word**: Style recognition, headers, tables, and image captions
-
-**Excel**: Multi-sheet support, formula extraction, table structure analysis
-
-**PowerPoint**: Slide content, notes, and title structure extraction
-
-**Markdown**: Header, code block, and table structure preservation
-
-**HTML**: Web content extraction with structure preservation
-
-**Text**: Plain text with automatic encoding detection
-
-**JSON**: Structured data flattening and schema extraction
-
-**CSV**: Table data with header preservation
+`AddFileFlux()` registers readers for PDF (`.pdf`), Word (`.docx`, `.doc`), Excel (`.xlsx`, `.xls`), PowerPoint
+(`.pptx`, `.ppt`), HWP (`.hwp`, `.hwpx`), Markdown (`.md`, `.markdown`), HTML (`.html`, `.htm`), CSV/TSV (`.csv`, `.tsv`)
+and plain text (`.txt`, `.json`), and for audio files when an `IAudioToTextService` is registered. What each reader
+extracts, and its limits, are in the README's [Supported Document Formats](../README.md#supported-document-formats) and
+[Known Limitations](../README.md#known-limitations). With an `IImageToTextService` registered, the PDF, Word, Excel and
+PowerPoint readers also describe the images in a document (see [Multimodal Processing](#multimodal-processing)).
 
 ### Extension Discovery
 
 ```csharp
-var factory = provider.GetRequiredService<IDocumentReaderFactory>();
+var readers = provider.GetRequiredService<IDocumentReaderFactory>();
 
-// Get all supported extensions
-var extensions = factory.GetSupportedExtensions();
+// Every extension a registered reader takes
+var extensions = readers.GetAllReaders()
+    .SelectMany(r => r.SupportedExtensions)
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .Order(StringComparer.OrdinalIgnoreCase);
 Console.WriteLine($"Supported: {string.Join(", ", extensions)}");
 
-// Check specific extension
-bool isSupported = factory.IsExtensionSupported(".pdf");
-
-// Get extension-to-reader mapping
-var mapping = factory.GetExtensionReaderMapping();
-foreach (var kvp in mapping)
-{
-    Console.WriteLine($"{kvp.Key} → {kvp.Value}");
-}
+// Whether a reader takes a file name, and which one
+bool isSupported = readers.CanRead("report.pdf");
+Console.WriteLine(readers.GetReader("report.pdf")?.ReaderType);
 ```
 
 ## Chunking Strategies
@@ -327,7 +333,7 @@ var options = new ChunkingOptions
 description and schema-specific fields. It is a **standalone service, not a pipeline stage**: `ProcessAsync` does not
 call it and it writes nothing into chunks. Call it on the text you want described (a document's extracted text, a
 section, a chunk) and store the result where you need it. Per-chunk summaries and keywords from the pipeline come from
-the Enrich stage instead (see [Streaming Enrichment](#streaming-enrichment)).
+the Enrich stage instead (see [Enrichment Results](#enrichment-results)).
 
 `AddFileFlux()` does not register it. Construct it with a `RuleBasedMetadataExtractor`, an `IMemoryCache` (used only by
 `EnrichWithCacheAsync`/`EnrichBatchAsync`) and, optionally, your `IDocumentAnalysisService`:
@@ -418,187 +424,158 @@ instead of failing the batch.
 
 ### Multimodal Processing
 
-Process documents with images using vision AI:
+Register an `IImageToTextService` and the PDF, Word, Excel and PowerPoint readers send the images in a document to it.
+Each description that comes back with text is added after the document's own text, so it is refined and chunked with the
+rest. The PDF, Word and Excel readers do this when the processor reads a file path (`factory.Create(path)`); a
+processor over a `Stream` or `byte[]` gets their text without image descriptions. The PowerPoint reader describes images
+on both. `FileFlux.Providers.LMSupply` has local ones (`AddLMSupplyCaptioner()`, `AddLMSupplyOcr()`); for any other vision model,
+implement the interface. The readers pass the image bytes (the `byte[]` overload) and use `ExtractedText`:
 
 ```csharp
-// Implement image-to-text service
-public class OpenAiVisionService : IImageToTextService
-{
-    private readonly OpenAIClient _client;
+using System.Threading;
 
-    public OpenAiVisionService(string apiKey)
+services.AddSingleton<IImageToTextService, MyVisionService>();   // before or after AddFileFlux()
+
+public sealed class MyVisionService : IImageToTextService
+{
+    public string ProviderName => "my-vision-model";
+
+    public IEnumerable<string> SupportedImageFormats => [".png", ".jpg", ".jpeg"];
+
+    public async Task<ImageToTextResult> ExtractTextAsync(
+        byte[] imageData, ImageToTextOptions? options = null, CancellationToken cancellationToken = default)
     {
-        _client = new OpenAIClient(apiKey);
+        var text = await DescribeAsync(imageData, options?.CustomPrompt, cancellationToken);
+        return new ImageToTextResult { ExtractedText = text };
     }
 
     public async Task<ImageToTextResult> ExtractTextAsync(
-        byte[] imageData,
-        ImageToTextOptions? options = null,
-        CancellationToken cancellationToken = default)
+        Stream imageStream, ImageToTextOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var chatClient = _client.GetChatClient("gpt-4-vision-preview");
-
-        var messages = new List<ChatMessage>
-        {
-            new SystemChatMessage("Extract all text from the image accurately."),
-            new UserChatMessage(ChatMessageContentPart.CreateImagePart(
-                BinaryData.FromBytes(imageData), "image/jpeg"))
-        };
-
-        var response = await chatClient.CompleteChatAsync(messages, cancellationToken);
-
-        return new ImageToTextResult
-        {
-            ExtractedText = response.Value.Content[0].Text,
-            Confidence = 0.95,
-            IsSuccess = true
-        };
+        using var buffer = new MemoryStream();
+        await imageStream.CopyToAsync(buffer, cancellationToken);
+        return await ExtractTextAsync(buffer.ToArray(), options, cancellationToken);
     }
-}
 
-// Register and use
-services.AddScoped<IImageToTextService, OpenAiVisionService>();
-
-// Process document with images
-await foreach (var result in processor.ProcessStreamAsync("document-with-images.pdf"))
-{
-    if (result.IsSuccess && result.Result != null)
+    public async Task<ImageToTextResult> ExtractTextAsync(
+        string imagePath, ImageToTextOptions? options = null, CancellationToken cancellationToken = default)
     {
-        foreach (var chunk in result.Result)
-        {
-            if (chunk.Props.ContainsKey("HasImages"))
-            {
-                Console.WriteLine($"Image text extracted: {chunk.Content}");
-            }
-        }
+        var bytes = await File.ReadAllBytesAsync(imagePath, cancellationToken);
+        return await ExtractTextAsync(bytes, options, cancellationToken);
     }
+
+    // Call your vision model here
+    private static Task<string> DescribeAsync(byte[] image, string? prompt, CancellationToken cancellationToken) =>
+        throw new NotImplementedException();
 }
 ```
 
-### Step-by-Step Processing
-
-Use the stateful pipeline for fine-grained control over each processing stage. The file path is set when creating the processor via the factory; individual stage methods take no path parameter:
+The processor is used as before. The extraction result says how many images were described:
 
 ```csharp
-var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
-using var processor = factory.Create("document.pdf");
+await using var processor = factory.Create("document-with-images.pdf");
+await processor.ProcessAsync();
 
-// Stage 1: Extract raw content
-await processor.ExtractAsync();
-Console.WriteLine($"Extracted: {processor.Result.Raw?.Text.Length} chars");
-
-// Stage 2: Rule-based refine
-await processor.RefineAsync();
-Console.WriteLine($"Sections: {processor.Result.Refined?.Sections.Count ?? 0}");
-
-// Stage 2.5: LLM refine (optional — skipped automatically if LLM unavailable)
-await processor.LlmRefineAsync();
-
-// Stage 3: Chunk content
-await processor.ChunkAsync(new ChunkingOptions
+if (processor.Result.Raw!.Hints.TryGetValue("IncludedImageCount", out var described))
 {
-    Strategy = "Auto",
-    MaxChunkSize = 512,
-    OverlapSize = 64
+    Console.WriteLine($"{described} image description(s) added to the text");
+}
+```
+
+Scanned PDF pages and drawn PowerPoint slides are read through the same service when you ask for it in `ExtractOptions`
+(`PageReading`, `SlideRendering` — see the README's [Known Limitations](../README.md#known-limitations)). Pass the options
+to `ExtractAsync` before processing:
+
+```csharp
+await using var processor = factory.Create("scanned.pdf");
+await processor.ExtractAsync(new ExtractOptions
+{
+    PageReading = new PageReadingOptions { SelectPages = page => !page.HasTextLayer }
 });
-Console.WriteLine($"Chunks: {processor.Result.Chunks?.Count}");
+await processor.ProcessAsync();   // continues from the extracted text
 ```
 
 ### Quality Analysis
 
-Analyze chunk quality metrics:
+`ChunkQualityEngine` scores a set of chunks:
 
 ```csharp
-// Process document first
-var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
-using var processor = factory.Create("document.pdf");
-await processor.ProcessAsync();
-var chunks = processor.Result.Chunks ?? [];
+using FileFlux.Infrastructure.Quality;
 
-// Calculate quality metrics (static method)
-var metrics = await ChunkQualityEngine.CalculateQualityMetricsAsync(chunks);
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+await using var processor = factory.Create("document.pdf");
+await processor.ProcessAsync();
+
+var metrics = await ChunkQualityEngine.CalculateQualityMetricsAsync(processor.Result);
 Console.WriteLine($"Average Completeness: {metrics.AverageCompleteness:P}");
 Console.WriteLine($"Content Consistency: {metrics.ContentConsistency:P}");
 Console.WriteLine($"Boundary Quality: {metrics.BoundaryQuality:P}");
 Console.WriteLine($"Size Distribution: {metrics.SizeDistribution:P}");
+Console.WriteLine($"Overlap Effectiveness: {metrics.OverlapEffectiveness:P}");
 ```
 
 ## RAG Integration
 
 ### Complete RAG Pipeline
 
-```csharp
-public class RagService
-{
-    private readonly IDocumentProcessor _processor;
-    private readonly IEmbeddingService _embeddingService;
-    private readonly IVectorStore _vectorStore;
+FileFlux produces the chunks; embedding them and storing the vectors is yours. `IEmbeddingService` is FileFlux's embedding
+interface (`AddLMSupplyEmbedding` registers a local one); the vector store below stands for your own.
 
-    public async Task IndexDocumentAsync(string filePath)
+```csharp
+using System.Threading;
+
+services.AddScoped<DocumentIndexer>();   // with an IEmbeddingService and your IMyVectorStore registered
+
+public interface IMyVectorStore
+{
+    public Task UpsertAsync(Guid id, string content, float[] vector, IReadOnlyDictionary<string, object> props,
+        CancellationToken cancellationToken);
+}
+
+public sealed class DocumentIndexer(
+    IDocumentProcessorFactory factory, IEmbeddingService embeddings, IMyVectorStore store)
+{
+    public async Task IndexAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        var options = new ChunkingOptions
+        await using var processor = factory.Create(filePath);
+        var options = new ProcessingOptions
         {
-            Strategy = "Auto",
-            MaxChunkSize = 512,
-            OverlapSize = 64
+            Chunking = new ChunkingOptions { Strategy = ChunkingStrategies.Auto, MaxChunkSize = 512, OverlapSize = 64 }
         };
 
-        await foreach (var result in _processor.ProcessStreamAsync(filePath, options))
+        await foreach (var chunk in processor.ProcessStreamAsync(options, cancellationToken))
         {
-            if (result.IsSuccess && result.Result != null)
-            {
-                foreach (var chunk in result.Result)
-                {
-                    // Generate embedding
-                    var embedding = await _embeddingService.GenerateAsync(chunk.Content);
-
-                    // Store in vector database
-                    await _vectorStore.StoreAsync(new
-                    {
-                        Id = chunk.Id,
-                        Content = chunk.Content,
-                        Metadata = chunk.Props,
-                        Vector = embedding
-                    });
-                }
-            }
-
-            // Display progress
-            if (result.Progress != null)
-            {
-                Console.WriteLine($"Progress: {result.Progress.PercentComplete:F1}%");
-            }
+            var vector = await embeddings.GenerateEmbeddingAsync(chunk.Content, EmbeddingPurpose.Storage, cancellationToken);
+            await store.UpsertAsync(chunk.Id, chunk.Content, vector, chunk.Props, cancellationToken);
         }
     }
 }
 ```
 
+Besides `Content`, each chunk carries its place in the source (`Location`: character offsets, heading path, pages or times)
+and `Props` (see [Chunking Strategies](../README.md#chunking-strategies) in the README) — worth storing next to the vector.
+
 ### Batch Processing
 
+A processor handles one document. For several files, create one per file; processors are independent, so the files can
+run in parallel:
+
 ```csharp
-public async Task ProcessMultipleDocumentsAsync(string[] filePaths)
+using System.Collections.Concurrent;
+
+string[] files = ["report.pdf", "notes.docx", "data.xlsx"];
+var chunkCounts = new ConcurrentDictionary<string, int>();
+
+await Parallel.ForEachAsync(files, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async (path, cancellationToken) =>
 {
-    var tasks = filePaths.Select(async filePath =>
-    {
-        var chunks = new List<DocumentChunk>();
+    await using var processor = factory.Create(path);
+    await processor.ProcessAsync(cancellationToken: cancellationToken);
+    chunkCounts[path] = processor.Result.Chunks?.Count ?? 0;
+});
 
-        await foreach (var result in processor.ProcessStreamAsync(filePath))
-        {
-            if (result.IsSuccess && result.Result != null)
-            {
-                chunks.AddRange(result.Result);
-            }
-        }
-
-        return new { FilePath = filePath, Chunks = chunks };
-    });
-
-    var results = await Task.WhenAll(tasks);
-
-    foreach (var result in results)
-    {
-        Console.WriteLine($"{result.FilePath}: {result.Chunks.Count} chunks");
-    }
+foreach (var (path, count) in chunkCounts)
+{
+    Console.WriteLine($"{path}: {count} chunks");
 }
 ```
 
@@ -606,140 +583,99 @@ public async Task ProcessMultipleDocumentsAsync(string[] filePaths)
 
 ### Exception Handling
 
+A stage that fails throws `DocumentProcessingException` and leaves the processor in the `Failed` state. `FileName` is the
+processor's `FilePath`, the message names the stage (`Extraction failed: …`, `Refinement failed: …`, `Chunking failed: …`,
+`Enrichment failed: …`) and `InnerException` holds the cause — for a file no registered reader takes, an
+`UnsupportedFileFormatException`. A failure of the LLM refinement does not fail the pipeline: the stage keeps the rule-based
+text. An unknown `ChunkingOptions.Strategy` throws `ArgumentException` from `ProcessAsync` before any stage runs. To try a
+document again, create a new processor.
+
 ```csharp
+await using var processor = factory.Create("document.pdf");
 try
 {
-    var chunks = await processor.ProcessAsync("document.pdf");
-}
-catch (UnsupportedFileFormatException ex)
-{
-    Console.WriteLine($"Unsupported format: {ex.FileName}");
+    await processor.ProcessAsync();
 }
 catch (DocumentProcessingException ex)
 {
-    Console.WriteLine($"Processing error: {ex.Message}");
-    Console.WriteLine($"File: {ex.FileName}");
-}
-catch (FileNotFoundException)
-{
-    Console.WriteLine("File not found");
+    Console.WriteLine($"{ex.FileName}: {ex.Message}");
+    Console.WriteLine($"Cause: {ex.InnerException?.GetType().Name}");
+    Console.WriteLine($"State: {processor.State}");   // Failed
 }
 ```
 
 ### Streaming Error Handling
 
-```csharp
-await foreach (var result in processor.ProcessStreamAsync("document.pdf"))
-{
-    if (!result.IsSuccess)
-    {
-        Console.WriteLine($"Error: {result.Error}");
-        continue; // Continue with next chunk
-    }
+`ProcessStreamAsync` throws the same exceptions from the `await foreach`; the chunks yielded before the failure are already
+yours:
 
-    if (result.Result != null)
+```csharp
+await using var processor = factory.Create("document.pdf");
+var received = new List<DocumentChunk>();
+try
+{
+    await foreach (var chunk in processor.ProcessStreamAsync())
     {
-        foreach (var chunk in result.Result)
-        {
-            Console.WriteLine($"Chunk {chunk.Index} processed successfully");
-        }
+        received.Add(chunk);
     }
+}
+catch (DocumentProcessingException ex)
+{
+    Console.WriteLine($"Stopped after {received.Count} chunks: {ex.Message}");
 }
 ```
 
 ### Validation
 
+The processor picks its reader by the file name and, when the content is recognised as another format, by the content.
+`IDocumentReaderFactory` makes the same choice before you create a processor:
+
 ```csharp
-public async Task<bool> ValidateAndProcessAsync(string filePath)
+using FileFlux.Core.Infrastructure.Readers;
+
+var readers = provider.GetRequiredService<IDocumentReaderFactory>();
+var path = "upload.bin";
+
+if (!File.Exists(path))
 {
-    // Check file exists
-    if (!File.Exists(filePath))
-    {
-        Console.WriteLine("File not found");
-        return false;
-    }
-
-    // Check extension
-    var factory = provider.GetRequiredService<IDocumentReaderFactory>();
-    var extension = Path.GetExtension(filePath);
-
-    if (!factory.IsExtensionSupported(extension))
-    {
-        Console.WriteLine($"Unsupported extension: {extension}");
-        return false;
-    }
-
-    // Process
-    try
-    {
-        var chunks = await processor.ProcessAsync(filePath);
-        Console.WriteLine($"Processed: {chunks.Count()} chunks");
-        return true;
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error: {ex.Message}");
-        return false;
-    }
+    Console.WriteLine("File not found");
+}
+else if (readers.GetReader(path, FormatSignature.DetectFile(path)) is { } selected)
+{
+    Console.WriteLine($"{path} is read by {selected.ReaderType}");
+}
+else
+{
+    Console.WriteLine($"No reader takes {path}");
 }
 ```
 
 ## Customization
 
-### Custom Chunking Strategy
+### Custom Chunking
+
+The strategies are the `ChunkingStrategies` names (see [Chunking Strategies](#chunking-strategies)); there is no interface
+for adding one. To split a document your own way, run the pipeline up to refinement and split the refined text:
 
 ```csharp
-public class CustomChunkingStrategy : IChunkingStrategy
-{
-    public string StrategyName => "Custom";
+await using var processor = factory.Create("document.pdf");
+await processor.RefineAsync();   // extracts first
 
-    public async Task<IEnumerable<DocumentChunk>> ChunkAsync(
-        ParsedDocumentContent content,
-        ChunkingOptions options,
-        CancellationToken cancellationToken = default)
-    {
-        var chunks = new List<DocumentChunk>();
-        var sentences = content.Content.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        var chunkIndex = 0;
-
-        foreach (var sentence in sentences)
-        {
-            chunks.Add(new DocumentChunk
-            {
-                Id = Guid.NewGuid(),
-                Content = sentence.Trim(),
-                Index = chunkIndex++,
-                Location = new SourceLocation
-                {
-                    StartChar = 0,
-                    EndChar = sentence.Length
-                },
-                Quality = CalculateQuality(sentence),
-                Props = new Dictionary<string, object>
-                {
-                    ["Length"] = sentence.Length
-                }
-            });
-        }
-
-        return chunks;
-    }
-
-    private double CalculateQuality(string text)
-    {
-        return text.Length > 50 ? 0.8 : 0.5;
-    }
-}
-
-// Register
-services.AddTransient<IChunkingStrategy, CustomChunkingStrategy>();
+var refined = processor.Result.Refined!;
+var pieces = refined.Text.Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+Console.WriteLine($"{pieces.Length} pieces, {refined.Sections.Count} sections");
 ```
 
 ### Custom Document Reader
 
 `IDocumentReader` has two stages: `ReadAsync` (Stage 0 - document structure) and `ExtractAsync` (Stage 1 - raw content).
+Register it with `AddDocumentReader<T>()`, before or after `AddFileFlux()`; it takes its extensions over a built-in reader.
 
 ```csharp
+using System.Threading;
+
+services.AddDocumentReader<CustomDocumentReader>();
+
 public class CustomDocumentReader : IDocumentReader
 {
     public string ReaderType => "CustomReader";
@@ -794,31 +730,49 @@ public class CustomDocumentReader : IDocumentReader
     public Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
         => throw new NotSupportedException("Stream extraction not supported.");
 }
-
-// Register
-services.AddTransient<IDocumentReader, CustomDocumentReader>();
 ```
+
+To give chunks page or time locations, fill `RawContent.Spans` (see the README's [Chunking Strategies](../README.md#chunking-strategies)).
 
 ### Custom AI Service
 
+`OpenAICompatibleDocumentAnalysisService` (namespace `FileFlux.Infrastructure.Services`) is a ready `IDocumentAnalysisService`
+for OpenAI, Azure OpenAI, Ollama and other OpenAI-compatible endpoints, and `FileFlux.Providers.LMSupply` has a local one
+(`AddLMSupplyDocumentAnalysis()`). For another model, implement the interface. FileFlux calls the two `GenerateAsync`
+overloads and reads `ProviderInfo`; nothing in FileFlux calls the other members.
+
 ```csharp
-public class CustomTextCompletionService : IDocumentAnalysisService
+using System.Threading;
+
+services.AddSingleton<IDocumentAnalysisService, MyAnalysisService>();   // before or after AddFileFlux()
+
+public sealed class MyAnalysisService : IDocumentAnalysisService
 {
-    public async Task<string> GenerateAsync(
-        string prompt,
-        TextCompletionOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        // Implement your LLM integration
-        // Examples: OpenAI, Anthropic, Azure OpenAI, local models
+    // The LLM refiner does not send a pass longer than MaxContextLength (0: unknown)
+    public DocumentAnalysisServiceInfo ProviderInfo { get; } = new() { Name = "my-model", MaxContextLength = 32_768 };
 
-        await Task.Delay(100, cancellationToken);
-        return "Generated response";
-    }
+    public Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default) =>
+        GenerateAsync(prompt, GenerationSettings.Default, cancellationToken);
+
+    // Pass settings.Temperature and settings.MaxTokens to your model. When it stops at the token limit, throw
+    // GenerationTruncatedException so a cut-off rewrite is never used.
+    public Task<string> GenerateAsync(string prompt, GenerationSettings settings, CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
+    public Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+    public Task<StructureAnalysisResult> AnalyzeStructureAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    public Task<ContentSummary> SummarizeContentAsync(string prompt, int maxLength = 200, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    public Task<MetadataExtractionResult> ExtractMetadataAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    public Task<QualityAssessment> AssessQualityAsync(string prompt, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
 }
-
-// Register
-services.AddScoped<IDocumentAnalysisService, CustomTextCompletionService>();
 ```
 
 ## Related Documentation

@@ -5,6 +5,21 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+- **The rest of the tutorial uses the API that exists, and its samples are compiled by the test suite.** The stateful
+  pipeline, document formats, multimodal processing, quality analysis, RAG integration, error handling and customization
+  sections called members that do not exist (`chunk.Index`, `result.IsSuccess`/`result.Result`/`result.Progress` from
+  `ProcessStreamAsync`, `processor.ProcessAsync("document.pdf")`, `processor.EnrichStreamAsync()`, `edge.FromIndex`,
+  `IDocumentReaderFactory.GetSupportedExtensions()`, `IChunkingStrategy`, `TextCompletionOptions`, `ImageToTextResult.IsSuccess`).
+  They now show one processor per document from `IDocumentProcessorFactory`, the chunk graph's real edges, enrichment
+  results through `DocumentChunk.EnrichedSummary`/`EnrichedKeywords`, an `IImageToTextService` and an
+  `IDocumentAnalysisService` implementation with every member, reader selection through `IDocumentReaderFactory`, and
+  failures as `DocumentProcessingException` with the cause in `InnerException`. Claims without code behind them are gone:
+  the format table's per-format feature list (replaced by a link to the README's), a custom chunking strategy interface,
+  per-file progress, and a `HasImages` chunk property.
+
 ## [0.56.0] - 2026-10-10
 
 ### Changed
