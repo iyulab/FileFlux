@@ -188,7 +188,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
 
             return refined;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogRefinementFailed(_logger, ex, raw.File.Name);
             throw new DocumentProcessingException($"stream://{raw.File.Name}", $"Refinement failed: {ex.Message}", ex);

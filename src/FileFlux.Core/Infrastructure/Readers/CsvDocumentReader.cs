@@ -73,7 +73,7 @@ public class CsvDocumentReader : IDocumentReader
 
             return await Task.FromResult(result).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to read CSV file: {ex.Message}", ex);
         }
@@ -146,7 +146,7 @@ public class CsvDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to extract CSV file: {ex.Message}", ex);
         }
@@ -183,7 +183,7 @@ public class CsvDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to extract CSV file from stream: {ex.Message}", ex);
         }

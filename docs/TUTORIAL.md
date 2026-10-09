@@ -583,12 +583,20 @@ foreach (var (path, count) in chunkCounts)
 
 ### Exception Handling
 
-A stage that fails throws `DocumentProcessingException` and leaves the processor in the `Failed` state. `FileName` is the
-processor's `FilePath`, the message names the stage (`Extraction failed: …`, `Refinement failed: …`, `Chunking failed: …`,
-`Enrichment failed: …`) and `InnerException` holds the cause — for a file no registered reader takes, an
-`UnsupportedFileFormatException`. A failure of the LLM refinement does not fail the pipeline: the stage keeps the rule-based
-text. An unknown `ChunkingOptions.Strategy` throws `ArgumentException` from `ProcessAsync` before any stage runs. To try a
-document again, create a new processor.
+A stage that fails leaves the processor in the `Failed` state and throws:
+
+- FileFlux's own exceptions as themselves — `UnsupportedFileFormatException` for a file no registered reader takes, or a
+  reader's `DocumentProcessingException` (its message carries `extraction_error_kind=<kind>` for a PDF that cannot be
+  parsed). All of them derive from `FileFluxException`.
+- Anything else wrapped in `DocumentProcessingException`: `FileName` is the processor's `FilePath`, the message names the
+  stage (`Extraction failed: …`, `Refinement failed: …`, `Chunking failed: …`, `Enrichment failed: …`) and
+  `InnerException` holds the cause.
+
+A failed processor has no result to continue from: calling any stage on it again throws `InvalidOperationException` naming
+the stage that failed. To try a document again, create a new processor. Cancelling through the `CancellationToken` throws
+`OperationCanceledException` and does not fail the processor; the interrupted stage runs again on the next call. A failure
+of the LLM refinement does not fail the pipeline: the stage keeps the rule-based text. An unknown `ChunkingOptions.Strategy`
+throws `ArgumentException` from `ProcessAsync` before any stage runs.
 
 ```csharp
 await using var processor = factory.Create("document.pdf");
@@ -596,9 +604,13 @@ try
 {
     await processor.ProcessAsync();
 }
-catch (DocumentProcessingException ex)
+catch (UnsupportedFileFormatException ex)
 {
-    Console.WriteLine($"{ex.FileName}: {ex.Message}");
+    Console.WriteLine($"Not a supported format: {ex.Message}");
+}
+catch (FileFluxException ex)
+{
+    Console.WriteLine($"{ex.GetType().Name}: {ex.Message}");
     Console.WriteLine($"Cause: {ex.InnerException?.GetType().Name}");
     Console.WriteLine($"State: {processor.State}");   // Failed
 }
@@ -619,7 +631,7 @@ try
         received.Add(chunk);
     }
 }
-catch (DocumentProcessingException ex)
+catch (FileFluxException ex)
 {
     Console.WriteLine($"Stopped after {received.Count} chunks: {ex.Message}");
 }
@@ -739,7 +751,7 @@ To give chunks page or time locations, fill `RawContent.Spans` (see the README's
 `OpenAICompatibleDocumentAnalysisService` (namespace `FileFlux.Infrastructure.Services`) is a ready `IDocumentAnalysisService`
 for OpenAI, Azure OpenAI, Ollama and other OpenAI-compatible endpoints, and `FileFlux.Providers.LMSupply` has a local one
 (`AddLMSupplyDocumentAnalysis()`). For another model, implement the interface. FileFlux calls the two `GenerateAsync`
-overloads and reads `ProviderInfo`; nothing in FileFlux calls the other members.
+overloads and reads `ProviderInfo`.
 
 ```csharp
 using System.Threading;
@@ -760,18 +772,6 @@ public sealed class MyAnalysisService : IDocumentAnalysisService
         throw new NotImplementedException();
 
     public Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
-
-    public Task<StructureAnalysisResult> AnalyzeStructureAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
-
-    public Task<ContentSummary> SummarizeContentAsync(string prompt, int maxLength = 200, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
-
-    public Task<MetadataExtractionResult> ExtractMetadataAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
-
-    public Task<QualityAssessment> AssessQualityAsync(string prompt, CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException();
 }
 ```
 

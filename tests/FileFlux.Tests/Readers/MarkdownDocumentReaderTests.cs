@@ -51,6 +51,20 @@ public class MarkdownDocumentReaderTests
     }
 
     [Fact]
+    public async Task ExtractAsync_TextUsesOneLineEnding()
+    {
+        // Block separators came from StringBuilder.AppendLine (Environment.NewLine) and everything inside a block from
+        // Markdig ('\n'), so on Windows the text mixed both and quoted lines kept a stray '\r'.
+        var markdown = "# Title\r\n\r\nFirst line\r\nsecond line\r\n\r\n> quoted one\r\n> quoted two\r\n\r\n```\r\ncode\r\n```\r\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+
+        var result = await _reader.ExtractAsync(stream, "test.md", cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain('\r', result.Text);
+        Assert.Contains("> quoted one\n> quoted two", result.Text);
+    }
+
+    [Fact]
     public async Task ExtractAsync_OrderedList_ShouldHaveSequentialNumbering()
     {
         // Arrange

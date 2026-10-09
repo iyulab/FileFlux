@@ -233,7 +233,7 @@ public partial class PdfDocumentReader : IDocumentReader
             throw new DocumentProcessingException(
                 filePath, WithErrorKind($"Failed to read PDF document: {ex.Message}", ex.Kind), ex);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to read PDF document: {ex.Message}", ex);
         }
@@ -307,7 +307,7 @@ public partial class PdfDocumentReader : IDocumentReader
             throw new DocumentProcessingException(
                 filePath, WithErrorKind($"Failed to extract PDF document: {ex.Message}", ex.Kind), ex);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to extract PDF document: {ex.Message}", ex);
         }
@@ -355,7 +355,7 @@ public partial class PdfDocumentReader : IDocumentReader
             throw new DocumentProcessingException(
                 fileName, WithErrorKind($"Failed to extract PDF document from stream: {ex.Message}", ex.Kind), ex);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to extract PDF document from stream: {ex.Message}", ex);
         }

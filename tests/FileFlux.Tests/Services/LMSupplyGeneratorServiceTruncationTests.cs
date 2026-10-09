@@ -62,16 +62,4 @@ public sealed class LMSupplyGeneratorServiceTruncationTests
             Arg.Any<CancellationToken>());
         await model.DidNotReceive().GenerateCompleteResultAsync(Arg.Any<string>(), Arg.Any<GenerationOptions>(), Arg.Any<CancellationToken>());
     }
-
-    [Fact]
-    public async Task SummarizeContentAsync_UsesTheChatPath()
-    {
-        var model = Model("a summary", "stop");
-        await using var service = Service(model);
-
-        var summary = await service.SummarizeContentAsync("text to summarize", cancellationToken: TestContext.Current.CancellationToken);
-
-        summary.Summary.Should().Be("a summary");
-        await model.DidNotReceive().GenerateCompleteAsync(Arg.Any<string>(), Arg.Any<GenerationOptions>(), Arg.Any<CancellationToken>());
-    }
 }

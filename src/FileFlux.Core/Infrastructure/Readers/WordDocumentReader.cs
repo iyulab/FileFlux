@@ -86,7 +86,7 @@ public partial class WordDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, filePath, $"Failed to read Word document: {ex.Message}");
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to read Word document: {ex.Message}", ex);
         }
@@ -148,7 +148,7 @@ public partial class WordDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, fileName, $"Failed to read Word document from stream: {ex.Message}");
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to read Word document from stream: {ex.Message}", ex);
         }
@@ -177,7 +177,7 @@ public partial class WordDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, filePath, ContainerSignature.AnnotateFailure($"Failed to extract Word document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip, OfficeContainer.CompoundFile));
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(
                 filePath,
@@ -208,7 +208,7 @@ public partial class WordDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, fileName, ContainerSignature.AnnotateFailure($"Failed to extract Word document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip, OfficeContainer.CompoundFile));
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(
                 fileName,

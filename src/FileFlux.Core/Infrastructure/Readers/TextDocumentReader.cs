@@ -155,7 +155,7 @@ public class TextDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
         }
-        catch (Exception ex) when (!(ex is FileFluxException))
+        catch (Exception ex) when (!(ex is FileFluxException) && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to read text file: {ex.Message}", ex);
         }
@@ -201,7 +201,7 @@ public class TextDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
         }
-        catch (Exception ex) when (!(ex is FileFluxException))
+        catch (Exception ex) when (!(ex is FileFluxException) && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to read text from stream: {ex.Message}", ex);
         }
@@ -464,7 +464,7 @@ public class TextDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
         }
-        catch (Exception ex) when (!(ex is FileFluxException))
+        catch (Exception ex) when (!(ex is FileFluxException) && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             progressCallback?.Invoke(ProcessingProgress.Factory.CreateError(filePath, ex.Message));
             throw new DocumentProcessingException(filePath, $"Failed to read text file: {ex.Message}", ex);
@@ -560,7 +560,7 @@ public class TextDocumentReader : IDocumentReader
                 Warnings = warnings
             };
         }
-        catch (Exception ex) when (!(ex is FileFluxException))
+        catch (Exception ex) when (!(ex is FileFluxException) && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             progressCallback?.Invoke(ProcessingProgress.Factory.CreateError(fileName, ex.Message));
             throw new DocumentProcessingException(fileName, $"Failed to read text from stream: {ex.Message}", ex);

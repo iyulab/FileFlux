@@ -73,7 +73,7 @@ public partial class BasicDocumentParser : IDocumentParser
 
             return result;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             throw new InvalidOperationException($"Failed to parse document: {ex.Message}", ex);
         }

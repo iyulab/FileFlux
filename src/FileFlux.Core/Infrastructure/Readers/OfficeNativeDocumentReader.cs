@@ -239,7 +239,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
             result.Duration = DateTime.UtcNow - startTime;
             return result;
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to read Office document from stream: {ex.Message}", ex);
         }
@@ -268,7 +268,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
 
             return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractOfficeContent(filePath, loader, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to process Office document: {ex.Message}", ex);
         }
@@ -294,7 +294,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
 
             return ImageExtractionPolicy.Apply(await Task.Run(() => ExtractOfficeContentFromBytes(data, fileName, loader, cancellationToken), cancellationToken).ConfigureAwait(false), options);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to process Office document from stream: {ex.Message}", ex);
         }

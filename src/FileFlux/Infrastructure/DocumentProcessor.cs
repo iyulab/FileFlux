@@ -141,7 +141,7 @@ public sealed partial class FluxDocumentProcessor
             LogWarnings("Extraction", rawContent.Warnings);
             return rawContent;
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Extraction failed: {ex.Message}", ex);
         }
@@ -190,7 +190,7 @@ public sealed partial class FluxDocumentProcessor
             LogWarnings("Parsing", parsed.Info.Warnings);
             return parsed;
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(raw.File.Name, $"Parsing failed: {ex.Message}", ex);
         }
@@ -327,7 +327,7 @@ public sealed partial class FluxDocumentProcessor
 
             return refined;
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(parsed.Metadata.FileName, $"Refining failed: {ex.Message}", ex);
         }
@@ -666,7 +666,7 @@ public sealed partial class FluxDocumentProcessor
             LogCreatedChunks(_logger, chunks.Count, chunker.StrategyName);
             return [.. chunks];
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(parsed.Metadata.FileName, $"Chunking failed: {ex.Message}", ex);
         }

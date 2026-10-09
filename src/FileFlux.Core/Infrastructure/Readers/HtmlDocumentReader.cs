@@ -122,7 +122,7 @@ public partial class HtmlDocumentReader : IDocumentReader
             var htmlContent = await File.ReadAllTextAsync(filePath, cancellationToken);
             return await Task.Run(() => ExtractHtmlContent(htmlContent, Path.GetFileName(filePath), new FileInfo(filePath), cancellationToken), cancellationToken);
         }
-        catch (Exception ex) when (!(ex is FileFluxException))
+        catch (Exception ex) when (!(ex is FileFluxException) && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to process HTML document: {ex.Message}", ex);
         }
@@ -141,7 +141,7 @@ public partial class HtmlDocumentReader : IDocumentReader
             var htmlContent = await reader.ReadToEndAsync(cancellationToken);
             return await Task.Run(() => ExtractHtmlContentFromStream(htmlContent, fileName, stream, cancellationToken), cancellationToken);
         }
-        catch (Exception ex) when (!(ex is FileFluxException))
+        catch (Exception ex) when (!(ex is FileFluxException) && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to process HTML document from stream: {ex.Message}", ex);
         }

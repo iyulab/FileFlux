@@ -88,7 +88,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(filePath, $"Failed to read HWP document: {ex.Message}", ex);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to read HWP document: {ex.Message}", ex);
         }
@@ -144,7 +144,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(fileName, $"Failed to read HWP document from stream: {ex.Message}", ex);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to read HWP document from stream: {ex.Message}", ex);
         }
@@ -173,7 +173,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(filePath, $"Failed to extract HWP document: {ex.Message}", ex);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to extract HWP document: {ex.Message}", ex);
         }
@@ -198,7 +198,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
         {
             throw new DocumentProcessingException(fileName, $"Failed to extract HWP document from stream: {ex.Message}", ex);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to extract HWP document from stream: {ex.Message}", ex);
         }

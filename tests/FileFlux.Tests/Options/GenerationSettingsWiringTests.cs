@@ -149,10 +149,6 @@ public sealed class GenerationSettingsWiringTests
         }
 
         public DocumentAnalysisServiceInfo ProviderInfo => new() { Name = "recording", Type = DocumentAnalysisProviderType.Custom };
-        public Task<StructureAnalysisResult> AnalyzeStructureAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ContentSummary> SummarizeContentAsync(string prompt, int maxLength = 200, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<MetadataExtractionResult> ExtractMetadataAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<QualityAssessment> AssessQualityAsync(string prompt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 
@@ -160,10 +156,6 @@ public sealed class GenerationSettingsWiringTests
     {
         public Task<string> GenerateAsync(string prompt, CancellationToken cancellationToken = default) => Task.FromResult("legacy");
         public DocumentAnalysisServiceInfo ProviderInfo => new() { Name = "recording", Type = DocumentAnalysisProviderType.Custom };
-        public Task<StructureAnalysisResult> AnalyzeStructureAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ContentSummary> SummarizeContentAsync(string prompt, int maxLength = 200, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<MetadataExtractionResult> ExtractMetadataAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<QualityAssessment> AssessQualityAsync(string prompt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 }

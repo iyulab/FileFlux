@@ -102,7 +102,7 @@ public class ExcelDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, filePath, $"Failed to read Excel document: {ex.Message}");
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to read Excel document: {ex.Message}", ex);
         }
@@ -170,7 +170,7 @@ public class ExcelDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, fileName, $"Failed to read Excel document from stream: {ex.Message}");
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to read Excel document from stream: {ex.Message}", ex);
         }
@@ -199,7 +199,7 @@ public class ExcelDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, filePath, DescribeExtractionFailure(filePath, ex.Message));
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(
                 filePath, DescribeExtractionFailure(filePath, ex.Message), ex);
@@ -243,7 +243,7 @@ public class ExcelDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, fileName, $"Failed to extract Excel document from stream: {ex.Message}");
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to extract Excel document from stream: {ex.Message}", ex);
         }

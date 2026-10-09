@@ -208,10 +208,6 @@ public sealed class LlmRefinerTruncationTests : IDisposable
         }
 
         public DocumentAnalysisServiceInfo ProviderInfo => new() { Name = "scripted", Type = DocumentAnalysisProviderType.Custom, MaxContextLength = contextLength };
-        public Task<StructureAnalysisResult> AnalyzeStructureAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ContentSummary> SummarizeContentAsync(string prompt, int maxLength = 200, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<MetadataExtractionResult> ExtractMetadataAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<QualityAssessment> AssessQualityAsync(string prompt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 }

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking** — **a document processor's failures arrive as what they are.** Old → new, per case:
+  - The caller cancels through the `CancellationToken`: `DocumentProcessingException` («Extraction failed: … A task was
+    canceled») and a `Failed` processor → `OperationCanceledException`. The processor is not failed; the interrupted stage
+    runs again on the next call. Every reader's `ReadAsync`/`ExtractAsync` passes the cancellation through as well; before,
+    each wrapped it in `DocumentProcessingException`.
+  - No registered reader takes the file: `DocumentProcessingException` wrapping `UnsupportedFileFormatException` →
+    `UnsupportedFileFormatException`.
+  - A reader's own `DocumentProcessingException` (for example a PDF that cannot be parsed, with its
+    `extraction_error_kind=<kind>` token): wrapped in a second `DocumentProcessingException` («Extraction failed: …») → the
+    reader's exception. Any other `FileFluxException` from a later stage also arrives as itself and now fails the
+    processor; before, it left the stage unfinished without failing it.
+  - Calling a stage on a processor that failed: it skipped every stage and returned with `Result.Chunks == null` →
+    `InvalidOperationException` naming the stage that failed.
+  Migration: catch `FileFluxException` (the base of both) where you caught `DocumentProcessingException`, catch
+  `OperationCanceledException` for cancellation, and create a new processor to retry a failed document.
+- **Markdown reader output uses `\n` line endings on every platform.** On Windows the text mixed `\r\n` (from block
+  separators) with `\n` (inside paragraphs and code), and quoted lines kept a stray `\r`.
+
+### Removed
+- **Breaking** — **`IDocumentAnalysisService` loses the four members nothing in FileFlux called:** `AnalyzeStructureAsync`,
+  `SummarizeContentAsync`, `ExtractMetadataAsync` and `AssessQualityAsync`, with their result types `StructureAnalysisResult`,
+  `SectionInfo`, `CoreDocumentStructure`, `ContentSummary`, `MetadataExtractionResult` and `QualityAssessment`. FileFlux uses
+  the two `GenerateAsync` overloads, `ProviderInfo` and `IsAvailableAsync`. Migration: delete those members from your
+  implementation; `OpenAICompatibleDocumentAnalysisService` and the LMSupply service no longer have them.
+
 ### Documentation
 - **The rest of the tutorial uses the API that exists, and its samples are compiled by the test suite.** The stateful
   pipeline, document formats, multimodal processing, quality analysis, RAG integration, error handling and customization
@@ -16,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   They now show one processor per document from `IDocumentProcessorFactory`, the chunk graph's real edges, enrichment
   results through `DocumentChunk.EnrichedSummary`/`EnrichedKeywords`, an `IImageToTextService` and an
   `IDocumentAnalysisService` implementation with every member, reader selection through `IDocumentReaderFactory`, and
-  failures as `DocumentProcessingException` with the cause in `InnerException`. Claims without code behind them are gone:
+  the failure contract above. Claims without code behind them are gone:
   the format table's per-format feature list (replaced by a link to the README's), a custom chunking strategy interface,
   per-file progress, and a `HasImages` chunk property.
 

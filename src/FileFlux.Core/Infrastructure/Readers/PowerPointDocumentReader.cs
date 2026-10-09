@@ -92,7 +92,7 @@ public class PowerPointDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, filePath, $"Failed to read PowerPoint document: {ex.Message}");
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(filePath, $"Failed to read PowerPoint document: {ex.Message}", ex);
         }
@@ -160,7 +160,7 @@ public class PowerPointDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, fileName, $"Failed to read PowerPoint document from stream: {ex.Message}");
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(fileName, $"Failed to read PowerPoint document from stream: {ex.Message}", ex);
         }
@@ -189,7 +189,7 @@ public class PowerPointDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, filePath, ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document: {ex.Message}", ContainerSignature.DetectFile(filePath), FormatSignature.DetectFile(filePath), OfficeContainer.Zip, OfficeContainer.CompoundFile));
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(
                 filePath,
@@ -220,7 +220,7 @@ public class PowerPointDocumentReader : IDocumentReader
         {
             throw UndocErrorKindFormatting.ToFailure(ex, fileName, ContainerSignature.AnnotateFailure($"Failed to extract PowerPoint document from stream: {ex.Message}", ContainerSignature.Detect(bytes), FormatSignature.DetectBytes(bytes), OfficeContainer.Zip, OfficeContainer.CompoundFile));
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(
                 fileName,

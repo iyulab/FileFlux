@@ -202,7 +202,9 @@ public class MarkdownDocumentReader : IDocumentReader
             ExtractBlock(block, content, originalText);
         }
 
-        return content.ToString().Trim();
+        // StringBuilder.AppendLine writes Environment.NewLine while Markdig's line groups and breaks use '\n': one line
+        // ending, the same on every platform.
+        return content.ToString().ReplaceLineEndings("\n").Trim();
     }
 
     private static void ExtractBlock(Block block, StringBuilder content, string originalText)
@@ -385,7 +387,7 @@ public class MarkdownDocumentReader : IDocumentReader
         {
             var quoteContent = new StringBuilder();
             ExtractBlock(block, quoteContent, "");
-            var lines = quoteContent.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var lines = quoteContent.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
             {
                 content.AppendLine(CultureInfo.InvariantCulture, $"> {line}");

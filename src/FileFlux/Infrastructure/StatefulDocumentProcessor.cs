@@ -40,6 +40,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     private readonly string? _fileName;
 
     private ProcessorState _state = ProcessorState.Created;
+    private string? _failedStage;
     private bool _disposed;
 
     /// <inheritdoc/>
@@ -210,6 +211,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     public async Task ExtractAsync(ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        ThrowIfFailed();
 
         if (_state >= ProcessorState.Extracted)
         {
@@ -247,9 +249,14 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             foreach (var warning in rawContent.Warnings)
                 LogExtractionWarning(_logger, rawContent.File.Name, warning);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            _state = ProcessorState.Failed;
+            Fail("Extract");
+            if (ex is FileFluxException)
+            {
+                throw;
+            }
+
             throw new DocumentProcessingException(FilePath, $"Extraction failed: {ex.Message}", ex);
         }
     }
@@ -294,6 +301,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     public async Task RefineAsync(RefineOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        ThrowIfFailed();
 
         if (_state >= ProcessorState.Refined)
         {
@@ -335,9 +343,14 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             _state = ProcessorState.Refined;
             LogRefined(_logger, raw.Text.Length, refined.Text.Length, refined.Structures.Count, sw.Elapsed.TotalSeconds);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            _state = ProcessorState.Failed;
+            Fail("Refine");
+            if (ex is FileFluxException)
+            {
+                throw;
+            }
+
             throw new DocumentProcessingException(FilePath, $"Refinement failed: {ex.Message}", ex);
         }
     }
@@ -425,6 +438,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     public async Task LlmRefineAsync(LlmRefineOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        ThrowIfFailed();
 
         if (_state >= ProcessorState.LlmRefined)
         {
@@ -538,6 +552,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     public async Task ChunkAsync(ChunkingOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        ThrowIfFailed();
         // Reject an unknown strategy before any stage runs — not after extraction and refinement have been paid for.
         ChunkingStrategyMap.ToFluxCurator(options?.Strategy);
 
@@ -597,9 +612,14 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             _state = ProcessorState.Chunked;
             LogCreatedChunks(_logger, chunks.Count, Result.Metrics.TotalTokens, sw.Elapsed.TotalSeconds);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            _state = ProcessorState.Failed;
+            Fail("Chunk");
+            if (ex is FileFluxException)
+            {
+                throw;
+            }
+
             throw new DocumentProcessingException(FilePath, $"Chunking failed: {ex.Message}", ex);
         }
     }
@@ -610,6 +630,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        ThrowIfFailed();
         // Reject an unknown strategy before any stage runs — not after extraction and refinement have been paid for.
         ChunkingStrategyMap.ToFluxCurator(options?.Strategy);
 
@@ -662,6 +683,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     public async Task EnrichAsync(EnrichOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        ThrowIfFailed();
 
         if (_state >= ProcessorState.Enriched)
         {
@@ -720,9 +742,14 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             _state = ProcessorState.Enriched;
             LogEnriched(_logger, chunks.Count, Result.Graph!.NodeCount, Result.Graph.EdgeCount, sw.Elapsed.TotalSeconds);
         }
-        catch (Exception ex) when (ex is not FileFluxException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            _state = ProcessorState.Failed;
+            Fail("Enrich");
+            if (ex is FileFluxException)
+            {
+                throw;
+            }
+
             throw new DocumentProcessingException(FilePath, $"Enrichment failed: {ex.Message}", ex);
         }
     }
@@ -1161,6 +1188,26 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         return _chunkerFactory.CreateChunker(fcStrategy);
     }
 
+
+    private void Fail(string stage)
+    {
+        _state = ProcessorState.Failed;
+        _failedStage = stage;
+    }
+
+    /// <summary>
+    /// A processor whose stage failed has no result for the later stages: reusing it throws instead of returning an
+    /// empty result (every stage would otherwise see a state past its own and skip itself).
+    /// </summary>
+    private void ThrowIfFailed()
+    {
+        if (_state == ProcessorState.Failed)
+        {
+            throw new InvalidOperationException(
+                $"The processor failed during the {_failedStage} stage and has no result to continue from. " +
+                "Create a new processor to process the document again.");
+        }
+    }
 
     private void ThrowIfDisposed()
     {

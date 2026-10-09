@@ -179,17 +179,5 @@ public sealed class AIMetadataEnricherTests
         public DocumentAnalysisServiceInfo ProviderInfo { get; } = new() { Name = "scripted" };
 
         public Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
-
-        public Task<StructureAnalysisResult> AnalyzeStructureAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<ContentSummary> SummarizeContentAsync(string prompt, int maxLength = 200, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<MetadataExtractionResult> ExtractMetadataAsync(string prompt, DocumentType documentType, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<QualityAssessment> AssessQualityAsync(string prompt, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
     }
 }

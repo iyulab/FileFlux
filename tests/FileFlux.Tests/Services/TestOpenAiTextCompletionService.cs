@@ -1,6 +1,5 @@
 using FileFlux;
 using FileFlux.Domain;
-using CoreDocumentStructure = FileFlux.CoreDocumentStructure;
 using OpenAI;
 using OpenAI.Chat;
 using System;
@@ -81,68 +80,5 @@ public class TestOpenAITextGenerationService : IDocumentAnalysisService
         {
             return false;
         }
-    }
-
-    // Simplified implementations for testing - just return basic results
-    public async Task<StructureAnalysisResult> AnalyzeStructureAsync(
-        string prompt,
-        DocumentType documentType,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await GenerateAsync(prompt, cancellationToken);
-        return new StructureAnalysisResult
-        {
-            DocumentType = documentType,
-            Confidence = 0.8,
-            RawResponse = response,
-            TokensUsed = response.Length / 4 // Rough estimate
-        };
-    }
-
-    public async Task<ContentSummary> SummarizeContentAsync(
-        string prompt,
-        int maxLength = 200,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await GenerateAsync($"Summarize in {maxLength} characters: {prompt}", cancellationToken);
-        return new ContentSummary
-        {
-            Summary = response.Length > maxLength ? response.Substring(0, maxLength) : response,
-            Keywords = Array.Empty<string>(),
-            Confidence = 0.8,
-            OriginalLength = prompt.Length,
-            TokensUsed = response.Length / 4
-        };
-    }
-
-    public async Task<MetadataExtractionResult> ExtractMetadataAsync(
-        string prompt,
-        DocumentType documentType,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await GenerateAsync(prompt, cancellationToken);
-        return new MetadataExtractionResult
-        {
-            Keywords = new[] { "test", "keyword" },
-            Language = "en",
-            Categories = new[] { "test" },
-            Confidence = 0.8,
-            TokensUsed = response.Length / 4
-        };
-    }
-
-    public async Task<QualityAssessment> AssessQualityAsync(
-        string prompt,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await GenerateAsync(prompt, cancellationToken);
-        return new QualityAssessment
-        {
-            ConfidenceScore = 0.8,
-            CompletenessScore = 0.8,
-            ConsistencyScore = 0.8,
-            Explanation = response,
-            TokensUsed = response.Length / 4
-        };
     }
 }
