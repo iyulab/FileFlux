@@ -16,6 +16,7 @@ namespace FileFlux.Tests;
 /// registers, called a <c>ProcessAsync(path)</c> the interface does not have and read a <c>chunk.Index</c> that does not
 /// exist — and <see cref="DocsSnippetRosterTests"/> passed it, because it checks only that a method of that name exists
 /// on some type. A compiler checks the receiver, the arguments, the members read and the namespaces.
+/// The guide sections in <see cref="CompiledSections"/> are compiled the same way.
 /// </summary>
 /// <remarks>
 /// A block is compiled as a top-level program: its <c>using</c> lines are hoisted, the common usings below are added, and
@@ -27,6 +28,14 @@ public class ReadmeSnippetCompileTests
     // A block that is deliberately not a program (a signature sketch, pseudocode) is listed here by the heading it sits
     // under, with the reason. Shrink this, never grow it silently.
     private static readonly Dictionary<string, string> Fragments = new(StringComparer.Ordinal);
+
+    // Sections of other documents whose C# blocks are compiled too: (file relative to the repository root, heading). A
+    // section runs from its heading to the next heading of the same or a higher level. Grow this as guides are repaired.
+    private static readonly (string File, string Heading)[] CompiledSections =
+    [
+        ("docs/TUTORIAL.md", "Metadata Enrichment"),
+        ("docs/ARCHITECTURE.md", "Extensibility Pattern"),
+    ];
 
     private const string CommonUsings = """
         using System;
@@ -51,6 +60,9 @@ public class ReadmeSnippetCompileTests
         ("storedSpans", "IReadOnlyList<SourceSpan> storedSpans = [];"),
         ("myAnalysisService", "IDocumentAnalysisService myAnalysisService = null!;"),
         ("myVisionService", "IImageToTextService myVisionService = null!;"),
+        ("enricher", "IMetadataEnricher enricher = null!;"),
+        ("chunk", "DocumentChunk chunk = null!;"),
+        ("documentText", "string documentText = \"\";"),
     ];
 
     private static readonly string[] AssembliesToLoad =
@@ -58,6 +70,7 @@ public class ReadmeSnippetCompileTests
         "FileFlux", "FileFlux.Core", "FileFlux.Providers.LMSupply",
         "Microsoft.Extensions.DependencyInjection", "Microsoft.Extensions.DependencyInjection.Abstractions",
         "Microsoft.Extensions.Logging.Abstractions",
+        "Microsoft.Extensions.Caching.Abstractions", "Microsoft.Extensions.Caching.Memory", "Microsoft.Extensions.Options",
     ];
 
     public static TheoryData<string> Blocks()
@@ -87,8 +100,41 @@ public class ReadmeSnippetCompileTests
     public void EveryReadmeBlock_IsFoundAndFragmentsNameRealHeadings()
     {
         var blocks = ReadBlocks();
-        Assert.True(blocks.Count >= 8, $"expected the README's C# blocks, found {blocks.Count}");
+        var readme = ReadBlocks(ReadmePath(), keyPrefix: "", section: null);
+        Assert.True(readme.Count >= 8, $"expected the README's C# blocks, found {readme.Count}");
         Assert.All(Fragments.Keys, heading => Assert.Contains(blocks, b => b.Heading == heading));
+    }
+
+    /// <summary>A listed guide section that yields no block (renamed heading, moved file) would compile nothing and pass.</summary>
+    [Fact]
+    public void EveryCompiledSection_HasBlocks()
+    {
+        foreach (var (file, heading) in CompiledSections)
+        {
+            var blocks = ReadBlocks(Path.Combine(RepositoryRoot(), file), file + " ", heading);
+            Assert.True(blocks.Count > 0, $"{file} has no C# block under the heading '{heading}'");
+        }
+    }
+
+    /// <summary>Positive control for the section reader: it keeps sub-headings, ignores fenced lines and stops at the next heading of the same level.</summary>
+    [Fact]
+    public void SectionReader_TakesOnlyTheSection()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"fileflux-section-{Guid.NewGuid():N}.md");
+        File.WriteAllText(path, string.Join("\n",
+            "## Before", "```csharp", "var before = 1;", "```",
+            "### Target", "```csharp", "var inside = 1;", "```",
+            "#### Sub", "```bash", "# not a heading", "```", "```csharp", "var nested = 1;", "```",
+            "### After", "```csharp", "var after = 1;", "```"));
+        try
+        {
+            var blocks = ReadBlocks(path, "", "Target");
+            Assert.Equal(["var inside = 1;", "var nested = 1;"], blocks.Select(b => b.Code.Trim()).ToArray());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     /// <summary>Positive control: the compiler rejects what the old Quick Start did.</summary>
@@ -174,23 +220,50 @@ public class ReadmeSnippetCompileTests
 
     private sealed record Block(string Key, string Heading, string Code);
 
-    private static List<Block> ReadBlocks()
+    private static List<Block> ReadBlocks() =>
+        ReadBlocks(ReadmePath(), keyPrefix: "", section: null)
+            .Concat(CompiledSections.SelectMany(s => ReadBlocks(Path.Combine(RepositoryRoot(), s.File), s.File + " ", s.Heading)))
+            .ToList();
+
+    /// <summary>
+    /// The C# blocks of <paramref name="path"/>; with <paramref name="section"/>, only those under that heading and its
+    /// sub-headings. Lines inside fences are never read as headings.
+    /// </summary>
+    private static List<Block> ReadBlocks(string path, string keyPrefix, string? section)
     {
-        var lines = File.ReadAllText(ReadmePath()).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var lines = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         var blocks = new List<Block>();
         var heading = "(top)";
+        var inSection = section is null;
+        int? sectionLevel = null;
         for (var i = 0; i < lines.Length; i++)
         {
             if (lines[i].StartsWith('#'))
+            {
+                var level = lines[i].TakeWhile(c => c == '#').Count();
                 heading = lines[i].TrimStart('#').Trim();
-            if (lines[i].Trim() != "```csharp")
+                if (section is not null && heading == section)
+                {
+                    inSection = true;
+                    sectionLevel = level;
+                }
+                else if (sectionLevel is { } open && level <= open)
+                {
+                    inSection = false;
+                    sectionLevel = null;
+                }
+            }
+
+            var fence = lines[i].Trim();
+            if (!fence.StartsWith("```", StringComparison.Ordinal))
                 continue;
 
             var start = i + 1;
             var code = new StringBuilder();
             for (i++; i < lines.Length && lines[i].Trim() != "```"; i++)
                 code.AppendLine(lines[i]);
-            blocks.Add(new Block($"line {start}: {heading}", heading, code.ToString()));
+            if (fence == "```csharp" && inSection)
+                blocks.Add(new Block($"{keyPrefix}line {start}: {heading}", heading, code.ToString()));
         }
 
         return blocks;
@@ -205,7 +278,7 @@ public class ReadmeSnippetCompileTests
         var body = string.Join("\n", lines.Where(l => !IsUsingDirective(l)));
         var standIns = StandIns
             .Where(s => Regex.IsMatch(body, $@"\b{s.Name}\b")
-                        && !Regex.IsMatch(body, $@"\b(var|[A-Z][\w<>?,\s]*)\s+{s.Name}\s*[=;]"))
+                        && !Regex.IsMatch(body, $@"\b(var|[A-Z][\w<>?,\s]*)\s+{s.Name}\s*(?:[=;]|in\b)"))
             .Select(s => s.Declaration);
 
         return string.Join("\n", lines.Where(IsUsingDirective)) + "\n" + CommonUsings + "\n"
@@ -235,13 +308,13 @@ public class ReadmeSnippetCompileTests
         return paths.Select(p => (MetadataReference)MetadataReference.CreateFromFile(p)).ToList();
     }
 
-    private static string ReadmePath()
+    private static string ReadmePath() => Path.Combine(RepositoryRoot(), "README.md");
+
+    private static string RepositoryRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "FileFlux.slnx")))
             dir = dir.Parent;
-        return Path.Combine(
-            dir?.FullName ?? throw new InvalidOperationException("FileFlux.slnx not found above the test output directory"),
-            "README.md");
+        return dir?.FullName ?? throw new InvalidOperationException("FileFlux.slnx not found above the test output directory");
     }
 }

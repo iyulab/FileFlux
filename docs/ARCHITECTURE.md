@@ -600,7 +600,7 @@ services.AddTransient<IChunker, CustomChunker>();
 **DocumentChunk**:
 - `Id` (Guid): Unique chunk identifier
 - `Content` (string): Chunk text content
-- `Index` (int): Chunk order index
+- `ChunkIndex` (int): Chunk order index
 - `Location` (SourceLocation): StartChar/EndChar position info
 - `Quality` (double): Quality score (0.0~1.0)
 - `Props` (Dictionary<string, object>): Extensible metadata
@@ -633,15 +633,22 @@ services.AddTransient<IChunker, CustomChunker>();
 
 ### Extensibility Pattern
 
-```csharp
-// Extensible metadata with Props dictionary
-chunk.Props["ContextualHeader"] = "Document: Technical";
-chunk.Props["DocumentDomain"] = "Technical";
-chunk.Props["HasImages"] = true;
+`DocumentChunk.Props` carries per-chunk values under the keys in `ChunkPropsKeys` (`FileFlux.Core`). Every key there
+is written by a FileFlux component; a key is absent when the step that writes it did not run:
 
-// Maintain backward compatibility with extension methods
-public static string? ContextualHeader(this DocumentChunk chunk)
-    => chunk.Props.TryGetValue("ContextualHeader", out var v) ? v?.ToString() : null;
+```csharp
+// Written by the chunking pipeline
+var path = ChunkPropsKeys.GetValueOrDefault<string>(chunk.Props, ChunkPropsKeys.HierarchyPath);
+
+// Written by the Enrich stage when an enrichment service is configured; DocumentChunk has typed accessors for these
+if (chunk.HasEnrichment)
+{
+    string? summary = chunk.EnrichedSummary;                  // ChunkPropsKeys.EnrichedSummary
+    IReadOnlyList<string>? keywords = chunk.EnrichedKeywords; // ChunkPropsKeys.EnrichedKeywords
+}
+
+// Your own values: use a prefix of your own so they cannot collide with FileFlux keys
+chunk.Props["myapp.tenant"] = "acme";
 ```
 
 ### Pipeline Traceability

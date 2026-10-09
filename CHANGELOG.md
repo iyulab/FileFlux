@@ -55,6 +55,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The CLI's "enriched chunks" count in the run summary counts enriched chunks.** It matched an `enriched_` key prefix
   that no chunk carries and always showed 0.
 
+### Documentation
+- **The tutorial's metadata enrichment section describes the API that exists.** It showed enrichment switched on through
+  `ChunkingOptions.CustomProperties` keys and results read from `enriched_*` chunk properties; nothing reads those keys or
+  writes those properties. The section now shows `AIMetadataEnricher`/`IMetadataEnricher` as the standalone service it is
+  (construction, `EnrichAsync` and its returned keys, what each `MetadataSchema` asks for, every
+  `MetadataEnrichmentOptions` member, `EnrichWithCacheAsync`, `EnrichBatchAsync`), and those samples are now compiled
+  by the test suite.
+- **The CLI README's output section matches what the CLI writes**: a `<input>_output/` directory with per-chunk files,
+  `chunks.jsonl` and `info.json`, instead of a single JSON array with `enriched_topics`/`quality_score` properties. The
+  `-o` and `-f` option descriptions and examples now say directory and `md` (the default).
+- **The architecture guide's `Props` example uses keys FileFlux writes** (`ChunkPropsKeys`) and names
+  `DocumentChunk.ChunkIndex` correctly.
+
 ### Dependencies
 - Undoc 0.18.0 -> 0.19.0. Slide rendering (`ExtractOptions.SlideRendering`) now paints the pictures and backgrounds a slide
   inherits from its layout and master. A template deck with a picture background and white text rendered as an almost

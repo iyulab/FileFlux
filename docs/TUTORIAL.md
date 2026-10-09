@@ -408,157 +408,95 @@ Use for: Uniform processing requirements, simple splitting needs
 
 ### Metadata Enrichment
 
-FileFlux can automatically extract structured metadata during document processing:
+`AIMetadataEnricher` (interface `IMetadataEnricher`) describes a piece of text — topics, keywords, a one-line
+description and schema-specific fields. It is a **standalone service, not a pipeline stage**: `ProcessAsync` does not
+call it and it writes nothing into chunks. Call it on the text you want described (a document's extracted text, a
+section, a chunk) and store the result where you need it. Per-chunk summaries and keywords from the pipeline come from
+the Enrich stage instead (see [Streaming Enrichment](#streaming-enrichment)).
+
+`AddFileFlux()` does not register it. Construct it with a `RuleBasedMetadataExtractor`, an `IMemoryCache` (used only by
+`EnrichWithCacheAsync`/`EnrichBatchAsync`) and, optionally, your `IDocumentAnalysisService`:
 
 ```csharp
 using FileFlux.Core;
+using FileFlux.Infrastructure.Services;
+using Microsoft.Extensions.Caching.Memory;
 
-var options = new ChunkingOptions
+var enricher = new AIMetadataEnricher(
+    new RuleBasedMetadataExtractor(),
+    new MemoryCache(new MemoryCacheOptions()),
+    myAnalysisService);   // optional: without it, the rule-based extractor answers every call
+
+var documentText = await File.ReadAllTextAsync("guide.md");
+var metadata = await enricher.EnrichAsync(documentText, MetadataSchema.General, new MetadataEnrichmentOptions
 {
-    Strategy = "Auto",
-    MaxChunkSize = 512,
-    CustomProperties =
-    {
-        ["enableMetadataEnrichment"] = true,
-        ["metadataSchema"] = MetadataSchema.General,
-        ["metadataOptions"] = new MetadataEnrichmentOptions
-        {
-            ExtractionStrategy = MetadataExtractionStrategy.Smart,
-            MinConfidence = 0.7,
-            ContinueOnEnrichmentFailure = true
-        }
-    }
-};
+    ExtractionStrategy = MetadataExtractionStrategy.Smart,
+    MinConfidence = 0.7
+});
 
-var chunks = await processor.ProcessAsync("document.pdf", options);
-
-// Access enriched metadata
-foreach (var chunk in chunks)
-{
-    if (chunk.Metadata.CustomProperties.TryGetValue("enriched_topics", out var topics))
-    {
-        Console.WriteLine($"Topics: {string.Join(", ", (string[])topics)}");
-    }
-
-    if (chunk.Metadata.CustomProperties.TryGetValue("enriched_keywords", out var keywords))
-    {
-        Console.WriteLine($"Keywords: {string.Join(", ", (string[])keywords)}");
-    }
-
-    if (chunk.Metadata.CustomProperties.TryGetValue("enriched_description", out var desc))
-    {
-        Console.WriteLine($"Description: {desc}");
-    }
-}
+Console.WriteLine($"{metadata["extractionMethod"]} (confidence {metadata["confidence"]})");
+if (metadata.TryGetValue("topics", out var topics) && topics is string[] topicList)
+    Console.WriteLine($"Topics: {string.Join(", ", topicList)}");
 ```
+
+`EnrichAsync` returns an `IDictionary<string, object>`. Two keys are always present: `confidence` (`double`, 0.0–1.0)
+and `extractionMethod` — `"ai"`, `"hybrid"` (AI merged with rule-based, see below), `"rule-based"`, or
+`"ai-parse-failed"` (the model's reply could not be parsed as a JSON object; confidence is then 0.5, which is below the
+default `MinConfidence`, so by default such a reply is merged and reported as `"hybrid"`). The other keys are the fields the
+schema asks for. On the AI path they are whatever the model returned: strings, numbers (`double`), booleans and string
+arrays (`string[]`); a field the model left out is absent.
 
 #### Metadata Schemas
 
-**General Schema**: For general documents
-```csharp
-var options = new ChunkingOptions
-{
-    CustomProperties =
-    {
-        ["enableMetadataEnrichment"] = true,
-        ["metadataSchema"] = MetadataSchema.General
-    }
-};
+`MetadataSchema` selects the prompt sent to the model and the rule-based patterns:
 
-// Extracts: topics, keywords, description, documentType, language
-```
+| Schema | AI prompt asks for | Rule-based extractor fills |
+|---|---|---|
+| `General` | `topics`, `keywords`, `description`, `documentType`, `language`, `categories` | `topics`, `keywords`, `description`, `documentType`, `language` |
+| `ProductManual` | `productName`, `company`, `version`, `topics`, `keywords`, optional `releaseDate`, `model`, `categories`, plus `description`, `documentType`, `language` | `productName`, `company`, `version`, `releaseDate`, `topics`, `keywords`, `documentType` (`"manual"`) |
+| `TechnicalDoc` | `topics`, `libraries`, `frameworks`, `technologies`, `keywords`, `description`, optional `categories`, plus `documentType`, `language` | `libraries`, `frameworks`, `technologies`, `topics`, `keywords`, `documentType` |
+| `Custom` | the prompt in `MetadataEnrichmentOptions.CustomPrompt` (the `General` prompt when none is set) | same as `General` |
 
-**ProductManual Schema**: For product manuals
-```csharp
-var options = new ChunkingOptions
-{
-    CustomProperties =
-    {
-        ["enableMetadataEnrichment"] = true,
-        ["metadataSchema"] = MetadataSchema.ProductManual
-    }
-};
+`CustomPrompt` replaces the schema prompt for any schema, not only `Custom`. Rule-based fields other than `documentType` and
+`language` are present only when their patterns matched.
 
-// Extracts: productName, company, version, model, releaseDate, topics, keywords
-```
+#### Options
 
-**TechnicalDoc Schema**: For technical documentation
-```csharp
-var options = new ChunkingOptions
-{
-    CustomProperties =
-    {
-        ["enableMetadataEnrichment"] = true,
-        ["metadataSchema"] = MetadataSchema.TechnicalDoc
-    }
-};
+Every `MetadataEnrichmentOptions` member applies only when an `IDocumentAnalysisService` was passed; without one the
+call goes straight to the rule-based extractor.
 
-// Extracts: topics, libraries, frameworks, technologies, keywords
-```
-
-#### Extraction Strategies
-
-**Fast Strategy**: Quick extraction (2000 chars)
-```csharp
-var metadataOptions = new MetadataEnrichmentOptions
-{
-    ExtractionStrategy = MetadataExtractionStrategy.Fast
-};
-```
-
-**Smart Strategy**: Balanced extraction (4000 chars, default)
-```csharp
-var metadataOptions = new MetadataEnrichmentOptions
-{
-    ExtractionStrategy = MetadataExtractionStrategy.Smart
-};
-```
-
-**Deep Strategy**: Comprehensive extraction (8000 chars)
-```csharp
-var metadataOptions = new MetadataEnrichmentOptions
-{
-    ExtractionStrategy = MetadataExtractionStrategy.Deep
-};
-```
+| Option | Default | Effect |
+|---|---|---|
+| `ExtractionStrategy` | `Smart` | How much of the text goes into the prompt: `Fast` 2,000 characters, `Smart` 4,000, `Deep` 8,000. Longer text is cut at that point. |
+| `MaxTokens` | `null` | When set, replaces the strategy's budget: `MaxTokens × 4` characters. |
+| `CustomPrompt` | `null` | Replaces the schema prompt (see above). |
+| `MinConfidence` | `0.6` | When the model's `confidence` is below it, the rule-based result is merged in: the model's fields win, missing ones are filled from the rules, `confidence` becomes the average of both, `extractionMethod` becomes `"hybrid"`. |
+| `TimeoutMs` | `30000` | Time limit for one model call. |
+| `MaxRetries` | `2` | Extra attempts after a failed or timed-out call (three calls in total by default). A reply without a `confidence` value counts as a failed attempt. |
+| `RetryDelayMs` | `1000` | Wait before a retry, multiplied by the attempt number (1 s, then 2 s by default). |
+| `ContinueOnEnrichmentFailure` | `true` | After the last failed attempt: `true` returns the rule-based result, `false` throws `InvalidOperationException` with the last error as its inner exception. |
 
 #### Caching
 
-Metadata extraction results are automatically cached based on file content hash:
+`EnrichAsync` itself does not cache. `EnrichWithCacheAsync` stores the result in the `IMemoryCache` you passed under a
+key you choose, for one hour; `GenerateCacheKey(filePath, schema)` builds a key from the file's SHA-256 hash and the
+schema:
 
 ```csharp
-// First call: Extracts metadata via AI/rules
-var chunks1 = await processor.ProcessAsync("document.pdf", options);
-
-// Second call with same file: Uses cached metadata
-var chunks2 = await processor.ProcessAsync("document.pdf", options);
+var key = enricher.GenerateCacheKey("guide.md", MetadataSchema.General);
+var cached = await enricher.EnrichWithCacheAsync(documentText, key, MetadataSchema.General);
 ```
 
-Cache is valid for 1 hour and supports up to 100 documents by default.
+Each entry has size 1, so a `MemoryCacheOptions.SizeLimit` on your cache bounds the number of cached results. The key
+does not include the options, so calls that differ only in options (for example `CustomPrompt`) share a cached result.
 
-#### Fallback Strategy
+#### Several Texts at Once
 
-FileFlux uses a three-tier fallback strategy for robust metadata extraction:
-
-1. **AI Extraction**: Uses IDocumentAnalysisService if available and registered
-2. **Hybrid Mode**: Combines AI and rule-based extraction if AI confidence is below threshold
-3. **Rule-Based**: Falls back to pattern matching if AI is unavailable or fails
-
-```csharp
-var metadataOptions = new MetadataEnrichmentOptions
-{
-    MinConfidence = 0.7,  // Trigger hybrid mode if AI confidence < 0.7
-    ContinueOnEnrichmentFailure = true,  // Continue processing on failure
-    MaxRetries = 2,  // Retry AI extraction on transient failures
-    TimeoutMs = 30000  // 30 second timeout per extraction attempt
-};
-```
-
-**Automatic Fallback Behavior**:
-- If IDocumentAnalysisService is not registered → Rule-based extraction
-- If AI extraction times out → Retry, then rule-based fallback
-- If AI confidence < MinConfidence → Merge AI and rule-based results
-- If all retries fail → Rule-based fallback (or throw if ContinueOnEnrichmentFailure = false)
+`EnrichBatchAsync` takes a list of `BatchMetadataRequest` (`DocumentId`, `Content`, optional `CacheKey`) and returns
+one `EnrichedMetadataResult` per request (`Metadata`, `Confidence`, `FromCache`, `ExtractionMethod`). Requests with a
+cached key are answered from the cache; the rest are enriched one after another with the same rules as `EnrichAsync`.
+A request that fails gets a result with `ExtractionMethod = "failed"` and the error message under `Metadata["error"]`
+instead of failing the batch.
 
 ### Multimodal Processing
 

@@ -39,14 +39,14 @@ fileflux info document.pdf
 문서에서 원본 텍스트와 콘텐츠를 추출합니다.
 
 ```bash
-fileflux extract document.pdf -o output.json
-fileflux extract document.docx -f markdown
-fileflux extract document.pdf -f jsonl -q
+fileflux extract document.pdf -o out
+fileflux extract document.docx -f json
+fileflux extract document.pdf -q
 ```
 
 **옵션**:
-- `-o, --output <path>` - 출력 파일 경로 (기본값: input.extracted.json)
-- `-f, --format <format>` - 출력 형식: json, jsonl, markdown (기본값: json)
+- `-o, --output <dir>` - 출력 디렉터리 (기본값: 입력 파일 옆 `<입력 파일명>_output/`, 아래 «출력 형식»)
+- `-f, --format <format>` - 출력 형식: md, json (기본값: md)
 - `-q, --quiet` - 최소 출력
 
 **특징**:
@@ -65,8 +65,8 @@ fileflux chunk document.docx -m 1024 --overlap 128
 ```
 
 **옵션**:
-- `-o, --output <path>` - 출력 파일 경로 (기본값: input.chunks.json)
-- `-f, --format <format>` - 출력 형식: json, jsonl, markdown (기본값: json)
+- `-o, --output <dir>` - 출력 디렉터리 (기본값: 입력 파일 옆 `<입력 파일명>_output/`, 아래 «출력 형식»)
+- `-f, --format <format>` - 출력 형식: md, json, jsonl (기본값: md)
 - `-s, --strategy <strategy>` - 청킹 전략: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize (기본값: Auto)
 - `-m, --max-size <size>` - 최대 청크 크기 (토큰 단위, 기본값: 512)
 - `--overlap <size>` - 청크 간 중복 크기 (기본값: 64)
@@ -86,14 +86,14 @@ fileflux chunk document.docx -m 1024 --overlap 128
 추출, 청킹, 강화를 포함한 완전한 처리 파이프라인입니다.
 
 ```bash
-fileflux process document.pdf -o output.json
+fileflux process document.pdf -o out
 fileflux process document.pdf --no-enrich
 fileflux process document.docx -s Auto -m 512 --overlap 64
 ```
 
 **옵션**:
-- `-o, --output <path>` - 출력 파일 경로 (기본값: input.processed.json)
-- `-f, --format <format>` - 출력 형식: json, jsonl, markdown (기본값: json)
+- `-o, --output <dir>` - 출력 디렉터리 (기본값: 입력 파일 옆 `<입력 파일명>_output/`, 아래 «출력 형식»)
+- `-f, --format <format>` - 출력 형식: md, json, jsonl (기본값: md)
 - `-s, --strategy <strategy>` - 청킹 전략 (기본값: Auto)
 - `-m, --max-size <size>` - 최대 청크 크기 (기본값: 512)
 - `--overlap <size>` - 중복 크기 (기본값: 64)
@@ -142,52 +142,114 @@ export GOOGLE_MODEL="gemini-flash-latest"  # 선택사항, 기본값: gemini-fla
 
 ## 출력 형식
 
-### JSON (기본값)
+`extract`·`chunk`·`process` 는 파일 하나가 아니라 디렉터리를 쓴다. `-o` 를 주지 않으면 입력 파일 옆의 `<입력 파일명>_output/`,
+`-o <dir>` 를 주면 `<dir>/<입력 파일명>_output/` 이다. `chunk` 의 결과는 이렇다(`-f` 기본값 `md`):
 
-```json
-[
-  {
-    "id": "chunk-1",
-    "content": "Document content...",
-    "metadata": {
-      "chunkIndex": 0,
-      "totalChunks": 10,
-      "startPosition": 0,
-      "endPosition": 512,
-      "customProperties": {
-        "enriched_topics": ["AI", "machine learning"],
-        "quality_score": 0.95
-      }
-    }
-  }
-]
+```
+document.pdf_output/
+├── extract/extracted.md   # 추출한 원문
+├── images/                # 추출한 이미지 (--no-extract-images 이면 없음)
+└── chunks/
+    ├── content.md         # 청킹한 문서 전체 (-f json 이면 content.json)
+    ├── 001.md             # 청크 본문 (-f md)
+    ├── 001.json           # 청크 정보 (-f md · json)
+    ├── chunks.jsonl       # 모든 청크, 한 줄에 하나 (-f jsonl 일 때만)
+    └── info.json          # 실행 옵션 · 통계 · 문서 요약
 ```
 
-### JSONL (JSON Lines)
+`--refine` · `--enrich` 를 켜면 `refine/` · `enrich/` 디렉터리가 더해진다.
 
-각 청크가 한 줄에 하나씩, 스트리밍 처리에 적합:
+### `md` (기본값)
 
-```jsonl
-{"id":"chunk-1","content":"...","metadata":{...}}
-{"id":"chunk-2","content":"...","metadata":{...}}
-```
-
-### Markdown
-
-사람이 읽기 쉬운 형식:
+청크마다 본문 파일 `NNN.md` 와 정보 파일 `NNN.json` 을 쓴다.
 
 ```markdown
-# Document: document.pdf
+---
+chunk_index: 1
+chunk_id: "59efc50a-542b-4aa1-bd5c-d6fcc1e361d4"
+start_char: 0
+end_char: 286
+---
 
-## Chunk 1/10
+# Solar Guide
 
-**Content**:
-Document content...
+Solar panels convert light into electricity. ...
+```
 
-**Metadata**:
-- Chunk Index: 0
-- Position: 0-512
-- Quality Score: 0.95
+```json
+{
+  "index": 1,
+  "id": "59efc50a-542b-4aa1-bd5c-d6fcc1e361d4",
+  "length": 182,
+  "tokens": 72,
+  "location": {
+    "startChar": 0,
+    "endChar": 286,
+    "headingPath": ["Paragraph 1"]
+  },
+  "quality": {
+    "overall": 1,
+    "density": 1,
+    "importance": 1
+  },
+  "enrichment": {
+    "topic": "solar",
+    "hierarchyPath": "Paragraph 1"
+  }
+}
+```
+
+값이 없는 항목은 빠진다. `--enrich` 로 AI 강화를 켜면 `enrichment` 에 `summary` · `keywords` 가 더해진다.
+
+### `json`
+
+청크마다 `NNN.json` 하나에 본문과 메타데이터를 함께 쓴다. `properties` 는 청크의 `Props` 그대로이며, 키는
+`ChunkPropsKeys` 의 이름(`hierarchy.*` · `document.*` · `enriched.*`)이다.
+
+```jsonc
+{
+  "index": 1,
+  "id": "973bb6c3-af79-4d20-9d43-1d81b0120883",
+  "content": "# Solar Guide\n\nSolar panels convert light into electricity. ...",
+  "location": { "startChar": 0, "endChar": 286 },
+  "metadata": { /* 청크의 DocumentMetadata: fileName, fileType, title, language, processedAt, customProperties, ... */ },
+  "properties": {
+    "hierarchy.headingLevel": 1,
+    "hierarchy.path": "Paragraph 1",
+    "document.topic": "solar",
+    "document.keywords": ["solar", "batteries", "guide", "panels"]
+  }
+}
+```
+
+`--enrich` 로 AI 강화를 켜면 `properties` 에 `enriched.summary` · `enriched.keywords` 가 더해진다.
+
+### `jsonl`
+
+모든 청크를 `chunks/chunks.jsonl` 한 파일에 한 줄씩 쓴다. 각 줄은 `index` · `id` · `content` · `location` · `metadata`
+이며 `properties` 는 없다.
+
+```jsonl
+{"index":1,"id":"699e7d7e-...","content":"# Solar Guide\n\n...","location":{"startChar":0,"endChar":286},"metadata":{...}}
+```
+
+### `info.json`
+
+```jsonc
+{
+  "command": "chunk",
+  "input": "sample.md",
+  "format": "json",
+  "document": { "summary": "...", "topics": ["solar"], "keywords": ["solar", "batteries", "..."] },
+  "chunkingOptions": { "strategy": "Auto", "maxChunkSize": 512, "overlapSize": 64 },
+  "statistics": {
+    "chunkCount": 1, "totalCharacters": 182, "averageChunkSize": 182, "minChunkSize": 182, "maxChunkSize": 182,
+    "varianceRatio": 1, "isBalanced": true, "pageCount": 1, "language": "en",
+    "imagesExtracted": 0, "imagesSkipped": 0, "enrichedChunks": 0, "skippedEnrichments": 0
+  },
+  "aiAnalysis": null,  // AI 공급자를 쓰면 { "provider", "enrichedChunks", "imagesAnalyzed" }
+  "processedAt": "2026-10-09T15:55:03.5762534Z"
+}
 ```
 
 ## 지원 형식
@@ -217,7 +279,7 @@ fileflux extract report.pdf -o out -q || echo "extract failed"
 fileflux info report.pdf
 
 # 빠른 텍스트 추출
-fileflux extract report.pdf -f markdown
+fileflux extract report.pdf
 
 # 기본 청킹 (AI 없음)
 fileflux chunk report.pdf -s Smart -m 512
@@ -241,20 +303,20 @@ for file in *.pdf; do
 done
 
 # JSONL 출력 (스트리밍에 적합)
-fileflux process document.pdf -f jsonl -o output.jsonl
+fileflux process document.pdf -f jsonl -o out
 ```
 
 ### RAG 시스템 통합
 
 ```bash
 # 1단계: 문서 처리 및 청킹
-fileflux process knowledge-base.pdf -s Intelligent -m 512 -o chunks.json
+fileflux process knowledge-base.pdf -s Intelligent -m 512 -f json -o out
 
 # 2단계: 청크를 벡터 데이터베이스에 로드
 # (별도 도구 사용: Pinecone, Weaviate, etc.)
 
 # 3단계: AI 강화로 메타데이터 품질 향상
-fileflux process knowledge-base.pdf --enrich -s Semantic -o enriched.json
+fileflux process knowledge-base.pdf -s Semantic -f json -o out
 ```
 
 ## 성능 팁
