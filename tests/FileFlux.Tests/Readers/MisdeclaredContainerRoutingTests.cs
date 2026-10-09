@@ -82,21 +82,22 @@ public class MisdeclaredContainerRoutingTests : IDisposable
 
         Assert.False(string.IsNullOrWhiteSpace(content.Text));
         Assert.Contains("견적서", content.Text);
-        Assert.Equal("LegacyExcelReader", content.ReaderType);
+        Assert.Equal("ExcelReader", content.ReaderType);
         // The container that was parsed, not the name it arrived under - a consumer routing on this
         // would otherwise inherit the same mislabelling.
         Assert.Equal(".xls", content.File.Extension);
     }
 
     [Fact]
-    public async Task XlsNamedOoxmlPackage_ExtractsThroughTheOoxmlReader()
+    public async Task XlsNamedOoxmlPackage_ExtractsAsTheOoxmlWorkbookItIs()
     {
         var path = CopyAs(OoxmlFixture, "list.xls");
 
-        var content = await new LegacyExcelDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+        var content = await new ExcelDocumentReader().ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(string.IsNullOrWhiteSpace(content.Text));
         Assert.Equal("ExcelReader", content.ReaderType);
+        Assert.Equal(".xlsx", content.File.Extension);
     }
 
     [Fact]
@@ -110,7 +111,7 @@ public class MisdeclaredContainerRoutingTests : IDisposable
         var content = await new ExcelDocumentReader().ExtractAsync(stream, "quotation.xlsx", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Contains("견적서", content.Text);
-        Assert.Equal("LegacyExcelReader", content.ReaderType);
+        Assert.Equal(".xls", content.File.Extension);
     }
 
     // === Correctly named files are untouched ===
@@ -119,10 +120,10 @@ public class MisdeclaredContainerRoutingTests : IDisposable
     public async Task CorrectlyNamedWorkbooks_AreUnaffected()
     {
         var ooxml = await new ExcelDocumentReader().ExtractAsync(OoxmlFixture, cancellationToken: TestContext.Current.CancellationToken);
-        var legacy = await new LegacyExcelDocumentReader().ExtractAsync(LegacyFixture, cancellationToken: TestContext.Current.CancellationToken);
+        var legacy = await new ExcelDocumentReader().ExtractAsync(LegacyFixture, cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal("ExcelReader", ooxml.ReaderType);
-        Assert.Equal("LegacyExcelReader", legacy.ReaderType);
+        Assert.Equal(".xlsx", ooxml.File.Extension);
+        Assert.Equal(".xls", legacy.File.Extension);
         Assert.False(string.IsNullOrWhiteSpace(ooxml.Text));
         Assert.False(string.IsNullOrWhiteSpace(legacy.Text));
     }

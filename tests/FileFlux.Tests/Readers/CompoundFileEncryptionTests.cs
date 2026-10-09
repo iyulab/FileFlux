@@ -46,7 +46,7 @@ public class CompoundFileEncryptionTests
     [Fact]
     public void ALegacyWorkbook_IsNotEncrypted()
     {
-        // The case that must keep working: a real .xls routed to the legacy reader as before.
+        // The case that must keep working: a real .xls read by the Excel reader as before.
         var container = CompoundFile(["Root Entry", "Workbook", "SummaryInformation"]);
 
         CompoundFileEncryption.IsEncryptedDocument(container).Should().BeFalse();

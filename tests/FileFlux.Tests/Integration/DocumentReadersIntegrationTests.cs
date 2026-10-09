@@ -50,7 +50,7 @@ public class DocumentReadersIntegrationTests
 
     [Theory]
     [InlineData("demo.docx", "WordReader")]
-    [InlineData("file_example_XLS_100.xls", "LegacyExcelReader")]
+    [InlineData("file_example_XLS_100.xls", "ExcelReader")]
     [InlineData("samplepptx.pptx", "PowerPointReader")]
     [InlineData("oai_gpt-oss_model_card.pdf", "PdfReader")]
     [InlineData("test.md", "MarkdownReader")]

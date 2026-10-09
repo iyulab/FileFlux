@@ -171,7 +171,7 @@ public class MisdeclaredFormatRoutingTests : IDisposable
     [Theory]
     [InlineData("budget.docx")]
     [InlineData("budget.xlsx")]
-    public async Task LegacyWorkbookUnderAnotherName_IsReadByTheLegacyReader_AndSaysSo(string name)
+    public async Task LegacyWorkbookUnderAnotherName_IsReadAsAnXls_AndSaysSo(string name)
     {
         using var processor = Create(CopyAs(Xls, name));
 
@@ -180,6 +180,20 @@ public class MisdeclaredFormatRoutingTests : IDisposable
         Assert.Equal(".xls", processor.Result.Raw!.File.Extension);
         Assert.False(string.IsNullOrWhiteSpace(processor.Result.Raw.Text));
         Assert.Equal(Path.GetExtension(name), processor.Result.Raw.Hints["declared_extension"]);
+    }
+
+    [Fact]
+    public async Task AnExcel4WorkbookUnderAnotherName_IsReadAsAnXls_AndSaysSo()
+    {
+        // A bare BIFF4 stream has no container to recognise; its leading BOF record is what names it.
+        using var processor = Create(CopyAs(Fixture("legacy-biff4.xls"), "coverage.bin"));
+
+        await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(".xls", processor.Result.Raw!.File.Extension);
+        Assert.Contains("Table 10 -- Examination Coverage", processor.Result.Raw.Text);
+        Assert.Equal(".bin", processor.Result.Raw.Hints["declared_extension"]);
+        Assert.Contains(processor.Result.Raw.Warnings, w => w.Contains("[extension_mismatch]"));
     }
 
     [Fact]

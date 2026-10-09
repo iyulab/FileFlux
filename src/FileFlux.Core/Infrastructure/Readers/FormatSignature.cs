@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.IO.Compression;
 
 namespace FileFlux.Core.Infrastructure.Readers;
@@ -12,10 +13,11 @@ namespace FileFlux.Core.Infrastructure.Readers;
 /// selects and fails there, although the content is a format another registered reader parses.
 /// </para>
 /// <para>
-/// Only formats that can be told apart without guessing are detected: a PDF by its header, the
+/// Only formats that can be told apart without guessing are detected: a PDF by its header, an
+/// Excel 2.x-4.0 workbook (a bare BIFF2-4 stream, no container) by its leading BOF record, the
 /// three OOXML packages by the part directory the package carries (<c>word/</c>, <c>xl/</c>,
-/// <c>ppt/</c>), and the compound-file formats by the streams the container holds (HWP 5 and the
-/// Office 97-2003 document, workbook and presentation). <see cref="ContainerSignature"/> stops at
+/// <c>ppt/</c>), and the compound-file formats by the streams the container holds (HWP 5, the
+/// Excel 5.0-2003 workbook, and the Office 97-2003 document and presentation). <see cref="ContainerSignature"/> stops at
 /// the container because neither ZIP nor a compound file alone distinguishes a spreadsheet from a
 /// presentation; the entries do. Anything else — plain text, HTML, an encrypted Office document, a
 /// damaged container — returns <see langword="null"/>, and the declared name stays in charge. A
@@ -27,13 +29,45 @@ public static class FormatSignature
     private static ReadOnlySpan<byte> PdfMagic => "%PDF-"u8;
 
     /// <summary>
-    /// Classifies a byte prefix. Only formats decidable from the prefix alone are reported (PDF);
-    /// an OOXML package needs its entries — use <see cref="DetectFile"/>, <see cref="DetectStream"/>,
-    /// or <see cref="DetectBytes"/>.
+    /// Classifies a byte prefix. Only formats decidable from the prefix alone are reported (PDF, and a bare BIFF2-4
+    /// workbook as <c>.xls</c>); an OOXML package or a compound file needs its entries — use <see cref="DetectFile"/>,
+    /// <see cref="DetectStream"/>, or <see cref="DetectBytes"/>.
     /// </summary>
     /// <returns>The canonical extension (for example <c>.pdf</c>), or <see langword="null"/>.</returns>
     public static string? Detect(ReadOnlySpan<byte> prefix)
-        => prefix.StartsWith(PdfMagic) ? ".pdf" : null;
+    {
+        if (prefix.StartsWith(PdfMagic))
+            return ".pdf";
+        if (IsBareBiffStream(prefix))
+            return ".xls";
+        return null;
+    }
+
+    /// <summary>
+    /// Whether the prefix opens with the BOF record of a BIFF2, BIFF3 or BIFF4 stream — the file format of Excel 2.x to
+    /// 4.0, which wrote the record stream straight to disk rather than into a compound file. The record id names the
+    /// BIFF version (<c>0x0009</c>, <c>0x0209</c>, <c>0x0409</c>), its length is that version's BOF size, and the
+    /// substream type is one Excel writes (worksheet, chart, macro sheet, or a BIFF4 workbook); all three must agree, so
+    /// text or another binary format does not pass for a workbook.
+    /// </summary>
+    private static bool IsBareBiffStream(ReadOnlySpan<byte> prefix)
+    {
+        if (prefix.Length < 8)
+            return false;
+
+        var record = BinaryPrimitives.ReadUInt16LittleEndian(prefix);
+        var length = BinaryPrimitives.ReadUInt16LittleEndian(prefix[2..]);
+        var type = BinaryPrimitives.ReadUInt16LittleEndian(prefix[6..]);
+
+        var bofSize = record switch
+        {
+            0x0009 => 4, // BIFF2: version, substream type
+            0x0209 or 0x0409 => 6, // BIFF3/4: version, substream type, reserved
+            _ => -1
+        };
+
+        return length == bofSize && type is 0x0010 or 0x0020 or 0x0040 or 0x0100;
+    }
 
     /// <summary>Classifies a file on disk. Unreadable files classify as <see langword="null"/>.</summary>
     public static string? DetectFile(string filePath)

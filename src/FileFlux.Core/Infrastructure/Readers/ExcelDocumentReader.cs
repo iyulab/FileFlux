@@ -5,23 +5,33 @@ using Undoc;
 namespace FileFlux.Core.Infrastructure.Readers;
 
 /// <summary>
-/// Microsoft Excel document (.xlsx) reader using Undoc (Rust FFI).
+/// Microsoft Excel workbook reader (.xlsx, and the binary .xls of Excel 2.x-2003) using Undoc (Rust FFI).
 /// High-performance native library for Office document extraction.
 /// </summary>
 public class ExcelDocumentReader : IDocumentReader
 {
     public string ReaderType => "ExcelReader";
 
-    public IEnumerable<string> SupportedExtensions => [".xlsx"];
-
-    // What this reader parses: the OOXML workbook, and a legacy workbook it routes to the legacy reader.
+    // The OOXML package and its binary (BIFF) predecessors: a compound file holding a Workbook (Excel 97-2003) or Book
+    // (Excel 5.0/95) stream, or a bare BIFF2-4 stream (Excel 2.x-4.0). The Office parser reads all of them.
     private static readonly string[] Workbooks = [".xlsx", ".xls"];
+
+    public IEnumerable<string> SupportedExtensions => Workbooks;
+
+    /// <summary>
+    /// The extension of what was parsed: the content, not the file name. A bare BIFF2-4 stream is no Office container,
+    /// so the container alone cannot tell; what <see cref="FormatSignature"/> recognised decides, and the container is
+    /// the fallback for content it leaves undecided.
+    /// </summary>
+    private static string ExtensionOf(string? detected, OfficeContainer container)
+        => detected is ".xls" or ".xlsx" ? detected
+            : container == OfficeContainer.CompoundFile ? ".xls" : ".xlsx";
 
     public bool CanRead(string fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        return extension == ".xlsx";
+        return extension is ".xlsx" or ".xls";
     }
 
     // ========================================
@@ -44,12 +54,15 @@ public class ExcelDocumentReader : IDocumentReader
 
         try
         {
+            var detected = FormatSignature.DetectFile(filePath);
+            FormatSignature.ThrowIfAnotherReadersFormat(detected, Workbooks, filePath, "Failed to read Excel document");
+
             var result = new ReadResult
             {
                 File = new SourceFileInfo
                 {
                     Name = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    Extension = ".xlsx",
+                    Extension = ExtensionOf(detected, ContainerSignature.DetectFile(filePath)),
                     Size = fileInfo.Length,
                     CreatedAt = fileInfo.CreationTimeUtc,
                     ModifiedAt = fileInfo.LastWriteTimeUtc
@@ -57,7 +70,6 @@ public class ExcelDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
-            FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectFile(filePath), Workbooks, filePath, "Failed to read Excel document");
             using var doc = UndocDocument.ParseFile(filePath);
 
             if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -111,12 +123,15 @@ public class ExcelDocumentReader : IDocumentReader
             await stream.CopyToAsync(memoryStream, cancellationToken).ConfigureAwait(false);
             var bytes = memoryStream.ToArray();
 
+            var detected = FormatSignature.DetectBytes(bytes);
+            FormatSignature.ThrowIfAnotherReadersFormat(detected, Workbooks, fileName, "Failed to read Excel document");
+
             var result = new ReadResult
             {
                 File = new SourceFileInfo
                 {
                     Name = fileName,
-                    Extension = ".xlsx",
+                    Extension = ExtensionOf(detected, ContainerSignature.Detect(bytes)),
                     Size = bytes.Length,
                     CreatedAt = DateTime.UtcNow,
                     ModifiedAt = DateTime.UtcNow
@@ -124,7 +139,6 @@ public class ExcelDocumentReader : IDocumentReader
                 ReaderType = ReaderType
             };
 
-            FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectBytes(bytes), Workbooks, fileName, "Failed to read Excel document");
             using var doc = UndocDocument.ParseBytes(bytes);
 
             if (!string.IsNullOrWhiteSpace(doc.Title))
@@ -196,13 +210,19 @@ public class ExcelDocumentReader : IDocumentReader
     /// Tells a mislabelled file apart from a damaged one, so the message does not send its reader
     /// after corruption that is not there.
     /// </summary>
+    /// <remarks>
+    /// A workbook this reader parses keeps the parser's diagnosis whatever its container: a bare BIFF2-4 stream is
+    /// neither Office container, yet it is no mislabelled file.
+    /// </remarks>
     private static string DescribeExtractionFailure(string filePath, string message)
-        => ContainerSignature.AnnotateFailure(
-            $"Failed to extract Excel document: {message}",
-            ContainerSignature.DetectFile(filePath),
-            FormatSignature.DetectFile(filePath),
-            OfficeContainer.Zip,
-            OfficeContainer.CompoundFile);
+    {
+        var failure = $"Failed to extract Excel document: {message}";
+        var detected = FormatSignature.DetectFile(filePath);
+        return detected is not null && Workbooks.Contains(detected, StringComparer.OrdinalIgnoreCase)
+            ? failure
+            : ContainerSignature.AnnotateFailure(
+                failure, ContainerSignature.DetectFile(filePath), detected, OfficeContainer.Zip, OfficeContainer.CompoundFile);
+    }
 
     public async Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -230,55 +250,27 @@ public class ExcelDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// Routes on the container the bytes actually are, not on the declared extension.
+    /// The workbook at <paramref name="filePath"/>, whichever container it is: an OOXML package, a compound file
+    /// (Excel 5.0-2003) or a bare BIFF2-4 stream (Excel 2.x-4.0) go through the same parser and come out in the same
+    /// layout.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// A legacy compound-file workbook saved with an <c>.xlsx</c> name reaches this reader, and the
-    /// OOXML parser reports "could not find EOCD" — an accurate statement about a ZIP package that
-    /// reads to a user as "your file is corrupt". The file is valid and a reader for it already
-    /// exists, so the only thing wrong is which reader was chosen.
-    /// </para>
-    /// <para>
-    /// The routing lives here rather than in the reader factory because the factory selects from a
-    /// file name alone, and several call paths hand it only an extension. Deciding between the two
-    /// Excel containers is also this reader's own subject matter: both are Excel.
-    /// </para>
-    /// </remarks>
-    internal static RawContent ExtractExcelContent(string filePath, CancellationToken cancellationToken)
+    private static RawContent ExtractExcelContent(string filePath, CancellationToken cancellationToken)
     {
         var fileInfo = new FileInfo(filePath);
+        var container = ContainerSignature.DetectFile(filePath);
 
-        if (ContainerSignature.DetectFile(filePath) == OfficeContainer.CompoundFile)
-        {
-            var bytes = File.ReadAllBytes(filePath);
-
-            // Checked before the legacy reader, not after it fails: an encrypted workbook IS a
-            // compound file, so routing it here follows from the magic bytes - but its container
-            // holds EncryptionInfo/EncryptedPackage rather than the Workbook stream that reader
-            // wants, and the reader's own complaint ("Neither stream 'Workbook' nor 'Book' was
-            // found") describes a damaged file. This one is not damaged.
-            CompoundFileEncryption.ThrowIfEncrypted(bytes, FileNameHelper.ExtractSafeFileName(fileInfo));
-
-            return LegacyExcelDocumentReader.ExtractRawFromBytes(
-                bytes,
-                new SourceFileInfo
-                {
-                    Name = FileNameHelper.ExtractSafeFileName(fileInfo),
-                    // The container, not the file name: a consumer routing on this must see what was
-                    // actually parsed, or it inherits the same mislabelling.
-                    Extension = ".xls",
-                    Size = fileInfo.Length,
-                    CreatedAt = fileInfo.CreationTimeUtc,
-                    ModifiedAt = fileInfo.LastWriteTimeUtc
-                },
-                cancellationToken);
-        }
+        // An encrypted OOXML workbook is a compound file wrapping the real package; without this it reaches the parser
+        // looking like an ordinary container mismatch. It is a more specific condition with a different remedy. A
+        // workbook protected the 97-2003 way carries no such stream; the parser reports that one as encrypted.
+        if (container == OfficeContainer.CompoundFile)
+            CompoundFileEncryption.ThrowIfEncrypted(File.ReadAllBytes(filePath), FileNameHelper.ExtractSafeFileName(fileInfo));
 
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
 
-        FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectFile(filePath), Workbooks, filePath, "Failed to extract Excel document");
+        var detected = FormatSignature.DetectFile(filePath);
+        FormatSignature.ThrowIfAnotherReadersFormat(detected, Workbooks, filePath, "Failed to extract Excel document");
+        cancellationToken.ThrowIfCancellationRequested();
         using var doc = UndocDocument.ParseFile(filePath);
 
         var workbook = RenderWorkbook(doc);
@@ -295,8 +287,8 @@ public class ExcelDocumentReader : IDocumentReader
         structuralHints["character_count"] = markdown.Length;
         structuralHints["conversion_method"] = "undoc_native";
 
-        // Excel typically has tables
-        structuralHints["has_tables"] = true;
+        // A workbook whose sheets are all empty has no table.
+        structuralHints["has_tables"] = workbook.Tables.Count > 0;
 
         return new RawContent
         {
@@ -306,7 +298,9 @@ public class ExcelDocumentReader : IDocumentReader
             File = new SourceFileInfo
             {
                 Name = FileNameHelper.ExtractSafeFileName(fileInfo),
-                Extension = ".xlsx",
+                // The content, not the file name: a consumer routing on this must see what was actually parsed, or it
+                // inherits a mislabelling.
+                Extension = ExtensionOf(detected, container),
                 Size = fileInfo.Length,
                 CreatedAt = fileInfo.CreationTimeUtc,
                 ModifiedAt = fileInfo.LastWriteTimeUtc
@@ -317,30 +311,19 @@ public class ExcelDocumentReader : IDocumentReader
         };
     }
 
-    internal static RawContent ExtractExcelContentFromBytes(byte[] bytes, string fileName, CancellationToken cancellationToken)
+    private static RawContent ExtractExcelContentFromBytes(byte[] bytes, string fileName, CancellationToken cancellationToken)
     {
-        // Same routing as the file path — see ExtractExcelContent.
-        if (ContainerSignature.Detect(bytes) == OfficeContainer.CompoundFile)
-        {
+        // Same encryption check as the file path - see ExtractExcelContent.
+        var container = ContainerSignature.Detect(bytes);
+        if (container == OfficeContainer.CompoundFile)
             CompoundFileEncryption.ThrowIfEncrypted(bytes, fileName);
-
-            return LegacyExcelDocumentReader.ExtractRawFromBytes(
-                bytes,
-                new SourceFileInfo
-                {
-                    Name = fileName,
-                    Extension = ".xls",
-                    Size = bytes.Length,
-                    CreatedAt = DateTime.UtcNow,
-                    ModifiedAt = DateTime.UtcNow
-                },
-                cancellationToken);
-        }
 
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();
 
-        FormatSignature.ThrowIfAnotherReadersFormat(FormatSignature.DetectBytes(bytes), Workbooks, fileName, "Failed to extract Excel document");
+        var detected = FormatSignature.DetectBytes(bytes);
+        FormatSignature.ThrowIfAnotherReadersFormat(detected, Workbooks, fileName, "Failed to extract Excel document");
+        cancellationToken.ThrowIfCancellationRequested();
         using var doc = UndocDocument.ParseBytes(bytes);
 
         var workbook = RenderWorkbook(doc);
@@ -357,8 +340,8 @@ public class ExcelDocumentReader : IDocumentReader
         structuralHints["character_count"] = markdown.Length;
         structuralHints["conversion_method"] = "undoc_native";
 
-        // Excel typically has tables
-        structuralHints["has_tables"] = true;
+        // A workbook whose sheets are all empty has no table.
+        structuralHints["has_tables"] = workbook.Tables.Count > 0;
 
         return new RawContent
         {
@@ -368,7 +351,7 @@ public class ExcelDocumentReader : IDocumentReader
             File = new SourceFileInfo
             {
                 Name = fileName,
-                Extension = ".xlsx",
+                Extension = ExtensionOf(detected, container),
                 Size = bytes.Length,
                 CreatedAt = DateTime.UtcNow,
                 ModifiedAt = DateTime.UtcNow

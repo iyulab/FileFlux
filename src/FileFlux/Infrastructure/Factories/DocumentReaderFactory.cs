@@ -184,13 +184,10 @@ public class DocumentReaderFactory : IDocumentReaderFactory
         RegisterReader(new HtmlDocumentReader());
         RegisterReader(new CsvDocumentReader());
 
-        // Office document Readers (DocumentFormat.OpenXml based)
+        // Office document Readers (Undoc based): OOXML and the 97-2003 binary formats; Excel back to 2.x
         RegisterReader(new WordDocumentReader());
         RegisterReader(new ExcelDocumentReader());
         RegisterReader(new PowerPointDocumentReader());
-
-        // Legacy Office binary Reader (ExcelDataReader based)
-        RegisterReader(new LegacyExcelDocumentReader());
 
         // PDF Reader (PdfPig based)
         RegisterReader(new PdfDocumentReader());

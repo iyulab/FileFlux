@@ -120,7 +120,7 @@ public class InfoCommand : Command
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"\n[red]Error analyzing document:[/] {ex.Message}");
+                AnsiConsole.MarkupLine($"\n[red]Error analyzing document:[/] {Markup.Escape(ex.Message)}");
             }
         }
 

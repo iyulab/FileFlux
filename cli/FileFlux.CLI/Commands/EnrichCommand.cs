@@ -129,7 +129,7 @@ public class EnrichCommand : Command
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] Failed to initialize AI services: {ex.Message}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] Failed to initialize AI services: {Markup.Escape(ex.Message)}");
             return;
         }
 
@@ -265,7 +265,7 @@ public class EnrichCommand : Command
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
             if (verbose)
             {
                 AnsiConsole.WriteException(ex);

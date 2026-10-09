@@ -169,7 +169,7 @@ public class LegacyOfficeDocumentTests : IDisposable
         var path = Fixture(fixture);
         IDocumentReader reader = fixture.EndsWith(".doc") ? new WordDocumentReader()
             : fixture.EndsWith(".ppt") ? new PowerPointDocumentReader()
-            : new LegacyExcelDocumentReader();
+            : new ExcelDocumentReader();
 
         var ex = await Assert.ThrowsAsync<EncryptedDocumentException>(
             () => reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken));

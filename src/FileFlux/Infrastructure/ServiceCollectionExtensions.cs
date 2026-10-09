@@ -65,7 +65,6 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentReader, MultiModalPowerPointDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalWordDocumentReader>();
         services.AddTransient<IDocumentReader, MultiModalExcelDocumentReader>();
-        services.AddTransient<IDocumentReader, LegacyExcelDocumentReader>();
         services.AddTransient<IDocumentReader, HwpDocumentReader>();
         // Audio reads through IAudioToTextService; with none registered the reader claims no file.
         services.AddTransient<IDocumentReader>(sp => new AudioDocumentReader(sp.GetService<IAudioToTextService>()));
@@ -274,7 +273,7 @@ public static class ServiceCollectionExtensions
     {
         typeof(TextDocumentReader), typeof(MarkdownDocumentReader), typeof(HtmlDocumentReader), typeof(CsvDocumentReader),
         typeof(MultiModalPdfDocumentReader), typeof(MultiModalPowerPointDocumentReader), typeof(MultiModalWordDocumentReader),
-        typeof(MultiModalExcelDocumentReader), typeof(LegacyExcelDocumentReader), typeof(HwpDocumentReader),
+        typeof(MultiModalExcelDocumentReader), typeof(HwpDocumentReader),
         typeof(AudioDocumentReader),
     };
 

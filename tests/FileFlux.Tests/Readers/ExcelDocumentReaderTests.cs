@@ -25,7 +25,7 @@ namespace FileFlux.Tests.Readers;
 /// - Delegated Undoc serialization (row/cell presence, multi-sheet, blank-leading absorption) —
 ///   guards the FileFlux↔Undoc integration boundary across Undoc bumps.
 /// No exact character-count assertion: Undoc formatting shifts on bump and would make the test
-/// brittle (convention: LegacyExcelDocumentReaderTests asserts zero char counts).
+/// brittle (convention: ExcelBinaryWorkbookTests asserts zero char counts either).
 /// </summary>
 public class ExcelDocumentReaderTests
 {
@@ -44,16 +44,18 @@ public class ExcelDocumentReaderTests
     }
 
     [Fact]
-    public void SupportedExtensions_ShouldIncludeXlsx()
+    public void SupportedExtensions_ShouldIncludeXlsxAndXls()
     {
         Assert.Contains(".xlsx", _reader.SupportedExtensions);
+        Assert.Contains(".xls", _reader.SupportedExtensions);
     }
 
     [Theory]
     [InlineData("test.xlsx", true)]
     [InlineData("TEST.XLSX", true)]
     [InlineData("workbook.xlsx", true)]
-    [InlineData("test.xls", false)] // legacy BIFF handled by LegacyExcelDocumentReader
+    [InlineData("test.xls", true)] // binary BIFF workbook, same reader (ExcelBinaryWorkbookTests)
+    [InlineData("REPORT.XLS", true)]
     [InlineData("test.csv", false)]
     [InlineData("test.pdf", false)]
     [InlineData("", false)]
@@ -165,6 +167,44 @@ public class ExcelDocumentReaderTests
         // Text is trimmed (managed post-processing) and non-empty for a populated sheet.
         Assert.Equal(content.Text.Trim(), content.Text);
         Assert.NotEmpty(content.Text);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_AWorkbookWhoseSheetsAreEmpty_HasNoTables()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"empty-{Guid.NewGuid():N}.xlsx");
+        try
+        {
+            using (var zip = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                void Part(string name, string xml)
+                {
+                    using var writer = new StreamWriter(zip.CreateEntry(name).Open(), new UTF8Encoding(false));
+                    writer.Write(xml);
+                }
+
+                Part("[Content_Types].xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+                    + "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+                    + "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>"
+                    + "<Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/></Types>");
+                Part("_rels/.rels", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                    + "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>");
+                Part("xl/workbook.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" "
+                    + "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"Blank\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>");
+                Part("xl/_rels/workbook.xml.rels", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                    + "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/></Relationships>");
+                Part("xl/worksheets/sheet1.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData/></worksheet>");
+            }
+
+            var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Empty(content.Tables);
+            Assert.Equal(false, content.Hints["has_tables"]);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     // ----- Extract stage: delegated Undoc serialization (row-loss guard) -----

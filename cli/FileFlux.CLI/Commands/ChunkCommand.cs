@@ -181,7 +181,7 @@ public class ChunkCommand : Command
                 {
                     if (!quiet)
                     {
-                        AnsiConsole.MarkupLine($"[yellow]Warning:[/] FluxImprover init failed: {ex.Message}");
+                        AnsiConsole.MarkupLine($"[yellow]Warning:[/] FluxImprover init failed: {Markup.Escape(ex.Message)}");
                     }
                     enableEnrich = false;
                 }
@@ -508,7 +508,7 @@ public class ChunkCommand : Command
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
             if (verbose)
             {
                 AnsiConsole.WriteException(ex);

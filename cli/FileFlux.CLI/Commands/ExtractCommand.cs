@@ -228,7 +228,7 @@ public class ExtractCommand : Command
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
             if (verbose)
             {
                 AnsiConsole.WriteException(ex);

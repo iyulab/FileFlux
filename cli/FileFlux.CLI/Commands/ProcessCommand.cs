@@ -197,7 +197,7 @@ public class ProcessCommand : Command
                 {
                     if (!quiet)
                     {
-                        AnsiConsole.MarkupLine($"[yellow]Warning:[/] FluxImprover init failed: {ex.Message}");
+                        AnsiConsole.MarkupLine($"[yellow]Warning:[/] FluxImprover init failed: {Markup.Escape(ex.Message)}");
                     }
                     enableEnrich = false;
                 }
@@ -742,7 +742,7 @@ public class ProcessCommand : Command
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"\n[red]✗ Error:[/] {ex.Message}");
+            AnsiConsole.MarkupLine($"\n[red]✗ Error:[/] {Markup.Escape(ex.Message)}");
             if (verbose)
             {
                 AnsiConsole.WriteException(ex);

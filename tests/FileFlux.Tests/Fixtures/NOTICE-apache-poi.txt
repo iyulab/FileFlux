@@ -8,3 +8,5 @@ Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0):
   legacy-slides.ppt      <- test-data/slideshow/basic_test_ppt_file.ppt
   legacy-encrypted.ppt   <- test-data/slideshow/Password_Protected-hello.ppt
   legacy-encrypted.xls   <- test-data/spreadsheet/password.xls
+  legacy-biff5.xls       <- test-data/spreadsheet/testEXCEL_5.xls
+  legacy-biff4.xls       <- test-data/spreadsheet/testEXCEL_4.xls

@@ -7,9 +7,9 @@ namespace FileFlux.Core.Infrastructure.Readers;
 /// <para>
 /// A password-protected <c>.xlsx</c> is not an OOXML package on disk. It is an OLE2/compound file
 /// wrapping the real package, holding <c>EncryptionInfo</c> and <c>EncryptedPackage</c> (usually
-/// beside a <c>DataSpaces</c> storage) instead of the <c>Workbook</c>/<c>Book</c> streams a legacy
-/// reader looks for. Dispatching it to that reader by its magic bytes is correct as far as it goes —
-/// the file really is a compound file — but the reader then reports
+/// beside a <c>DataSpaces</c> storage) instead of the <c>Workbook</c>/<c>Book</c> streams of a binary
+/// workbook. Treating it as a binary workbook by its magic bytes is correct as far as it goes — the
+/// file really is a compound file — but the binary-workbook reader this was written for then reported
 /// <c>"Neither stream 'Workbook' nor 'Book' was found"</c>, which reads as a damaged file. It is not
 /// damaged: it opens in Excel with the password. A precisely identifiable condition was being
 /// reported as an unexplained one, and the caller retried it three times because nothing said the

@@ -9,7 +9,7 @@
 FileFlux follows clean architecture principles with a **two-package structure**:
 
 - **FileFlux.Core**: Pure document extraction with zero AI dependencies
-  - Standard document readers (PDF, DOCX, XLSX, PPTX, MD, TXT, JSON, CSV, HTML)
+  - Standard document readers (PDF, DOCX/DOC, XLSX/XLS, PPTX/PPT, MD, TXT, JSON, CSV, HTML)
   - Core interfaces and domain models
   - AI service interface definitions (no implementations)
 - **FileFlux**: Full RAG pipeline (interface-driven)
@@ -335,7 +335,7 @@ console.log("Code block preserved");
 **Current Implementations**:
 - **PdfDocumentReader**: PDF text and image extraction
 - **WordDocumentReader**: DOCX with style preservation
-- **ExcelDocumentReader**: XLSX multi-sheet support
+- **ExcelDocumentReader**: XLSX and binary XLS (Excel 2.x-2003) multi-sheet support
 - **PowerPointDocumentReader**: PPTX slide extraction
 - **MarkdownDocumentReader**: Markdown structure preservation
 - **HtmlDocumentReader**: HTML content extraction

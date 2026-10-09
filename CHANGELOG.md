@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking** — **`.xls` workbooks are read by the Excel reader, through the same parser and into the same layout as
+  `.xlsx`** (Excel 2.x-4.0, 5.0/95 and 97-2003). What a reader of the output sees change, measured on Excel 4.0, 5.0/95 and
+  97-2003 files:
+  - fully empty rows inside a sheet are dropped (they were empty table rows);
+  - an empty worksheet keeps its `## name` heading and its span, as in an `.xlsx`, instead of being left out with a
+    «N of M worksheet(s) contain no data» warning;
+  - numbers keep their full precision (`0.48462104689852326`; they were rounded to 12 decimal places);
+  - the one sheet of an Excel 2.x-4.0 file is named `Sheet1` (was `Sheet`);
+  - an Excel 5.0/95 file that declares no codepage is decoded from its fonts' character set (Korean fonts read as Korean),
+    else as Windows-1252; it was always decoded as CP949;
+  - `RawContent.ReaderType` is `ExcelReader` (`MultiModalExcelReader` through `AddFileFlux()`), was `LegacyExcelReader`;
+    `Hints["conversion_method"]` is `undoc_native`, was `exceldatareader`.
+
+  On the 97-2003 workbooks measured the text was otherwise identical. A password-protected `.xls` still fails with
+  `EncryptedDocumentException`. Migration: compare `ReaderType` against `ExcelReader` where it was compared against
+  `LegacyExcelReader`.
+
+### Added
+- **An Excel 2.x-4.0 workbook is recognised by its content** (`FormatSignature` reports `.xls` for a bare BIFF2-4
+  stream), so one saved under another name is read as a workbook and carries `[extension_mismatch]`.
+
+### Removed
+- **Breaking** — **`LegacyExcelDocumentReader` is gone.** `ExcelDocumentReader` reads `.xls`, and `AddFileFlux()` and
+  `DocumentReaderFactory` already route `.xls` to it. Migration: replace `new LegacyExcelDocumentReader()` with
+  `new ExcelDocumentReader()`; nothing else is needed.
+- **`FileFlux.Core` no longer depends on `ExcelDataReader`.**
+
 ### Fixed
 - **Picture bullets, shapes filled with a picture and slide backgrounds name the slide that shows them.** Their
   `ImageInfo.PageNumbers` was empty because the parser did not reference them from the slide; with Undoc 0.17.0 a filled
@@ -14,9 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cell) has as its background.
 - **A picture description with a blank line or a `]` no longer breaks the image Markdown** of Word, PowerPoint and Excel
   documents (Undoc 0.17.0 writes the alt text on one line and escapes it).
+- **`Hints["has_tables"]` of a workbook says whether it has a table.** It was always `true`, also for a workbook whose sheets
+  are all empty.
+- **The FileFlux CLI prints an error whose message contains square brackets instead of crashing on it** (for example the
+  `[extraction_failure_reason=encrypted_document]` of a password-protected file): the message was read as console markup.
 
 ### Dependencies
-- `Undoc` 0.16.0 -> 0.17.0 (also reads Excel 5.0/95 and Excel 2.x–4.0 workbooks).
+- `Undoc` 0.16.0 -> 0.17.0 (the parser reads every `.xls` generation, Excel 2.x to 2003, which lets the Excel reader take over `.xls`).
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.113.0 -> 0.115.1, `LMSupply.Core` 0.113.0 -> 0.115.1, `LMSupply.Embedder` 0.113.0 -> 0.115.1, `LMSupply.Generator` 0.113.0 -> 0.115.1, `LMSupply.Ocr` 0.113.0 -> 0.115.1, `LMSupply.Transcriber` 0.113.0 -> 0.115.1.
 
 ## [0.52.0] - 2026-10-09

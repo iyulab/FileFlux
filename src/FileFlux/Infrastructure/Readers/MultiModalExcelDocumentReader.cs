@@ -21,7 +21,7 @@ public class MultiModalExcelDocumentReader : IDocumentReader
 
     public string ReaderType => "MultiModalExcelReader";
 
-    public IEnumerable<string> SupportedExtensions => new[] { ".xlsx" };
+    public IEnumerable<string> SupportedExtensions => _baseExcelReader.SupportedExtensions;
 
     public MultiModalExcelDocumentReader(IServiceProvider serviceProvider)
     {

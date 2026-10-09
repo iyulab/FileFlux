@@ -288,8 +288,7 @@ AI backend.
 |--------|-----------|--------|----------|
 | PDF | .pdf | Unpdf (Rust FFI) | Text, tables, image extraction (each image with its `PageNumber`) |
 | Word | .docx, .doc | Undoc (Rust FFI) | Style and structure preservation; Word 97-2003 `.doc` since 0.50.0 (a Word 6.0/95 file fails with `extraction_error_kind=UnsupportedFormat`) |
-| Excel | .xlsx | Undoc (Rust FFI) | Multi-sheet and table structure |
-| Excel (legacy) | .xls | Built-in (ExcelDataReader) | BIFF binary workbooks; per-sheet tables (text + `RawContent.Tables`); CP949 (EUC-KR) fallback for codepage-less BIFF5/7 |
+| Excel | .xlsx, .xls | Undoc (Rust FFI) | Multi-sheet and table structure (text + `RawContent.Tables`); binary `.xls` of Excel 2.x-2003 in the same layout as `.xlsx` (an Excel 5.0/95 file without a codepage is decoded from its fonts' charset, else Windows-1252) |
 | PowerPoint | .pptx, .ppt | Undoc (Rust FFI) | Slide and notes extraction; PowerPoint 97-2003 `.ppt` since 0.50.0; each image with the slide that shows it (`PageNumber`, since 0.50.1; every slide for a reused picture in `PageNumbers`) |
 | HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
 | Markdown | .md | Built-in | Structure preservation |
@@ -307,8 +306,9 @@ AI backend.
 > **The name is a claim, the content decides (since 0.35.0)** — when a file's name selects the wrong
 > reader, or none, reader selection consults the content: a PDF (`%PDF-` header), an OOXML
 > package (`.docx` / `.xlsx` / `.pptx`, told apart by the package's part folders), an HWPX
-> package (its `mimetype` entry), or a compound file whose directory holds an HWP 5 document, a
-> legacy workbook (since 0.36.0), or a Word or PowerPoint 97-2003 document (since 0.50.0) is read by
+> package (its `mimetype` entry), a compound file whose directory holds an HWP 5 document, a
+> legacy workbook (since 0.36.0), or a Word or PowerPoint 97-2003 document (since 0.50.0), or an
+> Excel 2.x-4.0 workbook (a bare BIFF2-4 stream, by its leading BOF record) is read by
 > the reader for what it is. A browser's "Save as PDF"
 > kept under a `.docx` name, an `.hwp` sent as `.doc`, or a download named `.bin`, extracts instead
 > of failing. The result says so: `RawContent.File.Extension` is the format that was parsed, the
@@ -318,14 +318,13 @@ AI backend.
 > `.docx` name, given to the Word reader directly — fails with `container_mismatch` and
 > `detected_extension` rather than returning that content as its own format. `FormatSignature` (`DetectFile` /
 > `DetectStream` / `DetectBytes`) is public, and `IDocumentReaderFactory.GetReader(fileName,
-> detectedExtension)` selects with it; the PDF, OOXML, HWP and legacy Excel readers accept content
+> detectedExtension)` selects with it; the PDF, Office and HWP readers accept content
 > they parse whatever its name.
 >
-> **Mislabelled workbooks (since 0.17.0)** — the two Excel readers route on the container's magic
-> bytes rather than the declared extension, in both directions: a compound-file (`.xls`) workbook
-> named `.xlsx` extracts through the legacy reader, and an OOXML package named `.xls` extracts
-> through the OOXML one. `RawContent.File.Extension` reports the container that was actually parsed,
-> not the name the file arrived under. Content that is neither container fails with
+> **Mislabelled workbooks (since 0.17.0)** — the Excel reader reads the content rather than the
+> declared extension, in both directions: a binary (`.xls`) workbook named `.xlsx` and an OOXML
+> package named `.xls` both extract. `RawContent.File.Extension` reports the format that was actually
+> parsed, not the name the file arrived under. Content that is no workbook at all fails with
 > `extraction_failure_reason=container_mismatch` instead of the ZIP parser's "could not find EOCD",
 > which reads as corruption when the file is simply not a workbook. When the content is a format
 > another reader parses, the message names it as `detected_extension` (for example `.pdf`).

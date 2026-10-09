@@ -255,7 +255,7 @@ FileFlux supports the following document formats:
 |--------|-----------|----------------|------------------|
 | PDF | `.pdf` | ✅ | ✅ |
 | Word | `.docx`, `.doc` | ✅ | Planned |
-| Excel | `.xlsx` | ✅ | ❌ |
+| Excel | `.xlsx`, `.xls` | ✅ | ❌ |
 | PowerPoint | `.pptx`, `.ppt` | ✅ | Planned |
 | Markdown | `.md` | ✅ | ❌ |
 | HTML | `.html`, `.htm` | ✅ | ✅ |

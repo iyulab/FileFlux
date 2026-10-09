@@ -47,7 +47,7 @@ class Program
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Fatal error:[/] {ex.Message}");
+            AnsiConsole.MarkupLine($"[red]Fatal error:[/] {Markup.Escape(ex.Message)}");
             return 1;
         }
     }
