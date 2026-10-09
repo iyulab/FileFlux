@@ -40,6 +40,16 @@ public partial class AIMetadataEnricher : IMetadataEnricher
     /// <summary>
     /// Extract metadata with AI (falls back to rule-based if AI unavailable).
     /// </summary>
+    /// <remarks>
+    /// The returned <c>confidence</c> is the model's own value. A reply without a numeric <c>confidence</c> is still used:
+    /// its confidence is 0.5, the value a reply that could not be parsed at all gets,
+    /// so with the default <see cref="MetadataEnrichmentOptions.MinConfidence"/> it is merged with the rule-based result.
+    /// A failed or timed-out call is retried after <see cref="MetadataEnrichmentOptions.RetryDelayMs"/>, doubling for each
+    /// further retry. Cancelling <paramref name="cancellationToken"/> stops the call and throws
+    /// <see cref="OperationCanceledException"/>; it is never reported as a failed attempt or answered with the rule-based
+    /// result.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
     public async Task<IDictionary<string, object>> EnrichAsync(
         string content,
         MetadataSchema schema,
@@ -69,7 +79,8 @@ public partial class AIMetadataEnricher : IMetadataEnricher
                 var metadata = await ExtractWithAIAsync(content, schema, options, cts.Token);
 
                 // 3. Validate confidence
-                var confidence = Convert.ToDouble(metadata["confidence"], CultureInfo.InvariantCulture);
+                var confidence = ReadConfidence(metadata);
+                metadata["confidence"] = confidence;
                 if (confidence < options.MinConfidence)
                 {
                     LogLowConfidence(_logger, confidence, options.MinConfidence);
@@ -86,7 +97,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
                 LogEnrichmentTimeout(_logger, retries + 1, options.MaxRetries + 1);
                 lastException = new TimeoutException("Metadata enrichment timed out");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 LogEnrichmentAttemptFailed(_logger, ex, retries + 1, options.MaxRetries + 1);
                 lastException = ex;
@@ -95,7 +106,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
             retries++;
             if (retries <= options.MaxRetries)
             {
-                await Task.Delay(options.RetryDelayMs * retries, cancellationToken); // Exponential backoff
+                await Task.Delay(RetryDelay(options.RetryDelayMs, retries), cancellationToken);
             }
         }
 
@@ -115,6 +126,12 @@ public partial class AIMetadataEnricher : IMetadataEnricher
     /// <summary>
     /// Extract metadata with caching.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="cacheKey"/> names the content. The entry is stored under that key combined with what else changes
+    /// the result (the schema and the <paramref name="options"/> that shape the prompt or the merge), so two calls with
+    /// the same key but a different <see cref="MetadataEnrichmentOptions.CustomPrompt"/>, strategy, token budget,
+    /// confidence threshold or schema do not share a result.
+    /// </remarks>
     public async Task<IDictionary<string, object>> EnrichWithCacheAsync(
         string content,
         string cacheKey,
@@ -122,8 +139,10 @@ public partial class AIMetadataEnricher : IMetadataEnricher
         MetadataEnrichmentOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        var key = ResultCacheKey(cacheKey, schema, options);
+
         // 1. Check cache
-        if (_cache.TryGetValue(cacheKey, out object? cachedObj) && cachedObj is IDictionary<string, object> cached)
+        if (_cache.TryGetValue(key, out object? cachedObj) && cachedObj is IDictionary<string, object> cached)
         {
             LogMetadataCacheHit(_logger, cacheKey);
             return cached;
@@ -134,7 +153,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
         var metadata = await EnrichAsync(content, schema, options, cancellationToken);
 
         // 3. Store in cache
-        _cache.Set(cacheKey, metadata, _cacheOptions);
+        _cache.Set(key, metadata, _cacheOptions);
 
         return metadata;
     }
@@ -155,7 +174,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
         foreach (var request in requests)
         {
             if (request.CacheKey != null &&
-                _cache.TryGetValue(request.CacheKey, out object? cachedObj) &&
+                _cache.TryGetValue(ResultCacheKey(request.CacheKey, schema, options), out object? cachedObj) &&
                 cachedObj is IDictionary<string, object> cached)
             {
                 var confidence = cached.TryGetValue("confidence", out var confVal) ? Convert.ToDouble(confVal, CultureInfo.InvariantCulture) : 0.0;
@@ -207,7 +226,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
                 // Cache result
                 if (request.CacheKey != null)
                 {
-                    _cache.Set(request.CacheKey, metadata, _cacheOptions);
+                    _cache.Set(ResultCacheKey(request.CacheKey, schema, options), metadata, _cacheOptions);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
@@ -236,6 +255,10 @@ public partial class AIMetadataEnricher : IMetadataEnricher
     /// <summary>
     /// Generate cache key from file path and schema.
     /// </summary>
+    /// <remarks>
+    /// The key names the file's content and schema. <see cref="EnrichWithCacheAsync"/> and <see cref="EnrichBatchAsync"/>
+    /// add the options that change the result when they store or look up an entry.
+    /// </remarks>
     public string GenerateCacheKey(string filePath, MetadataSchema schema)
     {
         if (!File.Exists(filePath))
@@ -249,6 +272,59 @@ public partial class AIMetadataEnricher : IMetadataEnricher
         var fileHash = Convert.ToBase64String(hashBytes);
 
         return $"metadata:{schema}:{fileHash}";
+    }
+
+    /// <summary>
+    /// The confidence a reply is used with when it carries no numeric <c>confidence</c> - the same value as a reply that
+    /// could not be parsed (<c>extractionMethod = "ai-parse-failed"</c>).
+    /// </summary>
+    internal const double DefaultConfidence = 0.5;
+
+    /// <summary>
+    /// The reply's <c>confidence</c> as a number, or <see cref="DefaultConfidence"/> when it is missing or not a number.
+    /// </summary>
+    private static double ReadConfidence(Dictionary<string, object> metadata)
+    {
+        if (metadata.TryGetValue("confidence", out var value))
+        {
+            if (value is double number && !double.IsNaN(number))
+                return number;
+            if (value is string text && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+                return parsed;
+        }
+
+        return DefaultConfidence;
+    }
+
+    /// <summary>
+    /// The wait before retry number <paramref name="retry"/> (1-based): <paramref name="retryDelayMs"/>, doubled for each
+    /// further retry (1 s, 2 s, 4 s ... for 1000), at most <see cref="int.MaxValue"/> milliseconds.
+    /// </summary>
+    internal static TimeSpan RetryDelay(int retryDelayMs, int retry)
+    {
+        if (retryDelayMs <= 0 || retry <= 0)
+            return TimeSpan.Zero;
+
+        var delay = retryDelayMs * Math.Pow(2, retry - 1);
+        return TimeSpan.FromMilliseconds(Math.Min(delay, int.MaxValue));
+    }
+
+    /// <summary>
+    /// The key a result is stored under: the caller's key, which names the content, plus everything else that changes
+    /// the result - the schema, <see cref="MetadataEnrichmentOptions.ExtractionStrategy"/>,
+    /// <see cref="MetadataEnrichmentOptions.MaxTokens"/>, <see cref="MetadataEnrichmentOptions.MinConfidence"/> and
+    /// <see cref="MetadataEnrichmentOptions.CustomPrompt"/> (as a SHA-256 hash).
+    /// </summary>
+    internal static string ResultCacheKey(string cacheKey, MetadataSchema schema, MetadataEnrichmentOptions? options)
+    {
+        options ??= new MetadataEnrichmentOptions();
+        var prompt = options.CustomPrompt is null
+            ? "-"
+            : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(options.CustomPrompt)));
+        var maxTokens = options.MaxTokens?.ToString(CultureInfo.InvariantCulture) ?? "-";
+
+        return string.Create(CultureInfo.InvariantCulture,
+            $"{cacheKey}|{schema}|{options.ExtractionStrategy}|{maxTokens}|{options.MinConfidence:R}|{prompt}");
     }
 
     /// <summary>
@@ -463,7 +539,7 @@ Example:
         // Parsing failed → return minimal metadata
         return new Dictionary<string, object>
         {
-            ["confidence"] = 0.5,
+            ["confidence"] = DefaultConfidence,
             ["extractionMethod"] = "ai-parse-failed"
         };
     }

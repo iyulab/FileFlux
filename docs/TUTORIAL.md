@@ -26,29 +26,32 @@ dotnet add package FileFlux
 
 ### Service Registration
 
+`AddFileFlux()` registers the pipeline and an `IDocumentProcessorFactory`. AI services are optional; register your
+implementations before or after `AddFileFlux()` — the pipeline resolves them when it runs. No logger is required.
+
 ```csharp
 using FileFlux;
+using FileFlux.Core;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-// Optional: Register AI services for advanced features
-// - IDocumentAnalysisService: Required for intelligent chunking and AI-powered metadata enrichment
-// - IImageToTextService: Required for multimodal document processing with images
-services.AddScoped<IDocumentAnalysisService, YourLLMService>();
-services.AddScoped<IImageToTextService, YourVisionService>();
+// Optional AI services:
+// - IDocumentAnalysisService: LLM refinement and enrichment
+// - IImageToTextService: text from images inside documents
+services.AddSingleton<IDocumentAnalysisService>(myAnalysisService);
+services.AddSingleton<IImageToTextService>(myVisionService);
 
-// Register FileFlux services
-// Note: Logger registration is optional - FileFlux uses NullLogger internally if not provided
 services.AddFileFlux();
 
-var provider = services.BuildServiceProvider();
-var processor = provider.GetRequiredService<IDocumentProcessor>();
+using var provider = services.BuildServiceProvider();
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
 ```
 
 ### Service Lifetime Configuration
 
-FileFlux services are registered with `Scoped` lifetime by default, which is suitable for web applications with per-request scope. However, when integrating with Singleton services (e.g., background services, hosted services), you can configure the service lifetime explicitly:
+FileFlux services are registered with `Scoped` lifetime by default, which suits web applications with a per-request
+scope. When a singleton consumes FileFlux (a background or hosted service, a queue worker), register it as a singleton:
 
 ```csharp
 // Default: Scoped lifetime (for web applications)
@@ -58,35 +61,19 @@ services.AddFileFlux();
 services.AddFileFlux(ServiceLifetime.Singleton);
 ```
 
-**When to use Singleton lifetime:**
-- Background processing services that run outside HTTP request scope
-- `IHostedService` implementations
-- Services registered as Singleton that depend on FileFlux
-- File processing workers in message queue consumers
-
 ```csharp
-// Example: FileFlux with a Singleton background service
-services.AddFileFlux(ServiceLifetime.Singleton);
-services.AddHostedService<DocumentProcessingWorker>();
+using FileFlux;
+using System.Threading;
 
-public class DocumentProcessingWorker : BackgroundService
+// A singleton worker that processes one file per call. Register it with services.AddSingleton<DocumentWorker>()
+// (or run it from a BackgroundService) after services.AddFileFlux(ServiceLifetime.Singleton).
+public sealed class DocumentWorker(IDocumentProcessorFactory factory)
 {
-    private readonly IDocumentProcessorFactory _factory;
-
-    // Works because FileFlux is also Singleton
-    public DocumentProcessingWorker(IDocumentProcessorFactory factory)
+    public async Task<int> CountChunksAsync(string path, CancellationToken cancellationToken)
     {
-        _factory = factory;
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            using var processor = _factory.Create("document.pdf");
-            await processor.ProcessAsync();
-            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
-        }
+        await using var processor = factory.Create(path);
+        await processor.ProcessAsync(cancellationToken: cancellationToken);
+        return processor.Result.Chunks?.Count ?? 0;
     }
 }
 ```
@@ -95,44 +82,50 @@ public class DocumentProcessingWorker : BackgroundService
 
 ### Simple Document Processing
 
-```csharp
-// Basic processing
-var chunks = await processor.ProcessAsync("document.pdf");
+A processor handles one document: create it from a path (or a `Stream`/`byte[]` with its extension), run the pipeline,
+and read the chunks from `Result`.
 
-foreach (var chunk in chunks)
+```csharp
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+await using var processor = factory.Create("document.pdf");
+
+await processor.ProcessAsync();
+
+foreach (var chunk in processor.Result)
 {
-    Console.WriteLine($"Chunk {chunk.Index}: {chunk.Content}");
+    Console.WriteLine($"Chunk {chunk.ChunkIndex}: {chunk.Content}");
 }
 ```
 
 ### Streaming Processing
 
+`ProcessStreamAsync` yields chunks as they are produced; `Result.Chunks` holds all of them once the enumeration ends.
+
 ```csharp
-// Recommended for large documents - memory efficient
-await foreach (var result in processor.ProcessStreamAsync("document.pdf"))
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+await using var processor = factory.Create("document.pdf");
+
+await foreach (var chunk in processor.ProcessStreamAsync())
 {
-    if (result.IsSuccess && result.Result != null)
-    {
-        foreach (var chunk in result.Result)
-        {
-            Console.WriteLine($"Chunk {chunk.Index}: {chunk.Content.Length} chars");
-            Console.WriteLine($"Quality Score: {chunk.Quality}");
-        }
-    }
+    Console.WriteLine($"Chunk {chunk.ChunkIndex}: {chunk.Content.Length} chars, quality {chunk.Quality:F2}");
 }
 ```
 
 ### Chunking Options
 
 ```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "Auto",      // Automatic strategy selection (recommended)
-    MaxChunkSize = 512,     // Maximum chunk size in tokens
-    OverlapSize = 64        // Overlap between chunks
-};
+var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
+await using var processor = factory.Create("document.pdf");
 
-var chunks = await processor.ProcessAsync("document.pdf", options);
+await processor.ProcessAsync(new ProcessingOptions
+{
+    Chunking = new ChunkingOptions
+    {
+        Strategy = ChunkingStrategies.Auto,   // automatic strategy selection (recommended)
+        MaxChunkSize = 512,                   // maximum chunk size in tokens
+        OverlapSize = 64                      // overlap between chunks
+    }
+});
 ```
 
 ## Stateful Pipeline
@@ -305,104 +298,26 @@ foreach (var kvp in mapping)
 
 ## Chunking Strategies
 
-### Auto Strategy (Recommended)
+`ChunkingOptions.Strategy` takes one of the names in `ChunkingStrategies` (case-insensitive); any other name throws
+`ArgumentException`. What each produces and what it needs is in the [README's strategy table](../README.md#chunking-strategies).
 
-Automatically selects the best strategy based on document type:
+| Strategy | Use for |
+|---|---|
+| `Auto` (default) | Most documents: picks Sentence, Paragraph or Token from the text and records the choice in each chunk's `Strategy` |
+| `Sentence` | Prose where sentences must stay whole (legal, medical, academic text) |
+| `Paragraph` | Markdown, blog posts and other text with clear paragraphs |
+| `Token` | Unstructured text that only needs even, token-bounded pieces |
+| `Hierarchical` | Documents with a heading structure (manuals, specifications) |
+| `Semantic` | Boundaries by embedding similarity; needs an embedder (`IEmbeddingService`, for example `AddLMSupplyEmbedding`) |
 
 ```csharp
 var options = new ChunkingOptions
 {
-    Strategy = "Auto",
+    Strategy = ChunkingStrategies.Paragraph,
     MaxChunkSize = 512,
     OverlapSize = 64
 };
 ```
-
-### Smart Strategy
-
-Sentence boundary-based chunking with high completeness:
-
-```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "Smart",
-    MaxChunkSize = 512,
-    OverlapSize = 128
-};
-```
-
-Use for: Legal documents, medical records, academic papers
-
-### Intelligent Strategy
-
-LLM-based semantic boundary detection (requires IDocumentAnalysisService):
-
-```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "Intelligent",
-    MaxChunkSize = 512,
-    OverlapSize = 64
-};
-```
-
-Use for: Technical documentation, API docs, complex content
-
-### MemoryOptimizedIntelligent Strategy
-
-Memory-efficient intelligent chunking with object pooling:
-
-```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "MemoryOptimizedIntelligent",
-    MaxChunkSize = 512,
-    OverlapSize = 64
-};
-```
-
-Use for: Large documents, server environments with memory constraints
-
-### Semantic Strategy
-
-Sentence-based semantic chunking:
-
-```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "Semantic",
-    MaxChunkSize = 800
-};
-```
-
-Use for: General documents, research papers
-
-### Paragraph Strategy
-
-Paragraph-level segmentation:
-
-```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "Paragraph"
-};
-```
-
-Use for: Markdown files, blog posts, structured text
-
-### FixedSize Strategy
-
-Fixed-size token-based chunking:
-
-```csharp
-var options = new ChunkingOptions
-{
-    Strategy = "FixedSize",
-    MaxChunkSize = 512
-};
-```
-
-Use for: Uniform processing requirements, simple splitting needs
 
 ## Advanced Features
 
@@ -472,29 +387,32 @@ call goes straight to the rule-based extractor.
 | `CustomPrompt` | `null` | Replaces the schema prompt (see above). |
 | `MinConfidence` | `0.6` | When the model's `confidence` is below it, the rule-based result is merged in: the model's fields win, missing ones are filled from the rules, `confidence` becomes the average of both, `extractionMethod` becomes `"hybrid"`. |
 | `TimeoutMs` | `30000` | Time limit for one model call. |
-| `MaxRetries` | `2` | Extra attempts after a failed or timed-out call (three calls in total by default). A reply without a `confidence` value counts as a failed attempt. |
-| `RetryDelayMs` | `1000` | Wait before a retry, multiplied by the attempt number (1 s, then 2 s by default). |
+| `MaxRetries` | `2` | Extra attempts after a failed or timed-out call (three calls in total by default). A reply without a numeric `confidence` is not a failure: it is used with confidence 0.5, like a reply that could not be parsed. |
+| `RetryDelayMs` | `1000` | Wait before the first retry, doubling for each further retry (1 s, 2 s, 4 s …). |
 | `ContinueOnEnrichmentFailure` | `true` | After the last failed attempt: `true` returns the rule-based result, `false` throws `InvalidOperationException` with the last error as its inner exception. |
+
+Cancelling the `CancellationToken` you pass stops the call with `OperationCanceledException`; a cancelled call is not
+retried and is not answered with the rule-based result. A call that runs past `TimeoutMs` is a failed attempt.
 
 #### Caching
 
-`EnrichAsync` itself does not cache. `EnrichWithCacheAsync` stores the result in the `IMemoryCache` you passed under a
-key you choose, for one hour; `GenerateCacheKey(filePath, schema)` builds a key from the file's SHA-256 hash and the
-schema:
+`EnrichAsync` itself does not cache. `EnrichWithCacheAsync` stores the result in the `IMemoryCache` you passed for one
+hour, under the key you choose combined with what else changes the result: the schema, `ExtractionStrategy`, `MaxTokens`,
+`MinConfidence` and `CustomPrompt`. Two calls with the same key and different options therefore do not share a result.
+`GenerateCacheKey(filePath, schema)` builds a key from the file's SHA-256 hash and the schema:
 
 ```csharp
 var key = enricher.GenerateCacheKey("guide.md", MetadataSchema.General);
 var cached = await enricher.EnrichWithCacheAsync(documentText, key, MetadataSchema.General);
 ```
 
-Each entry has size 1, so a `MemoryCacheOptions.SizeLimit` on your cache bounds the number of cached results. The key
-does not include the options, so calls that differ only in options (for example `CustomPrompt`) share a cached result.
+Each entry has size 1, so a `MemoryCacheOptions.SizeLimit` on your cache bounds the number of cached results.
 
 #### Several Texts at Once
 
 `EnrichBatchAsync` takes a list of `BatchMetadataRequest` (`DocumentId`, `Content`, optional `CacheKey`) and returns
 one `EnrichedMetadataResult` per request (`Metadata`, `Confidence`, `FromCache`, `ExtractionMethod`). Requests with a
-cached key are answered from the cache; the rest are enriched one after another with the same rules as `EnrichAsync`.
+cached key (under the same schema and options) are answered from the cache; the rest are enriched one after another with the same rules as `EnrichAsync`.
 A request that fails gets a result with `ExtractionMethod = "failed"` and the error message under `Metadata["error"]`
 instead of failing the batch.
 

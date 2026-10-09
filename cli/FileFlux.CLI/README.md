@@ -47,6 +47,7 @@ fileflux extract document.pdf -q
 **옵션**:
 - `-o, --output <dir>` - 출력 디렉터리 (기본값: 입력 파일 옆 `<입력 파일명>_output/`, 아래 «출력 형식»)
 - `-f, --format <format>` - 출력 형식: md, json (기본값: md)
+- `-a, --ai` - AI 이미지 분석 사용 (AI 공급자 필요)
 - `-q, --quiet` - 최소 출력
 
 **특징**:
@@ -59,27 +60,30 @@ fileflux extract document.pdf -q
 문서를 지능적으로 청크로 분할합니다.
 
 ```bash
-fileflux chunk document.pdf -s Smart -m 512
-fileflux chunk document.pdf --enrich --strategy Auto
-fileflux chunk document.docx -m 1024 --overlap 128
+fileflux chunk document.pdf -s Paragraph -m 512
+fileflux chunk document.pdf --ai --enrich --strategy Auto
+fileflux chunk document.docx -m 1024 -l 128
 ```
 
 **옵션**:
 - `-o, --output <dir>` - 출력 디렉터리 (기본값: 입력 파일 옆 `<입력 파일명>_output/`, 아래 «출력 형식»)
 - `-f, --format <format>` - 출력 형식: md, json, jsonl (기본값: md)
-- `-s, --strategy <strategy>` - 청킹 전략: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize (기본값: Auto)
+- `-s, --strategy <strategy>` - 청킹 전략: Auto, Sentence, Paragraph, Token, Semantic, Hierarchical (기본값: Auto)
 - `-m, --max-size <size>` - 최대 청크 크기 (토큰 단위, 기본값: 512)
-- `--overlap <size>` - 청크 간 중복 크기 (기본값: 64)
-- `--enrich` - AI 메타데이터 강화 활성화 (AI 공급자 필요)
-- `-q, --quiet` - 최소 출력
+- `-l, --overlap <size>` - 청크 간 중복 크기 (토큰 단위, 기본값: 64)
+- `-r, --refine` - 청킹 전에 정제 단계 실행 (머리글·바닥글·공백 정리, 구조 재정렬)
+- `-a, --ai` - AI 기능 사용 (청크 강화, 이미지 분석). AI 공급자 필요
+- `-e, --enrich` - 청킹 뒤 AI 강화 단계 실행 (요약·키워드). **`--ai` 와 함께 줘야 한다** — `--ai` 없이 주면 아무 일도 하지 않는다
+- `--no-extract-images` · `--min-image-size <bytes>` · `--min-image-dimension <px>` - 이미지 추출 설정
+- `-q, --quiet` - 최소 출력 · `-v, --verbose` - 상세 출력
 
-**청킹 전략**:
-- `Auto` - 문서 유형에 따라 자동 선택
-- `Smart` - 구조 인식 청킹
-- `Intelligent` - 의미 기반 청킹 (AI 권장)
-- `Semantic` - 완전 의미론적 청킹 (AI 필요)
-- `Paragraph` - 단락 단위 청킹
-- `FixedSize` - 고정 크기 청킹
+**청킹 전략** (라이브러리의 `ChunkingStrategies`, 대소문자 무관 — 그 밖의 이름은 오류):
+- `Auto` - 텍스트를 보고 Sentence · Paragraph · Token 중 하나를 고른다
+- `Sentence` - 문장 경계 단위
+- `Paragraph` - 단락 단위 (Markdown · 블로그 글)
+- `Token` - 토큰 예산 단위 (구조 없는 텍스트)
+- `Hierarchical` - 제목 구조를 따른다
+- `Semantic` - 임베딩 유사도 경계 (임베더 필요)
 
 ### `process` - 완전한 파이프라인
 
@@ -88,20 +92,25 @@ fileflux chunk document.docx -m 1024 --overlap 128
 ```bash
 fileflux process document.pdf -o out
 fileflux process document.pdf --no-enrich
-fileflux process document.docx -s Auto -m 512 --overlap 64
+fileflux process document.pdf --no-ai --no-refine
+fileflux process document.docx -s Auto -m 512 -l 64
 ```
 
 **옵션**:
 - `-o, --output <dir>` - 출력 디렉터리 (기본값: 입력 파일 옆 `<입력 파일명>_output/`, 아래 «출력 형식»)
 - `-f, --format <format>` - 출력 형식: md, json, jsonl (기본값: md)
-- `-s, --strategy <strategy>` - 청킹 전략 (기본값: Auto)
+- `-s, --strategy <strategy>` - 청킹 전략 (`chunk` 와 같음, 기본값: Auto)
 - `-m, --max-size <size>` - 최대 청크 크기 (기본값: 512)
-- `--overlap <size>` - 중복 크기 (기본값: 64)
-- `--no-enrich` - AI 강화 비활성화
-- `-q, --quiet` - 최소 출력
+- `-l, --overlap <size>` - 중복 크기 (기본값: 64)
+- `--no-refine` - 정제 단계 건너뛰기
+- `--no-enrich` - AI 강화 단계 건너뛰기
+- `--no-ai` - AI 기능 끄기 (강화 · 이미지 분석). 이것을 주지 않으면 AI 가 켜진다
+- `--no-extract-images` · `--min-image-size <bytes>` · `--min-image-dimension <px>` - 이미지 추출 설정
+- `-q, --quiet` - 최소 출력 · `-v, --verbose` - 상세 출력
 
 **기본 동작**:
-- AI 공급자가 설정된 경우 메타데이터 강화 활성화
+- 정제와 AI 강화가 켜져 있다 — `chunk` 와 반대로 끄는 플래그(`--no-refine` · `--no-enrich` · `--no-ai`)를 쓴다
+- AI 공급자가 설정되지 않았으면 LMSupply 로컬 모델을 쓴다 (아래 «AI 공급자 설정»)
 - 진행 상황 표시 및 상세 요약
 - 생성된 청크에 대한 품질 메트릭
 
@@ -157,7 +166,12 @@ document.pdf_output/
     └── info.json          # 실행 옵션 · 통계 · 문서 요약
 ```
 
-`--refine` · `--enrich` 를 켜면 `refine/` · `enrich/` 디렉터리가 더해진다.
+`--refine` · `--enrich` 를 켜면 `refine/` · `enrich/` 디렉터리가 더해진다. 명령이 쓰지 않는 `-f` 값(예: `chunk -f markdown`,
+`extract -f jsonl`)은 아무것도 쓰기 전에 허용 값을 알려 주며 종료 코드 1 로 끝난다.
+
+청크의 `start_char` · `end_char` 는 청킹한 텍스트 — `extract/extracted.md` (`--refine` 이면 `refine/refined.md`) — 안의 위치다.
+그 텍스트에는 리더가 넣은 구조 표시 줄(`<!-- HEADING_START:H1 -->` 등)이 남아 있고 청크 본문에서는 빠지므로, `end_char - start_char`
+가 청크 길이보다 클 수 있다. 그 범위를 잘라 표시 줄을 지우면 청크 본문이 된다.
 
 ### `md` (기본값)
 
@@ -168,7 +182,7 @@ document.pdf_output/
 chunk_index: 1
 chunk_id: "59efc50a-542b-4aa1-bd5c-d6fcc1e361d4"
 start_char: 0
-end_char: 286
+end_char: 288
 ---
 
 # Solar Guide
@@ -180,12 +194,12 @@ Solar panels convert light into electricity. ...
 {
   "index": 1,
   "id": "59efc50a-542b-4aa1-bd5c-d6fcc1e361d4",
-  "length": 182,
+  "length": 184,
   "tokens": 72,
   "location": {
     "startChar": 0,
-    "endChar": 286,
-    "headingPath": ["Paragraph 1"]
+    "endChar": 288,
+    "headingPath": ["Solar Guide"]
   },
   "quality": {
     "overall": 1,
@@ -194,7 +208,7 @@ Solar panels convert light into electricity. ...
   },
   "enrichment": {
     "topic": "solar",
-    "hierarchyPath": "Paragraph 1"
+    "hierarchyPath": "Solar Guide"
   }
 }
 ```
@@ -211,13 +225,13 @@ Solar panels convert light into electricity. ...
   "index": 1,
   "id": "973bb6c3-af79-4d20-9d43-1d81b0120883",
   "content": "# Solar Guide\n\nSolar panels convert light into electricity. ...",
-  "location": { "startChar": 0, "endChar": 286 },
-  "metadata": { /* 청크의 DocumentMetadata: fileName, fileType, title, language, processedAt, customProperties, ... */ },
+  "location": { "startChar": 0, "endChar": 288 },
+  "metadata": { "fileName": "solar.md", "fileSize": 185, /* 문서의 DocumentMetadata: fileType, title, language, pageCount, processedAt, ... */ },
   "properties": {
     "hierarchy.headingLevel": 1,
-    "hierarchy.path": "Paragraph 1",
+    "hierarchy.path": "Solar Guide",
     "document.topic": "solar",
-    "document.keywords": ["solar", "batteries", "guide", "panels"]
+    "document.keywords": ["solar", "panels", "batteries", "guide", "convert", "..."]
   }
 }
 ```
@@ -230,7 +244,7 @@ Solar panels convert light into electricity. ...
 이며 `properties` 는 없다.
 
 ```jsonl
-{"index":1,"id":"699e7d7e-...","content":"# Solar Guide\n\n...","location":{"startChar":0,"endChar":286},"metadata":{...}}
+{"index":1,"id":"699e7d7e-...","content":"# Solar Guide\n\n...","location":{"startChar":0,"endChar":288},"metadata":{...}}
 ```
 
 ### `info.json`
@@ -238,12 +252,12 @@ Solar panels convert light into electricity. ...
 ```jsonc
 {
   "command": "chunk",
-  "input": "sample.md",
+  "input": "solar.md",
   "format": "json",
-  "document": { "summary": "...", "topics": ["solar"], "keywords": ["solar", "batteries", "..."] },
+  "document": { "summary": "...", "topics": ["solar"], "keywords": ["solar", "panels", "batteries", "..."] },
   "chunkingOptions": { "strategy": "Auto", "maxChunkSize": 512, "overlapSize": 64 },
   "statistics": {
-    "chunkCount": 1, "totalCharacters": 182, "averageChunkSize": 182, "minChunkSize": 182, "maxChunkSize": 182,
+    "chunkCount": 1, "totalCharacters": 184, "averageChunkSize": 184, "minChunkSize": 184, "maxChunkSize": 184,
     "varianceRatio": 1, "isBalanced": true, "pageCount": 1, "language": "en",
     "imagesExtracted": 0, "imagesSkipped": 0, "enrichedChunks": 0, "skippedEnrichments": 0
   },
@@ -262,7 +276,7 @@ CLI 는 FileFlux 라이브러리가 읽는 형식을 그대로 읽는다 — 목
 | 코드 | 뜻 |
 |---|---|
 | `0` | 명령이 끝까지 실행됐다 (입력에 청크·QA 쌍이 없다는 경고만 낸 경우 포함) |
-| `1` | 명령이 실패했다 — 입력 파일 없음, AI 공급자 미설정·초기화 실패, 문서를 읽거나 처리하다 난 오류, 알 수 없는 설정 키 |
+| `1` | 명령이 실패했다 — 잘못된 인자(그 명령이 쓰지 않는 `-f` 형식 포함), 입력 파일 없음, AI 공급자 미설정·초기화 실패, 문서를 읽거나 처리하다 난 오류, 알 수 없는 설정 키 |
 
 스크립트·CI 에서 실패를 종료 코드로 판정할 수 있다:
 
@@ -282,7 +296,7 @@ fileflux info report.pdf
 fileflux extract report.pdf
 
 # 기본 청킹 (AI 없음)
-fileflux chunk report.pdf -s Smart -m 512
+fileflux chunk report.pdf -s Paragraph -m 512
 
 # AI 강화와 함께 완전한 처리
 fileflux process report.pdf -s Auto -m 512
@@ -292,10 +306,10 @@ fileflux process report.pdf -s Auto -m 512
 
 ```bash
 # 대용량 문서 (큰 청크)
-fileflux process large-doc.pdf -m 2048 --overlap 256
+fileflux process large-doc.pdf -m 2048 -l 256
 
 # 정밀 청킹 (작은 청크, 큰 중복)
-fileflux chunk document.pdf -m 256 --overlap 128
+fileflux chunk document.pdf -m 256 -l 128
 
 # AI 강화 없는 배치 처리
 for file in *.pdf; do
@@ -310,7 +324,7 @@ fileflux process document.pdf -f jsonl -o out
 
 ```bash
 # 1단계: 문서 처리 및 청킹
-fileflux process knowledge-base.pdf -s Intelligent -m 512 -f json -o out
+fileflux process knowledge-base.pdf -s Hierarchical -m 512 -f json -o out
 
 # 2단계: 청크를 벡터 데이터베이스에 로드
 # (별도 도구 사용: Pinecone, Weaviate, etc.)
@@ -323,12 +337,12 @@ fileflux process knowledge-base.pdf -s Semantic -f json -o out
 
 1. **대용량 문서**: 더 큰 청크 크기 사용 (`-m 2048`)
 2. **배치 처리**: `--quiet` 플래그로 출력 감소
-3. **AI 비용**: 필요시에만 `--enrich` 사용
+3. **AI 비용**: `chunk` 는 필요할 때만 `--ai --enrich`, `process` 는 필요 없으면 `--no-ai`
 4. **스트리밍**: 대용량 출력에 JSONL 형식 사용 (`-f jsonl`)
 5. **전략 선택**:
-   - 빠른 처리: `FixedSize` 또는 `Paragraph`
-   - 품질: `Smart` 또는 `Intelligent`
-   - 최고 품질: `Semantic` (AI 필요)
+   - 빠른 처리: `Token` 또는 `Paragraph`
+   - 제목 구조가 있는 문서: `Hierarchical`
+   - 의미 경계: `Semantic` (임베더 필요)
 
 ## 문제 해결
 
@@ -353,9 +367,9 @@ fileflux info "C:\Documents\report.pdf"
 fileflux info "./documents/report.pdf"
 ```
 
-### "Strategy 'X' is not supported"
+### "Unknown chunking strategy 'X'"
 
-유효한 전략 사용: Auto, Smart, Intelligent, Semantic, Paragraph, FixedSize
+유효한 전략 사용: Auto, Sentence, Paragraph, Token, Semantic, Hierarchical
 
 ```bash
 fileflux chunk document.pdf -s Auto
@@ -377,12 +391,9 @@ FileFlux.CLI/
 │   ├── AIProviderFactory.cs
 │   └── Providers/
 │       └── OpenAIDocumentAnalysisService.cs
-├── Output/             # 출력 형식 작성기
-│   ├── IOutputWriter.cs
-│   ├── JsonOutputWriter.cs
-│   ├── JsonLinesOutputWriter.cs
-│   └── MarkdownOutputWriter.cs
 └── Program.cs          # 진입점
+
+출력 파일은 라이브러리의 `FileSystemOutputWriter` 가 쓴다.
 ```
 
 ### 아키텍처 원칙

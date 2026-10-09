@@ -28,11 +28,7 @@ public class ChunkCommand : Command
             Description = "Output directory path (default: <input>_output/)"
         };
 
-        var formatOpt = new Option<string>("--format", "-f")
-        {
-            Description = "Output format (md, json, jsonl)",
-            DefaultValueFactory = _ => "md"
-        };
+        var formatOpt = FormatOption.Create("md", "md", "json", "jsonl");
 
         var strategyOpt = new Option<string>("--strategy", "-s")
         {

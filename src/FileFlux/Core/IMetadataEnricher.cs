@@ -24,7 +24,7 @@ public interface IMetadataEnricher
     /// Extract metadata with caching support.
     /// </summary>
     /// <param name="content">Document content to analyze</param>
-    /// <param name="cacheKey">Cache key for result storage</param>
+    /// <param name="cacheKey">Cache key naming the content; the schema and the options that change the result are added to it</param>
     /// <param name="schema">Metadata schema to apply</param>
     /// <param name="options">Enrichment options</param>
     /// <param name="cancellationToken">Cancellation token</param>
@@ -86,22 +86,24 @@ public enum MetadataSchema
 }
 
 /// <summary>
-/// Metadata extraction strategy (token budget control).
+/// How much of the text goes into the extraction prompt. The text is cut at a fixed length: the first N characters are
+/// sent and the rest is left out (no sampling of later parts). <see cref="MetadataEnrichmentOptions.MaxTokens"/>, when
+/// set, replaces the strategy's length.
 /// </summary>
 public enum MetadataExtractionStrategy
 {
     /// <summary>
-    /// Fast extraction (2000 chars) - title and introduction only
+    /// The first 2,000 characters.
     /// </summary>
     Fast,
 
     /// <summary>
-    /// Smart extraction (4000 chars) - adaptive sampling (default)
+    /// The first 4,000 characters (default).
     /// </summary>
     Smart,
 
     /// <summary>
-    /// Deep extraction (8000 chars) - full context analysis
+    /// The first 8,000 characters.
     /// </summary>
     Deep
 }
@@ -112,7 +114,7 @@ public enum MetadataExtractionStrategy
 public class MetadataEnrichmentOptions
 {
     /// <summary>
-    /// Extraction strategy (token budget control).
+    /// How much of the text goes into the prompt (see <see cref="MetadataExtractionStrategy"/>).
     /// </summary>
     public MetadataExtractionStrategy ExtractionStrategy { get; set; } = MetadataExtractionStrategy.Smart;
 
@@ -124,7 +126,8 @@ public class MetadataEnrichmentOptions
     public int? MaxTokens { get; set; }
 
     /// <summary>
-    /// Minimum confidence threshold (0.0 - 1.0).
+    /// Minimum confidence threshold (0.0 - 1.0). A reply whose <c>confidence</c> is below it is merged with the
+    /// rule-based result. A reply without a numeric <c>confidence</c> counts as 0.5.
     /// </summary>
     public double MinConfidence { get; set; } = 0.6;
 
@@ -134,12 +137,13 @@ public class MetadataEnrichmentOptions
     public bool ContinueOnEnrichmentFailure { get; set; } = true;
 
     /// <summary>
-    /// Maximum retry attempts on failure.
+    /// Extra attempts after a failed or timed-out model call (0 = one call only).
     /// </summary>
     public int MaxRetries { get; set; } = 2;
 
     /// <summary>
-    /// Retry delay in milliseconds (exponential backoff applied).
+    /// Wait in milliseconds before the first retry; it doubles for each further retry (exponential backoff: 1 s, 2 s,
+    /// 4 s ... for the default 1000).
     /// </summary>
     public int RetryDelayMs { get; set; } = 1000;
 

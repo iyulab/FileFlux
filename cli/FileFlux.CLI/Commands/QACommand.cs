@@ -1,6 +1,5 @@
 using FileFlux.CLI.Services;
 using System.Globalization;
-using FileFlux.CLI.Output;
 using FluxImprover;
 using FluxImprover.Models;
 using FluxImprover.Options;
@@ -30,11 +29,7 @@ public class QACommand : Command
             Description = "Output file path"
         };
 
-        var formatOpt = new Option<string>("--format", "-f")
-        {
-            Description = "Output format (json, jsonl)",
-            DefaultValueFactory = _ => "json"
-        };
+        var formatOpt = FormatOption.Create("json", "json", "jsonl");
 
         var pairsOpt = new Option<int>("--pairs-per-chunk")
         {

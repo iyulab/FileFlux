@@ -788,15 +788,24 @@ public sealed partial class FluxDocumentProcessor
     #region Helper Methods
 
 
+    /// <summary>
+    /// Gives each chunk its document's metadata and the heading path of the place it starts.
+    /// </summary>
+    /// <remarks>
+    /// The heading path comes from the Markdown headings in <paramref name="parsed"/>'s text - the text the chunk offsets
+    /// index - not from <see cref="RefinedContent.Sections"/>: the parser's sections are numbered paragraphs whose offsets
+    /// refer to the reader's text, and refinement passes them through unchanged while it rewrites the text, so they name
+    /// no heading and do not line up with the chunks. A chunk of text without headings has no heading path.
+    /// </remarks>
     private static void EnrichChunksWithMetadata(
         IReadOnlyList<DocumentChunk> chunks,
         RefinedContent parsed)
     {
-        // Build flattened section list for heading path calculation
-        var allSections = SectionPathCalculator.Flatten(parsed.Sections);
+        var allSections = SectionPathCalculator.BuildSections(parsed.Text);
 
         foreach (var chunk in chunks)
         {
+            chunk.Metadata = parsed.Metadata;
             chunk.SourceInfo.Title = parsed.Metadata.Title ?? parsed.Metadata.FileName;
             chunk.SourceInfo.SourceType = parsed.Metadata.FileType ?? "unknown";
             chunk.SourceInfo.FilePath = parsed.Metadata.FileName;

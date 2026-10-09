@@ -27,11 +27,7 @@ public class ExtractCommand : Command
             Description = "Output directory path (default: <input>_output/)"
         };
 
-        var formatOpt = new Option<string>("--format", "-f")
-        {
-            Description = "Output format (md, json)",
-            DefaultValueFactory = _ => "md"
-        };
+        var formatOpt = FormatOption.Create("md", "md", "json");
 
         var quietOpt = new Option<bool>("--quiet", "-q")
         {

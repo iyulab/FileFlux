@@ -186,7 +186,17 @@ public class SourceMetadataInfo : ISourceMetadata
 /// </summary>
 public class SourceLocation
 {
+    /// <summary>
+    /// Offset of the chunk's first character in the text that was chunked (<see cref="RefinedContent.Text"/>). That text
+    /// keeps the structural marker lines a reader writes (<c>&lt;!-- HEADING_START:H1 --&gt;</c>), which
+    /// <see cref="DocumentChunk.Content"/> leaves out, so <see cref="EndChar"/> - <see cref="StartChar"/> can be larger than
+    /// the content's length: the content is that span of the text with the markers removed.
+    /// </summary>
     public int StartChar { get; set; }
+
+    /// <summary>
+    /// Offset just past the chunk's last character in the text that was chunked (see <see cref="StartChar"/>).
+    /// </summary>
     public int EndChar { get; set; }
     public int? StartPage { get; set; }
     public int? EndPage { get; set; }

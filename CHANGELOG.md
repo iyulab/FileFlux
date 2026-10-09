@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`AIMetadataEnricher` waits longer before each further retry: `MetadataEnrichmentOptions.RetryDelayMs` now doubles per
+  retry** (1 s, 2 s, 4 s … for the default 1000), as the option's documentation always said. The wait grew linearly
+  (1 s, 2 s, 3 s); the first two retries — all of them with the default `MaxRetries = 2` — wait as long as before.
+- **Breaking** — **`AIMetadataEnricher` caches a result per schema and options, not per key alone.**
+  `EnrichWithCacheAsync` and `EnrichBatchAsync` store and look up an entry under your key combined with the schema,
+  `ExtractionStrategy`, `MaxTokens`, `MinConfidence` and `CustomPrompt`, so two calls with the same key but a different
+  prompt or strategy no longer return the same cached metadata. Migration: nothing for callers that go through these
+  methods; code that reads or writes the `IMemoryCache` entry directly under its own key no longer finds it.
+- **Breaking** (CLI) — **A `-f`/`--format` value the command does not write is an error.** Every command now checks the
+  value before reading the input and exits with code 1 and a message that lists the formats it writes: `extract` and
+  `refine` md, json; `chunk` and `process` md, json, jsonl; `enrich`, `qa` and `evaluate` json, jsonl. Before, `chunk -f
+  markdown` wrote no chunk files and `extract -f jsonl` wrote Markdown, both exiting 0. Known values are accepted in any
+  case (`-f JSON`).
+
 ### Removed
 - **Breaking** — **The standalone batch processors are gone**: `FileFlux.Infrastructure.Optimization.MemoryEfficientProcessor`,
   `IMemoryEfficientProcessor`, `MemoryOptimizationOptions`, `BatchProcessingResult`, `MemoryStatistics`,
@@ -47,6 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `skipped`). Migration: a value under these keys never existed; drop the lookup. Where FileFlux has the fact, it is a
   typed member of `DocumentChunk` (`Location.StartPage`/`EndPage`/`StartChar`/`EndChar`/`HeadingPath`, `Tokens`,
   `Quality`).
+- **Breaking** — **`FileFlux.Domain.ProcessingInfo` is gone.** Nothing in FileFlux wrote or read it. Migration: none; it
+  carried no data any API produced.
+- (CLI) **The unused output writers in the `fileflux` tool are gone**: `FileFlux.CLI.Output.IOutputWriter`,
+  `JsonOutputWriter`, `JsonLinesOutputWriter`, `MarkdownOutputWriter`, `ChunkedOutputWriter`, `ExtractOutputWriter`,
+  `ProcessingInfoWriter` and `ProcessingInfo`. No command used them; the commands write through the library's
+  `FileSystemOutputWriter`. The library packages are unaffected.
 
 ### Fixed
 - **`enriched.qualityScore` and `enriched.skipped` are now set when conditional enrichment runs.** The processor looked
@@ -54,6 +75,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   written and the output's `skippedEnrichments` count was always 0.
 - **The CLI's "enriched chunks" count in the run summary counts enriched chunks.** It matched an `enriched_` key prefix
   that no chunk carries and always showed 0.
+- **Breaking** — **Cancelling `AIMetadataEnricher.EnrichAsync` throws `OperationCanceledException`.** A cancelled call was
+  logged as a failed attempt and, on the last attempt (every time with `MaxRetries = 0`) with
+  `ContinueOnEnrichmentFailure = true`, answered with the rule-based metadata as if the model had failed. A call that
+  runs past `TimeoutMs` without the caller cancelling still counts as a failed attempt. `EnrichWithCacheAsync` and
+  `EnrichBatchAsync`, which call it, propagate the cancellation too. Migration: handle `OperationCanceledException`
+  where you cancel the call.
+- **Breaking** — **A model reply without a `confidence` value is used, with confidence 0.5.** It threw inside the
+  enricher, counted as a failed attempt, was retried and in the end replaced by the rule-based result, so a usable reply
+  never reached the caller. It is now treated like a reply that could not be parsed: confidence 0.5, which with the
+  default `MinConfidence` (0.6) merges it with the rule-based result (`extractionMethod = "hybrid"`). A `confidence` that
+  is not a number is treated the same way. Migration: none; `extractionMethod` is `"ai"` or `"hybrid"` where it was
+  `"rule-based"` for such replies.
+- **Chunks from `FluxDocumentProcessor` (`ProcessAsync`, `ChunkAsync`) carry their document's metadata.**
+  `DocumentChunk.Metadata` was empty (`FileName` "", `FileSize` 0, no language or page count) although the parsed
+  document had it; it is now the document's `DocumentMetadata`, as on the `IDocumentProcessor` path.
+- **Document keywords and the parsed summary no longer contain the readers' structural markers.** Keywords were counted
+  over text that still held markers such as `<!-- HEADING_START:H1 -->`, so `RefinedContent.Keywords` and the chunk
+  property `document.keywords` listed tokens like `heading_start:h1`, and `RefinedContent.Summary` could start with a
+  marker. Both are now taken from the text without markers.
+- **Breaking** — **`FluxDocumentProcessor` chunks name the headings they sit under, not paragraph numbers.**
+  `Location.HeadingPath` and the `hierarchy.path` property held "Paragraph 1", "Paragraph 5" and so on — the parser's
+  numbered paragraphs, whose offsets refer to a different text than the chunk offsets. They now hold the Markdown heading
+  path of the place the chunk starts (`["Installation Guide", "Steps"]`, `"Installation Guide > Steps"`), like the
+  `IDocumentProcessor` path. Migration: a chunk of text without headings has an empty `HeadingPath` and no
+  `hierarchy.path` property; do not expect "Paragraph N" values.
+- **A chunk that starts at a heading has that heading in its path.** The heading-start marker a reader writes before a
+  heading was outside the heading's section, so a chunk beginning there got only the enclosing headings — the first
+  chunk of a Markdown document got an empty heading path. Sections built from the text (`RefinedContent.Sections` from
+  `RefineOptions.BuildSections`) now start at that marker.
 
 ### Documentation
 - **The tutorial's metadata enrichment section describes the API that exists.** It showed enrichment switched on through
@@ -67,6 +117,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `-o` and `-f` option descriptions and examples now say directory and `md` (the default).
 - **The architecture guide's `Props` example uses keys FileFlux writes** (`ChunkPropsKeys`) and names
   `DocumentChunk.ChunkIndex` correctly.
+- **Chunk offsets are documented.** `SourceLocation.StartChar`/`EndChar` index the text that was chunked
+  (`RefinedContent.Text`), which keeps the structural marker lines that chunk content leaves out, so `EndChar - StartChar`
+  can be larger than the content's length. The README and the CLI README say so; the CLI README names
+  `extract/extracted.md` (or `refine/refined.md`) as that text.
+- **`MetadataExtractionStrategy` describes what it does**: the first 2,000 / 4,000 / 8,000 characters go into the prompt,
+  with no sampling of later parts. The `MetadataEnrichmentOptions` members describe the confidence default, the retries
+  and the doubling retry delay; the tutorial's metadata enrichment section describes cancellation and the cache key.
+- **The tutorial's Basic Usage section uses the API that exists** (`IDocumentProcessorFactory.Create`, `ProcessAsync`,
+  `Result`, `ChunkIndex`) instead of `processor.ProcessAsync("document.pdf")` and `chunk.Index`, and the test suite now
+  compiles it. Its Chunking Strategies section lists the strategy names that exist (`Auto`, `Sentence`, `Paragraph`,
+  `Token`, `Hierarchical`, `Semantic`); `Smart`, `Intelligent`, `MemoryOptimizedIntelligent` and `FixedSize` throw.
+- **The CLI README matches `--help`**: the strategy list, the `-l` short form of `--overlap`, `chunk --enrich` doing
+  nothing without `--ai`, and `process --no-refine`/`--no-ai`.
 
 ### Dependencies
 - Undoc 0.18.0 -> 0.19.0. Slide rendering (`ExtractOptions.SlideRendering`) now paints the pictures and backgrounds a slide

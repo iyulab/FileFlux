@@ -33,6 +33,7 @@ public class ReadmeSnippetCompileTests
     // section runs from its heading to the next heading of the same or a higher level. Grow this as guides are repaired.
     private static readonly (string File, string Heading)[] CompiledSections =
     [
+        ("docs/TUTORIAL.md", "Basic Usage"),
         ("docs/TUTORIAL.md", "Metadata Enrichment"),
         ("docs/ARCHITECTURE.md", "Extensibility Pattern"),
     ];

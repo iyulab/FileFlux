@@ -412,7 +412,8 @@ from the table structure (a section with an empty table yields none). The text i
 | `Semantic` | Embedding-similarity boundaries | Needs an embedder: a FileFlux `IEmbeddingService` (e.g. `AddLMSupplyEmbedding`) or a FluxCurator `IEmbedder` registered before `AddFileFlux()` (which wins) — otherwise chunker creation throws `ArgumentException` |
 
 Structural metadata: every `ProcessAsync`/`ChunkAsync` chunk carries `Location.StartChar/EndChar`
-(offsets into the refined text), `Location.HeadingPath`/`Section` (hierarchical heading context,
+(offsets into the refined text, which keeps the structural marker lines that chunk content leaves out — so
+`EndChar - StartChar` can exceed `Content.Length`), `Location.HeadingPath`/`Section` (hierarchical heading context,
 e.g. `Root Title > Sub Section`), and `Props[ChunkPropsKeys.HierarchyPath]` (`"hierarchy.path"`) — on the streaming `ChunkStreamAsync` too.
 `Location.StartPage/EndPage` name the first and last source page of the chunk's text for PDFs (0.30.0+), and
 `Location.StartTime/EndTime` carry the source time range for timed sources.

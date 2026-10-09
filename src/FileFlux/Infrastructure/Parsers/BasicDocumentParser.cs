@@ -1,5 +1,6 @@
 using FileFlux;
 using FileFlux.Core;
+using FileFlux.Infrastructure.Adapters;
 using FileFlux.Infrastructure.Services;
 using System.Text.RegularExpressions;
 using System.Globalization;
@@ -98,8 +99,9 @@ public partial class BasicDocumentParser : IDocumentParser
             ? CreateBasicMetadata(rawContent, documentType)
             : new DocumentMetadata();
 
-        // 키워드 추출 (단순 빈도 기반)
-        var keywords = ExtractKeywords(text, 10);
+        // 키워드 추출 (단순 빈도 기반) — over the document's words, not the readers' structural markers
+        // (<!-- HEADING_START:H1 --> would otherwise yield "heading_start:h1").
+        var keywords = ExtractKeywords(FluxCuratorChunkAdapter.StripInternalMarkers(text), 10);
 
         // 간단한 요약 (첫 번째 문단 또는 제목)
         var summary = GenerateBasicSummary(text, sections);
@@ -479,20 +481,17 @@ public partial class BasicDocumentParser : IDocumentParser
 
     private static string GenerateBasicSummary(string text, List<Section> sections)
     {
-        // 첫 번째 문단이나 제목 기반 요약
-        if (sections.Count != 0)
-        {
-            var firstSection = sections.First();
-            var summary = firstSection.Content.Length > 200
-                ? string.Concat(firstSection.Content.AsSpan(0, 200), "...")
-                : firstSection.Content;
-            return summary.Replace('\n', ' ').Trim();
-        }
+        // 첫 번째 문단이나 제목 기반 요약 — the first section that has text once the readers' structural markers are
+        // removed, otherwise the start of the whole text.
+        var source = sections
+            .Select(s => FluxCuratorChunkAdapter.StripInternalMarkers(s.Content))
+            .FirstOrDefault(content => !string.IsNullOrWhiteSpace(content))
+            ?? FluxCuratorChunkAdapter.StripInternalMarkers(text);
 
-        // 전체 텍스트의 첫 200자
-        return text.Length > 200
-            ? text.Substring(0, 200).Replace('\n', ' ').Trim() + "..."
-            : text.Replace('\n', ' ').Trim();
+        var summary = source.Length > 200
+            ? string.Concat(source.AsSpan(0, 200), "...")
+            : source;
+        return summary.Replace("\r", "", StringComparison.Ordinal).Replace('\n', ' ').Trim();
     }
 
     private static string FormatStructuredText(List<Section> sections)

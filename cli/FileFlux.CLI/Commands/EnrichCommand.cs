@@ -1,6 +1,5 @@
 using FileFlux.CLI.Services;
 using System.Globalization;
-using FileFlux.CLI.Output;
 using FileFlux.Domain;
 using FluxImprover;
 using FluxImprover.Models;
@@ -29,11 +28,7 @@ public class EnrichCommand : Command
             Description = "Output file path"
         };
 
-        var formatOpt = new Option<string>("--format", "-f")
-        {
-            Description = "Output format (json, jsonl)",
-            DefaultValueFactory = _ => "json"
-        };
+        var formatOpt = FormatOption.Create("json", "json", "jsonl");
 
         var summaryOpt = new Option<bool>("--summary")
         {
