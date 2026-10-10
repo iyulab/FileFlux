@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **The packages from this repository depend on each other at exactly the same version** (`[x.y.z]`), not a floor.
+  A consumer that moves one of them while another resolves at an older version now gets restore warning NU1608 naming
+  the pair (an error where warnings are errors) — before, the mixed versions restored silently and could fail at run time.
+
 ### Removed
 - **Breaking** — **`FileFlux.Domain.SectionType` is removed.** Its only users were the analysis result types removed in
   0.57.0 and the adapters that filled them. Migration: none expected; a caller that used it keeps its own enum.
