@@ -5,6 +5,12 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+- **Breaking** — **`FileFlux.Domain.SectionType` is removed.** Its only users were the analysis result types removed in
+  0.57.0 and the adapters that filled them. Migration: none expected; a caller that used it keeps its own enum.
+
 ## [0.57.0] - 2026-10-10
 
 ### Changed
