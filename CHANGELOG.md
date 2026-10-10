@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking** — **`FileFlux.Domain.SectionType` is removed.** Its only users were the analysis result types removed in
   0.57.0 and the adapters that filled them. Migration: none expected; a caller that used it keeps its own enum.
 
+### Dependencies
+- Re-pinned sibling package(s) `FluxImprover` 0.18.3 -> 0.19.0.
+
 ## [0.57.0] - 2026-10-10
 
 ### Changed
