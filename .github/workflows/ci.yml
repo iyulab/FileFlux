@@ -8,6 +8,7 @@ on:
       - 'tests/**'
       - 'Directory.Build.props'
       - 'Directory.Packages.props'
+      - 'Directory.Build.targets'
       - '.github/workflows/ci.yml'
   pull_request:
     branches: [main]
@@ -16,6 +17,7 @@ on:
       - 'tests/**'
       - 'Directory.Build.props'
       - 'Directory.Packages.props'
+      - 'Directory.Build.targets'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
 
