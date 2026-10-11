@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **The nuget.org «Release Notes» of every package link to the GitHub release of its version**, whose notes are this CHANGELOG's section for that version.
 
+### Dependencies
+- Re-pinned sibling package(s) `FluxImprover` 0.19.0 -> 0.20.0, `LMSupply.Captioner` 0.116.0 -> 0.117.0, `LMSupply.Core` 0.116.0 -> 0.117.0, `LMSupply.Embedder` 0.116.0 -> 0.117.0, `LMSupply.Generator` 0.116.0 -> 0.117.0, `LMSupply.Ocr` 0.116.0 -> 0.117.0, `LMSupply.Transcriber` 0.116.0 -> 0.117.0.
+
 ## [0.58.0] - 2026-10-11
 
 ### Changed
