@@ -5,6 +5,11 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Dependencies
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.117.0 -> 0.117.1, `LMSupply.Core` 0.117.0 -> 0.117.1, `LMSupply.Embedder` 0.117.0 -> 0.117.1, `LMSupply.Generator` 0.117.0 -> 0.117.1, `LMSupply.Ocr` 0.117.0 -> 0.117.1, `LMSupply.Transcriber` 0.117.0 -> 0.117.1.
+
 ## [0.59.0] - 2026-10-11
 
 ### Removed
