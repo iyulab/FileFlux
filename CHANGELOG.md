@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.58.0] - 2026-10-11
 
 ### Changed
 - **The packages from this repository depend on each other at exactly the same version** (`[x.y.z]`), not a floor.
