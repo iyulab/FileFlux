@@ -24,7 +24,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 - **Document Metadata Extraction** (standalone service, not a pipeline stage): `AIMetadataEnricher` — `EnrichAsync(content, MetadataSchema)` returns topics, keywords, a description and schema-specific fields (General, ProductManual, TechnicalDoc) through your `IDocumentAnalysisService`, with a rule-based fallback and a content cache. Construct it with a `RuleBasedMetadataExtractor` and an `IMemoryCache` and call it on the text you want described
 - **IEnrichedChunk Interface**: Standardized interface for RAG system integration
 - **Extensible Architecture**: Interface-based design for easy customization
-- **Async Processing**: Streaming and parallel processing for large documents
+- **Async Processing**: chunk-by-chunk enumeration (`ProcessStreamAsync`) and parallel batch processing
 - **Trimmed, Native AOT and file-based apps**: `FileFlux.Core` and `FileFlux` are `IsAotCompatible` — nothing in them needs reflection-based JSON. `FileSystemOutputWriter` (the CLI's disk output) writes UTF-8 JSON without a byte order mark; a `Props` value of a type it does not know is serialized by reflection where the app allows it and written as its `ToString()` text where it does not
 
 ## Installation
@@ -98,7 +98,7 @@ foreach (var chunk in processor.Result)
 
 ### Streaming Processing
 
-`ProcessStreamAsync` yields chunks as they are produced; `Result.Chunks` holds all of them once the enumeration ends.
+`ProcessStreamAsync` runs extraction, refinement and chunking, then yields the chunks one at a time. The stages are not incremental, so the first chunk arrives once chunking is done; enumerate to handle chunks one by one (for example, embed each as you read it). `Result.Chunks` holds all of them once the enumeration ends.
 
 ```csharp
 var factory = provider.GetRequiredService<IDocumentProcessorFactory>();

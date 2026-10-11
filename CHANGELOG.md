@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - **Breaking** — **`FileFlux.Domain.SectionType` is removed.** Its only users were the analysis result types removed in
   0.57.0 and the adapters that filled them. Migration: none expected; a caller that used it keeps its own enum.
+- **Breaking** — **The legacy `FluxDocumentProcessor.ProcessStreamAsync(path, …)` and `ChunkStreamAsync(parsed, …)` are
+  removed.** Both ran the whole batch method and then yielded its array, and nothing called them. Migration: call
+  `ProcessAsync`/`ChunkAsync` and iterate the array, or use `IDocumentProcessor.ProcessStreamAsync`.
+
+### Fixed
+- **The streaming methods' documentation says what they do.** `IDocumentProcessor.ProcessStreamAsync` and
+  `ChunkStreamAsync` complete extraction, refinement and chunking before the first chunk is yielded; chunking is not
+  incremental. The README said «yields chunks as they are produced». `ProcessAsync`/`ProcessStreamAsync` also run Enrich
+  when `ProcessingOptions.IncludeEnrich` is set; their XML docs said Enrich was never included.
 
 ### Dependencies
 - Re-pinned sibling package(s) `FluxImprover` 0.18.3 -> 0.19.0.

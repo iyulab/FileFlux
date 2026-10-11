@@ -104,10 +104,14 @@ public interface IDocumentProcessor : IAsyncDisposable, IDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Stream document chunks for large documents.
+    /// Chunk the refined document and enumerate the chunks one at a time.
     /// Requires Refine to be completed first (auto-runs if needed).
     /// Populates Result.Chunks after enumeration completes.
     /// </summary>
+    /// <remarks>
+    /// Chunking is not incremental: the whole refined text is chunked before the first chunk is yielded. Enumerate to
+    /// handle chunks one by one (for example, to embed each as it is read), not to see output earlier than <see cref="ChunkAsync"/>.
+    /// </remarks>
     IAsyncEnumerable<DocumentChunk> ChunkStreamAsync(
         ChunkingOptions? options = null,
         CancellationToken cancellationToken = default);
@@ -134,17 +138,21 @@ public interface IDocumentProcessor : IAsyncDisposable, IDisposable
     // ========================================
 
     /// <summary>
-    /// Run complete pipeline (Extract → Refine → Chunk).
-    /// Does not include Enrich stage (call separately if needed).
+    /// Run the pipeline: Extract → Refine (→ LLM refine) → Chunk, then Enrich when
+    /// <see cref="ProcessingOptions.IncludeEnrich"/> is set (off by default — or call <see cref="EnrichAsync"/> separately).
     /// </summary>
     Task ProcessAsync(
         ProcessingOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Stream chunks through complete pipeline.
-    /// Does not include Enrich stage (call separately if needed).
+    /// Run Extract → Refine (→ LLM refine) → Chunk and enumerate the chunks one at a time.
+    /// Enrich runs after the last chunk when <see cref="ProcessingOptions.IncludeEnrich"/> is set.
     /// </summary>
+    /// <remarks>
+    /// The stages are not incremental: extraction, refinement and chunking finish before the first chunk is yielded.
+    /// See <see cref="ChunkStreamAsync"/>.
+    /// </remarks>
     IAsyncEnumerable<DocumentChunk> ProcessStreamAsync(
         ProcessingOptions? options = null,
         CancellationToken cancellationToken = default);

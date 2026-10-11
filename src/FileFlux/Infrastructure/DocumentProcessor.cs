@@ -102,19 +102,6 @@ public sealed partial class FluxDocumentProcessor
         return chunks;
     }
 
-    /// <inheritdoc/>
-    public async IAsyncEnumerable<DocumentChunk> ProcessStreamAsync(
-        string filePath,
-        ChunkingOptions? options = null,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var chunks = await ProcessAsync(filePath, options, cancellationToken).ConfigureAwait(false);
-        foreach (var chunk in chunks)
-        {
-            yield return chunk;
-        }
-    }
-
     #endregion
 
     #region Stage 1: Extract (FileFlux.Core)
@@ -669,19 +656,6 @@ public sealed partial class FluxDocumentProcessor
         catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
             throw new DocumentProcessingException(parsed.Metadata.FileName, $"Chunking failed: {ex.Message}", ex);
-        }
-    }
-
-    /// <inheritdoc/>
-    public async IAsyncEnumerable<DocumentChunk> ChunkStreamAsync(
-        RefinedContent parsed,
-        ChunkingOptions? options = null,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var chunks = await ChunkAsync(parsed, options, cancellationToken).ConfigureAwait(false);
-        foreach (var chunk in chunks)
-        {
-            yield return chunk;
         }
     }
 

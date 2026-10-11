@@ -627,7 +627,7 @@ services.AddTransient<IChunker, CustomChunker>();
 
 ### Integration Patterns
 
-1. **Streaming Processing**: Sequential processing per chunk with ProcessStreamAsync
+1. **Chunk-by-chunk enumeration**: `ProcessStreamAsync` yields chunks one at a time after chunking completes (the stages themselves are not incremental)
 2. **Batch Processing**: Collect all chunks then batch process
 3. **Pipeline Processing**: Simultaneous chunk generation and embedding generation
 

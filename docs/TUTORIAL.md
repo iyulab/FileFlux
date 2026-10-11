@@ -99,7 +99,7 @@ foreach (var chunk in processor.Result)
 
 ### Streaming Processing
 
-`ProcessStreamAsync` yields chunks as they are produced; `Result.Chunks` holds all of them once the enumeration ends.
+`ProcessStreamAsync` runs extraction, refinement and chunking, then yields the chunks one at a time. The stages are not incremental, so the first chunk arrives once chunking is done; enumerate to handle chunks one by one (for example, embed each as you read it). `Result.Chunks` holds all of them once the enumeration ends.
 
 ```csharp
 var factory = provider.GetRequiredService<IDocumentProcessorFactory>();
