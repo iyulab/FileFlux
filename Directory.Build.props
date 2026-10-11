@@ -3,6 +3,8 @@
   <!-- Version Information (can be overridden by build scripts) -->
   <PropertyGroup>
     <VersionPrefix>0.58.0</VersionPrefix>
+    <!-- nuget.org «Release Notes»: the GitHub release of this version (its notes are the CHANGELOG section). -->
+    <PackageReleaseNotes>https://github.com/iyulab/FileFlux/releases/tag/v$(VersionPrefix)</PackageReleaseNotes>
     <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
     <FileVersion>$(VersionPrefix)</FileVersion>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(VersionPrefix)</PackageVersion>
@@ -110,7 +112,6 @@
     <Title>FileFlux - Document Processing SDK for RAG</Title>
     <Description>Complete document processing SDK optimized for RAG systems. Transform PDF, DOCX, Excel, PowerPoint, Markdown and other formats into high-quality chunks with intelligent semantic boundary detection. Includes advanced chunking strategies, metadata extraction, and performance optimization.</Description>
     <PackageTags>$(PackageTagsBase);complete;sdk;readers;pdf;docx;excel;powerpoint;markdown;semantic;intelligent</PackageTags>
-    <PackageReleaseNotes>Complete FileFlux SDK with document readers, intelligent chunking strategies, and RAG optimization</PackageReleaseNotes>
   </PropertyGroup>
 
   <!-- FileFlux.CLI - published as a dotnet tool (its csproj sets IsPackable/PackAsTool) -->

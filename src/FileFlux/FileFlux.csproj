@@ -23,7 +23,6 @@
     <Title>FileFlux - Document Processing SDK for RAG</Title>
     <Description>Complete document processing SDK optimized for RAG systems. Transform PDF, DOCX, Excel, PowerPoint, Markdown and other formats into high-quality chunks with intelligent semantic boundary detection. Includes advanced chunking strategies, metadata extraction, and performance optimization.</Description>
     <PackageTags>rag;document;processing;chunking;ai;llm;fileflux;complete;sdk;readers;pdf;docx;excel;powerpoint;markdown;semantic;intelligent</PackageTags>
-    <PackageReleaseNotes>Complete FileFlux SDK with document readers, intelligent chunking strategies, and RAG optimization - Now in a single unified package</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

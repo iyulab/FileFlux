@@ -11,7 +11,6 @@
     <Title>FileFlux.Core - Document Extraction SDK</Title>
     <Description>Pure document extraction SDK for RAG systems. Zero AI dependencies. Extract text from PDF, DOCX, Excel, PowerPoint, Markdown, HTML, and text files. Provides IDocumentReader interface and implementations. Use FileFlux.Core for extraction-only scenarios. For AI-enhanced extraction (image OCR, captioning), use the FileFlux package.</Description>
     <PackageTags>rag;document;extraction;pdf;docx;excel;powerpoint;markdown;html;text;reader;fileflux;core</PackageTags>
-    <PackageReleaseNotes>Core extraction package with document readers for all major formats. No FluxCurator/FluxImprover dependency - bring your own chunking implementation.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
