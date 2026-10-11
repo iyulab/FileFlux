@@ -95,17 +95,4 @@ public sealed class ChunkingStrategyValidationTests : IDisposable
         foreach (var name in ChunkingStrategies.All)
             ChunkingStrategyMap.ToFluxCurator(name);
     }
-
-    [Fact]
-    public void DocumentTypeOptimizer_RecommendsOnlyRealStrategies()
-    {
-        var optimizer = new DocumentTypeOptimizer();
-
-        Assert.Contains(new PerformanceMetrics().RecommendedStrategy, ChunkingStrategies.All);
-        foreach (var category in Enum.GetValues<DocumentCategory>())
-        {
-            var options = optimizer.GetOptimalOptions(new DocumentTypeInfo { Category = category });
-            Assert.Contains(options.Strategy, ChunkingStrategies.All);
-        }
-    }
 }

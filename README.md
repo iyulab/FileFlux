@@ -81,6 +81,8 @@ foreach (var chunk in processor.Result)
 }
 ```
 
+Without a container, `DocumentProcessorFactoryBuilder.CreateDefault().Build()` gives the same factory `AddFileFlux()` registers (kept equal by a test); `With…` methods replace a part (`WithLlmRefiner`, `WithDocumentEnricher`, `WithLoggerFactory`, …).
+
 > **Clean chunk content.** Before a chunk is surfaced, FileFlux removes **all HTML comments**
 > (`<!-- ... -->`) from `chunk.Content`. This covers the internal structural markers FileFlux emits and
 > consumes during boundary detection (`<!-- HEADING_START:H2 -->`, `<!-- TABLE_START -->`,
@@ -217,7 +219,7 @@ FileFlux defines AI service interfaces - consumer applications provide implement
 | Interface | Purpose | Example Implementations |
 |-----------|---------|------------------------|
 | `IDocumentAnalysisService` | Text generation, intelligent chunking. Override `GenerateAsync(prompt, GenerationSettings, ct)` so `LlmRefineOptions`/`ParsingOptions` `Temperature`/`MaxTokens` reach your model, and throw `GenerationTruncatedException` (or, from a service on the shared completion port, its base `Flux.Abstractions.TextCompletionTruncatedException`) when the model stops at the token limit so a cut-off rewrite is never adopted. Set `ProviderInfo.MaxContextLength` and the refiner will not send a pass that cannot fit | OpenAI, Anthropic, LMSupply |
-| `IImageToTextService` | Image captioning, OCR | OpenAI Vision, LMSupply Captioner/OCR |
+| `IImageToTextService` | Image captioning, OCR. An implementation that calls a vision model can take its prompt from `ImageExtractionPromptBuilder.BuildPrompt(options)`, which asks the model to answer `EXTRACTION_FAILED: <reason>` when it cannot read the image — the marker the PDF reader recognises | OpenAI Vision, LMSupply Captioner/OCR |
 | `IAudioToTextService` | Speech transcription — makes audio files readable (0.30.0+); without one, audio is unsupported | LMSupply Transcriber |
 | `IEmbeddingService` | Embedding generation. Registered as a singleton, it also drives `Semantic` chunking — `AddFileFlux()` presents it to FluxCurator as an `IEmbedder` (see [Chunking Strategies](#chunking-strategies)) | OpenAI, LMSupply Embedder |
 

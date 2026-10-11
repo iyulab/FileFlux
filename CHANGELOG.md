@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **Breaking: the document-type optimizer and the context-dependency analyzer are gone** — `IDocumentTypeOptimizer`,
+  `DocumentTypeOptimizer`, `DocumentTypeInfo`, `DocumentCategory`, `DocumentStructuralElement`, `PerformanceMetrics` and
+  `ContextDependencyAnalyzer`. The pipeline never called them: chunking strategy resolution is FluxCurator's, and a chunk's
+  context-dependency score comes from the chunker adapter. Migration: delete the use.
+
+### Documentation
+- **The README names the DI-free entry point and the image-prompt helper** — `DocumentProcessorFactoryBuilder.CreateDefault()`
+  and `ImageExtractionPromptBuilder.BuildPrompt` for `IImageToTextService` implementations.
+
 ### Changed
 - **The nuget.org «Release Notes» of every package link to the GitHub release of its version**, whose notes are this CHANGELOG's section for that version.
 
