@@ -66,6 +66,28 @@ public class OptionsReachabilityRosterTests
         ["FileFlux.ImageToTextOptions"] = ["Language"],
     };
 
+    /// <summary>
+    /// The other direction (Iyu.Conventions.Testing 0.7.0): <c>ImageToTextOptions</c> is also the request the pipeline fills
+    /// for an <c>IImageToTextService</c> (DocumentProcessor, ImageDescriptions, PageVisionReading). The fields it never sets
+    /// reach a service only from a caller that invokes the service directly - the pipeline has no knob for them.
+    /// </summary>
+    [Fact]
+    public void ImageRequestFields_ThePipelineNeverSends_AreKnown()
+    {
+        var report = OutboundAssignment.Scan(Libraries, t => t == typeof(FileFlux.ImageToTextOptions));
+
+        // An empty or partial roster also matches a scan that found no request type.
+        Assert.Equal([typeof(FileFlux.ImageToTextOptions)], report.OutboundTypes);
+        Assert.Contains("FileFlux.ImageToTextOptions.ExtractStructure", report.Assigned);
+        report.ShouldMatchRoster(new Dictionary<string, string[]>
+        {
+            // CustomPrompt is honoured by ImageExtractionPromptBuilder and ExtractMetadata by the LMSupply OCR and captioner
+            // services, for a direct caller. The pipeline sends their defaults; a pipeline knob is for the first consumer that
+            // asks for one.
+            ["FileFlux.ImageToTextOptions"] = ["CustomPrompt", "ExtractMetadata"],
+        });
+    }
+
     [Fact]
     public void EveryPublicOption_IsRead() =>
         OptionsReachability.Scan(Libraries, OptionsTypes.WithNestedSettings(Libraries, OptionsTypes.NamedWith("Options", "Config")))
