@@ -40,8 +40,10 @@ internal static partial class ImageAltText
 
     /// <summary>
     /// The older endings Office appended to a description it generated. The current disclaimer is matched as a family by
-    /// <see cref="AiDisclaimer"/>: Office ships more than one localization of the same sentence (Korean has «…올바르지 않을 수
-    /// 있습니다» and «…부정확할 수 있습니다»), so an exact-sentence list keeps missing the next one.
+    /// <see cref="AiDisclaimer"/>: Office ships more than one localization of the same sentence (Korean has «AI가 생성한
+    /// 콘텐츠는 올바르지 않을 수 있습니다», «…부정확할 수 있습니다» and «AI 생성 콘텐츠는 정확하지 않을 수 있습니다»), so an
+    /// exact-sentence list keeps missing the next one. A Korean description with an unseen disclaimer is still recognised
+    /// by its template (<see cref="KoreanDescriptionTemplate"/>).
     /// </summary>
     private static readonly string[] GeneratedMarkers =
     [
@@ -80,6 +82,12 @@ internal static partial class ImageAltText
                 return (AltTextKind.Generated, description.Length == 0 ? null : description);
             }
         }
+
+        // No known disclaimer, but the description has the shape of Office's Korean template; whatever follows the
+        // template is a disclaimer wording not seen yet.
+        var template = KoreanDescriptionTemplate().Match(text);
+        if (template.Success)
+            return (AltTextKind.Generated, template.Groups["description"].Value);
 
         return (AltTextKind.Authored, text);
     }
@@ -128,10 +136,15 @@ internal static partial class ImageAltText
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRun();
 
-    // The disclaimer Office appends to a generated description, as a family: «AI-generated content may be <word(s)>.» and
-    // «AI가 생성한 콘텐츠는 <어구> 수 있습니다.», at the end of the text.
-    [GeneratedRegex(@"(?:AI-generated content may be [\p{L} ]{1,40}|AI가 생성한 콘텐츠는 [\p{L} ]{1,40}수 있습니다)\.?$", RegexOptions.IgnoreCase)]
+    // The disclaimer Office appends to a generated description, as a family whose subject and predicate both vary, at the
+    // end of the text: «AI-generated content may (not) be <word(s)>.» and «AI가 생성한 콘텐츠는 / AI 생성 콘텐츠는 <어구> 수 있습니다.».
+    [GeneratedRegex(@"(?:AI[- ]generated content (?:may|might|could) [\p{L} ]{1,40}|AI(?:가 생성한| 생성) 콘텐츠는 [\p{L} ]{1,40}수 있습니다)\.?$", RegexOptions.IgnoreCase)]
     private static partial Regex AiDisclaimer();
+
+    // Office's Korean description template, «<명사 나열>이(가) 표시된 사진»: the «이(가)» particle notation is a machine
+    // template, never text an author writes.
+    [GeneratedRegex(@"^(?<description>\S.*?이\(가\) 표시된 사진)(?:\s|\.|$)")]
+    private static partial Regex KoreanDescriptionTemplate();
 
     // A Markdown backslash escape of an ASCII punctuation character.
     [GeneratedRegex(@"\\([!-/:-@\[-`{-~])")]

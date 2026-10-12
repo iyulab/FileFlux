@@ -5,6 +5,16 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.59.2] - Unreleased
+
+### Fixed
+- **A third wording of Office's Korean AI disclaimer no longer leaves generated picture descriptions in the body.**
+  - «AI 생성 콘텐츠는 정확하지 않을 수 있습니다.» drops the «가 생성한» of the other two Korean wordings, so the family
+    match (subject fixed, predicate free) missed it. The subject now varies too: «AI가 생성한 / AI 생성 콘텐츠는 … 수
+    있습니다», and «AI-generated / AI generated content may|might|could …» in English.
+  - A Korean description is also recognized by Office's template «<명사 나열>이(가) 표시된 사진», so a disclaimer wording not
+    seen yet no longer puts it in the body. The description moves to `ImageInfo.Properties["generated_alt_text"]`.
+
 ## [0.59.1] - 2026-10-12
 
 ### Fixed

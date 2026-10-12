@@ -37,6 +37,12 @@ public class ImageAltTextTests
     // The disclaimer as a family: Office ships more than one localization of the same sentence.
     [InlineData("그래픽, 상징, 로고, 원이(가) 표시된 사진 AI가 생성한 콘텐츠는 부정확할 수 있습니다.", "그래픽, 상징, 로고, 원이(가) 표시된 사진")]
     [InlineData("A diagram of a process AI-generated content may be inaccurate.", "A diagram of a process")]
+    // The subject varies as well as the predicate: «AI 생성 콘텐츠는 …», «AI-generated content may not be …».
+    [InlineData("텍스트, 스크린샷, 소프트웨어, 컴퓨터 아이콘이(가) 표시된 사진 AI 생성 콘텐츠는 정확하지 않을 수 있습니다.", "텍스트, 스크린샷, 소프트웨어, 컴퓨터 아이콘이(가) 표시된 사진")]
+    [InlineData("A screenshot of a computer AI generated content may not be accurate.", "A screenshot of a computer")]
+    // Office's Korean description template marks a generated description even when its disclaimer wording is unknown.
+    [InlineData("텍스트, 번호, 소프트웨어, 스크린샷이(가) 표시된 사진 AI로 만든 내용은 틀릴 수도 있어요.", "텍스트, 번호, 소프트웨어, 스크린샷이(가) 표시된 사진")]
+    [InlineData("다이어그램, 원이(가) 표시된 사진", "다이어그램, 원이(가) 표시된 사진")]
     public void Classify_GeneratedDescription_KeepsTheDescriptionWithoutItsMarker(string alt, string expected) =>
         Assert.Equal((AltTextKind.Generated, (string?)expected), ImageAltText.Classify(alt));
 
@@ -44,6 +50,9 @@ public class ImageAltTextTests
     [InlineData("Quarterly revenue chart", "Quarterly revenue chart")]
     [InlineData("  Process flow:\n  intake → review  ", "Process flow: intake → review")]
     [InlineData("Logo of the C: drive campaign", "Logo of the C: drive campaign")]
+    // Text about AI-generated content, or a sentence that only resembles the template, is the author's.
+    [InlineData("AI 생성 콘텐츠는 검수 후 게시할 수 있습니다 — 절차도", "AI 생성 콘텐츠는 검수 후 게시할 수 있습니다 — 절차도")]
+    [InlineData("제품 로고가 표시된 사진", "제품 로고가 표시된 사진")]
     public void Classify_AuthoredText_IsKeptOnOneLine(string alt, string expected) =>
         Assert.Equal((AltTextKind.Authored, (string?)expected), ImageAltText.Classify(alt));
 
@@ -68,9 +77,10 @@ public class ImageAltTextTests
         // authored alt keeps its escapes (an escaped bracket stays escaped).
         var markdown = @"![\\\\x\\x\\x\\x.x(x) x\\x_x\\x_x-x_x_x_x.x](image1.png)" + "\n" +
                        "![그래픽, 상징이(가) 표시된 사진 AI가 생성한 콘텐츠는 부정확할 수 있습니다.](image2.png)\n" +
-                       @"![Step \[1\] of 3](image3.png)";
+                       @"![Step \[1\] of 3](image3.png)" + "\n" +
+                       @"![텍스트, 번호, 스크린샷이\(가\) 표시된 사진 AI 생성 콘텐츠는 정확하지 않을 수 있습니다.](image4.png)";
 
-        Assert.Equal("![](image1.png)\n![](image2.png)\n" + @"![Step \[1\] of 3](image3.png)", ImageAltText.CleanMarkdown(markdown));
+        Assert.Equal("![](image1.png)\n![](image2.png)\n" + @"![Step \[1\] of 3](image3.png)" + "\n![](image4.png)", ImageAltText.CleanMarkdown(markdown));
     }
 
     [Fact]

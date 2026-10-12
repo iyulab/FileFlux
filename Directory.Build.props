@@ -2,7 +2,7 @@
 <Project>
   <!-- Version Information (can be overridden by build scripts) -->
   <PropertyGroup>
-    <VersionPrefix>0.59.1</VersionPrefix>
+    <VersionPrefix>0.59.2</VersionPrefix>
     <!-- nuget.org «Release Notes»: the GitHub release of this version (its notes are the CHANGELOG section). -->
     <PackageReleaseNotes>https://github.com/iyulab/FileFlux/releases/tag/v$(VersionPrefix)</PackageReleaseNotes>
     <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>

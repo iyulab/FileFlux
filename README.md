@@ -301,9 +301,10 @@ AI backend.
 
 > **Picture alt text is content only when an author wrote it** (Word, PowerPoint, Excel, HWP) — that text reaches the
 > body (`![alt](…)`) and `ImageInfo.Caption`, on one line. A file path or bare file name Office recorded when the picture
-> was inserted is dropped. A description Office generated (ending with its «AI-generated content may be incorrect»
-> disclaimer, or the older «Description automatically generated») stays out of the body and is exposed as
-> `ImageInfo.Properties["generated_alt_text"]`, without the disclaimer.
+> was inserted is dropped. A description Office generated (ending with its AI disclaimer in any of its wordings —
+> «AI-generated content may be incorrect», «AI 생성 콘텐츠는 정확하지 않을 수 있습니다», … — or the older «Description
+> automatically generated»; a Korean one is also recognized by its «…이(가) 표시된 사진» template) stays out of the body
+> and is exposed as `ImageInfo.Properties["generated_alt_text"]`, without the disclaimer.
 
 > **The name is a claim, the content decides (since 0.35.0)** — when a file's name selects the wrong
 > reader, or none, reader selection consults the content: a PDF (`%PDF-` header), an OOXML
