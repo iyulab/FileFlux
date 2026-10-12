@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A table-of-contents entry no longer becomes a section heading.** A line with a dot leader and a page number
+  ("2.5.1 Harmony Chat Format . . . . 6", "HOST Interface ........ 11") is a contents entry, whether it stands on its own
+  line or the reader marked it as a heading. Before, each such entry became a second, empty section in front of the real
+  one. The newer PDF extractor puts every contents entry on its own line, so a PDF with a contents page got one false
+  section per entry.
+
 ### Dependencies
 - Parser libraries moved to their current releases: `Unpdf` 0.35.0 -> 0.41.0, `Undoc` 0.19.0 -> 0.23.0, `Unhwp` 0.15.0 -> 0.19.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.118.0 -> 0.119.0, `LMSupply.Core` 0.118.0 -> 0.119.0, `LMSupply.Embedder` 0.118.0 -> 0.119.0, `LMSupply.Generator` 0.118.0 -> 0.119.0, `LMSupply.Ocr` 0.118.0 -> 0.119.0, `LMSupply.Transcriber` 0.118.0 -> 0.119.0.

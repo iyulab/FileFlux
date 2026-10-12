@@ -56,6 +56,49 @@ public class NumberedSectionHeadingTests
     }
 
     [Fact]
+    public async Task Table_Of_Contents_Entries_Are_Not_Headings_On_Their_Own_Lines_Or_Marked_By_The_Reader()
+    {
+        // A reader that puts each contents entry on its own line (a newer PDF extractor) or marks it as a heading by its
+        // font: each entry carries a dot leader and a page number, and the section it names has its own heading below.
+        var text = string.Join('\n',
+            "Contents",
+            "2.5.1 Harmony Chat Format . . . . . . . . . . . . . . . 6",
+            "### HOST Interface ......................................... 11",
+            "## 3 Evaluations …… iv",
+            "",
+            "#### 2.5.1 Harmony Chat Format",
+            "The model is trained on a chat format.",
+            "",
+            "# HOST Interface",
+            "The host talks to the chip over SPI.");
+        var refiner = new DocumentRefiner(markdownConverter: null, logger: NullLogger<DocumentRefiner>.Instance);
+
+        var refined = await refiner.RefineAsync(Raw(text), new RefineOptions { BuildSections = true }, TestContext.Current.CancellationToken);
+
+        Assert.Contains("\nHOST Interface ...", refined.Text, StringComparison.Ordinal);
+        Assert.Contains("\n3 Evaluations …… iv", refined.Text, StringComparison.Ordinal);
+        var titles = Flatten(refined.Sections).Select(s => s.Title).ToList();
+        Assert.DoesNotContain(titles, t => t.Contains("..", StringComparison.Ordinal) || t.Contains(". .", StringComparison.Ordinal) || t.Contains('…'));
+        Assert.Contains(titles, t => t.EndsWith("Harmony Chat Format", StringComparison.Ordinal));
+        Assert.Contains("HOST Interface", titles);
+    }
+
+    [Theory]
+    [InlineData("2.1 Quantization . . . . . . . . . 4", true)]
+    [InlineData("HOST Interface ................ 11", true)]
+    [InlineData("Appendix …… ix", true)]
+    [InlineData("5.2.1.6 Evaluations by External Safety Experts . . . 22", true)]
+    [InlineData("Results...", false)]
+    [InlineData("Wait for it... done", false)]
+    [InlineData("2.1 Quantization", false)]
+    [InlineData("Version 1.1.0", false)]
+    public void Table_Of_Contents_Entry_Is_A_Dot_Leader_At_The_End(string line, bool expected)
+        => Assert.Equal(expected, DocumentRefiner.IsTableOfContentsEntry(line));
+
+    private static IEnumerable<Section> Flatten(IEnumerable<Section> sections)
+        => sections.SelectMany(s => new[] { s }.Concat(Flatten(s.Children)));
+
+    [Fact]
     public void A_Long_Numbered_Sentence_In_The_Body_Is_Not_A_Title()
     {
         var text = "The reaction has two products.\n1. One product of oxygenase activity is phosphoglycolate, which is recycled at a cost.\nThe other is glycerate.";

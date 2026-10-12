@@ -85,6 +85,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
             // This improves structure for technical documents with numbered sections
             if (options.BuildSections)
             {
+                refinedText = DemoteTableOfContentsHeadings(refinedText);
                 refinedText = ConvertNumberedSectionsToHeadings(refinedText);
             }
 
@@ -346,7 +347,33 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
     internal static bool IsTitleShaped(string title)
         => title.Length is > 0 and <= MaxNumberedTitleLength
            && title[^1] is not ('.' or '。' or ',' or ';')
-           && !char.IsLower(title.FirstOrDefault(char.IsLetter));
+           && !char.IsLower(title.FirstOrDefault(char.IsLetter))
+           && !IsTableOfContentsEntry(title);
+
+    /// <summary>
+    /// Whether a line is a table-of-contents entry: a title followed by a dot leader and, usually, the page number
+    /// ("2.1 Quantization . . . . . 4", "HOST Interface .......... 11"). The section it points at has its own heading
+    /// further on, so the entry is never a heading itself.
+    /// </summary>
+    internal static bool IsTableOfContentsEntry(string line) => TableOfContentsLeader().IsMatch(line);
+
+    // At the end: four or more dots (spaced or not) or two or more ellipsis characters, then an optional page number;
+    // or exactly three dots and a page number (". . . 17" — three dots alone is an ordinary ellipsis).
+    [GeneratedRegex(@"(?:(?:(?:\.[ \t]?){4,}|…{2,})[ \t]*(?:\d+|[ivxlcdm]+)?|(?:\.[ \t]?){3}[ \t]*(?:\d+|[ivxlcdm]+))[ \t]*$", RegexOptions.IgnoreCase)]
+    private static partial Regex TableOfContentsLeader();
+
+    /// <summary>
+    /// Turns a Markdown heading that is a table-of-contents entry back into a plain line. A reader that marks a contents
+    /// page's entries as headings (by font size or weight) would otherwise give every section two headings, the entry
+    /// and the section itself.
+    /// </summary>
+    internal static string DemoteTableOfContentsHeadings(string text)
+        => TableOfContentsHeading().Replace(
+            text,
+            match => IsTableOfContentsEntry(match.Groups["title"].Value) ? match.Groups["title"].Value : match.Value);
+
+    [GeneratedRegex(@"^[ \t]*#{1,6}[ \t]+(?<title>[^\r\n]*?)[ \t]*(?=\r?$)", RegexOptions.Multiline)]
+    private static partial Regex TableOfContentsHeading();
 
     private static bool IsFollowedByBody(string[] lines, int index)
     {
