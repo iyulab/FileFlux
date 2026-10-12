@@ -18,6 +18,9 @@ public class ImageAltTextTests
     [InlineData(@"D:\Projects\Author\Desktop\AcmeCorp\photo.png")]
     [InlineData(@"d:/work/client/diagram.emf")]
     [InlineData(@"\\fileserver\share\images\logo.png")]
+    // UNC paths with dots, parentheses and spaces inside segments (the shapes of two customer decks, letters replaced).
+    [InlineData(@"\\x\x\x\x.x(x) x\x_x\x_x-x_x_x_x.x")]
+    [InlineData(@"\\x-x\x\x_x x\x_x_x\x.x\x.x\x.x")]
     [InlineData("file:///D:/Projects/Author/Pictures/chart.png")]
     [InlineData("/Users/hong/Desktop/screenshot.png")]
     [InlineData("/home/hong/pictures/plot.svg")]
@@ -31,6 +34,9 @@ public class ImageAltTextTests
     [InlineData("A chart with numbers\n\nAI-generated content may be incorrect.", "A chart with numbers")]
     [InlineData("A picture containing text, outdoor  Description automatically generated", "A picture containing text, outdoor")]
     [InlineData("텍스트, 스크린샷이(가) 표시된 사진  자동 생성된 설명", "텍스트, 스크린샷이(가) 표시된 사진")]
+    // The disclaimer as a family: Office ships more than one localization of the same sentence.
+    [InlineData("그래픽, 상징, 로고, 원이(가) 표시된 사진 AI가 생성한 콘텐츠는 부정확할 수 있습니다.", "그래픽, 상징, 로고, 원이(가) 표시된 사진")]
+    [InlineData("A diagram of a process AI-generated content may be inaccurate.", "A diagram of a process")]
     public void Classify_GeneratedDescription_KeepsTheDescriptionWithoutItsMarker(string alt, string expected) =>
         Assert.Equal((AltTextKind.Generated, (string?)expected), ImageAltText.Classify(alt));
 
@@ -53,6 +59,18 @@ public class ImageAltTextTests
         var markdown = "Intro\n\n![D:\\Projects\\Author\\a.png](image1.jpeg)\n\n![A dog\n\n" + KoreanDisclaimer + "](image2.png)\n\n![Revenue  by\nregion](image3.png) tail";
 
         Assert.Equal("Intro\n\n![](image1.jpeg)\n\n![](image2.png)\n\n![Revenue by region](image3.png) tail", ImageAltText.CleanMarkdown(markdown));
+    }
+
+    [Fact]
+    public void CleanMarkdown_ClassifiesTheTextTheEscapedAltStandsFor()
+    {
+        // In the body Markdown doubles every backslash, so a UNC path starts with four of them. It is still a path. An
+        // authored alt keeps its escapes (an escaped bracket stays escaped).
+        var markdown = @"![\\\\x\\x\\x\\x.x(x) x\\x_x\\x_x-x_x_x_x.x](image1.png)" + "\n" +
+                       "![그래픽, 상징이(가) 표시된 사진 AI가 생성한 콘텐츠는 부정확할 수 있습니다.](image2.png)\n" +
+                       @"![Step \[1\] of 3](image3.png)";
+
+        Assert.Equal("![](image1.png)\n![](image2.png)\n" + @"![Step \[1\] of 3](image3.png)", ImageAltText.CleanMarkdown(markdown));
     }
 
     [Fact]

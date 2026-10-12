@@ -39,13 +39,12 @@ internal static partial class ImageAltText
     public const string GeneratedProperty = "generated_alt_text";
 
     /// <summary>
-    /// Endings Office appends to a description it generated — the current disclaimer and the older marker, in the
-    /// languages measured on real documents. A description ending with one of them is <see cref="AltTextKind.Generated"/>.
+    /// The older endings Office appended to a description it generated. The current disclaimer is matched as a family by
+    /// <see cref="AiDisclaimer"/>: Office ships more than one localization of the same sentence (Korean has «…올바르지 않을 수
+    /// 있습니다» and «…부정확할 수 있습니다»), so an exact-sentence list keeps missing the next one.
     /// </summary>
     private static readonly string[] GeneratedMarkers =
     [
-        "AI-generated content may be incorrect.",
-        "AI가 생성한 콘텐츠는 올바르지 않을 수 있습니다.",
         "Description automatically generated",
         "자동 생성된 설명",
     ];
@@ -63,6 +62,13 @@ internal static partial class ImageAltText
         var text = WhitespaceRun().Replace(alt, " ").Trim();
         if (FilePathShape().IsMatch(text) || ImageFileName().IsMatch(text))
             return (AltTextKind.FilePath, null);
+
+        var disclaimer = AiDisclaimer().Match(text);
+        if (disclaimer.Success)
+        {
+            var description = text[..disclaimer.Index].Trim().TrimEnd('.', ',', ';', ':', '-', ' ').Trim();
+            return (AltTextKind.Generated, description.Length == 0 ? null : description);
+        }
 
         foreach (var marker in GeneratedMarkers)
         {
@@ -102,8 +108,11 @@ internal static partial class ImageAltText
 
         return MarkdownImage().Replace(markdown, match =>
         {
-            var (kind, text) = Classify(match.Groups["alt"].Value);
-            var alt = kind == AltTextKind.Authored ? text : string.Empty;
+            // Classify the text the alt stands for: Markdown escapes a backslash as a doubled one, so in the body a UNC path
+            // starts with four backslashes and would not look like one. An authored alt keeps its escaped form, collapsed to one line.
+            var escaped = match.Groups["alt"].Value;
+            var (kind, _) = Classify(MarkdownEscape().Replace(escaped, "$1"));
+            var alt = kind == AltTextKind.Authored ? WhitespaceRun().Replace(escaped, " ").Trim() : string.Empty;
             return $"![{alt}]({match.Groups["target"].Value})";
         });
     }
@@ -118,6 +127,15 @@ internal static partial class ImageAltText
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRun();
+
+    // The disclaimer Office appends to a generated description, as a family: «AI-generated content may be <word(s)>.» and
+    // «AI가 생성한 콘텐츠는 <어구> 수 있습니다.», at the end of the text.
+    [GeneratedRegex(@"(?:AI-generated content may be [\p{L} ]{1,40}|AI가 생성한 콘텐츠는 [\p{L} ]{1,40}수 있습니다)\.?$", RegexOptions.IgnoreCase)]
+    private static partial Regex AiDisclaimer();
+
+    // A Markdown backslash escape of an ASCII punctuation character.
+    [GeneratedRegex(@"\\([!-/:-@\[-`{-~])")]
+    private static partial Regex MarkdownEscape();
 
     // The alt may span lines (no ']' inside); the target has no whitespace or ')'.
     [GeneratedRegex(@"!\[(?<alt>[^\]]*)\]\((?<target>[^)\s]*)\)")]

@@ -5,7 +5,18 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.59.1] - Unreleased
+
+### Fixed
+- **Two kinds of picture alt text no longer reach the body: a second localization of Office's AI disclaimer, and a UNC path
+  in the Markdown body.**
+  - The generated-description check matched the disclaimer as exact sentences. A Korean deck carries «AI가 생성한 콘텐츠는
+    부정확할 수 있습니다.», not «…올바르지 않을 수 있습니다.», so its descriptions stayed in the text.
+  - The disclaimer is now matched as a family: «AI-generated content may be …» / «AI가 생성한 콘텐츠는 … 수 있습니다» at the
+    end. The description moves to `ImageInfo.Properties["generated_alt_text"]`, as before.
+  - In the Markdown body every backslash is escaped, so a UNC path began with four backslashes and was not recognized as a
+    path (the caption, read from the raw value, was already right). The body's alt is now classified on the text it stands
+    for. An authored alt keeps its escapes.
 
 ### Dependencies
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.117.0 -> 0.117.1, `LMSupply.Core` 0.117.0 -> 0.117.1, `LMSupply.Embedder` 0.117.0 -> 0.117.1, `LMSupply.Generator` 0.117.0 -> 0.117.1, `LMSupply.Ocr` 0.117.0 -> 0.117.1, `LMSupply.Transcriber` 0.117.0 -> 0.117.1.
