@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Dependencies
+- Parser libraries moved to their current releases: `Unpdf` 0.35.0 -> 0.41.0, `Undoc` 0.19.0 -> 0.23.0, `Unhwp` 0.15.0 -> 0.19.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.118.0 -> 0.119.0, `LMSupply.Core` 0.118.0 -> 0.119.0, `LMSupply.Embedder` 0.118.0 -> 0.119.0, `LMSupply.Generator` 0.118.0 -> 0.119.0, `LMSupply.Ocr` 0.118.0 -> 0.119.0, `LMSupply.Transcriber` 0.118.0 -> 0.119.0.
 
 ## [0.59.2] - 2026-10-12
