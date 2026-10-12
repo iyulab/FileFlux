@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.59.2] - Unreleased
+## [0.59.2] - 2026-10-12
 
 ### Fixed
 - **A third wording of Office's Korean AI disclaimer no longer leaves generated picture descriptions in the body.**
