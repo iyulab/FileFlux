@@ -459,31 +459,22 @@ construct it and call `EnrichAsync` on the text you want described. The pipeline
 services.AddFileFlux();  // Pure extraction + chunking
 ```
 
-**With AI Services** (Consumer-provided implementations):
+**With AI Services** (Consumer-provided implementations — any lifetime; a type works as well as an instance):
 ```csharp
-// Use your own AI service implementations
-services.AddScoped<IDocumentAnalysisService, YourLLMService>();
-services.AddScoped<IImageToTextService, YourVisionService>();
-services.AddScoped<IEmbeddingService, YourEmbeddingService>();
+// Your own implementations of the AI interfaces, registered before or after AddFileFlux()
+services.AddSingleton<IDocumentAnalysisService>(myAnalysisService);
+services.AddSingleton<IImageToTextService>(myVisionService);
+services.AddSingleton<IEmbeddingService>(myEmbeddingService);
 services.AddFileFlux();
 ```
 
-**With LMSupply** (CLI example - local AI processing):
+**With LMSupply** (local AI processing — the separate `FileFlux.Providers.LMSupply` package; `FileFlux` itself has no
+LMSupply dependency):
 ```csharp
-// LMSupply is NOT a dependency of FileFlux
-// Consumer applications reference LMSupply directly
-// See cli/FileFlux.CLI/Services/LMSupply for implementation examples
+using FileFlux.Providers.LMSupply.Extensions;
 
-var lmSupplyOptions = new LMSupplyOptions
-{
-    UseGpuAcceleration = true,
-    EmbeddingModel = "default",
-    GeneratorModel = "default"
-};
-
-// Create and register LMSupply services
-var embedder = await LMSupplyEmbedderService.CreateAsync(lmSupplyOptions);
-services.AddSingleton<IEmbeddingService>(embedder);
+services.AddLMSupplyDocumentAnalysis();    // IDocumentAnalysisService over a local GGUF model
+services.AddLMSupplyEmbedding("default");  // IEmbeddingService; also the embedder of Semantic chunking
 services.AddFileFlux();
 ```
 
@@ -517,8 +508,11 @@ services.AddFileFlux();
 2. Register in DI container
 3. Implement SupportedExtensions and CanRead methods
 
-**Example**:
+**Example** (each member of `IDocumentReader`; a file and a stream overload for both stages):
 ```csharp
+// Registration — the factory prefers a reader registered later for the same extension
+services.AddTransient<IDocumentReader, CustomDocumentReader>();
+
 public class CustomDocumentReader : IDocumentReader
 {
     public string ReaderType => "CustomReader";
@@ -527,21 +521,20 @@ public class CustomDocumentReader : IDocumentReader
     public bool CanRead(string fileName) =>
         Path.GetExtension(fileName).Equals(".custom", StringComparison.OrdinalIgnoreCase);
 
-    public Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken)
-    {
-        // Stage 0: Return document structure (page count, metadata)
-        // Implementation
-    }
+    // Stage 0: document structure (page count, metadata)
+    public Task<ReadResult> ReadAsync(string filePath, CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
 
-    public Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default)
-    {
-        // Stage 1: Return extracted text content
-        // Implementation
-    }
+    public Task<ReadResult> ReadAsync(Stream stream, string fileName, CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
+    // Stage 1: extracted text content
+    public Task<RawContent> ExtractAsync(string filePath, ExtractOptions? options = null, CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
+    public Task<RawContent> ExtractAsync(Stream stream, string fileName, ExtractOptions? options = null, CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
 }
-
-// Registration
-services.AddTransient<IDocumentReader, CustomDocumentReader>();
 ```
 
 ### Adding Custom Chunking Strategy
@@ -552,7 +545,8 @@ FileFlux uses `IChunker` from FluxCurator for chunking. Register a custom `IChun
 2. Define `StrategyName`
 3. Implement chunking logic in `ChunkAsync`
 
-**Example**:
+**Example** (`DocumentChunk` here is FluxCurator's, `FluxCurator.Core.Domain.DocumentChunk` — FileFlux has its own type
+of that name for the pipeline's output):
 ```csharp
 using FluxCurator.Core.Core;
 using FluxCurator.Core.Domain;
@@ -562,13 +556,11 @@ public class CustomChunker : IChunker
     public string StrategyName => "Custom";
     public bool RequiresEmbedder => false;
 
-    public async Task<IReadOnlyList<DocumentChunk>> ChunkAsync(
+    public Task<IReadOnlyList<FluxCurator.Core.Domain.DocumentChunk>> ChunkAsync(
         string text,
         ChunkOptions options,
-        CancellationToken cancellationToken = default)
-    {
-        // Implementation
-    }
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
 
     public int EstimateChunkCount(string text, ChunkOptions options) => 1;
 }
@@ -689,18 +681,20 @@ FileFlux focuses on transforming documents into structured chunks optimized for 
 
 **Package Selection Guide**:
 ```csharp
-// Extraction only - implement your own chunking
-using FileFlux.Core;
-var reader = new PdfDocumentReader();
-var rawContent = await reader.ReadAsync("document.pdf");
-
-// Full RAG pipeline with custom AI providers
 using FileFlux;
-services.AddScoped<IDocumentAnalysisService, OpenAIService>();
-services.AddScoped<IEmbeddingService, OpenAIEmbeddingService>();
+using FileFlux.Core;
+
+// Extraction only - the reader for the file's format, then its text; chunk it your own way
+var readers = provider.GetRequiredService<IDocumentReaderFactory>();
+var rawContent = await readers.GetReader("document.pdf")!.ExtractAsync("document.pdf");
+
+// Full RAG pipeline with your own AI providers: a processor per document
+services.AddSingleton<IDocumentAnalysisService>(myAnalysisService);
+services.AddSingleton<IEmbeddingService>(myEmbeddingService);
 services.AddFileFlux();
-var processor = serviceProvider.GetRequiredService<IDocumentProcessor>();
-var chunks = await processor.ProcessAsync("document.pdf", options);
+await using var processor = factory.Create("document.pdf");
+await processor.ProcessAsync();
+var chunks = processor.Result;
 ```
 
 ## FAQ

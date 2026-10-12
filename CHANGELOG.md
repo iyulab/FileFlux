@@ -5,6 +5,15 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+- **The examples in `docs/ARCHITECTURE.md` match the library and are compiled by the tests.** The custom reader example
+  implements every `IDocumentReader` member (the stream overloads were missing); the package-selection example gets a reader
+  from `IDocumentReaderFactory` and a processor from `IDocumentProcessorFactory` (it named a `PdfDocumentReader` that does not
+  exist and the old `IDocumentProcessor.ProcessAsync(path)` call); the LMSupply example uses the
+  `FileFlux.Providers.LMSupply` registration extensions; the custom chunker names FluxCurator's `DocumentChunk`.
+
 ## [0.59.3] - 2026-10-13
 
 ### Fixed
