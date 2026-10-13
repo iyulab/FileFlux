@@ -11,8 +11,8 @@ namespace FileFlux.Tests;
 /// Compiles every C# block in README.md and the guides under docs/ against the current assemblies, and resolves every
 /// service the README asks the container for. The Quick Start once asked for an <c>IDocumentProcessor</c> the container
 /// never registers, called a <c>ProcessAsync(path)</c> the interface does not have and read a <c>chunk.Index</c> that does
-/// not exist — and <see cref="DocsSnippetRosterTests"/> passed it, because it checks only that a method of that name exists
-/// on some type. A compiler checks the receiver, the arguments, the members read and the namespaces.
+/// not exist — and a name-only check passed it, because it looked only for a method of that name
+/// on some type (that roster is gone). A compiler checks the receiver, the arguments, the members read and the namespaces.
 /// </summary>
 /// <remarks>
 /// Each block is compiled as a top-level program by <see cref="SnippetCompiler"/>: its own usings, the usings below, and
