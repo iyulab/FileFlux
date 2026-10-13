@@ -254,8 +254,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
         // Detect structural elements
         var hasHeaders = HeaderRegex().IsMatch(markdown);
-        var hasTables = markdown.Contains("|---", StringComparison.Ordinal) ||
-                       markdown.Contains("| ---", StringComparison.Ordinal);
+        var hasTables = MarkdownTables.Contains(markdown);
         var hasLists = ListRegex().IsMatch(markdown);
 
         if (hasHeaders) structuralHints["has_headers"] = true;
@@ -330,8 +329,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
         // Detect structural elements
         var hasHeaders = HeaderRegex().IsMatch(markdown);
-        var hasTables = markdown.Contains("|---", StringComparison.Ordinal) ||
-                       markdown.Contains("| ---", StringComparison.Ordinal);
+        var hasTables = MarkdownTables.Contains(markdown);
         var hasLists = ListRegex().IsMatch(markdown);
 
         if (hasHeaders) structuralHints["has_headers"] = true;

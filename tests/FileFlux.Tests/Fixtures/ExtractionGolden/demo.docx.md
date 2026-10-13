@@ -41,7 +41,7 @@ Tables in Word can vary from the extremely simple to the extremely complex. cali
 Now let’s look at a fancier table—one with alternating row colors and partial borders. This table is stretched out to take 100% of the available width.
 
 | City or Town | Point A | Point B | Point C | Point D | Point E |
-| --- | --- | --- | --- | --- | --- |
+| --- | :---: | :---: | :---: | :---: | :---: |
 | Point A | — | | | | |
 | Point B | 87 | — | | | |
 | Point C | 64 | 56 | — | | |
@@ -104,7 +104,7 @@ rop caps are used to emphasize the leading paragraph at the start of a section. 
 
 ## Links
 
-Two kinds of links are possible, those that refer to an external website and those that refer to locations inside the document itself. Both are supported by calibre. For example, here is a link pointing to the [<u>calibre download page</u>](http://calibre-ebook.com/download). Then we have a link that points back to the section on <u>paragraph level formatting</u> in this document.
+Two kinds of links are possible, those that refer to an external website and those that refer to locations inside the document itself. Both are supported by calibre. For example, here is a link pointing to the [calibre download page](http://calibre-ebook.com/download). Then we have a link that points back to the section on paragraph level formatting in this document.
 
 ## Table of Contents
 
@@ -114,39 +114,39 @@ If no Table of Contents is found in the document, then a table of contents is au
 
 You can see the Table of Contents created by calibre by clicking the Table of Contents button in whatever viewer you are using to view the converted ebook.
 
-<u>**Demonstration of DOCX support in calibre**</u>	**1**
+**Demonstration of DOCX support in calibre**	**1**
 
-<u>**Text Formatting**</u>	**2**
+**Text Formatting**	**2**
 
-<u>*Inline formatting*</u>	*2*
+*Inline formatting*	*2*
 
-<u>*Fun with fonts*</u>	*2*
+*Fun with fonts*	*2*
 
-<u>*Paragraph level formatting*</u>	*2*
+*Paragraph level formatting*	*2*
 
-<u>**Tables**</u>	**3**
+**Tables**	**3**
 
-<u>**Structural Elements**</u>	**5**
+**Structural Elements**	**5**
 
-<u>*Footnotes & Endnotes*</u>	*5*
+*Footnotes & Endnotes*	*5*
 
-<u>*Dropcaps*</u>	*5*
+*Dropcaps*	*5*
 
-<u>*Links*</u>	*5*
+*Links*	*5*
 
-<u>*Table of Contents*</u>	*5*
+*Table of Contents*	*5*
 
-<u>**Images**</u>	**7**
+**Images**	**7**
 
-<u>**Lists**</u>	**8**
+**Lists**	**8**
 
-<u>*Bulleted List*</u>	*8*
+*Bulleted List*	*8*
 
-<u>*Numbered List*</u>	*8*
+*Numbered List*	*8*
 
-<u>*Multi-level Lists*</u>	*8*
+*Multi-level Lists*	*8*
 
-<u>*Continued Lists*</u>	*8*
+*Continued Lists*	*8*
 
 # Images
 

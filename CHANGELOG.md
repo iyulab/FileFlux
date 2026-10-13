@@ -5,6 +5,25 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Hyperlink text in Word documents is no longer wrapped in `<u>…</u>`** — a link's underline came from Word's
+  `Hyperlink` style and was written as emphasis (since 0.59.3), including every table-of-contents entry. Text underlined
+  outside a link keeps `<u>`.
+- **`has_tables` is set for a Word, HWP or PDF document whose tables have aligned columns.** The hint looked for the text
+  `|---`, so a table whose delimiter row starts with an alignment marker (`| :---: |`) was missed. A document whose every
+  table is centred reported no tables.
+
+### Changed
+- **Extracted text of `.docx` tables changes**: a centred column's delimiter is `:---:` (and `:---` / `---:` for left and
+  right), and table cells are read like body paragraphs — per `Undoc` 0.24.0, a hyperlink in a cell is a link, and cells
+  keep line breaks, super/subscript and note references, and a `HYPERLINK` field in a `.docx` is a link. Documents
+  extracted with 0.60.0 or earlier should be extracted again if their tables or links matter.
+
+### Dependencies
+- `Undoc` 0.23.0 -> 0.24.0.
+
 ## [0.60.0] - 2026-10-13
 
 ### Fixed

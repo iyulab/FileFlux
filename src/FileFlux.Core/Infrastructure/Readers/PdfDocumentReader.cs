@@ -498,8 +498,7 @@ public partial class PdfDocumentReader : IDocumentReader
 
         // Detect structural elements from markdown
         var hasHeaders = HeaderRegex().IsMatch(markdown);
-        var hasTables = markdown.Contains("|---", StringComparison.Ordinal) ||
-                       markdown.Contains("| ---", StringComparison.Ordinal);
+        var hasTables = MarkdownTables.Contains(markdown);
         var hasLists = ListRegex().IsMatch(markdown);
         var hasLinks = LinkRegex().IsMatch(markdown);
         var hasImages = ImageRegex().IsMatch(markdown);
