@@ -50,6 +50,12 @@ public partial class PdfDocumentReader : IDocumentReader
     internal const string XrefReconstructedKey = "xref_reconstructed";
 
     /// <summary>
+    /// <c>extraction_failure_reason</c> of a PDF that yielded no text and is damaged — pages are missing, or its
+    /// cross-reference table had to be rebuilt — so it is not known to be blank. Reported instead of <c>blank_page</c>.
+    /// </summary>
+    internal const string DocumentDamagedReason = "document_damaged";
+
+    /// <summary>
     /// Diagnostic key stating how many text runs the font decoder could not resolve and
     /// discarded (Unpdf 0.12.0 <c>ExtractionQuality.SuppressedTextRuns</c>). A run is one
     /// text string handed to the decoder (a <c>Tj</c> operand); the decoder drops it rather
@@ -439,9 +445,20 @@ public partial class PdfDocumentReader : IDocumentReader
         // genuinely blank pages, instead of returning a silently-empty result.
         // "No text" means no text besides image references: a scanned page whose image is extracted renders as
         // "![](page1_Im0.png)" and nothing else, and is exactly the document this classification exists for.
+        // Read before the classification: a damaged document that yielded nothing is not known to be blank.
+        var (pagesIncomplete, declaredPageCount, xrefReconstructed) = ReadPageIntegrity(doc);
+
         if (!HasTextBeyondImageReferences(markdown) && status == ProcessingStatus.Completed)
         {
             var reason = ClassifyEmptyDocument(doc, suppressedTextRuns);
+            // «Every page is blank» is a statement about pages the parser read. When pages are missing, or the file had to be
+            // rebuilt from its objects (a file cut short loses its page tree and its content streams), nothing was read and
+            // found blank — a consumer that maps blank_page to «the document is empty» told the user exactly that.
+            if (reason == "blank_page" && (pagesIncomplete || xrefReconstructed))
+            {
+                reason = DocumentDamagedReason;
+            }
+
             structuralHints["extraction_failure_reason"] = reason;
             warnings.Add(reason switch
             {
@@ -449,6 +466,9 @@ public partial class PdfDocumentReader : IDocumentReader
                     "Text extraction requires OCR, which is outside the text extractor's scope.",
                 "text_not_extracted" => UndecodableStreamsWarning(undecodableStreams) +
                     " No text was extracted; the document is not known to be blank or scanned.",
+                DocumentDamagedReason => "No text could be read from this PDF, and the file is damaged (" +
+                    (pagesIncomplete ? "pages are missing from its page tree" : "its cross-reference table had to be rebuilt") +
+                    "): it is not known to be blank. Open the source file again or get an intact copy.",
                 "text_runs_suppressed" => $"PDF text could not be fully decoded and was silently dropped " +
                     $"by the parser ({suppressedTextRuns} text run(s) discarded — the font's character " +
                     "codes could not be resolved). This is not a scanned document and does not need OCR.",
@@ -486,7 +506,6 @@ public partial class PdfDocumentReader : IDocumentReader
         // as the whole document — a silent deletion of answers rather than a wrong one.
         // Placed after the empty-document classification, which only runs while the status
         // is still Completed: both facts can hold at once and neither may mask the other.
-        var (pagesIncomplete, declaredPageCount, xrefReconstructed) = ReadPageIntegrity(doc);
         if ((pagesIncomplete || xrefReconstructed) && declaredPageCount is long declared)
             structuralHints[DeclaredPageCountKey] = declared;
 

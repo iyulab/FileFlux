@@ -204,6 +204,26 @@ public class PdfPageIntegrityTests : IDisposable
         Assert.True(result.IsSuccess);
     }
 
+    [Theory]
+    // Cut before its page objects: no page is read (page_count 0, pages_incomplete).
+    [InlineData(15, true)]
+    // Cut after the page objects but before their content streams: both pages are there, nothing on them could be read.
+    [InlineData(45, false)]
+    public async Task ExtractAsync_APdfCutShort_IsNotReportedBlank(int keepPercent, bool pagesMissing)
+    {
+        // Before, both came out as extraction_failure_reason = blank_page with «every page is blank» first, which a
+        // consumer showed as «the document is empty»; nothing had been read and found blank.
+        var full = BuildTwoPagePdf(damageSecondPage: false);
+        var path = WriteTempPdf(full[..(full.Length * keepPercent / 100)]);
+
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal("document_damaged", content.Hints["extraction_failure_reason"]);
+        Assert.Equal(pagesMissing, content.Hints.ContainsKey("pages_incomplete"));
+        Assert.Contains("damaged", content.Warnings[0], StringComparison.Ordinal);
+        Assert.DoesNotContain(content.Warnings, w => w.Contains("blank (no text", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task ExtractAsync_IntactPdf_DoesNotSayTheTableWasRebuilt()
     {

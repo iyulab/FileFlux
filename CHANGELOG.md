@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every all-caps line under 20 characters as a «repeated header» without checking that it repeated — a `WARNING`, an
   acronym on its own line, or a heading went missing (a two-page document whose pages read `PAGE ONE` / `PAGE TWO` came out
   with no chunks). Such a line is now removed only when it occurs three times or more.
+- **A PDF cut short is reported as damaged, not blank.** A file that lost its page tree or its content streams yielded no
+  text and was classified `extraction_failure_reason = blank_page` with «every page is blank» as the first warning — a
+  consumer that maps the reason told the user the document is empty. When no text was read and pages are missing or the
+  cross-reference table had to be rebuilt, the reason is now **`document_damaged`** and its warning («the file is damaged …
+  not known to be blank») comes first. An intact document without content is still `blank_page`.
 
 ## [0.62.0] - 2026-10-13
 
