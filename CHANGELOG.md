@@ -5,6 +5,23 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A paragraph that contains pipes is no longer merged into the table after it.** A body paragraph such as
+  `… 과 |파이프|`, followed by a table, became that table's header row: the blank line between them was dropped and a
+  delimiter row was put after the paragraph, which pushed the real header down as a data row. The rule that re-attaches a
+  header row a parser separated from its body now applies only to a row that starts with a pipe, and only before a body
+  without a delimiter row of its own.
+- **Characters in Word and PowerPoint body text that Markdown reads as syntax are escaped again**: `a*b*c` →
+  `a\*b\*c`, backticks, `[` `]` and backslashes. Since 0.59.3 they reached the refined Markdown unescaped, so a
+  renderer showed emphasis, code spans and links that the document does not have, and dropped a backslash of a path. The
+  readers had asked the parsers for no escaping, and the parsers' current releases honour that. HWP/HWPX and the Excel
+  fallback (a workbook without sheet structure) take the same reader option now. **Extracted text changes** wherever body
+  text holds such characters.
+  - Not yet: a body paragraph that starts with `#`, `1.` or `* ` is still written as is, and so renders as a heading or a
+    list item. A UNC path `\server\share` loses one backslash. Both are reported to the parser.
+
 ## [0.61.0] - 2026-10-13
 
 ### Fixed

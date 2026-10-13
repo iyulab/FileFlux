@@ -52,6 +52,44 @@ public class TableNormalizationTests
         Assert.Equal(4, lines.Count);
     }
 
+    // A body paragraph that happens to contain pipes, then a complete table (header, delimiter, body). The paragraph is
+    // prose, not a header the parser separated: a GFM renderer would otherwise read it as the table's header row.
+    private const string ProseBeforeTable = """
+        가격 <10% 이상> 그리고 과 |파이프|
+
+        | 항목_이름 | 값 |
+        | --- | --- |
+        | a_b | 1 |
+        """;
+
+    [Fact]
+    public async Task Convert_ProseWithPipesBeforeACompleteTable_StaysAParagraph()
+    {
+        var raw = new RawContent { Text = ProseBeforeTable, File = new SourceFileInfo { Name = "a.docx", Extension = ".docx" } };
+
+        var result = await new MarkdownConverter().ConvertAsync(raw, new MarkdownConversionOptions { ConvertTables = true },
+            TestContext.Current.CancellationToken);
+
+        AssertProseThenTable(result.Markdown);
+    }
+
+    [Fact]
+    public void Normalize_ProseWithPipesBeforeACompleteTable_StaysAParagraph()
+    {
+        var result = new MarkdownNormalizer().Normalize(ProseBeforeTable, RefineTableOptions);
+
+        AssertProseThenTable(result.Markdown);
+    }
+
+    private static void AssertProseThenTable(string markdown)
+    {
+        var lines = markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Trim().Split('\n');
+        Assert.Equal("가격 <10% 이상> 그리고 과 |파이프|", lines[0]);
+        Assert.Equal(string.Empty, lines[1].Trim());
+        var table = lines.Skip(2).Where(l => l.Trim().Length > 0).ToList();
+        Assert.Equal(["| 항목_이름 | 값 |", "| --- | --- |", "| a_b | 1 |"], table);
+    }
+
     [Fact]
     public async Task Convert_PipeBlockWithoutDelimiter_GetsAnEmptyHeaderAsWideAsTheRows()
     {

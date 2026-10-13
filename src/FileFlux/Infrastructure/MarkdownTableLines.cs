@@ -38,6 +38,11 @@ internal static partial class MarkdownTableLines
     /// then a blank line, then the body without a delimiter row). Read on its own, such a header is a one-row "table"
     /// and its body a header-less one whose first data row would be promoted to header. A single pipe row followed,
     /// after blank lines only, by a pipe block of the same width becomes one table: header, delimiter, body.
+    /// <para>
+    /// Only a row a parser wrote qualifies — one that starts with a pipe — and only before a body that has no delimiter
+    /// row of its own. A paragraph whose text happens to hold two pipes, before a complete table, is prose: joining it
+    /// made it the table's header and pushed the real header down as a data row.
+    /// </para>
     /// </summary>
     internal static List<string> JoinDetachedHeaderRows(IReadOnlyList<string> lines)
     {
@@ -47,7 +52,7 @@ internal static partial class MarkdownTableLines
             var line = lines[i];
             result.Add(line);
 
-            var startsBlock = IsRow(line) && (i == 0 || !IsRow(lines[i - 1]));
+            var startsBlock = IsRow(line) && line.TrimStart().StartsWith('|') && (i == 0 || !IsRow(lines[i - 1]));
             var singleRow = startsBlock && (i + 1 >= lines.Count || !IsRow(lines[i + 1]));
             if (!singleRow || IsDelimiter(line))
                 continue;
@@ -57,7 +62,8 @@ internal static partial class MarkdownTableLines
                 next++;
 
             if (next == i + 1 || next >= lines.Count || !IsRow(lines[next]) || IsDelimiter(lines[next])
-                || CellCount(lines[next]) != CellCount(line))
+                || CellCount(lines[next]) != CellCount(line)
+                || (next + 1 < lines.Count && IsDelimiter(lines[next + 1])))
                 continue;
 
             result.Add(Delimiter(CellCount(line)));
