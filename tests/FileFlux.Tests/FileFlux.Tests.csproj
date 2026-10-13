@@ -49,6 +49,8 @@
     <!-- Reuse the committed real-world PDF (tests/test-pdf) as the Pdf reader extraction
          fixture without duplicating the 3 MB binary into Fixtures/. -->
     <None Include="..\test-pdf\oai_gpt-oss_model_card.pdf" Link="Fixtures\oai_gpt-oss_model_card.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The richest committed DOCX (styles, lists, tables, links) — the extraction golden's Word document. -->
+    <None Include="..\test-docx\demo.docx" Link="Fixtures\demo.docx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 
