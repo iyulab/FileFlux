@@ -124,6 +124,11 @@ public class MarkdownConverter : IMarkdownConverter
         var hasLists = rawContent.Hints?.ContainsKey("HasLists") == true;
         var hasImages = rawContent.Hints?.ContainsKey("HasImages") == true;
 
+        // A text that already has Markdown headings (a parser that read them from styles or font sizes) carries its own
+        // structure: a short all-caps line in it is a label, an acronym or a diagram's text, not a heading the parser missed.
+        // Only text without any heading gets headings inferred from casing.
+        var inferHeadingsFromCase = !Regex.IsMatch(text, @"^#{1,6}\s", RegexOptions.Multiline);
+
         bool inCodeBlock = false;
         bool inTable = false;
         var tableBuffer = new List<string>();
@@ -184,7 +189,7 @@ public class MarkdownConverter : IMarkdownConverter
             // 헤딩 감지 및 변환
             if (options.PreserveHeadings)
             {
-                var headingResult = DetectAndConvertHeading(line, trimmedLine, options, stats);
+                var headingResult = DetectAndConvertHeading(line, trimmedLine, options, stats, inferHeadingsFromCase);
                 if (headingResult != null)
                 {
                     sb.AppendLine(headingResult);
@@ -361,7 +366,8 @@ public class MarkdownConverter : IMarkdownConverter
         string originalLine,
         string trimmedLine,
         MarkdownConversionOptions options,
-        StructureStatistics stats)
+        StructureStatistics stats,
+        bool inferHeadingsFromCase)
     {
         // 이미 Markdown 헤딩인 경우
         var mdHeadingMatch = Regex.Match(trimmedLine, @"^(#{1,6})\s+(.+)$");
@@ -375,7 +381,7 @@ public class MarkdownConverter : IMarkdownConverter
         }
 
         // 대문자로만 이루어진 짧은 라인 → 헤딩으로 추론
-        if (trimmedLine.Length > 0 && trimmedLine.Length <= 100 &&
+        if (inferHeadingsFromCase && trimmedLine.Length > 0 && trimmedLine.Length <= 100 &&
             trimmedLine.Equals(trimmedLine.ToUpperInvariant(), StringComparison.Ordinal) &&
             !trimmedLine.All(c => char.IsPunctuation(c) || char.IsWhiteSpace(c)))
         {
@@ -384,7 +390,9 @@ public class MarkdownConverter : IMarkdownConverter
                 var level = AdjustHeadingLevel(2, options); // 대문자만 있으면 H2로 추론
                 stats.HeadingCount++;
                 UpdateHeadingDistribution(stats, level);
-                return new string('#', level) + " " + CultureAwareTitleCase(trimmedLine);
+                // The line's own text: rewriting its case changed the document (USB became Usb, a search for the label
+                // missed it).
+                return new string('#', level) + " " + trimmedLine;
             }
         }
 
@@ -413,21 +421,6 @@ public class MarkdownConverter : IMarkdownConverter
         if (!stats.HeadingLevelDistribution.ContainsKey(level))
             stats.HeadingLevelDistribution[level] = 0;
         stats.HeadingLevelDistribution[level]++;
-    }
-
-    private static string CultureAwareTitleCase(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return text;
-
-        var words = text.ToLowerInvariant().Split(' ');
-        for (int i = 0; i < words.Length; i++)
-        {
-            if (words[i].Length > 0)
-            {
-                words[i] = char.ToUpper(words[i][0], CultureInfo.InvariantCulture) + words[i][1..];
-            }
-        }
-        return string.Join(" ", words);
     }
 
     private static string? DetectAndConvertList(string originalLine, string trimmedLine)

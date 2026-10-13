@@ -369,13 +369,16 @@ public sealed partial class FluxDocumentProcessor
     {
         var lines = text.Split('\n').ToList();
         var result = new List<string>();
+        // How often each line occurs: a running header repeats on every page, a label or an acronym on its own line does not.
+        var occurrences = lines.Select(l => l.Trim()).Where(l => l.Length > 0)
+            .GroupBy(l => l, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
 
         for (int i = 0; i < lines.Count; i++)
         {
             var line = lines[i].Trim();
 
             // Skip common header/footer patterns
-            if (IsHeaderFooterLine(line))
+            if (IsHeaderFooterLine(line, occurrences.GetValueOrDefault(line)))
                 continue;
 
             result.Add(lines[i]);
@@ -384,7 +387,7 @@ public sealed partial class FluxDocumentProcessor
         return string.Join("\n", result);
     }
 
-    private static bool IsHeaderFooterLine(string line)
+    private static bool IsHeaderFooterLine(string line, int occurrences)
     {
         if (string.IsNullOrWhiteSpace(line))
             return false;
@@ -428,7 +431,7 @@ public sealed partial class FluxDocumentProcessor
         }
 
         // Check for very short lines that are likely headers (e.g., company name, document title repeated)
-        if (line.Length < 30 && IsLikelyRepeatedHeader(line))
+        if (line.Length < 30 && IsLikelyRepeatedHeader(line, occurrences))
             return true;
 
         return false;
@@ -437,10 +440,15 @@ public sealed partial class FluxDocumentProcessor
     /// <summary>
     /// Check if a short line is likely a repeated header (document title, company name, etc.)
     /// </summary>
-    private static bool IsLikelyRepeatedHeader(string line)
+    /// <summary>How many times a short all-caps line must occur to be taken for a running header.</summary>
+    private const int MinRepeatedHeaderOccurrences = 3;
+
+    private static bool IsLikelyRepeatedHeader(string line, int occurrences)
     {
-        // Lines that are all uppercase and short are often headers
-        if (line.Length < 20 && line.All(c => !char.IsLetter(c) || char.IsUpper(c)) && !line.Any(char.IsDigit) && line.Length > 2)
+        // A short all-caps line that repeats (a company name or title at the top of every page). Once only, it is the
+        // document's own text — a heading, a WARNING, an acronym — and removing it deleted content: a two-page document
+        // whose pages said PAGE ONE and PAGE TWO came out empty.
+        if (occurrences >= MinRepeatedHeaderOccurrences && line.Length < 20 && line.All(c => !char.IsLetter(c) || char.IsUpper(c)) && !line.Any(char.IsDigit) && line.Length > 2)
             return true;
 
         return false;

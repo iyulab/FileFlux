@@ -5,6 +5,21 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A short all-caps line is no longer turned into a title-cased heading in text that already has headings.** Refine
+  promoted any all-caps line of up to 100 characters to `##` and rewrote it in title case, so a datasheet's pin and
+  register labels (`VSS`, `SDA`, `START`) became headings (`## Vss`, `## Start`) and the label text itself changed. Text
+  that already carries Markdown headings (from the parser's font sizes or styles) keeps its labels as they are; plain text
+  without any heading still gets its all-caps lines as headings, now in their own case (`## USB CONFIGURATION`, not
+  `## Usb Configuration`). **Extracted text changes**: on two datasheets 140 and 115 invented headings are gone, and a
+  heading under a removed one moves up a level.
+- **The legacy processor no longer deletes a short all-caps line that occurs once.** Its header/footer filter removed
+  every all-caps line under 20 characters as a «repeated header» without checking that it repeated — a `WARNING`, an
+  acronym on its own line, or a heading went missing (a two-page document whose pages read `PAGE ONE` / `PAGE TWO` came out
+  with no chunks). Such a line is now removed only when it occurs three times or more.
+
 ## [0.62.0] - 2026-10-13
 
 ### Added

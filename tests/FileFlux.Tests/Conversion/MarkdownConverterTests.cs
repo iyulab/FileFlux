@@ -100,6 +100,34 @@ public class MarkdownConverterTests
     }
 
     [Fact]
+    public async Task ConvertAsync_AllCapsHeading_KeepsItsOwnCase()
+    {
+        // The heading is the line as the document has it: title-casing it turned USB into Usb and a label search missed it.
+        var rawContent = new RawContent { Text = "USB CONFIGURATION\nSome content here" };
+
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Contains("## USB CONFIGURATION", result.Markdown, StringComparison.Ordinal);
+        Assert.DoesNotContain("Usb", result.Markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ConvertAsync_TextThatHasHeadings_DoesNotTurnAllCapsLabelsIntoHeadings()
+    {
+        // A parser's Markdown (PDF font sizes, Word styles) already carries the headings; a short all-caps line in it is a
+        // diagram label or an acronym — a datasheet's timing diagram came out as «## Start» and «## Rp».
+        var rawContent = new RawContent { Text = "# I2C timing\n\nThe bus sequence is shown below.\n\nSTART\n\nRP\n\nSTOP\n" };
+
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("## START", result.Markdown, StringComparison.Ordinal);
+        Assert.DoesNotContain("## Start", result.Markdown, StringComparison.Ordinal);
+        Assert.Contains("\nSTART", result.Markdown, StringComparison.Ordinal);
+        Assert.Contains("\nRP", result.Markdown, StringComparison.Ordinal);
+        Assert.Contains("# I2C timing", result.Markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ConvertAsync_NumberedSection_ConvertsToHeading()
     {
         // Arrange
