@@ -46,6 +46,9 @@ public sealed class ExtractionGoldenTests : IDisposable
         "legacy-korean.xls",
         "two-column-narrow-gutter.pdf",
         "form-xobject-text.pdf",
+        // A real paper with ruled tables, merged header cells and two-column pages: the only PDF here whose tables a
+        // parser move can change (Unpdf 0.43.0 changed 50 of its lines; the two PDFs above did not move).
+        "oai_gpt-oss_model_card.pdf",
         GeneratedHwpx,
         GeneratedMarkdownChars,
     ];

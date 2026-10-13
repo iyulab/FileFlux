@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **A PDF whose cross-reference table is damaged opens, and says it was repaired.** A file cut short or saved with
+  offsets that point where its objects are not used to fail with `PdfParse`; the parser now rebuilds the table from the
+  objects in the file. The reader reports it as `Hints["xref_reconstructed"] = true` (`DocumentProps` on `ReadAsync`)
+  with a warning, plus `declared_page_count` when the document declares one. The status is not lowered for the rebuild
+  alone — `pages_incomplete` still says whether pages are known to be missing.
+
+### Changed
+- **PDF: the parser moves from Unpdf 0.41.0 to 0.43.0, and extracted text changes for PDFs with ruled tables, merged
+  cells or rotated text.** Measured on 24 PDFs (papers, datasheets, manuals, Korean forms and proposals): 13 change, none
+  fails. What changes:
+  - A ruled table whose sides are not drawn keeps its first and last columns. Before, their header cells were appended to
+    the text above and their data cells became a second table or loose text.
+  - Merged cells are read as one cell (`구 분`, not `구` | `분`), and every Markdown row is as wide as the table: the
+    merged text sits in the first position it covers, the others are empty. PDF tables in `RawContent.Tables` now carry
+    `TableData.MergedCells`.
+  - A table ruled only above, under its header and below has one row per record, where all values of a column used to
+    share one cell.
+  - Text turned on the page (axis labels, turned column heads, a stamp up the margin) is a line of its own, no longer
+    mixed into the text beside it or taken for a heading. Two columns under a short running head are read one after the
+    other. A word gap drawn with character spacing is a space (`abilityand` → `ability and`).
+  - Known regressions, reported to the parser: in datasheet register maps the end labels `bit 7` … `bit 0` become one
+    cell, and row labels of a rotated table can merge (`AF11 AF12 AF13 AF14 AF15`), moving values between rows; a value
+    spanning Min/Typ/Max columns is written under Min in Markdown (the structured `TableData` keeps the span); in one
+    document a wrapped cell of a table without body rules was split into one row per line.
+
 ### Fixed
 - **A paragraph that contains pipes is no longer merged into the table after it.** A body paragraph such as
   `… 과 |파이프|`, followed by a table, became that table's header row: the blank line between them was dropped and a

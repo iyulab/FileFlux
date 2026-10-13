@@ -41,6 +41,15 @@ public partial class PdfDocumentReader : IDocumentReader
     internal const string DeclaredPageCountKey = "declared_page_count";
 
     /// <summary>
+    /// Diagnostic key stating that the file's cross-reference table could not be used and the parser rebuilt it from the
+    /// objects in the file (Unpdf 0.42.0 <c>ExtractionQuality.XrefReconstructed</c>). Such a file — cut short, saved
+    /// badly — used to fail to parse; it now opens. The text is what the file still holds, so this flag says the
+    /// document was damaged without saying that anything is missing: <see cref="PagesIncompleteKey"/> does that.
+    /// <see cref="DeclaredPageCountKey"/> is published with it when the document declares a count.
+    /// </summary>
+    internal const string XrefReconstructedKey = "xref_reconstructed";
+
+    /// <summary>
     /// Diagnostic key stating how many text runs the font decoder could not resolve and
     /// discarded (Unpdf 0.12.0 <c>ExtractionQuality.SuppressedTextRuns</c>). A run is one
     /// text string handed to the decoder (a <c>Tj</c> operand); the decoder drops it rather
@@ -183,12 +192,19 @@ public partial class PdfDocumentReader : IDocumentReader
             // Stage 0 states the page count, so it is the surface where a short page set is
             // most easily mistaken for a whole document. The same signal the extract stage
             // publishes has to reach here too.
-            var (pagesIncomplete, declaredPageCount) = ReadPageIntegrity(doc);
+            var (pagesIncomplete, declaredPageCount, xrefReconstructed) = ReadPageIntegrity(doc);
+            if ((pagesIncomplete || xrefReconstructed) && declaredPageCount is long declared)
+                result.DocumentProps[DeclaredPageCountKey] = declared;
+
+            if (xrefReconstructed)
+            {
+                result.DocumentProps[XrefReconstructedKey] = true;
+                result.Warnings.Add(XrefReconstructedWarning);
+            }
+
             if (pagesIncomplete)
             {
                 result.DocumentProps[PagesIncompleteKey] = true;
-                if (declaredPageCount is long declared)
-                    result.DocumentProps[DeclaredPageCountKey] = declared;
 
                 result.Warnings.Add("Pages are missing from this document: the PDF is damaged and only " +
                                     "part of its page tree could be read. The page count below is not " +
@@ -470,12 +486,22 @@ public partial class PdfDocumentReader : IDocumentReader
         // as the whole document — a silent deletion of answers rather than a wrong one.
         // Placed after the empty-document classification, which only runs while the status
         // is still Completed: both facts can hold at once and neither may mask the other.
-        var (pagesIncomplete, declaredPageCount) = ReadPageIntegrity(doc);
+        var (pagesIncomplete, declaredPageCount, xrefReconstructed) = ReadPageIntegrity(doc);
+        if ((pagesIncomplete || xrefReconstructed) && declaredPageCount is long declared)
+            structuralHints[DeclaredPageCountKey] = declared;
+
+        // Unpdf 0.42.0 rebuilds an unusable cross-reference table instead of failing with PdfParse. The document opened
+        // only because it was repaired, which a consumer indexing it should be told; whether pages are missing is the
+        // separate pages_incomplete fact, so the status is not lowered for the rebuild alone.
+        if (xrefReconstructed)
+        {
+            structuralHints[XrefReconstructedKey] = true;
+            warnings.Add(XrefReconstructedWarning);
+        }
+
         if (pagesIncomplete)
         {
             structuralHints[PagesIncompleteKey] = true;
-            if (declaredPageCount is long declared)
-                structuralHints[DeclaredPageCountKey] = declared;
 
             warnings.Add("Pages are missing from this extraction: the PDF is damaged and only part " +
                          "of its page tree could be read. The extracted text is not the whole document.");
@@ -719,18 +745,22 @@ public partial class PdfDocumentReader : IDocumentReader
     /// unreadable. Introspection failure is reported as "no known damage": the reader must
     /// not invent an incompleteness warning it has no evidence for.
     /// </summary>
-    private static (bool PagesIncomplete, long? DeclaredPageCount) ReadPageIntegrity(UnpdfDocument doc)
+    private static (bool PagesIncomplete, long? DeclaredPageCount, bool XrefReconstructed) ReadPageIntegrity(UnpdfDocument doc)
     {
         try
         {
             var quality = doc.GetExtractionQuality();
-            return (quality.PagesIncomplete, quality.DeclaredPageCount);
+            return (quality.PagesIncomplete, quality.DeclaredPageCount, quality.XrefReconstructed);
         }
         catch (UnpdfException)
         {
-            return (false, null);
+            return (false, null, false);
         }
     }
+
+    private const string XrefReconstructedWarning =
+        "The PDF's cross-reference table was damaged and was rebuilt from the objects in the file. The text is what the " +
+        "file still holds; a damaged file may hold less than it once did.";
 
     /// <summary>
     /// Reads Unpdf's decode-loss counter. <c>SuppressedTextRuns</c> is the document-level

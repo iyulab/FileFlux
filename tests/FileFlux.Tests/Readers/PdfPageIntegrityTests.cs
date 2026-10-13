@@ -175,6 +175,47 @@ public class PdfPageIntegrityTests : IDisposable
     }
 
     [Fact]
+    public async Task ExtractAsync_BrokenCrossReferenceTable_OpensAndSaysTheTableWasRebuilt()
+    {
+        // Every xref offset points a few bytes past its object (a bad save). Unpdf 0.42.0 rebuilds the table from the
+        // objects instead of failing with PdfParse; the reader says so, and nothing is missing.
+        var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: false, xrefOffsetShift: 7));
+
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Contains("PAGE ONE", content.Text, StringComparison.Ordinal);
+        Assert.Contains("PAGE TWO", content.Text, StringComparison.Ordinal);
+        Assert.Equal(true, content.Hints["xref_reconstructed"]);
+        Assert.Equal(2L, content.Hints["declared_page_count"]);
+        Assert.False(content.Hints.ContainsKey("pages_incomplete"));
+        Assert.Equal(ProcessingStatus.Completed, content.Status);
+        Assert.Contains(content.Warnings, w => w.Contains("rebuilt", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ReadAsync_BrokenCrossReferenceTable_CarriesTheSameSignal()
+    {
+        var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: false, xrefOffsetShift: 7));
+
+        var result = await _reader.ReadAsync(path, TestContext.Current.CancellationToken);
+
+        Assert.Equal(true, result.DocumentProps["xref_reconstructed"]);
+        Assert.Equal(2, result.DocumentProps["page_count"]);
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_IntactPdf_DoesNotSayTheTableWasRebuilt()
+    {
+        var path = WriteTempPdf(BuildTwoPagePdf(damageSecondPage: false));
+
+        var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.False(content.Hints.ContainsKey("xref_reconstructed"));
+        Assert.DoesNotContain(content.Warnings, w => w.Contains("rebuilt", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ExtractAsync_RealWorldPdf_ShouldNotFlagIncompleteness()
     {
         // A synthetic control cannot rule out false positives on real generator output.
@@ -189,7 +230,8 @@ public class PdfPageIntegrityTests : IDisposable
     /// the second kid is written as an unterminated dictionary: the node cannot be resolved,
     /// its page never reaches the output, and the document still parses and extracts.
     /// </summary>
-    private static byte[] BuildTwoPagePdf(bool damageSecondPage)
+    /// <remarks>A non-zero <paramref name="xrefOffsetShift"/> writes every xref offset that many bytes past its object.</remarks>
+    private static byte[] BuildTwoPagePdf(bool damageSecondPage, int xrefOffsetShift = 0)
     {
         static string Page(int contentsObject) =>
             "<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]/Resources<</Font<</F1 6 0 R>>>>" +
@@ -222,7 +264,7 @@ public class PdfPageIntegrityTests : IDisposable
         var xref = buffer.Position;
         Write(buffer, $"xref\n0 {objects.Length + 1}\n0000000000 65535 f \n");
         foreach (var offset in offsets)
-            Write(buffer, $"{offset:D10} 00000 n \n");
+            Write(buffer, $"{offset + xrefOffsetShift:D10} 00000 n \n");
         Write(buffer, $"trailer<</Size {objects.Length + 1}/Root 1 0 R>>\nstartxref\n{xref}\n%%EOF\n");
 
         return buffer.ToArray();
