@@ -19,6 +19,12 @@ public sealed class ExtractionGoldenTests : IDisposable
     /// <summary>Generated, so HWPX is covered without committing a document made in Hangul.</summary>
     private const string GeneratedHwpx = "generated-paragraphs.hwpx";
 
+    /// <summary>
+    /// Generated: body text holding every character Markdown reads as syntax, then a table. A parser move that changes how
+    /// prose is escaped (FileFlux 0.59.3 stopped escaping it) changes this document's text.
+    /// </summary>
+    private const string GeneratedMarkdownChars = "generated-markdown-characters.docx";
+
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "FileFluxExtractionGolden", Guid.NewGuid().ToString("N"));
 
     public ExtractionGoldenTests() => Directory.CreateDirectory(_dir);
@@ -41,13 +47,19 @@ public sealed class ExtractionGoldenTests : IDisposable
         "two-column-narrow-gutter.pdf",
         "form-xobject-text.pdf",
         GeneratedHwpx,
+        GeneratedMarkdownChars,
     ];
 
     [Theory]
     [MemberData(nameof(Documents))]
     public async Task RefinedText_MatchesTheGolden(string document)
     {
-        var path = document == GeneratedHwpx ? WriteHwpx() : Path.Combine(AppContext.BaseDirectory, "Fixtures", document);
+        var path = document switch
+        {
+            GeneratedHwpx => WriteHwpx(),
+            GeneratedMarkdownChars => WriteMarkdownCharsDocx(),
+            _ => Path.Combine(AppContext.BaseDirectory, "Fixtures", document),
+        };
         var services = new ServiceCollection();
         services.AddFileFlux();
         await using var provider = services.BuildServiceProvider();
@@ -81,6 +93,23 @@ public sealed class ExtractionGoldenTests : IDisposable
             "Second body paragraph of a generated document.",
             "세 번째 본문 문단입니다.",
         ]);
+        return path;
+    }
+
+    private string WriteMarkdownCharsDocx()
+    {
+        var path = Path.Combine(_dir, GeneratedMarkdownChars);
+        DocxBuilder.Write(path,
+        [
+            "* A sentence that starts with an asterisk.",
+            "1. A sentence that starts with a number and a dot.",
+            "# A sentence that starts with a hash.",
+            "> A sentence that starts with a greater-than sign.",
+            "snake_case_name, a*b*c, __init__, [brackets](parentheses) and <angle> brackets.",
+            @"A path C:\dir\file.txt and a share \\server\share\doc.docx.",
+            "Backticks `around words` and a price | with | pipes.",
+        ],
+        [["Name_with_underscores", "Value*"], ["a_b", "[1]"]]);
         return path;
     }
 

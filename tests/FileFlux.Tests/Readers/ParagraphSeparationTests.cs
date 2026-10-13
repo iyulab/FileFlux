@@ -1,5 +1,3 @@
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
 using FileFlux.Core;
 using FileFlux.Core.Infrastructure.Readers;
 using FileFlux.Infrastructure;
@@ -106,15 +104,7 @@ public sealed class ParagraphSeparationTests : IDisposable
     private string WriteDocx()
     {
         var path = Path.Combine(_dir, "paragraphs.docx");
-        using (var doc = WordprocessingDocument.Create(path, DocumentFormat.OpenXml.WordprocessingDocumentType.Document))
-        {
-            var main = doc.AddMainDocumentPart();
-            var body = new Body();
-            foreach (var paragraph in Paragraphs)
-                body.Append(new Paragraph(new Run(new Text(paragraph))));
-            main.Document = new Document(body);
-            main.Document.Save();
-        }
+        DocxBuilder.Write(path, Paragraphs);
         return path;
     }
 

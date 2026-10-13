@@ -1,6 +1,5 @@
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
 using FileFlux.Core;
+using FileFlux.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -26,7 +25,7 @@ public sealed class BodyTextEscapingTests : IDisposable
         WriteDocx(
             [
                 "snake_case_name 과 a*b*c 그리고 [대괄호](괄호) 표기",
-                @"경로 C:\dir\file.txt",
+                @"경로 C:\dir\file.txt 와 \\server\share\문서.docx",
                 "가격 <10% 이상> 그리고 `백틱` 과 |파이프|",
             ],
             [("항목_이름", "값"), ("a_b", "1")]);
@@ -41,6 +40,7 @@ public sealed class BodyTextEscapingTests : IDisposable
         Assert.Contains(@"a\*b\*c", text, StringComparison.Ordinal);
         Assert.Contains(@"\[대괄호\](괄호)", text, StringComparison.Ordinal);
         Assert.Contains(@"C:\\dir\\file.txt", text, StringComparison.Ordinal);
+        Assert.Contains(@"\\\\server\\share\\문서.docx", text, StringComparison.Ordinal);
         Assert.Contains(@"\`백틱\`", text, StringComparison.Ordinal);
 
         var lines = text.Split('\n');
@@ -51,18 +51,6 @@ public sealed class BodyTextEscapingTests : IDisposable
         Assert.Equal("| --- | --- |", lines[tableStart + 1]);
     }
 
-    private void WriteDocx(string[] paragraphs, (string, string)[] rows)
-    {
-        using var doc = WordprocessingDocument.Create(_path, DocumentFormat.OpenXml.WordprocessingDocumentType.Document);
-        var main = doc.AddMainDocumentPart();
-        var body = new Body();
-        foreach (var paragraph in paragraphs)
-            body.Append(new Paragraph(new Run(new Text(paragraph) { Space = DocumentFormat.OpenXml.SpaceProcessingModeValues.Preserve })));
-        var table = new Table();
-        foreach (var (a, b) in rows)
-            table.Append(new TableRow(new TableCell(new Paragraph(new Run(new Text(a)))), new TableCell(new Paragraph(new Run(new Text(b))))));
-        body.Append(table);
-        main.Document = new Document(body);
-        main.Document.Save();
-    }
+    private void WriteDocx(string[] paragraphs, (string, string)[] rows) =>
+        DocxBuilder.Write(_path, paragraphs, rows.Select(r => new[] { r.Item1, r.Item2 }));
 }
