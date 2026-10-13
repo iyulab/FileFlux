@@ -246,12 +246,7 @@ public class PowerPointDocumentReader : IDocumentReader
         using var doc = UndocDocument.ParseFile(filePath);
 
         // Convert to Markdown using Undoc native library
-        var markdown = doc.ToMarkdown(new MarkdownOptions
-        {
-            IncludeFrontmatter = false,
-            EscapeSpecialChars = false,
-            ParagraphSpacing = true  // Better readability for slides
-        });
+        var markdown = doc.ToMarkdown(ParserMarkdownOptions.Office());
 
         // Remove null bytes
         markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
@@ -335,12 +330,7 @@ public class PowerPointDocumentReader : IDocumentReader
         using var doc = UndocDocument.ParseBytes(bytes);
 
         // Convert to Markdown using Undoc native library
-        var markdown = doc.ToMarkdown(new MarkdownOptions
-        {
-            IncludeFrontmatter = false,
-            EscapeSpecialChars = false,
-            ParagraphSpacing = true
-        });
+        var markdown = doc.ToMarkdown(ParserMarkdownOptions.Office());
 
         // Remove null bytes
         markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));

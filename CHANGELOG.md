@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Body paragraphs of Word, HWP and HWPX documents are separate Markdown paragraphs again.** Since 0.59.3, consecutive
+  paragraphs arrived on adjacent lines with no blank line between them, so a Markdown renderer showed one run-on paragraph
+  and a paragraph-based chunker saw one block. Headings were not affected.
+  - **Extracted text changes** for `.docx`, `.doc`, `.hwp` and `.hwpx` (every body paragraph now ends with a blank line),
+    for `.xlsx` workbooks that come back without sheet structure, and for the opt-in native Office reader
+    (`AddNativeOfficeReader`), which had the same defect. PDF, PPTX and the table text of workbooks do not change.
+    Documents extracted with 0.59.3 should be extracted again.
+  - Cause: the readers asked the parsers for no paragraph spacing. Up to `Undoc` 0.19 / `Unhwp` 0.15 that option only
+    removed *extra* spacing; from `Undoc` 0.23 / `Unhwp` 0.19 it removes the blank line itself. Every reader now takes its
+    parser options from one definition, which keeps the blank line.
+
 ### Documentation
 - **The examples in `docs/ARCHITECTURE.md` match the library and are compiled by the tests.** The custom reader example
   implements every `IDocumentReader` member (the stream overloads were missing); the package-selection example gets a reader
@@ -25,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 - Parser libraries moved to their current releases: `Unpdf` 0.35.0 -> 0.41.0, `Undoc` 0.19.0 -> 0.23.0, `Unhwp` 0.15.0 -> 0.19.0.
+  - **Known issue (found after release): this move changed the extracted text of Word and HWP documents** — body
+    paragraphs lost the blank line between them. Fixed in 0.60.0.
 - Re-pinned sibling packages `LMSupply.Captioner`, `LMSupply.Core`, `LMSupply.Embedder`, `LMSupply.Generator`, `LMSupply.Ocr` and `LMSupply.Transcriber` 0.118.0 -> 0.120.0.
 
 ## [0.59.2] - 2026-10-12

@@ -415,12 +415,7 @@ public class ExcelDocumentReader : IDocumentReader
         var sections = ParserTableJson.ReadSections(doc.ToJson(compact: true));
         if (sections.Count == 0)
         {
-            var fallback = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(doc.ToMarkdown(new MarkdownOptions
-            {
-                IncludeFrontmatter = false,
-                EscapeSpecialChars = false,
-                ParagraphSpacing = false
-            }))).Trim();
+            var fallback = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(doc.ToMarkdown(ParserMarkdownOptions.Office()))).Trim();
             return (fallback, [], []);
         }
 

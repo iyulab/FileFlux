@@ -234,12 +234,7 @@ public partial class WordDocumentReader : IDocumentReader
         using var doc = UndocDocument.ParseFile(filePath);
 
         // Convert to Markdown using Undoc native library
-        var markdown = doc.ToMarkdown(new MarkdownOptions
-        {
-            IncludeFrontmatter = false,
-            EscapeSpecialChars = false,
-            ParagraphSpacing = false
-        });
+        var markdown = doc.ToMarkdown(ParserMarkdownOptions.Office());
 
         // Remove null bytes
         markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
@@ -329,12 +324,7 @@ public partial class WordDocumentReader : IDocumentReader
         using var doc = UndocDocument.ParseBytes(bytes);
 
         // Convert to Markdown using Undoc native library
-        var markdown = doc.ToMarkdown(new MarkdownOptions
-        {
-            IncludeFrontmatter = false,
-            EscapeSpecialChars = false,
-            ParagraphSpacing = false
-        });
+        var markdown = doc.ToMarkdown(ParserMarkdownOptions.Office());
 
         // Remove null bytes
         markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));

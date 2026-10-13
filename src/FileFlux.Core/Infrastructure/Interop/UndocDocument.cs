@@ -127,7 +127,7 @@ public sealed class UndocDocument : IDisposable
         if (_loader.ToMarkdown == null)
             return string.Empty;
 
-        var ptr = _loader.ToMarkdown(_handle, (int)UndocMarkdownFlags.None);
+        var ptr = _loader.ToMarkdown(_handle, (int)UndocMarkdownFlags.ParagraphSpacing);
         if (ptr == IntPtr.Zero)
             return string.Empty;
 

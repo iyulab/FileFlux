@@ -392,7 +392,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
         if (loader.ToMarkdown == null)
             throw new InvalidOperationException("Native library not properly loaded - ToMarkdown not available");
 
-        var markdownPtr = loader.ToMarkdown(docHandle, (int)UndocMarkdownFlags.None);
+        var markdownPtr = loader.ToMarkdown(docHandle, (int)UndocMarkdownFlags.ParagraphSpacing);
         if (markdownPtr == IntPtr.Zero)
         {
             var error = loader.GetLastError();
@@ -499,7 +499,7 @@ public sealed partial class OfficeNativeDocumentReader : IDocumentReader
         if (loader.ToMarkdown == null)
             throw new InvalidOperationException("Native library not properly loaded - ToMarkdown not available");
 
-        var markdownPtr = loader.ToMarkdown(docHandle, (int)UndocMarkdownFlags.None);
+        var markdownPtr = loader.ToMarkdown(docHandle, (int)UndocMarkdownFlags.ParagraphSpacing);
         if (markdownPtr == IntPtr.Zero)
         {
             var error = loader.GetLastError();

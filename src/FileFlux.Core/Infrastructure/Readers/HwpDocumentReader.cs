@@ -214,12 +214,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
         // Parse and convert to Markdown using Unhwp native library
         using var doc = UnhwpDocument.ParseFile(filePath);
-        var markdown = doc.ToMarkdown(new MarkdownOptions
-        {
-            IncludeFrontmatter = false,
-            EscapeSpecialChars = false,
-            ParagraphSpacing = false
-        });
+        var markdown = doc.ToMarkdown(ParserMarkdownOptions.Hwp());
 
         // Remove null bytes
         markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
@@ -295,12 +290,7 @@ public sealed partial class HwpDocumentReader : IDocumentReader
 
         // Parse and convert to Markdown using Unhwp native library
         using var doc = UnhwpDocument.ParseBytes(bytes);
-        var markdown = doc.ToMarkdown(new MarkdownOptions
-        {
-            IncludeFrontmatter = false,
-            EscapeSpecialChars = false,
-            ParagraphSpacing = false
-        });
+        var markdown = doc.ToMarkdown(ParserMarkdownOptions.Hwp());
 
         // Remove null bytes
         markdown = ImageAltText.CleanMarkdown(TextSanitizer.RemoveNullBytes(markdown));
