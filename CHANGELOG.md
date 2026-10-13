@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.60.0] - 2026-10-13
 
 ### Fixed
 - **Body paragraphs of Word, HWP and HWPX documents are separate Markdown paragraphs again.** Since 0.59.3, consecutive
