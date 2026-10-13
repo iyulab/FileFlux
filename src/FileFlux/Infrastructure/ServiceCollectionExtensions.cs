@@ -73,7 +73,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILanguageProfileProvider, DefaultLanguageProfileProvider>();
 
         // Reader factory (configurable lifetime). The factory prefers the reader registered last for an extension, so the
-        // built-ins go first and every reader the caller added (AddDocumentReader, AddNativeOfficeReader, a plain
+        // built-ins go first and every reader the caller added (AddDocumentReader, a plain
         // AddTransient<IDocumentReader, …>) goes after them, whichever side of AddFileFlux() it was registered on.
         services.Add(new ServiceDescriptor(
             typeof(IDocumentReaderFactory),
@@ -291,51 +291,6 @@ public static class ServiceCollectionExtensions
     {
         services.AddTransient<IDocumentReader, T>();
         return services;
-    }
-
-    /// <summary>
-    /// Adds OfficeNativeDocumentReader for high-performance DOCX, XLSX, PPTX processing.
-    /// Uses the undoc native library (Rust-based). The binary is downloaded on-demand from GitHub
-    /// releases on first use; ongoing self-update is OFF by default (the cached/pinned binary is reused).
-    /// </summary>
-    /// <remarks>
-    /// The native reader provides:
-    /// - Faster processing compared to managed libraries
-    /// - Better CJK text handling
-    /// - Parallel section processing
-    /// - Optional background self-update (opt-in via UndocNativeLoader.AutoUpdateEnabled or the
-    ///   FILEFLUX_NATIVE_AUTOUPDATE environment variable; off by default for reproducibility)
-    ///
-    /// The native reader takes precedence over the built-in DOCX/XLSX/PPTX readers whether this is called before or after
-    /// AddFileFlux(). (It used to lose to them: the reader factory prefers the reader registered last, and the built-ins
-    /// were registered after it.)
-    /// </remarks>
-    public static IServiceCollection AddNativeOfficeReader(this IServiceCollection services)
-    {
-        // Register native reader (will be selected by DocumentReaderFactory based on extension)
-        services.AddTransient<IDocumentReader, OfficeNativeDocumentReader>();
-        return services;
-    }
-
-    /// <summary>
-    /// Adds FileFlux with native Office reader as the primary handler for DOCX, XLSX, PPTX.
-    /// </summary>
-    /// <param name="services">Service collection</param>
-    /// <param name="lifetime">Service lifetime (default: Scoped)</param>
-    /// <returns>Service collection for chaining</returns>
-    /// <remarks>
-    /// This is equivalent to:
-    /// <code>
-    /// services.AddNativeOfficeReader();
-    /// services.AddFileFlux(lifetime);
-    /// </code>
-    /// </remarks>
-    public static IServiceCollection AddFileFluxWithNativeOffice(
-        this IServiceCollection services,
-        ServiceLifetime lifetime = ServiceLifetime.Scoped)
-    {
-        services.AddNativeOfficeReader();
-        return AddFileFlux(services, lifetime);
     }
 
     /// <summary>

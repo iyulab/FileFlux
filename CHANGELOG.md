@@ -12,12 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paragraphs arrived on adjacent lines with no blank line between them, so a Markdown renderer showed one run-on paragraph
   and a paragraph-based chunker saw one block. Headings were not affected.
   - **Extracted text changes** for `.docx`, `.doc`, `.hwp` and `.hwpx` (every body paragraph now ends with a blank line),
-    for `.xlsx` workbooks that come back without sheet structure, and for the opt-in native Office reader
-    (`AddNativeOfficeReader`), which had the same defect. PDF, PPTX and the table text of workbooks do not change.
-    Documents extracted with 0.59.3 should be extracted again.
+    and for `.xlsx` workbooks that come back without sheet structure. PDF, PPTX and the table text of workbooks do not
+    change. Documents extracted with 0.59.3 should be extracted again.
   - Cause: the readers asked the parsers for no paragraph spacing. Up to `Undoc` 0.19 / `Unhwp` 0.15 that option only
     removed *extra* spacing; from `Undoc` 0.23 / `Unhwp` 0.19 it removes the blank line itself. Every reader now takes its
     parser options from one definition, which keeps the blank line.
+
+### Removed
+- **Breaking: the separate native Office reader is gone — `AddNativeOfficeReader()`, `AddFileFluxWithNativeOffice()`,
+  `OfficeNativeDocumentReader` and the `FileFlux.Core.Infrastructure.Interop` types (`UndocNativeLoader`, `UndocDocument`,
+  `UndocMarkdownFlags` and their companions), along with the `FILEFLUX_NATIVE_AUTOUPDATE` variable.** The reader ran the same
+  native library the built-in DOCX/XLSX/PPTX readers already use through the `Undoc` package, but downloaded its own copy
+  from GitHub at run time instead of using the one that package ships, and that download no longer matched the release's
+  file names: on a machine without a cached copy, every Office document failed with «Could not find library asset». The
+  built-in readers also return tables as `TableData`, which this reader did not.
+  - Migration: remove the call. `AddFileFlux()` serves `.docx`, `.xlsx` and `.pptx` with the built-in readers.
 
 ### Documentation
 - **The examples in `docs/ARCHITECTURE.md` match the library and are compiled by the tests.** The custom reader example
@@ -37,8 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 - Parser libraries moved to their current releases: `Unpdf` 0.35.0 -> 0.41.0, `Undoc` 0.19.0 -> 0.23.0, `Unhwp` 0.15.0 -> 0.19.0.
-  - **Known issue (found after release): this move changed the extracted text of Word and HWP documents** — body
-    paragraphs lost the blank line between them. Fixed in 0.60.0.
+  - **Known issue (found after release): this move changed the extracted text of Word and HWP documents.** Body
+    paragraphs lost the blank line between them (fixed in 0.60.0). The new `Undoc` also writes text formatted by a
+    paragraph or character style (Emphasis, Strong, Intense Emphasis) as Markdown emphasis, and wraps hyperlink text in
+    `<u>…</u>`.
 - Re-pinned sibling packages `LMSupply.Captioner`, `LMSupply.Core`, `LMSupply.Embedder`, `LMSupply.Generator`, `LMSupply.Ocr` and `LMSupply.Transcriber` 0.118.0 -> 0.120.0.
 
 ## [0.59.2] - 2026-10-12

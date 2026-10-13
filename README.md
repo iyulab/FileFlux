@@ -14,7 +14,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 ### Key Features
 
 - **5-Stage Stateful Pipeline**: Extract → Rule-Refine → LLM-Refine → Chunk → Enrich
-- **Native Document Readers**: Rust FFI-based readers (Unpdf, Undoc, Unhwp) for 2-5x faster processing. Binaries are NuGet-pinned for reproducibility; runtime self-update from GitHub releases is opt-in (off by default — set `UndocNativeLoader.AutoUpdateEnabled = true` or the `FILEFLUX_NATIVE_AUTOUPDATE=1` environment variable)
+- **Native Document Readers**: Rust FFI-based readers (Unpdf, Undoc, Unhwp) for 2-5x faster processing. The native binaries ship inside the parser NuGet packages, pinned per FileFlux release; nothing is downloaded at run time
 - **Multiple Document Formats**: PDF, DOCX, XLSX, PPTX, HWP, HWPX, Markdown, HTML, TXT, JSON, CSV
 - **Chunking Strategies**: Auto, Sentence, Paragraph, Token, Hierarchical, Semantic (`ChunkingStrategies` — see [Chunking Strategies](#chunking-strategies))
 - **Interface-Driven AI**: Define AI service interfaces, implement with your preferred provider
@@ -243,8 +243,7 @@ services.AddFileFlux();
 
 `AddFileFlux(ServiceLifetime.Singleton)` registers the pipeline with the lifetime of a singleton or hosted consumer (default
 `Scoped`); `AddDocumentReader<T>()` / `AddDocumentParser<T>()` add your own reader or parser for a format — an added reader wins
-over the built-in one for its extensions, registered before or after `AddFileFlux()` (`AddNativeOfficeReader()` uses this for the
-native DOCX/XLSX/PPTX reader).
+over the built-in one for its extensions, registered before or after `AddFileFlux()`.
 
 #### Local AI with LMSupply (v0.20.0+)
 
