@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cross-reference table had to be rebuilt, the reason is now **`document_damaged`** and its warning («the file is damaged …
   not known to be blank») comes first. An intact document without content is still `blank_page`.
 
+### Dependencies
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.120.0 -> 0.121.0, `LMSupply.Core` 0.120.0 -> 0.121.0, `LMSupply.Embedder` 0.120.0 -> 0.121.0, `LMSupply.Generator` 0.120.0 -> 0.121.0, `LMSupply.Ocr` 0.120.0 -> 0.121.0, `LMSupply.Transcriber` 0.120.0 -> 0.121.0.
+
 ## [0.62.0] - 2026-10-13
 
 ### Added
