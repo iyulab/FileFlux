@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.63.0] - 2026-10-15
 
 ### Added
 - **Word 6.0 and Word 95 `.doc` files are read.** They failed with `extraction_error_kind=UnsupportedFormat`; the Word
