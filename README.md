@@ -458,6 +458,7 @@ To compare strategies, run `ProcessAsync` once per `ChunkingOptions.Strategy` (a
 
 - [**Tutorial**](docs/TUTORIAL.md) - Detailed usage guide and examples
 - [**Architecture**](docs/ARCHITECTURE.md) - System design and pipeline documentation
+- [**Quality Benchmarks**](docs/QUALITY-BENCHMARKS.md) - The public benchmarks that measure conversion quality, and the formats none covers
 - [**Changelog**](CHANGELOG.md) - Version history and release notes
 
 ## Project Structure

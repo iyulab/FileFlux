@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- **`docs/QUALITY-BENCHMARKS.md` names the public benchmarks for conversion quality**: olmOCR-Bench and READoc for
+  native PDFs, OmniDocBench tables with merged cells (TEDS), and the formats no benchmark covers.
+
 ### Fixed
 - **A short all-caps line is no longer turned into a title-cased heading in text that already has headings.** Refine
   promoted any all-caps line of up to 100 characters to `##` and rewrote it in title case, so a datasheet's pin and
