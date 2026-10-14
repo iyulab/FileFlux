@@ -5,7 +5,7 @@ using Undoc;
 namespace FileFlux.Core.Infrastructure.Readers;
 
 /// <summary>
-/// Microsoft Word document reader (.docx, and Word 97-2003 .doc) using Undoc (Rust FFI).
+/// Microsoft Word document reader (.docx, and .doc from Word 6.0/95 through 97-2003) using Undoc (Rust FFI).
 /// High-performance native library for Office document extraction.
 /// </summary>
 public partial class WordDocumentReader : IDocumentReader

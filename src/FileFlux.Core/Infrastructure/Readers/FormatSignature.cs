@@ -157,7 +157,7 @@ public static class FormatSignature
 
     /// <summary>
     /// A compound file holds several formats, told apart by their streams: an HWP 5 document (<c>FileHeader</c> with
-    /// <c>BodyText</c> or <c>DocInfo</c>), a legacy workbook (<c>Workbook</c> or <c>Book</c>), a Word 97-2003
+    /// <c>BodyText</c> or <c>DocInfo</c>), a legacy workbook (<c>Workbook</c> or <c>Book</c>), a Word 6.0-2003
     /// document (<c>WordDocument</c>) and a PowerPoint 97-2003 presentation (<c>PowerPoint Document</c>). An
     /// encrypted OOXML document is a compound file too, and is left to the declared reader, which reports it as
     /// encrypted.

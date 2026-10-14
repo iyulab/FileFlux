@@ -157,18 +157,20 @@ Accuracy (%)
 | --- | --- |
 | (Competition Math) (Competition Math) | (PhD Science Questions) |
 | (With Tools) (With Tools) | (Without Tools) |
-| 98.7 99.5 | |
 
-| | 98.4 | | 86.5 | | | | 97.9 | | 98.7 |
+| | 98.4 | | | | 99.5 | | 97.9 | | 98.7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| | | | 86.5 | | | | | | |
 | | | | | | | | | | |
 
-| | 95.2 | | 87.3 | | | | 96.6 | | 96.0 |
+| | 95.2 | | | | 98.7 | | 96.6 | | 96.0 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| | | | 87.3 | | | | | | |
 | | | | | | | | | | |
 
-| | 83.3 | | 77.0 | | 81.4 | | 80.1 | | |
+| | 83.3 | | | | 81.4 | | 80.1 | | |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| | | | 77.0 | | | | | | |
 | | | | | | | | | | 71.5 |
 | | | | | | | | | | |
 
@@ -184,7 +186,7 @@ HLE MMLU (Expert-Level Questions) (College-level Exams)
 
 93. 4 93.0
 
-30 24.9
+30 90.0 24.9
 
 80
 
@@ -202,7 +204,7 @@ HLE MMLU (Expert-Level Questions) (College-level Exams)
 
 Accuracy (%) Accuracy (%) 20
 
-| | | | 87.0 | | | | 90.0 | | 85.3 |
+| | | | 87.0 | | | | | | 85.3 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | | | | | | | | | | |
 
@@ -229,11 +231,11 @@ Across all training stages, we utilize our o200k\_harmony tokenizer, which we op
 
 Codeforces SWE-Bench Verified Tau-Bench Retail (Competition Code) (Software Engineering) (Function Calling)
 
-70. 4 2719 69.1
+70. 4 69.1 68.1
 
 2500
 
-| | | | | | 68.1 | | 62.4 | | 60.7 |
+| | | | | | | | 62.4 | | 60.7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | | | | 49.3 | | | | | | |
 | | | | | | | | | | |
@@ -255,8 +257,9 @@ Accuracy (%) Accuracy (%) 20 20 500
 
 o3 o3
 
-| | 2706 | | | | | | 2622 | | 2463 | | 2516 | | |
+| | 2706 | | | | 2719 | | 2622 | | | | | | |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| | | | | | | | | | 2463 | | 2516 | | |
 | | | | | | | | | | | | | | 2230 |
 | | | | 2073 | | | | | | | | | | |
 | | | | | | | | | | | | | | |
@@ -300,9 +303,9 @@ gpt-oss-20b
 
 GPQA Diamond (PhD Science Questions)
 
-| | | | high | |
+| | | | | |
 | --- | --- | --- | --- | --- |
-| | | medium | | high |
+| | | medium | high | high |
 | | | medium | | |
 | low | | | | |
 | | | | | |
@@ -368,26 +371,26 @@ In Figure 4, we observe that the gpt-oss models at reasoning level high perform 
 These results represent a large Pareto improvement in the health performance-cost frontier. Open models may be especially impactful in global health, where privacy and cost constraints can be important. We hope that the release of these models makes health intelligence and reasoning capabilities more widely accessible, supporting the broad distribution of AI’s benefits. Please
 
 
-| HealthBench HealthBench Hard (Realistic Health Conversations) (Challenging Health Conversations) 59.8 57.6 60 31.6 | | (Validated by 2+ Physicians) | HealthBench Consensus | 91.5 | | 92.8 | | 91.1 | | 91.8 | | | | | |
+| HealthBench HealthBench Hard (Realistic Health Conversations) (Challenging Health Conversations) 59.8 57.6 60 31.6 | | (Validated by 2+ Physicians) | | HealthBench Consensus 91.5 | | 92.8 | | 91.1 | | 91.8 | | | | | |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 30.0 | | | | | | | | | | | | 90.0 | | | |
 | 50.1 90 30 | | 88.7 | | | | | | | | | | | | | |
 | 41.8 42.5 40 37.8 | | | | | | | | | | | | | | 82.6 | |
 | 32.0 20 17.5 80 10.8 Score (%) 20 7.9 10 70 4.0 0.0 | | | | | | | | | | | | | | | |
-| 0 0 60 o1 o3 o1 o3 gpt-4o o3-minio4-mini gpt-4o o3-minio4-mini gpt-oss-20b gpt-oss-20b gpt-oss-120b gpt-oss-120b | gpt-4o | | | o1 | | o3 | o3-mini | | o4-mini | gpt-oss-120b | | gpt-oss-20b | | | |
+| 0 0 60 o1 o3 o1 o3 gpt-4o o3-minio4-mini gpt-4o o3-minio4-mini gpt-oss-20b gpt-oss-20b gpt-oss-120b gpt-oss-120b | | gpt-4o | | o1 | | o3 | o3-mini | | o4-mini | gpt-oss-120b | | gpt-oss-20b | | | |
 
-| | | | | | | | | | 50.1 | | 57.6 | | |
+| | | | | | | | | | 50.1 | | | | |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | | | | 41.8 | | | | | | | | | | 42.5 |
 | | | | | | | | 37.8 | | | | | | |
 | | 32.0 | | | | | | | | | | | | |
 | | | | | | | | | | | | | | |
 
-| | | | | | | | | | 30.0 | | |
+| | | | | | | | | | | | |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | | | | | | | | 17.5 | | | | |
-| | | | | | | | | | | | 10.8 |
-| 0.0 | 7.9 | | | | | | | | | | |
+| | 7.9 | | | | | | | | | | 10.8 |
+| 0.0 | | | | | | | | | | | |
 | | | | | | 4.0 | | | | | | |
 | | | | | | | | | | | | |
 

@@ -1,12 +1,12 @@
-* A sentence that starts with an asterisk.
+\* A sentence that starts with an asterisk.
 
-1. A sentence that starts with a number and a dot.
+1\. A sentence that starts with a number and a dot.
 
-# A sentence that starts with a hash.
+\# A sentence that starts with a hash.
 
-> A sentence that starts with a greater-than sign.
+\> A sentence that starts with a greater-than sign.
 
-snake_case_name, a\*b\*c, _\_init\_\_, \[brackets\](parentheses) and <angle> brackets.
+snake_case_name, a\*b\*c, \_\_init\_\_, \[brackets\](parentheses) and \<angle> brackets.
 
 A path C:\\dir\\file.txt and a share \\\\server\\share\\doc.docx.
 

@@ -156,6 +156,16 @@ public class LegacyOfficeDocumentTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task AWord95Document_IsRead()
+    {
+        // Word 6.0/95 files were refused by the parser (UnsupportedFormat) until Undoc 0.25.0; they now go the same way
+        // as a Word 97-2003 file.
+        var content = await new WordDocumentReader().ExtractAsync(Fixture("legacy-word6.doc"), cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Contains("The quick brown fox jumps over the lazy dog", content.Text);
+    }
+
     // === What cannot be read ===
 
     [Theory]
@@ -177,15 +187,5 @@ public class LegacyOfficeDocumentTests : IDisposable
         Assert.True(ex.IsPermanent);
         Assert.NotNull(ex.FileName);
         Assert.Contains("[extraction_failure_reason=encrypted_document]", ex.Message);
-    }
-
-    [Fact]
-    public async Task AWord95Document_FailsWithTheParsersReason()
-    {
-        var ex = await Assert.ThrowsAsync<DocumentProcessingException>(
-            () => new WordDocumentReader().ExtractAsync(Fixture("legacy-word6.doc"), cancellationToken: TestContext.Current.CancellationToken));
-
-        Assert.Contains("extraction_error_kind=UnsupportedFormat", ex.Message);
-        Assert.Contains("Word 6.0/95", ex.Message);
     }
 }

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Word 6.0 and Word 95 `.doc` files are read.** They failed with `extraction_error_kind=UnsupportedFormat`; the Word
+  reader now extracts their text and structure (headings from paragraph styles, tables, bold/italic/underline) like a
+  Word 97-2003 file. Their notes, headers and pictures are not read yet.
+
+### Changed
+- **Word: a body paragraph that starts like a list item, a heading or a quote stays a paragraph.** A paragraph
+  Word does not number or style that begins `* `, `- `, `1. `, `# ` or `> ` was written as is and rendered as a list
+  item, a heading or a block quote; the marker is now escaped (`\*`, `1\.`, `\#`, `\>`). A `<` that could open a tag
+  (`<angle>`, `Vec<String>`) and a `&` that starts a character reference are escaped too. **Extracted text changes**
+  wherever body text holds such characters. A link to a place in the same document (a table-of-contents entry, a
+  bookmark link in a `.doc`) is written as its text, not as a link to an anchor the output does not have.
+- **PowerPoint: a line break inside a paragraph ends its line, and a field (slide number, date) keeps its text.** The
+  words either side of a break used to run together and a field was dropped; table cells keep underline and
+  strikethrough.
+- **PDF: the parser moves from Unpdf 0.43.0 to 0.44.0, and extracted text changes for datasheets, papers and forms with
+  tables, formulas or titles over columns.** Measured on 24 PDFs: 12 change, none fails. What changes:
+  - The 0.62.0 regressions are gone: a register map's end labels `bit 7` … `bit 0` stay in their own columns, row labels
+    of a rotated table stay apart (`AF11` … `AF15`, values back in their rows), and a table caption keeps its subscript
+    (`Table 59. SCL frequency (fPCLK1 = 50 MHz, …)` whole).
+  - A superscript or subscript stays on its line (`VDD`, `fADC`, footnote marks), a title over columns no longer pulls
+    their first rows into it, and a byline centred over columns is read before them. Wrapped lines of a table cell stay
+    in their row, and several Korean two-column tables that came out as loose text are tables.
+  - Text is escaped where Markdown would read it as syntax (`<EOS>` → `\<EOS>`, a `|` inside a cell), so table column
+    counts are consistent and the HTML fallback for uneven tables is used less.
+  - Known regressions, reported to the parser: a figure caption at the top of a page can lose its title to the line after
+    the page header (`FIGURE 1-3:` … `I2C BUS TIMING DATA`), and a numbered title directly above a table can become its
+    first header row (3 of 53 in one document). A value spanning Min/Typ/Max columns stays in its first position in
+    Markdown (the structured `TableData` keeps the span).
+
 ### Documentation
 - **`docs/QUALITY-BENCHMARKS.md` names the public benchmarks for conversion quality**: olmOCR-Bench and READoc for
   native PDFs, OmniDocBench tables with merged cells (TEDS), and the formats no benchmark covers.
@@ -23,13 +53,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every all-caps line under 20 characters as a «repeated header» without checking that it repeated — a `WARNING`, an
   acronym on its own line, or a heading went missing (a two-page document whose pages read `PAGE ONE` / `PAGE TWO` came out
   with no chunks). Such a line is now removed only when it occurs three times or more.
-- **A PDF cut short is reported as damaged, not blank.** A file that lost its page tree or its content streams yielded no
+- **Breaking** — **A PDF cut short is reported as damaged, not blank.** A file that lost its page tree or its content streams yielded no
   text and was classified `extraction_failure_reason = blank_page` with «every page is blank» as the first warning — a
   consumer that maps the reason told the user the document is empty. When no text was read and pages are missing or the
   cross-reference table had to be rebuilt, the reason is now **`document_damaged`** and its warning («the file is damaged …
-  not known to be blank») comes first. An intact document without content is still `blank_page`.
+  not known to be blank») comes first. An intact document without content is still `blank_page`. Migration: a consumer that maps
+  `extraction_failure_reason` handles `document_damaged` (a damaged file, worth re-obtaining) apart from `blank_page`.
 
 ### Dependencies
+- Undoc 0.24.0 -> 0.25.0, Unhwp 0.19.0 -> 0.20.0, Unpdf 0.43.0 -> 0.44.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.120.0 -> 0.121.0, `LMSupply.Core` 0.120.0 -> 0.121.0, `LMSupply.Embedder` 0.120.0 -> 0.121.0, `LMSupply.Generator` 0.120.0 -> 0.121.0, `LMSupply.Ocr` 0.120.0 -> 0.121.0, `LMSupply.Transcriber` 0.120.0 -> 0.121.0.
 
 ## [0.62.0] - 2026-10-13

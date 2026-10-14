@@ -288,7 +288,7 @@ AI backend.
 | Format | Extension | Reader | Features |
 |--------|-----------|--------|----------|
 | PDF | .pdf | Unpdf (Rust FFI) | Text, tables, image extraction (each image with its `PageNumber`) |
-| Word | .docx, .doc | Undoc (Rust FFI) | Style and structure preservation; Word 97-2003 `.doc` since 0.50.0 (a Word 6.0/95 file fails with `extraction_error_kind=UnsupportedFormat`) |
+| Word | .docx, .doc | Undoc (Rust FFI) | Style and structure preservation; Word 97-2003 `.doc` since 0.50.0 and Word 6.0/95 `.doc` (text and structure; its notes, headers and pictures are not read) |
 | Excel | .xlsx, .xls | Undoc (Rust FFI) | Multi-sheet and table structure (text + `RawContent.Tables`); the pictures a workbook shows in `RawContent.Images`, each with its sheet (`PageNumber`); binary `.xls` of Excel 2.x-2003 in the same layout as `.xlsx` (an Excel 5.0/95 file without a codepage is decoded from its fonts' charset, else Windows-1252) |
 | PowerPoint | .pptx, .ppt | Undoc (Rust FFI) | Slide and notes extraction; PowerPoint 97-2003 `.ppt` since 0.50.0; each image with the slide that shows it (`PageNumber`, since 0.50.1; every slide for a reused picture in `PageNumbers`) |
 | HWP | .hwp, .hwpx | Unhwp (Rust FFI) | Native Korean document support |
