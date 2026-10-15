@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 - Re-pinned sibling package(s) `FluxCurator` 0.14.0 -> 0.15.0.
+- `FluxCurator` 0.15.0 -> 0.16.0: its generator embedder reads the dimension when it is used, so the `IEmbedder` FileFlux
+  builds from the container's generator no longer fails at resolution — and with it every FileFlux service — for a
+  generator that reports no dimension; only semantic chunking with it fails, naming the dimension to pass.
 
 ## [0.63.1] - 2026-10-15
 
