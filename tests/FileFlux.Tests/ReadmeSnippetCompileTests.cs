@@ -47,7 +47,7 @@ public class ReadmeSnippetCompileTests
         ["storedSpans"] = "IReadOnlyList<SourceSpan> storedSpans = [];",
         ["myAnalysisService"] = "IDocumentAnalysisService myAnalysisService = null!;",
         ["myVisionService"] = "IImageToTextService myVisionService = null!;",
-        ["myEmbeddingService"] = "IEmbeddingService myEmbeddingService = null!;",
+        ["myEmbeddingGenerator"] = "Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>> myEmbeddingGenerator = null!;",
         ["enricher"] = "IMetadataEnricher enricher = null!;",
         ["chunk"] = "DocumentChunk chunk = null!;",
         ["documentText"] = "string documentText = \"\";",

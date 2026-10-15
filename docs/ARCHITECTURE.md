@@ -105,7 +105,6 @@ FileFlux/                         # Full RAG Pipeline Package
 │   ├── IDocumentAnalysisService    # AI text generation interface
 │   ├── IImageToTextService       # Vision AI interface
 │   ├── IImageRelevanceEvaluator  # Image relevance interface
-│   ├── IEmbeddingService         # Embedding generation interface
 │   ├── IMetadataEnricher
 │   └── Factories/
 ├── Infrastructure/
@@ -461,10 +460,12 @@ services.AddFileFlux();  // Pure extraction + chunking
 
 **With AI Services** (Consumer-provided implementations — any lifetime; a type works as well as an instance):
 ```csharp
+using Microsoft.Extensions.AI;
+
 // Your own implementations of the AI interfaces, registered before or after AddFileFlux()
 services.AddSingleton<IDocumentAnalysisService>(myAnalysisService);
 services.AddSingleton<IImageToTextService>(myVisionService);
-services.AddSingleton<IEmbeddingService>(myEmbeddingService);
+services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(myEmbeddingGenerator); // Semantic chunking
 services.AddFileFlux();
 ```
 
@@ -474,7 +475,7 @@ LMSupply dependency):
 using FileFlux.Providers.LMSupply.Extensions;
 
 services.AddLMSupplyDocumentAnalysis();    // IDocumentAnalysisService over a local GGUF model
-services.AddLMSupplyEmbedding("default");  // IEmbeddingService; also the embedder of Semantic chunking
+services.AddLMSupplyEmbedding("default");  // the container's IEmbeddingGenerator; also the embedder of Semantic chunking
 services.AddFileFlux();
 ```
 
@@ -672,7 +673,7 @@ FileFlux focuses on transforming documents into structured chunks optimized for 
 **Interface-Driven AI**: FileFlux defines AI service interfaces without implementations:
 - `IDocumentAnalysisService`: Text generation for the LLM-refine and enrich stages
 - `IImageToTextService`: Image captioning and OCR
-- `IEmbeddingService`: Embedding generation for semantic search
+- Embeddings come from the Microsoft.Extensions.AI `IEmbeddingGenerator<string, Embedding<float>>` in the container (Semantic chunking); FileFlux defines no embedding interface of its own
 
 **Consumer Responsibility**: Applications provide AI service implementations:
 - Use OpenAI, Anthropic, Azure OpenAI, or other cloud providers
@@ -690,7 +691,6 @@ var rawContent = await readers.GetReader("document.pdf")!.ExtractAsync("document
 
 // Full RAG pipeline with your own AI providers: a processor per document
 services.AddSingleton<IDocumentAnalysisService>(myAnalysisService);
-services.AddSingleton<IEmbeddingService>(myEmbeddingService);
 services.AddFileFlux();
 await using var processor = factory.Create("document.pdf");
 await processor.ProcessAsync();

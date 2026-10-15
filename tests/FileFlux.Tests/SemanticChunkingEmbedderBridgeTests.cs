@@ -1,68 +1,62 @@
 using FileFlux.Infrastructure;
 using FluxCurator.Core.Core;
 using FluxCurator.Core.Domain;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace FileFlux.Tests;
 
 /// <summary>
-/// Semantic chunking runs on FluxCurator, which reads its own <see cref="IEmbedder"/>. An embedding service registered for
-/// FileFlux (<c>AddLMSupplyEmbedding</c>, an adapter, a consumer's own) now reaches it; before, <c>Semantic</c> failed for want
-/// of an embedder even with one registered.
+/// Semantic chunking runs on FluxCurator, which reads its own <see cref="IEmbedder"/>. The container's Microsoft.Extensions.AI
+/// embedding generator (<c>AddLMSupplyEmbedding</c>, OpenAI, IronHive, a consumer's own) reaches it through FluxCurator's
+/// adapter, with no FileFlux-specific embedding interface to implement.
 /// </summary>
 public sealed class SemanticChunkingEmbedderBridgeTests
 {
-    private sealed class CountingEmbeddingService : IEmbeddingService
+    private sealed class CountingGenerator : IEmbeddingGenerator<string, Embedding<float>>
     {
-        private int _calls;
+        private int _texts;
 
-        public int Calls => Volatile.Read(ref _calls);
-        public int EmbeddingDimension => 2;
-        public int MaxTokens => 512;
-        public bool SupportsBatchProcessing => false;
+        public int Texts => Volatile.Read(ref _texts);
 
-        public Task<float[]> GenerateEmbeddingAsync(string text, EmbeddingPurpose purpose = EmbeddingPurpose.Analysis, CancellationToken cancellationToken = default)
+        public EmbeddingGeneratorMetadata Metadata { get; } = new("test", null, "two-topics", 2);
+
+        public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
+            IEnumerable<string> values, EmbeddingGenerationOptions? options = null, CancellationToken cancellationToken = default)
         {
-            Interlocked.Increment(ref _calls);
-            float[] vector = text.Contains("revenue", StringComparison.OrdinalIgnoreCase) ? [0f, 1f] : [1f, 0f];
-            return Task.FromResult(vector);
-        }
-
-        public async Task<IEnumerable<float[]>> GenerateBatchEmbeddingsAsync(IEnumerable<string> texts, EmbeddingPurpose purpose = EmbeddingPurpose.Analysis, CancellationToken cancellationToken = default)
-        {
-            var result = new List<float[]>();
-            foreach (var text in texts)
-                result.Add(await GenerateEmbeddingAsync(text, purpose, cancellationToken));
-            return result;
-        }
-
-        public double CalculateSimilarity(float[] embedding1, float[] embedding2)
-        {
-            double dot = 0, n1 = 0, n2 = 0;
-            for (var i = 0; i < embedding1.Length; i++)
+            var embeddings = new GeneratedEmbeddings<Embedding<float>>();
+            foreach (var text in values)
             {
-                dot += embedding1[i] * embedding2[i];
-                n1 += embedding1[i] * embedding1[i];
-                n2 += embedding2[i] * embedding2[i];
+                Interlocked.Increment(ref _texts);
+                float[] vector = text.Contains("revenue", StringComparison.OrdinalIgnoreCase) ? [0f, 1f] : [1f, 0f];
+                embeddings.Add(new Embedding<float>(vector));
             }
 
-            return dot / Math.Sqrt(n1 * n2);
+            return Task.FromResult(embeddings);
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) =>
+            serviceKey is null && serviceType == typeof(EmbeddingGeneratorMetadata) ? Metadata : null;
+
+        public void Dispose()
+        {
         }
     }
 
     [Fact]
-    public async Task A_registered_embedding_service_drives_semantic_chunking()
+    public async Task A_registered_embedding_generator_drives_semantic_chunking()
     {
-        var embedding = new CountingEmbeddingService();
+        var generator = new CountingGenerator();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<IEmbeddingService>(embedding);
+        services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(generator);
         services.AddFileFlux();
         using var provider = services.BuildServiceProvider();
 
         var factory = provider.GetRequiredService<IChunkerFactory>();
         Assert.True(factory.IsStrategyAvailable(ChunkingStrategy.Semantic));
+        Assert.Equal(2, provider.GetRequiredService<IEmbedder>().EmbeddingDimension);
 
         var chunks = await factory.CreateChunker(ChunkingStrategy.Semantic).ChunkAsync(
             "Cats purr and sleep. Kittens are young cats.\n\nQuarterly revenue grew. The revenue outlook is strong.",
@@ -70,11 +64,11 @@ public sealed class SemanticChunkingEmbedderBridgeTests
             TestContext.Current.CancellationToken);
 
         Assert.NotEmpty(chunks);
-        Assert.True(embedding.Calls > 0, "the registered FileFlux embedding service is the one semantic chunking uses");
+        Assert.True(generator.Texts > 0, "the container's embedding generator is the one semantic chunking uses");
     }
 
     [Fact]
-    public void Without_an_embedding_service_semantic_is_not_offered()
+    public void Without_an_embedding_generator_semantic_is_not_offered()
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -103,7 +97,7 @@ public sealed class SemanticChunkingEmbedderBridgeTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IEmbedder>(own);
-        services.AddSingleton<IEmbeddingService>(new CountingEmbeddingService());
+        services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new CountingGenerator());
         services.AddFileFlux();
         using var provider = services.BuildServiceProvider();
 

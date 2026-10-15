@@ -10,6 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Dependencies
 - Re-pinned sibling package(s) `FluxCurator` 0.14.0 -> 0.15.0.
 
+## [Unreleased]
+
+### Changed
+- **Breaking** — **FileFlux takes embeddings from the container's Microsoft.Extensions.AI `IEmbeddingGenerator<string,
+  Embedding<float>>`; its own `IEmbeddingService` and `EmbeddingPurpose` are removed.** `Semantic` chunking gets its embedder
+  from that generator through FluxCurator's `EmbeddingGeneratorEmbedder` (an `IEmbedder` registered before `AddFileFlux()`
+  still wins), so OpenAI, Azure OpenAI, Ollama, IronHive and LMSupply generators work with no FileFlux-specific adapter.
+  `AddLMSupplyEmbedding` now registers `LMSupplyEmbedderService` as that generator (it owns and disposes the model);
+  `MockEmbeddingService` is removed. Migration: register an `IEmbeddingGenerator<string, Embedding<float>>` instead of an
+  `IEmbeddingService` (for an implementation of your own, implement the generator interface or wrap your client with its
+  Microsoft.Extensions.AI adapter); code that called `GenerateEmbeddingAsync(text, purpose)` calls
+  `GenerateVectorAsync(text)`.
+
 ## [0.63.1] - 2026-10-15
 
 ### Dependencies

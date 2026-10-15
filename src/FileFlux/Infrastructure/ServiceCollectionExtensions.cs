@@ -13,6 +13,8 @@ using FileFlux.Infrastructure.Conversion;
 using FileFlux.Infrastructure.Services;
 using FluxCurator;
 using FluxCurator.Core.Core;
+using FluxCurator.Infrastructure.Embedding;
+using Microsoft.Extensions.AI;
 using FluxImprover;
 using FluxImprover.Services;
 
@@ -127,11 +129,14 @@ public static class ServiceCollectionExtensions
             lifetime));
 
         // === FluxCurator: Chunking ===
-        // Semantic chunking runs on FluxCurator, which reads FluxCurator's IEmbedder. A FileFlux IEmbeddingService
-        // (AddLMSupplyEmbedding, an adapter, your own - registered as a singleton) reaches it through this bridge; an IEmbedder
-        // registered before AddFileFlux wins. With neither, the factory yields null and Semantic reports the missing embedder.
+        // Semantic chunking runs on FluxCurator, which reads FluxCurator's IEmbedder. The container's Microsoft.Extensions.AI
+        // embedding generator (AddLMSupplyEmbedding, OpenAI, Ollama, IronHive, your own) reaches it through FluxCurator's
+        // adapter; an IEmbedder registered before AddFileFlux wins. With neither, the factory yields null and Semantic reports
+        // the missing embedder.
         services.TryAddSingleton<IEmbedder>(sp =>
-            sp.GetService<IEmbeddingService>() is { } embeddingService ? new EmbeddingServiceEmbedder(embeddingService) : null!);
+            sp.GetService<IEmbeddingGenerator<string, Embedding<float>>>() is { } generator
+                ? new EmbeddingGeneratorEmbedder(generator)
+                : null!);
         services.AddFluxCurator();
 
         // === FluxImprover: Enhancement (optional, configurable lifetime) ===
@@ -319,7 +324,6 @@ public static class ServiceCollectionExtensions
         if (useMockServices)
         {
             services.AddSingleton<IImageToTextService, MockImageToTextService>();
-            services.AddSingleton<IEmbeddingService, MockEmbeddingService>();
         }
         return AddFileFlux(services, lifetime);
     }

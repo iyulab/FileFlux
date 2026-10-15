@@ -1,6 +1,7 @@
 using FileFlux.Core;
 using FileFlux.Providers.LMSupply.Extensions;
 using AwesomeAssertions;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -27,14 +28,17 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddLMSupplyEmbedding_RegistersIEmbeddingService()
+    public void AddLMSupplyEmbedding_RegistersTheEmbeddingGenerator()
     {
         var services = new ServiceCollection();
 
         services.AddLMSupplyEmbedding("test-model");
 
         services.Should().Contain(sd =>
-            sd.ServiceType == typeof(IEmbeddingService) &&
+            sd.ServiceType == typeof(IEmbeddingGenerator<string, Embedding<float>>) &&
+            sd.Lifetime == ServiceLifetime.Singleton);
+        services.Should().Contain(sd =>
+            sd.ServiceType == typeof(FileFlux.Providers.LMSupply.Services.LMSupplyEmbedderService) &&
             sd.Lifetime == ServiceLifetime.Singleton);
     }
 

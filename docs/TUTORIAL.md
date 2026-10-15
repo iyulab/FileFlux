@@ -314,7 +314,7 @@ Console.WriteLine(readers.GetReader("report.pdf")?.ReaderType);
 | `Paragraph` | Markdown, blog posts and other text with clear paragraphs |
 | `Token` | Unstructured text that only needs even, token-bounded pieces |
 | `Hierarchical` | Documents with a heading structure (manuals, specifications) |
-| `Semantic` | Boundaries by embedding similarity; needs an embedder (`IEmbeddingService`, for example `AddLMSupplyEmbedding`) |
+| `Semantic` | Boundaries by embedding similarity; needs an embedder (a Microsoft.Extensions.AI `IEmbeddingGenerator<string, Embedding<float>>`, for example `AddLMSupplyEmbedding`) |
 
 ```csharp
 var options = new ChunkingOptions
@@ -520,13 +520,15 @@ Console.WriteLine($"Overlap Effectiveness: {metrics.OverlapEffectiveness:P}");
 
 ### Complete RAG Pipeline
 
-FileFlux produces the chunks; embedding them and storing the vectors is yours. `IEmbeddingService` is FileFlux's embedding
-interface (`AddLMSupplyEmbedding` registers a local one); the vector store below stands for your own.
+FileFlux produces the chunks; embedding them and storing the vectors is yours. Any Microsoft.Extensions.AI
+`IEmbeddingGenerator<string, Embedding<float>>` does it (`AddLMSupplyEmbedding` registers a local one); the vector store below
+stands for your own.
 
 ```csharp
 using System.Threading;
+using Microsoft.Extensions.AI;
 
-services.AddScoped<DocumentIndexer>();   // with an IEmbeddingService and your IMyVectorStore registered
+services.AddScoped<DocumentIndexer>();   // with an embedding generator and your IMyVectorStore registered
 
 public interface IMyVectorStore
 {
@@ -535,7 +537,7 @@ public interface IMyVectorStore
 }
 
 public sealed class DocumentIndexer(
-    IDocumentProcessorFactory factory, IEmbeddingService embeddings, IMyVectorStore store)
+    IDocumentProcessorFactory factory, IEmbeddingGenerator<string, Embedding<float>> embeddings, IMyVectorStore store)
 {
     public async Task IndexAsync(string filePath, CancellationToken cancellationToken = default)
     {
@@ -547,8 +549,8 @@ public sealed class DocumentIndexer(
 
         await foreach (var chunk in processor.ProcessStreamAsync(options, cancellationToken))
         {
-            var vector = await embeddings.GenerateEmbeddingAsync(chunk.Content, EmbeddingPurpose.Storage, cancellationToken);
-            await store.UpsertAsync(chunk.Id, chunk.Content, vector, chunk.Props, cancellationToken);
+            var vector = await embeddings.GenerateVectorAsync(chunk.Content, cancellationToken: cancellationToken);
+            await store.UpsertAsync(chunk.Id, chunk.Content, vector.ToArray(), chunk.Props, cancellationToken);
         }
     }
 }

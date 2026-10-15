@@ -1,5 +1,6 @@
 using FileFlux.Core;
 using FileFlux.Providers.LMSupply.Services;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FileFlux.Providers.LMSupply.Extensions;
@@ -27,7 +28,9 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers an <see cref="IEmbeddingService"/> backed by a local LMSupply ONNX embedding model.
+    /// Registers a local LMSupply ONNX embedding model as the container's Microsoft.Extensions.AI
+    /// <see cref="IEmbeddingGenerator{TInput, TEmbedding}"/> (<see cref="LMSupplyEmbedderService"/>, loaded on first use). It is
+    /// the embedder of <c>Semantic</c> chunking once <c>AddFileFlux()</c> runs.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="modelId">LMSupply catalog alias (e.g., "default", "multilingual") or model ID.</param>
@@ -36,9 +39,10 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         string modelId = "default")
     {
-        services.AddSingleton<IEmbeddingService>(sp =>
+        services.AddSingleton(sp =>
             LMSupplyEmbedderService.CreateAsync(new LMSupplyOptions { EmbeddingModel = modelId })
                 .GetAwaiter().GetResult());
+        services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(sp => sp.GetRequiredService<LMSupplyEmbedderService>());
         return services;
     }
 

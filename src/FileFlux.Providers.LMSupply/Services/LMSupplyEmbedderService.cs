@@ -1,33 +1,37 @@
-using FileFlux.Core;
 using LMSupply;
 using LMSupply.Embedder;
+using Microsoft.Extensions.AI;
 
 namespace FileFlux.Providers.LMSupply.Services;
 
 /// <summary>
-/// IEmbeddingService implementation using LMSupply.Embedder.
+/// A local LMSupply embedding model as a Microsoft.Extensions.AI <see cref="IEmbeddingGenerator{TInput, TEmbedding}"/>
+/// that owns the model: disposing it releases the model. Registered by <c>AddLMSupplyEmbedding</c>, it is the embedder of
+/// <c>Semantic</c> chunking, and any other consumer of the container's generator can use it.
 /// </summary>
-public sealed class LMSupplyEmbedderService : IEmbeddingService, IAsyncDisposable, IDisposable
+/// <remarks>
+/// Texts are embedded with the model's convention for text with no retrieval role (<see cref="EmbeddingTextKind.Default"/>),
+/// which is right for similarity - what semantic chunking measures. For retrieval with a model that declares query and passage
+/// prefixes, wrap the model with <see cref="EmbeddingModelExtensions.AsEmbeddingGenerator"/> once per side.
+/// </remarks>
+public sealed class LMSupplyEmbedderService : IEmbeddingGenerator<string, Embedding<float>>, IAsyncDisposable
 {
     private readonly IEmbeddingModel _model;
+    private readonly LocalEmbeddingGenerator _generator;
     private bool _disposed;
 
-    /// <summary>
-    /// Creates a new instance of LMSupplyEmbedderService with the specified model.
-    /// </summary>
+    /// <summary>Wraps a loaded model; the service owns it from now on.</summary>
     /// <param name="model">The loaded embedding model.</param>
     public LMSupplyEmbedderService(IEmbeddingModel model)
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
+        _generator = model.AsEmbeddingGenerator();
     }
 
-    /// <summary>
-    /// Creates a new LMSupplyEmbedderService with the default model.
-    /// </summary>
+    /// <summary>Loads the configured model (<see cref="LMSupplyOptions.EmbeddingModel"/>) and wraps it.</summary>
     /// <param name="options">Configuration options.</param>
     /// <param name="progress">Optional progress reporting for downloads.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A new LMSupplyEmbedderService instance.</returns>
     public static async Task<LMSupplyEmbedderService> CreateAsync(
         LMSupplyOptions? options = null,
         IProgress<DownloadProgress>? progress = null,
@@ -61,62 +65,33 @@ public sealed class LMSupplyEmbedderService : IEmbeddingService, IAsyncDisposabl
         return new LMSupplyEmbedderService(model);
     }
 
-    /// <inheritdoc />
-    public int EmbeddingDimension => _model.Dimensions;
+    /// <summary>Provider <c>"LMSupply"</c>, the model id and its native dimension count.</summary>
+    public EmbeddingGeneratorMetadata Metadata => _generator.Metadata;
 
     /// <inheritdoc />
-    public int MaxTokens => 8192;
-
-    /// <inheritdoc />
-    public bool SupportsBatchProcessing => true;
-
-    /// <inheritdoc />
-    public async Task<float[]> GenerateEmbeddingAsync(
-        string text,
-        EmbeddingPurpose purpose = EmbeddingPurpose.Analysis,
+    public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
+        IEnumerable<string> values,
+        EmbeddingGenerationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(text);
-
-        return await _model.EmbedAsync(text, cancellationToken).ConfigureAwait(false);
+        return _generator.GenerateAsync(values, options, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<float[]>> GenerateBatchEmbeddingsAsync(
-        IEnumerable<string> texts,
-        EmbeddingPurpose purpose = EmbeddingPurpose.Analysis,
-        CancellationToken cancellationToken = default)
+    public object? GetService(Type serviceType, object? serviceKey = null)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(texts);
-
-        var textList = texts as IReadOnlyList<string> ?? texts.ToList();
-        if (textList.Count == 0)
-        {
-            return [];
-        }
-
-        var results = await _model.EmbedAsync(textList, cancellationToken).ConfigureAwait(false);
-        return results;
+        ArgumentNullException.ThrowIfNull(serviceType);
+        return serviceKey is null && serviceType.IsInstanceOfType(this) ? this : _generator.GetService(serviceType, serviceKey);
     }
 
-    /// <inheritdoc />
-    public double CalculateSimilarity(float[] embedding1, float[] embedding2)
-    {
-        ArgumentNullException.ThrowIfNull(embedding1);
-        ArgumentNullException.ThrowIfNull(embedding2);
-
-        return global::LMSupply.Embedder.LocalEmbedder.CosineSimilarity(embedding1, embedding2);
-    }
-
-    /// <inheritdoc />
     /// <summary>
     /// Disposes synchronously, for a container disposed with <c>Dispose()</c> (which throws on a service that is only
     /// <see cref="IAsyncDisposable"/>). Blocks on <see cref="DisposeAsync"/>.
     /// </summary>
     public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
