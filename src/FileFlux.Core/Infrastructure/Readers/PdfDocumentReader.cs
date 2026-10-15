@@ -88,6 +88,18 @@ public partial class PdfDocumentReader : IDocumentReader
         => $"{message} [{ErrorKindKey}={FormatErrorKind(kind)}]";
 
     /// <summary>
+    /// The exception a caller branches on for an Unpdf failure. An encrypted PDF is an
+    /// <see cref="EncryptedDocumentException"/> with <c>extraction_failure_reason=encrypted_document</c> — the type and
+    /// reason a password-protected Office file fails with (<see cref="UndocErrorKindFormatting.ToFailure"/>), so a
+    /// consumer maps one cause to one message whatever the format; anything else is a
+    /// <see cref="DocumentProcessingException"/> carrying the error kind.
+    /// </summary>
+    private static FileFluxException ToFailure(UnpdfException ex, string fileName, string message)
+        => ex.Kind == UnpdfErrorKind.Encrypted
+            ? EncryptedDocumentException.ForDocument(fileName, ex)
+            : new DocumentProcessingException(fileName, WithErrorKind(message, ex.Kind), ex);
+
+    /// <summary>
     /// Joins the distinct kinds observed across failed pages. Mixed causes stay
     /// visible (<c>PdfParse+MissingObject</c>) instead of being flattened to one label.
     /// </summary>
@@ -252,8 +264,7 @@ public partial class PdfDocumentReader : IDocumentReader
         }
         catch (UnpdfException ex)
         {
-            throw new DocumentProcessingException(
-                filePath, WithErrorKind($"Failed to read PDF document: {ex.Message}", ex.Kind), ex);
+            throw ToFailure(ex, filePath, $"Failed to read PDF document: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
@@ -326,8 +337,7 @@ public partial class PdfDocumentReader : IDocumentReader
         }
         catch (UnpdfException ex)
         {
-            throw new DocumentProcessingException(
-                filePath, WithErrorKind($"Failed to extract PDF document: {ex.Message}", ex.Kind), ex);
+            throw ToFailure(ex, filePath, $"Failed to extract PDF document: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {
@@ -374,8 +384,7 @@ public partial class PdfDocumentReader : IDocumentReader
         }
         catch (UnpdfException ex)
         {
-            throw new DocumentProcessingException(
-                fileName, WithErrorKind($"Failed to extract PDF document from stream: {ex.Message}", ex.Kind), ex);
+            throw ToFailure(ex, fileName, $"Failed to extract PDF document from stream: {ex.Message}");
         }
         catch (Exception ex) when (ex is not FileFluxException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
         {

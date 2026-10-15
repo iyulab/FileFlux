@@ -5,6 +5,15 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Breaking: a password-protected PDF fails with `EncryptedDocumentException` and
+  `[extraction_failure_reason=encrypted_document]`, as a password-protected Office file does.** It was a
+  `DocumentProcessingException` carrying only the Unpdf diagnostic `[extraction_error_kind=Encrypted]`, so a consumer that
+  maps the failure reason showed the raw message for every encrypted PDF. Other Unpdf failures are unchanged. Migration:
+  catch `EncryptedDocumentException` (or read the failure reason) where you matched the error kind.
+
 ## [0.64.0] - 2026-10-16
 
 ### Changed
