@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.122.0 -> 0.123.0, `LMSupply.Core` 0.122.0 -> 0.123.0, `LMSupply.Embedder` 0.122.0 -> 0.123.0, `LMSupply.Generator` 0.122.0 -> 0.123.0, `LMSupply.Ocr` 0.122.0 -> 0.123.0, `LMSupply.Transcriber` 0.122.0 -> 0.123.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.123.0 -> 0.124.0, `LMSupply.Core` 0.123.0 -> 0.124.0, `LMSupply.Embedder` 0.123.0 -> 0.124.0, `LMSupply.Generator` 0.123.0 -> 0.124.0, `LMSupply.Ocr` 0.123.0 -> 0.124.0, `LMSupply.Transcriber` 0.123.0 -> 0.124.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.124.0 -> 0.125.0, `LMSupply.Core` 0.124.0 -> 0.125.0, `LMSupply.Embedder` 0.124.0 -> 0.125.0, `LMSupply.Generator` 0.124.0 -> 0.125.0, `LMSupply.Ocr` 0.124.0 -> 0.125.0, `LMSupply.Transcriber` 0.124.0 -> 0.125.0.
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.125.0 -> 0.126.0, `LMSupply.Core` 0.125.0 -> 0.126.0, `LMSupply.Embedder` 0.125.0 -> 0.126.0, `LMSupply.Generator` 0.125.0 -> 0.126.0, `LMSupply.Ocr` 0.125.0 -> 0.126.0, `LMSupply.Transcriber` 0.125.0 -> 0.126.0.
 
 ## [0.65.0] - 2026-10-16
 
