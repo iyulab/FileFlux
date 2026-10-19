@@ -6,6 +6,9 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
+      # The solution builds the CLI tool (published) and the samples too.
+      - 'cli/**'
+      - 'samples/**'
       - 'Directory.Build.props'
       - 'Directory.Packages.props'
       - 'Directory.Build.targets'
@@ -15,6 +18,9 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
+      # The solution builds the CLI tool (published) and the samples too.
+      - 'cli/**'
+      - 'samples/**'
       - 'Directory.Build.props'
       - 'Directory.Packages.props'
       - 'Directory.Build.targets'
