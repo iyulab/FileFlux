@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.127.0 -> 0.128.0, `LMSupply.Core` 0.127.0 -> 0.128.0, `LMSupply.Embedder` 0.127.0 -> 0.128.0, `LMSupply.Generator` 0.127.0 -> 0.128.0, `LMSupply.Ocr` 0.127.0 -> 0.128.0, `LMSupply.Transcriber` 0.127.0 -> 0.128.0.
 - .NET runtime packages 10.0.12 -> 10.0.13 (`Microsoft.Extensions.*`, `Microsoft.EntityFrameworkCore.Sqlite`) — the servicing band LMSupply's next release requires.
 - Re-pinned sibling package(s) `FluxCurator` 0.17.0 -> 0.18.0, `FluxImprover` 0.20.0 -> 0.21.0.
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.128.0 -> 0.129.0, `LMSupply.Core` 0.128.0 -> 0.129.0, `LMSupply.Embedder` 0.128.0 -> 0.129.0, `LMSupply.Generator` 0.128.0 -> 0.129.0, `LMSupply.Ocr` 0.128.0 -> 0.129.0, `LMSupply.Transcriber` 0.128.0 -> 0.129.0.
 
 ## [0.65.0] - 2026-10-16
 
