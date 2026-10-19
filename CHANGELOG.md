@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.125.0 -> 0.126.0, `LMSupply.Core` 0.125.0 -> 0.126.0, `LMSupply.Embedder` 0.125.0 -> 0.126.0, `LMSupply.Generator` 0.125.0 -> 0.126.0, `LMSupply.Ocr` 0.125.0 -> 0.126.0, `LMSupply.Transcriber` 0.125.0 -> 0.126.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.126.0 -> 0.127.0, `LMSupply.Core` 0.126.0 -> 0.127.0, `LMSupply.Embedder` 0.126.0 -> 0.127.0, `LMSupply.Generator` 0.126.0 -> 0.127.0, `LMSupply.Ocr` 0.126.0 -> 0.127.0, `LMSupply.Transcriber` 0.126.0 -> 0.127.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.127.0 -> 0.128.0, `LMSupply.Core` 0.127.0 -> 0.128.0, `LMSupply.Embedder` 0.127.0 -> 0.128.0, `LMSupply.Generator` 0.127.0 -> 0.128.0, `LMSupply.Ocr` 0.127.0 -> 0.128.0, `LMSupply.Transcriber` 0.127.0 -> 0.128.0.
+- .NET runtime packages 10.0.12 -> 10.0.13 (`Microsoft.Extensions.*`, `Microsoft.EntityFrameworkCore.Sqlite`) — the servicing band LMSupply's next release requires.
 
 ## [0.65.0] - 2026-10-16
 
