@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.65.1] - 2026-10-20
 
 ### Changed
 - **HWP: automatic paragraph numbering and bullets are in the text** (Unhwp 0.23.0). A head that comes from the document's
@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-pinned sibling package(s) `FluxCurator` 0.17.0 -> 0.18.0, `FluxImprover` 0.20.0 -> 0.21.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.128.0 -> 0.129.0, `LMSupply.Core` 0.128.0 -> 0.129.0, `LMSupply.Embedder` 0.128.0 -> 0.129.0, `LMSupply.Generator` 0.128.0 -> 0.129.0, `LMSupply.Ocr` 0.128.0 -> 0.129.0, `LMSupply.Transcriber` 0.128.0 -> 0.129.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.129.0 -> 0.131.0, `LMSupply.Core` 0.129.0 -> 0.131.0, `LMSupply.Embedder` 0.129.0 -> 0.131.0, `LMSupply.Generator` 0.129.0 -> 0.131.0, `LMSupply.Ocr` 0.129.0 -> 0.131.0, `LMSupply.Transcriber` 0.129.0 -> 0.131.0.
+- Re-pinned sibling package(s) `FluxImprover` 0.21.0 -> 0.22.0.
 
 ## [0.65.0] - 2026-10-16
 
