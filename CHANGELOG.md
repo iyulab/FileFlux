@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **HWP: automatic paragraph numbering and bullets are in the text** (Unhwp 0.23.0). A head that comes from the document's
+  numbering definition — «1. 행사 개요», a «■» bullet — was missing, or written as a literal «1. »/«-» whatever the
+  definition said. Also from that release: a floating text box inside a table cell (an addressee list, a seal line) follows
+  its table instead of sitting in the cell, and an HWP 5.0 document with outline styles finds its numbered section titles
+  as headings (fewer false headings from formula or date lines). On eight public law.go.kr forms read as HWP and as PDF, no
+  character of the old text is lost; the two heads above are now there, matching an independent extraction of the PDF.
+
 ### Dependencies
+- `Unhwp` 0.20.0 -> 0.23.0.
 - Re-pinned sibling package(s) `FluxCurator` 0.16.0 -> 0.17.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.122.0 -> 0.123.0, `LMSupply.Core` 0.122.0 -> 0.123.0, `LMSupply.Embedder` 0.122.0 -> 0.123.0, `LMSupply.Generator` 0.122.0 -> 0.123.0, `LMSupply.Ocr` 0.122.0 -> 0.123.0, `LMSupply.Transcriber` 0.122.0 -> 0.123.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.123.0 -> 0.124.0, `LMSupply.Core` 0.123.0 -> 0.124.0, `LMSupply.Embedder` 0.123.0 -> 0.124.0, `LMSupply.Generator` 0.123.0 -> 0.124.0, `LMSupply.Ocr` 0.123.0 -> 0.124.0, `LMSupply.Transcriber` 0.123.0 -> 0.124.0.
