@@ -37,7 +37,9 @@ public interface IMetadataEnricher
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Extract metadata for multiple documents in batch (token optimized).
+    /// Extracts metadata for several documents: a request whose cache key is cached (same schema and options) is answered
+    /// from the cache, and each other request is one <see cref="EnrichAsync"/> call, in order — not a single combined
+    /// model request. A request that fails gets a result with <c>ExtractionMethod = "failed"</c> instead of failing the batch.
     /// </summary>
     /// <param name="requests">Batch of metadata extraction requests</param>
     /// <param name="schema">Metadata schema to apply</param>

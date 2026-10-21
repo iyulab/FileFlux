@@ -158,9 +158,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
         return metadata;
     }
 
-    /// <summary>
-    /// Batch metadata extraction (token optimized).
-    /// </summary>
+    /// <inheritdoc />
     public async Task<IReadOnlyList<EnrichedMetadataResult>> EnrichBatchAsync(
         IReadOnlyList<BatchMetadataRequest> requests,
         MetadataSchema schema,
@@ -203,8 +201,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
 
         LogProcessingRequests(_logger, uncachedRequests.Count, requests.Count);
 
-        // 2. Process uncached requests individually
-        // TODO: Implement true batch processing with single LLM call
+        // 2. Each uncached request is its own model call (see the interface: not one combined request)
         foreach (var request in uncachedRequests)
         {
             try

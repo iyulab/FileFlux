@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`IMetadataEnricher.EnrichBatchAsync`'s documentation no longer promises a token-optimised single request.** It answers
+  cached requests from the cache and makes one `EnrichAsync` call per other request, in order — as the tutorial says.
+
 ### Dependencies
 - Re-pinned sibling package(s) `FluxCurator` 0.18.0 -> 0.18.1, `LMSupply.Captioner` 0.131.0 -> 0.132.0, `LMSupply.Core` 0.131.0 -> 0.132.0, `LMSupply.Embedder` 0.131.0 -> 0.132.0, `LMSupply.Generator` 0.131.0 -> 0.132.0, `LMSupply.Ocr` 0.131.0 -> 0.132.0, `LMSupply.Transcriber` 0.131.0 -> 0.132.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.132.0 -> 0.133.0, `LMSupply.Core` 0.132.0 -> 0.133.0, `LMSupply.Embedder` 0.132.0 -> 0.133.0, `LMSupply.Generator` 0.132.0 -> 0.133.0, `LMSupply.Ocr` 0.132.0 -> 0.133.0, `LMSupply.Transcriber` 0.132.0 -> 0.133.0.
