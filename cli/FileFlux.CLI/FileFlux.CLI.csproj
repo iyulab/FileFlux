@@ -39,7 +39,11 @@
     <PackageReference Include="OpenAI" />
     <!-- Anthropic: Using HttpClient for direct REST API calls instead of SDK -->
 
-    <!-- LMSupply.Generator: used directly by Services/Providers/FluxImprover/LMSupplyCompletionService.cs.
+    <!-- FluxImprover.LMSupply: the CLI's local completion service delegates generation to it (chat template,
+         thinking mode); the CLI keeps only lazy loading with console progress. -->
+    <PackageReference Include="FluxImprover.LMSupply" />
+
+    <!-- LMSupply.Generator: the CLI loads the generator model itself (LocalGenerator.LoadAsync).
          Embedder/Captioner/Ocr no longer referenced here directly, since they now come transitively
          through the FileFlux.Providers.LMSupply reference above. -->
     <PackageReference Include="LMSupply.Core" />

@@ -2,21 +2,24 @@ using FileFlux.Providers.LMSupply;
 using LMSupply;
 using LMSupply.Generator;
 using LMSupply.Generator.Abstractions;
-using LMSupply.Generator.Models;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Runtime.CompilerServices;
 using FI = FluxImprover.Services;
+using FluxImproverLMSupply = FluxImprover.LMSupply.LMSupplyCompletionService;
 
 namespace FileFlux.CLI.Services.Providers.FluxImprover;
 
 /// <summary>
-/// LMSupply implementation of FluxImprover's ITextGenerationService
-/// Uses local AI models via LMSupply.Generator
+/// FluxImprover's ITextGenerationService over a local LMSupply model, loaded on first use.
+/// Generation is delegated to the FluxImprover.LMSupply adapter (chat template, thinking mode, truncation);
+/// this wrapper only adds lazy loading with console progress, which a CLI needs and a library does not.
 /// </summary>
-public class LMSupplyCompletionService : FI.ITextGenerationService, IAsyncDisposable
+public sealed class LMSupplyCompletionService : FI.ITextGenerationService, IAsyncDisposable
 {
     private readonly LMSupplyOptions _options;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private IGeneratorModel? _model;
+    private FluxImproverLMSupply? _inner;
     private bool _disposed;
 
     public LMSupplyCompletionService(LMSupplyOptions options)
@@ -24,14 +27,14 @@ public class LMSupplyCompletionService : FI.ITextGenerationService, IAsyncDispos
         _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
-    private async Task<IGeneratorModel> GetModelAsync(CancellationToken cancellationToken = default)
+    private async Task<FluxImproverLMSupply> GetInnerAsync(CancellationToken cancellationToken)
     {
-        if (_model != null) return _model;
+        if (_inner != null) return _inner;
 
         await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_model != null) return _model;
+            if (_inner != null) return _inner;
 
             var generatorOptions = new GeneratorOptions
             {
@@ -61,7 +64,13 @@ public class LMSupplyCompletionService : FI.ITextGenerationService, IAsyncDispos
 
             Console.WriteLine($"\r[LMSupply] Model loaded: {_options.GeneratorModel}          ");
 
-            return _model;
+            // This wrapper owns the model and disposes it; the adapter is only handed it.
+            _inner = new FluxImproverLMSupply(
+                _model,
+                NullLogger<FluxImproverLMSupply>.Instance,
+                defaultTemperature: 0.7f,
+                defaultMaxTokens: _options.MaxGenerationTokens);
+            return _inner;
         }
         finally
         {
@@ -77,19 +86,8 @@ public class LMSupplyCompletionService : FI.ITextGenerationService, IAsyncDispos
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(prompt);
 
-        var model = await GetModelAsync(cancellationToken).ConfigureAwait(false);
-
-        // Build full prompt with system message if provided
-        var fullPrompt = BuildPrompt(prompt, options);
-
-        var generationOptions = new GenerationOptions
-        {
-            MaxTokens = options?.MaxTokens ?? _options.MaxGenerationTokens,
-            Temperature = options?.Temperature ?? 0.7f
-        };
-
-        return await model.GenerateCompleteAsync(fullPrompt, generationOptions, cancellationToken)
-            .ConfigureAwait(false);
+        var inner = await GetInnerAsync(cancellationToken).ConfigureAwait(false);
+        return await inner.CompleteAsync(prompt, options, cancellationToken).ConfigureAwait(false);
     }
 
     public async IAsyncEnumerable<string> CompleteStreamingAsync(
@@ -100,58 +98,22 @@ public class LMSupplyCompletionService : FI.ITextGenerationService, IAsyncDispos
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(prompt);
 
-        var model = await GetModelAsync(cancellationToken).ConfigureAwait(false);
-
-        var fullPrompt = BuildPrompt(prompt, options);
-
-        var generationOptions = new GenerationOptions
-        {
-            MaxTokens = options?.MaxTokens ?? _options.MaxGenerationTokens,
-            Temperature = options?.Temperature ?? 0.7f
-        };
-
-        await foreach (var token in model.GenerateAsync(fullPrompt, generationOptions, cancellationToken)
-            .ConfigureAwait(false))
+        var inner = await GetInnerAsync(cancellationToken).ConfigureAwait(false);
+        await foreach (var token in inner.CompleteStreamingAsync(prompt, options, cancellationToken).ConfigureAwait(false))
         {
             yield return token;
         }
-    }
-
-    private static string BuildPrompt(string prompt, FI.CompletionOptions? options)
-    {
-        var parts = new List<string>();
-
-        // Add system prompt if provided
-        if (!string.IsNullOrWhiteSpace(options?.SystemPrompt))
-        {
-            parts.Add($"System: {options.SystemPrompt}\n");
-        }
-
-        // Add conversation history if provided
-        if (options?.Messages is { Count: > 0 })
-        {
-            foreach (var msg in options.Messages)
-            {
-                var role = msg.Role?.ToLowerInvariant() switch
-                {
-                    "system" => "System",
-                    "assistant" => "Assistant",
-                    _ => "User"
-                };
-                parts.Add($"{role}: {msg.Content}");
-            }
-        }
-
-        parts.Add($"User: {prompt}\nAssistant:");
-
-        return string.Join("\n", parts);
     }
 
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
         _disposed = true;
-        GC.SuppressFinalize(this);
+
+        if (_inner != null)
+        {
+            await _inner.DisposeAsync().ConfigureAwait(false);
+        }
 
         if (_model != null)
         {

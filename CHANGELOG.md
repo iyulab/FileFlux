@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **The CLI's local (LMSupply) completion provider now formats prompts with the model's chat template and honours thinking mode
+  and `ThrowOnTruncation`.** It used a hand-written `User:`/`Assistant:` transcript; generation now goes through `FluxImprover.LMSupply`.
+  Default temperature (0.7) and the 2048-token limit are unchanged.
 - **`IMetadataEnricher.EnrichBatchAsync`'s documentation no longer promises a token-optimised single request.** It answers
   cached requests from the cache and makes one `EnrichAsync` call per other request, in order — as the tutorial says.
 
