@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.65.2] - 2026-10-23
 
 ### Fixed
 - **The CLI's local (LMSupply) completion provider now formats prompts with the model's chat template and honours thinking mode
@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.132.0 -> 0.133.0, `LMSupply.Core` 0.132.0 -> 0.133.0, `LMSupply.Embedder` 0.132.0 -> 0.133.0, `LMSupply.Generator` 0.132.0 -> 0.133.0, `LMSupply.Ocr` 0.132.0 -> 0.133.0, `LMSupply.Transcriber` 0.132.0 -> 0.133.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.133.0 -> 0.134.0, `LMSupply.Core` 0.133.0 -> 0.134.0, `LMSupply.Embedder` 0.133.0 -> 0.134.0, `LMSupply.Generator` 0.133.0 -> 0.134.0, `LMSupply.Ocr` 0.133.0 -> 0.134.0, `LMSupply.Transcriber` 0.133.0 -> 0.134.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.134.0 -> 0.136.0, `LMSupply.Core` 0.134.0 -> 0.136.0, `LMSupply.Embedder` 0.134.0 -> 0.136.0, `LMSupply.Generator` 0.134.0 -> 0.136.0, `LMSupply.Ocr` 0.134.0 -> 0.136.0, `LMSupply.Transcriber` 0.134.0 -> 0.136.0.
+- Re-pinned sibling package(s) `FluxImprover` 0.22.0 -> 0.23.0, `FluxImprover.LMSupply` 0.22.0 -> 0.23.0.
 
 ## [0.65.1] - 2026-10-20
 
