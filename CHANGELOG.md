@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.65.3] - Unreleased
+## [0.65.3] - 2026-10-24
 
 ### Fixed
 - **HWPX body text no longer comes out struck through.** Unhwp 0.23.1 (from 0.23.0) stops reading a character shape's `3D`
