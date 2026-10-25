@@ -5,6 +5,13 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Breaking** (behaviour): the LLM refiner's prompt-token estimate come from FluxCurator's per-character-kind estimate (o200k_base ratios) instead of a local
+  rule — Korean text counts about 2.5× more tokens than before (it was read near English), English about the same. No code change;
+  limits compared with these counts are reached sooner on Korean text.
+
 ## [0.65.3] - 2026-10-24
 
 ### Fixed

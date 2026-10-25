@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using FileFlux.Core;
+using FluxCurator.Core.Infrastructure.Languages;
 using Microsoft.Extensions.Logging;
 
 namespace FileFlux.Infrastructure;
@@ -597,11 +598,9 @@ public sealed partial class LlmRefiner : ILlmRefiner
         ? $"{pass}: the response was truncated at the output token limit; the pass was not applied"
         : $"{pass}: {ex.Message}";
 
-    private static int EstimateTokens(string text)
-    {
-        // Rough estimation: ~4 characters per token
-        return text.Length / 4;
-    }
+    // FluxCurator's per-character-kind estimate (o200k_base ratios): a Korean prompt is not counted as English.
+    private static int EstimateTokens(string text) =>
+        LanguageProfileRegistry.Instance.GetProfile(null).EstimateTokenCount(text);
 
     #region LoggerMessage
 
