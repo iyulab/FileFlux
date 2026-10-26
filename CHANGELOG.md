@@ -5,6 +5,11 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Dependencies
+- Re-pinned sibling package(s) `LMSupply.Captioner` 0.136.0 -> 0.137.0, `LMSupply.Core` 0.136.0 -> 0.137.0, `LMSupply.Embedder` 0.136.0 -> 0.137.0, `LMSupply.Generator` 0.136.0 -> 0.137.0, `LMSupply.Ocr` 0.136.0 -> 0.137.0, `LMSupply.Transcriber` 0.136.0 -> 0.137.0. LMSupply 0.137.0 changes the token estimate it falls back to when a local server reports no usage: Korean text now counts about 2.5x more tokens than before, English slightly fewer, digits more.
+
 ## [0.66.0] - 2026-10-26
 
 ### Changed
