@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.66.0] - 2026-10-26
 
 ### Changed
 - **Breaking** (behaviour): the LLM refiner's prompt-token estimate comes from FluxCurator's per-character-kind estimate (o200k_base ratios) instead of a local
