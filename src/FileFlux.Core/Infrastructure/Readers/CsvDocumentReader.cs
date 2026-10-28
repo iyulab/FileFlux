@@ -1,7 +1,5 @@
 using CsvHelper;
-using CsvHelper.Configuration;
 using FileFlux.Core;
-using System.Globalization;
 using System.Text;
 
 namespace FileFlux.Core.Infrastructure.Readers;
@@ -216,23 +214,20 @@ public class CsvDocumentReader : IDocumentReader
         var (text, encodingName) = DecodeText(bytes, warnings);
         hints["encoding"] = encodingName;
 
-        var delimiter = extension == ".tsv" ? "\t" : ",";
-        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        // Rows are consumed manually (the first row is treated as header) and malformed or ragged input is tolerated:
+        // the reader's defaults already recover from bad quotes, allow rows of differing length and skip empty lines.
+        var options = new CsvReaderOptions
         {
-            Delimiter = delimiter,
-            HasHeaderRecord = false, // rows are consumed manually; first row is treated as header
-            BadDataFound = null,
-            MissingFieldFound = null,
-            DetectColumnCountChanges = false
+            Separator = extension == ".tsv" ? '\t' : ',',
+            HasHeader = false
         };
 
         var rows = new List<string[]>();
-        using (var reader = new StringReader(text))
-        using (var parser = new CsvParser(reader, config))
+        using (var reader = CsvReader.FromText(text, options))
         {
-            while (parser.Read())
+            while (reader.Read())
             {
-                rows.Add(parser.Record ?? []);
+                rows.Add(reader.Current.ToArray());
             }
         }
 

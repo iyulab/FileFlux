@@ -34,7 +34,6 @@
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="DocumentFormat.OpenXml" />
     <PackageReference Include="HtmlAgilityPack" />
-    <PackageReference Include="CsvHelper" />
     <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
     <!-- Test packages are automatically included from Directory.Build.props -->

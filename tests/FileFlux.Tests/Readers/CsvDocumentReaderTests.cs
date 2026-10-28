@@ -107,6 +107,51 @@ public class CsvDocumentReaderTests
     }
 
     [Fact]
+    public async Task ExtractAsync_RaggedRows_ShouldPadShortRowsAndKeepLongRows()
+    {
+        // Arrange - rows shorter and longer than the header are tolerated, not rejected
+        var csv = "a,b,c\n1,2\n3,4,5,6\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "ragged.csv", cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Contains("| 1 | 2 |  |", result.Text);
+        Assert.Contains("| 3 | 4 | 5 | 6 |", result.Text);
+    }
+
+    [Theory]
+    [InlineData("a,b\nx\"y,z\n", "| x\"y | z |")]          // quote inside an unquoted field is data
+    [InlineData("a,b\n1,\"never closed\nstill going\n", "| 1 |")] // unclosed quote must not throw or lose the row
+    public async Task ExtractAsync_MalformedQuoting_ShouldRecoverWithoutThrowing(string csv, string expectedRow)
+    {
+        // Arrange
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "bad-quotes.csv", cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Contains(expectedRow, result.Text);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_BlankLines_ShouldBeSkipped()
+    {
+        // Arrange
+        var csv = "a,b\n\n1,2\n\n\n3,4\n\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        // Act
+        var result = await _reader.ExtractAsync(stream, "blank.csv", cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert - header + separator + two data rows, no empty rows in between
+        Assert.Equal(4, result.Text.Split('\n').Length);
+        Assert.Equal(2, result.Hints["row_count"]);
+    }
+
+    [Fact]
     public async Task ExtractAsync_PipeInCell_ShouldEscapeForMarkdown()
     {
         // Arrange
