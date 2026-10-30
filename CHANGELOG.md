@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-pinned third-party packages: 13 .NET servicing pins (Microsoft.EntityFrameworkCore, Microsoft.Extensions) 10.0.13 -> 10.0.14 (the 10.0.14 security servicing release); `Microsoft.SourceLink.GitHub` 10.0.402 -> 10.0.403; `Markdig` 1.4.2 -> 1.5.0; `Spectre.Console` 0.55.2 -> 0.57.2; `System.CommandLine` 2.0.13 -> 2.0.14.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.137.0 -> 0.138.0, `LMSupply.Core` 0.137.0 -> 0.138.0, `LMSupply.Embedder` 0.137.0 -> 0.138.0, `LMSupply.Generator` 0.137.0 -> 0.138.0, `LMSupply.Ocr` 0.137.0 -> 0.138.0, `LMSupply.Transcriber` 0.137.0 -> 0.138.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.138.0 -> 0.139.0, `LMSupply.Core` 0.138.0 -> 0.139.0, `LMSupply.Embedder` 0.138.0 -> 0.139.0, `LMSupply.Generator` 0.138.0 -> 0.139.0, `LMSupply.Ocr` 0.138.0 -> 0.139.0, `LMSupply.Transcriber` 0.138.0 -> 0.139.0.
+- Re-pinned third-party packages: `Markdig` 1.5.0 -> 1.5.1.
 
 ## [0.66.0] - 2026-10-26
 
