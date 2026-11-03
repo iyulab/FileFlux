@@ -247,6 +247,72 @@ public class ExcelDocumentReaderTests
         Assert.Contains("| 정기계약 | 5 |", content.Text); // last row of sheet 2 (unique token)
     }
 
+    // ----- A workbook written by the Open XML SDK spells every spreadsheet element with a prefix -----
+
+    [Fact]
+    public async Task ExtractAsync_WorkbookWithPrefixedElements_ReadsLikeItsUnprefixedTwin()
+    {
+        // Undoc 0.27.1 matched the written element name, so `x:row` / `x:c` / `x:sheet` read as no sheet,
+        // no row and no cell: an empty document and no error. The Open XML SDK writes exactly this for a
+        // part built from typed elements, so any .NET report generator produces such files.
+        var path = Path.Combine(Path.GetTempPath(), $"prefixed-{Guid.NewGuid():N}.xlsx");
+        try
+        {
+            using (var workbook = DocumentFormat.OpenXml.Packaging.SpreadsheetDocument.Create(
+                       path, DocumentFormat.OpenXml.SpreadsheetDocumentType.Workbook))
+            {
+                var workbookPart = workbook.AddWorkbookPart();
+                workbookPart.Workbook = new DocumentFormat.OpenXml.Spreadsheet.Workbook();
+                var sheetPart = workbookPart.AddNewPart<DocumentFormat.OpenXml.Packaging.WorksheetPart>();
+
+                DocumentFormat.OpenXml.Spreadsheet.Row Row(uint index, string left, string right)
+                {
+                    DocumentFormat.OpenXml.Spreadsheet.Cell Cell(string reference, string text) => new()
+                    {
+                        CellReference = reference,
+                        DataType = DocumentFormat.OpenXml.Spreadsheet.CellValues.InlineString,
+                        InlineString = new DocumentFormat.OpenXml.Spreadsheet.InlineString(
+                            new DocumentFormat.OpenXml.Spreadsheet.Text(text)),
+                    };
+
+                    return new DocumentFormat.OpenXml.Spreadsheet.Row(Cell($"A{index}", left), Cell($"B{index}", right)) { RowIndex = index };
+                }
+
+                sheetPart.Worksheet = new DocumentFormat.OpenXml.Spreadsheet.Worksheet(
+                    new DocumentFormat.OpenXml.Spreadsheet.SheetData(Row(1, "name", "value"), Row(2, "alpha", "one"), Row(3, "beta", "two")));
+                sheetPart.Worksheet.Save();
+                workbookPart.Workbook.AppendChild(new DocumentFormat.OpenXml.Spreadsheet.Sheets(
+                    new DocumentFormat.OpenXml.Spreadsheet.Sheet { Id = workbookPart.GetIdOfPart(sheetPart), SheetId = 1, Name = "Report" }));
+                workbookPart.Workbook.Save();
+            }
+
+            // Positive control: the file really is prefixed, in both the workbook and the worksheet part.
+            using (var zip = System.IO.Compression.ZipFile.OpenRead(path))
+            {
+                foreach (var part in new[] { "xl/workbook.xml", "xl/worksheets/sheet1.xml" })
+                {
+                    using var reader = new StreamReader(zip.GetEntry(part)!.Open());
+                    Assert.Contains("<x:", reader.ReadToEnd());
+                }
+            }
+
+            var content = await _reader.ExtractAsync(path, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Contains("## Report", content.Text);
+            Assert.Contains("| name | value |", content.Text);
+            Assert.Contains("| alpha | one |", content.Text);
+            Assert.Contains("| beta | two |", content.Text);
+
+            await using var stream = File.OpenRead(path);
+            var fromStream = await _reader.ExtractAsync(stream, "prefixed.xlsx", cancellationToken: TestContext.Current.CancellationToken);
+            Assert.Equal(content.Text, fromStream.Text);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     // ----- File vs stream parity (the two extraction paths are copy-paste twins) -----
 
     [Theory]

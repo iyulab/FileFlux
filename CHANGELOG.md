@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependencies
+- Undoc 0.27.1 -> 0.27.2 (see Fixed).
+
 ### Changed
 - **Breaking** (behaviour): PDF reading moves from Unpdf 0.52.1 to 0.53.0, and some PDF tables now come out as Markdown tables where they were flowing text.
   A table ruled across only (horizontal rules, no vertical rules; Word draws each such rule as one rectangle per cell) is now read as a table, a header band
@@ -17,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Migration: none for code; a consumer that stored PDF chunks keeps the old text until the document is re-indexed.
 
 ### Fixed
+- **An .xlsx written by the Open XML SDK is no longer read as an empty document.** A workbook whose spreadsheet XML spells its elements with a prefix (`x:worksheet`, `x:row`, `x:c`; what the SDK writes for a part built from typed elements, so any .NET report generator produces it) gave no sheets, no rows and no error with Undoc 0.27.1; it now reads like its unprefixed twin. A Word document with another prefix (`ns0:`, `x:`) reads as well. A workbook that declares no sheet, or a sheet whose part is missing, still reads as empty.
 - **A sentence that names an image marker is no longer replaced by an image.** In plain text and Markdown, a line such as `Write [image:diagram] where a picture belongs.`, a line mentioning `[img_5]`, or one mentioning an `<!-- IMAGE_START:IMG_1 -->` comment was stored as just `![diagram](embedded:img_000)`
   (or the image reference of the first marker), dropping every other word of the line. Only a line that is a placeholder by itself is converted now; a line that already holds an embedded image reference is kept as written. Chunks you already stored keep the old text until the document is re-indexed.
 - **A `#` inside a line no longer cuts the paragraph or the table around it.** Plain text, Markdown, HTML, PowerPoint and CSV content went through a blank-line rule that took `# ` anywhere in a line for a heading: `I write C# daily` followed by `and enjoy it.` was split into two paragraphs, and a table row whose cell began with `# ` (a CSV cell `# not a heading`) ended the table there, so the rest of its rows came out under a `<!-- table: Complex table structure (missing separator) -->` hint without a header. The rule applies to a heading at the start of a line only (and the same for a bare code fence). Words were never lost; chunk boundaries and table structure were wrong.
