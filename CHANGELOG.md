@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passes 25 more table checks (33 gained, 8 lost; the 8 are tables with narrow gaps between columns in 4 files that now read as fewer columns).
   Migration: none for code; a consumer that stored PDF chunks keeps the old text until the document is re-indexed.
 
+### Fixed
+- **A sentence that names an image marker is no longer replaced by an image.** In plain text and Markdown, a line such as `Write [image:diagram] where a picture belongs.`, a line mentioning `[img_5]`, or one mentioning an `<!-- IMAGE_START:IMG_1 -->` comment was stored as just `![diagram](embedded:img_000)`
+  (or the image reference of the first marker), dropping every other word of the line. Only a line that is a placeholder by itself is converted now; a line that already holds an embedded image reference is kept as written. Chunks you already stored keep the old text until the document is re-indexed.
+
 ## [0.67.0] - 2026-11-03
 
 ### Changed

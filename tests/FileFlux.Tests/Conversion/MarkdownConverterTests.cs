@@ -410,6 +410,34 @@ public class MarkdownConverterTests
         Assert.True(result.Statistics.ImagePlaceholderCount > 0);
     }
 
+    [Theory]
+    [InlineData("Write [image:diagram] where a picture belongs.")]
+    [InlineData("The reader leaves a marker such as [img_5] in the text, and the next line continues.")]
+    [InlineData("Remove the <!-- IMAGE_START:IMG_1 --> comment before you publish.")]
+    [InlineData("See [image:fig 2] and [image:fig 3] for the two cases.")]
+    public async Task ConvertAsync_TextThatMentionsAnImageMarker_KeepsItsWords(string line)
+    {
+        // Arrange - a placeholder is a line of its own; a sentence that names one is text and loses nothing.
+        var rawContent = new RawContent { Text = line };
+
+        // Act
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(line, result.Markdown.Trim());
+        Assert.Equal(0, result.Statistics.ImagePlaceholderCount);
+    }
+
+    [Fact]
+    public async Task ConvertAsync_LineWithAnEmbeddedImageAndAMarkerMention_KeepsItsWords()
+    {
+        const string line = "Swap [image:diagram] for ![chart](embedded:img_7) in the text.";
+        var result = await _converter.ConvertAsync(new RawContent { Text = line }, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(line, result.Markdown.Trim());
+    }
+
     [Fact]
     public async Task ConvertAsync_ImagePlaceholderDisabled_SkipsConversion()
     {

@@ -469,14 +469,24 @@ public class MarkdownConverter : IMarkdownConverter
 
     private static bool IsImagePlaceholder(string line)
     {
-        return line.Contains("<!-- IMAGE") ||
-               line.Contains("[image:") ||
-               line.Contains("embedded:img_") ||
-               Regex.IsMatch(line, @"\[img_\d+\]", RegexOptions.IgnoreCase);
+        // A placeholder is a line of its own. A sentence that merely names a marker ("write [image:diagram] where a picture
+        // belongs") is text, and converting it would replace the whole line with the image and drop its words. The caller
+        // passes a trimmed line, so "whole line" is an anchored match; a line already holding an embedded image reference
+        // is kept as it is by ConvertImagePlaceholder.
+        return line.Contains("embedded:img_") ||
+               Regex.IsMatch(line, @"^<!--\s*IMAGE[^>]*-->$") ||
+               Regex.IsMatch(line, @"^\[image:[^\]]+\]$", RegexOptions.IgnoreCase) ||
+               Regex.IsMatch(line, @"^\[img_\d+\]$", RegexOptions.IgnoreCase);
     }
 
     private static string ConvertImagePlaceholder(string line)
     {
+        // embedded:img_XXX가 이미 포함된 경우 그대로
+        if (line.Contains("embedded:img_"))
+        {
+            return line;
+        }
+
         // <!-- IMAGE_START:IMG_1 --> 형식
         var commentMatch = Regex.Match(line, @"<!--\s*IMAGE[^>]*IMG[_]?(\d+)[^>]*-->", RegexOptions.IgnoreCase);
         if (commentMatch.Success)
@@ -489,12 +499,6 @@ public class MarkdownConverter : IMarkdownConverter
         if (bracketMatch.Success)
         {
             return $"![{bracketMatch.Groups[1].Value}](embedded:img_000)";
-        }
-
-        // embedded:img_XXX가 이미 포함된 경우 그대로
-        if (line.Contains("embedded:img_"))
-        {
-            return line;
         }
 
         // [img_N] 형식
