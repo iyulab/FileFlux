@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **A sentence that names an image marker is no longer replaced by an image.** In plain text and Markdown, a line such as `Write [image:diagram] where a picture belongs.`, a line mentioning `[img_5]`, or one mentioning an `<!-- IMAGE_START:IMG_1 -->` comment was stored as just `![diagram](embedded:img_000)`
   (or the image reference of the first marker), dropping every other word of the line. Only a line that is a placeholder by itself is converted now; a line that already holds an embedded image reference is kept as written. Chunks you already stored keep the old text until the document is re-indexed.
+- **A `#` inside a line no longer cuts the paragraph or the table around it.** Plain text, Markdown, HTML, PowerPoint and CSV content went through a blank-line rule that took `# ` anywhere in a line for a heading: `I write C# daily` followed by `and enjoy it.` was split into two paragraphs, and a table row whose cell began with `# ` (a CSV cell `# not a heading`) ended the table there, so the rest of its rows came out under a `<!-- table: Complex table structure (missing separator) -->` hint without a header. The rule applies to a heading at the start of a line only (and the same for a bare code fence). Words were never lost; chunk boundaries and table structure were wrong.
 
 ## [0.67.0] - 2026-11-03
 

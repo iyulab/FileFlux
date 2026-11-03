@@ -525,11 +525,12 @@ public class MarkdownConverter : IMarkdownConverter
 
         // 헤딩 앞뒤에 빈 줄 보장
         normalized = Regex.Replace(normalized, @"([^\n])\n(#{1,6}\s)", "$1\n\n$2");
-        normalized = Regex.Replace(normalized, @"(#{1,6}\s[^\n]+)\n([^\n#])", "$1\n\n$2");
+        // (anchored to the start of a line: "C# daily", "Ticket # 5" and a table cell "| # x |" are not headings)
+        normalized = Regex.Replace(normalized, @"(?m)^(#{1,6}\s[^\n]+)\n([^\n#])", "$1\n\n$2");
 
         // 코드 블록 앞뒤에 빈 줄 보장
         normalized = Regex.Replace(normalized, @"([^\n])\n(```)", "$1\n\n$2");
-        normalized = Regex.Replace(normalized, @"(```)\n([^\n])", "$1\n\n$2");
+        normalized = Regex.Replace(normalized, @"(?m)^([ \t]*```)\n([^\n])", "$1\n\n$2");
 
         return normalized.Trim();
     }

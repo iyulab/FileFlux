@@ -457,6 +457,20 @@ public class MarkdownConverterTests
 
     #region Whitespace Normalization Tests
 
+    [Theory]
+    [InlineData("I write C# daily\nand enjoy it.")]
+    [InlineData("Ticket # 5 was closed\nand the next one stays open.")]
+    [InlineData("Run ``` as a bare fence\nand continue the sentence.")]
+    [InlineData("| text |\n| --- |\n| one |\n| # not a heading |\n| three |\n| four |")]
+    public async Task ConvertAsync_HashOrFenceInsideALine_DoesNotSplitTheBlock(string text)
+    {
+        // A heading or a fence is recognised at the start of a line. The same characters inside a line (C#, "Ticket # 5", a cell
+        // that begins with "# ") must not get a blank line inserted after that line, which cut paragraphs and tables in two.
+        var result = await _converter.ConvertAsync(new RawContent { Text = text }, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.DoesNotContain("\n\n", result.Markdown.Replace("\r\n", "\n"));
+    }
+
     [Fact]
     public async Task ConvertAsync_MultipleBlankLines_Normalized()
     {
