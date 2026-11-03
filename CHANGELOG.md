@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.67.0] - 2026-11-03
 
 ### Changed
 - **Breaking** (behaviour): PDF reading moves from Unpdf 0.48.0 to 0.52.1, and extracted PDF text changes in three ways. **Hyperlinks now come out as Markdown links**
