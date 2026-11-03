@@ -441,9 +441,14 @@ public class MarkdownConverter : IMarkdownConverter
             return prefix + "- " + bulletMatch.Groups[1].Value;
         }
 
-        // 숫자/문자 + 괄호 패턴 (1), a), (a) 등). A "]" that opens a Markdown link ("](" inline, "][" reference)
-        // or a link reference definition ("]:") closes a link, not a list marker.
-        var numberedMatch = Regex.Match(trimmedLine, @"^(?:[\(\[])?([0-9a-zA-Z]+)(?:[)\.]|\](?![(\[:]))\s*(.+)$");
+        // 숫자/문자 + 괄호 패턴 (1), (1), a), (a), ii), [1]). A marker is a short number, one letter or a short roman numeral:
+        // "Dr.", "U.S.", "e.g.", "No.", "v1.2", "3.14" and "2024.csv" are text, so a "." never closes a marker here (digits + "." + space
+        // is already Markdown, above). A "]" that opens "(", "[" or ":" closes a link, a reference or a definition, not a marker.
+        var numberedMatch = Regex.Match(trimmedLine, @"^\(?(\d{1,3}|[A-Za-z]|[ivxlc]{2,4}|[IVXLC]{2,4})\)\s*(.+)$");
+        if (!numberedMatch.Success)
+        {
+            numberedMatch = Regex.Match(trimmedLine, @"^\[(\d{1,3}|[A-Za-z])\](?![(\[:])\s+(.+)$");
+        }
         if (numberedMatch.Success)
         {
             var indent = originalLine.Length - originalLine.TrimStart().Length;

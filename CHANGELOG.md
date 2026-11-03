@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A paragraph that starts with a link keeps its link text**: in Markdown, plain-text and HTML input (`<p><a href="u">FileFlux</a> reads ...`), `[FileFlux](https://...) reads` came out as
   `- (https://...) reads` - the link text lost and the paragraph turned into a list item; `[1](...)` became a numbered item. A `]` followed by `(`, `[` or `:` closes a link, a
   reference or a definition, not a list marker. Present in every earlier release; PDF links (Unpdf 0.52.1) make it more likely to be met.
+- **Sentences and headings that start like a list marker keep their text** (plain-text, Markdown and PDF input): `Dr. Smith arrived` came out as `- Smith arrived`, `v1.2 was released` as
+  `- 2 was released`, `U.S. policy` as `- S. policy`, `No. 5 is next` as `- 5 is next`, `3.14 is pi` as `3. 14 is pi`; in PDFs a numbered heading read `2. 1 Quantization` and a decimal `93. 4`.
+  A list marker is now a number of up to three digits, one letter or a short roman numeral closed by `)` (`1)`, `(a)`, `ii)`), or a bracketed `[1]`/`[a]` followed by a space;
+  letters or digits followed by `.` are text (`1. item` was and stays Markdown). Behaviour change for a consumer that relied on `a. item` or `Note) item` becoming `- item`.
+  Present in every earlier release.
 - **HTML: the word after an inline link or inline code is no longer fused to it**: `Read <a href="u">the docs</a> for more` extracted as `Read [the docs](u)for more` and
   `Run <code>x</code> first` as `Run `x`first`. The reader wrote every text node followed by a space but left none after a link or inline code. Present in every earlier release.
 

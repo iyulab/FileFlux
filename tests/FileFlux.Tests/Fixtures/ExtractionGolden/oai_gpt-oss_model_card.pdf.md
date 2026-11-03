@@ -13,88 +13,88 @@ OpenAI August 5, 2025
 
 **3**
 
-2. 1 Quantization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+2.1 Quantization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
 
-2. 2 Architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+2.2 Architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
 
-2. 3 Tokenizer . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+2.3 Tokenizer . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
 
-2. 4 Pretraining . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+2.4 Pretraining . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
 
-2. 5 Post-Training for Reasoning and Tool Use . . . . . . . . . . . . . . . . . . . . . . 6
+2.5 Post-Training for Reasoning and Tool Use . . . . . . . . . . . . . . . . . . . . . . 6
 
-2. 5.1 Harmony Chat Format . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.5.1 Harmony Chat Format . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
 
-2. 5.2 Variable Effort Reasoning Training . . . . . . . . . . . . . . . . . . . . . . 7
+2.5.2 Variable Effort Reasoning Training . . . . . . . . . . . . . . . . . . . . . . 7
 
-2. 5.3 Agentic Tool Use . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+2.5.3 Agentic Tool Use . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
 
-2. 6 Evaluation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+2.6 Evaluation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
 
-2. 6.1 Reasoning, Factuality and Tool Use . . . . . . . . . . . . . . . . . . . . . . 8
+2.6.1 Reasoning, Factuality and Tool Use . . . . . . . . . . . . . . . . . . . . . . 8
 
-2. 6.2 Health Performance . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+2.6.2 Health Performance . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
 
-2. 6.3 Multilingual Performance . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+2.6.3 Multilingual Performance . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
 
-2. 6.4 Full Evaluations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+2.6.4 Full Evaluations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
 
 ## 3 Safety testing and mitigation approach 10 4 Default Safety Performance: Observed Challenges and Evaluations 11
 
-4. 1 Disallowed Content . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+4.1 Disallowed Content . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
 
-4. 2 Jailbreaks . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+4.2 Jailbreaks . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
 
-4. 3 Instruction Hierarchy . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+4.3 Instruction Hierarchy . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
 
-4. 4 Hallucinated chains of thought . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+4.4 Hallucinated chains of thought . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
 
-4. 5 Hallucinations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+4.5 Hallucinations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
 
-4. 6 Fairness and Bias . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+4.6 Fairness and Bias . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
 
 ## 5 Preparedness Framework 16
 
-5. 1 Adversarial Training . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+5.1 Adversarial Training . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
 
 
-5. 1.1 External Safety expert feedback on adversarial training methodology . . . 17
+5.1.1 External Safety expert feedback on adversarial training methodology . . . 17
 
-5. 2 Capability findings . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+5.2 Capability findings . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
 
-5. 2.1 Biological and Chemical - Adversarially Fine-tuned . . . . . . . . . . . . . 18
+5.2.1 Biological and Chemical - Adversarially Fine-tuned . . . . . . . . . . . . . 18
 
-5. 2.1.1 Long-form Biological Risk Questions . . . . . . . . . . . . . . . . 19
+5.2.1.1 Long-form Biological Risk Questions . . . . . . . . . . . . . . . . 19
 
-5. 2.1.2 Multimodal Troubleshooting Virology . . . . . . . . . . . . . . . 20
+5.2.1.2 Multimodal Troubleshooting Virology . . . . . . . . . . . . . . . 20
 
-5. 2.1.3 ProtocolQA Open-Ended . . . . . . . . . . . . . . . . . . . . . . 20
+5.2.1.3 ProtocolQA Open-Ended . . . . . . . . . . . . . . . . . . . . . . 20
 
-5. 2.1.4 Tacit Knowledge and Troubleshooting . . . . . . . . . . . . . . . 21
+5.2.1.4 Tacit Knowledge and Troubleshooting . . . . . . . . . . . . . . . 21
 
-5. 2.1.5 TroubleshootingBench . . . . . . . . . . . . . . . . . . . . . . . . 21
+5.2.1.5 TroubleshootingBench . . . . . . . . . . . . . . . . . . . . . . . . 21
 
-5. 2.1.6 Evaluations and Red Teaming by External Safety Experts . . . 22
+5.2.1.6 Evaluations and Red Teaming by External Safety Experts . . . 22
 
-5. 2.2 Cybersecurity - Adversarially fine-tuned . . . . . . . . . . . . . . . . . . . 22
+5.2.2 Cybersecurity - Adversarially fine-tuned . . . . . . . . . . . . . . . . . . . 22
 
-5. 2.2.1 Capture the Flag (CTF) Challenges . . . . . . . . . . . . . . . . 23
+5.2.2.1 Capture the Flag (CTF) Challenges . . . . . . . . . . . . . . . . 23
 
-5. 2.2.2 Cyber range . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24
+5.2.2.2 Cyber range . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24
 
-5. 2.3 AI Self-Improvement . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+5.2.3 AI Self-Improvement . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
 
-5. 2.3.1 SWE-bench Verified (N=477) . . . . . . . . . . . . . . . . . . . . 26
+5.2.3.1 SWE-bench Verified (N=477) . . . . . . . . . . . . . . . . . . . . 26
 
-5. 2.3.2 OpenAI PRs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+5.2.3.2 OpenAI PRs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
 
-5. 2.3.3 PaperBench . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
+5.2.3.3 PaperBench . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
 
 ## 6 Appendix 1 29 7 Appendix 2 30
 
-7. 0.1 Recommendations Implemented . . . . . . . . . . . . . . . . . . . . . . . . 30
+7.0.1 Recommendations Implemented . . . . . . . . . . . . . . . . . . . . . . . . 30
 
-7. 0.2 Recommendations Not Adopted . . . . . . . . . . . . . . . . . . . . . . . . 31
+7.0.2 Recommendations Not Adopted . . . . . . . . . . . . . . . . . . . . . . . . 31
 
 ## 8 Contributors 31
 
@@ -184,7 +184,7 @@ gpt-oss-120b gpt-oss-120b gpt-oss-120b
 
 HLE MMLU (Expert-Level Questions) (College-level Exams)
 
-93. 4 93.0
+93.4 93.0
 
 30 90.0 24.9
 
@@ -210,7 +210,7 @@ Accuracy (%) Accuracy (%) 20
 
 o3 o3
 
-- o3-minio4-mini o3-minio4-mini (tool) (no tool) gpt-oss-120b(tool)gpt-oss-120b(no tool)gpt-oss-20b(tool)gpt-oss-20b(no tool) gpt-oss-120bgpt-oss-20b
+(tool)o3-minio4-mini o3-minio4-mini (tool) (no tool) gpt-oss-120b(tool)gpt-oss-120b(no tool)gpt-oss-20b(tool)gpt-oss-20b(no tool) gpt-oss-120bgpt-oss-20b
 
 0 0
 
@@ -231,7 +231,7 @@ Across all training stages, we utilize our o200k\_harmony tokenizer, which we op
 
 Codeforces SWE-Bench Verified Tau-Bench Retail (Competition Code) (Software Engineering) (Function Calling)
 
-70. 4 69.1 68.1
+70.4 69.1 68.1
 
 2500
 
@@ -266,7 +266,7 @@ o3 o3
 
 o3 o3-minio4-mini o3-minio4-mini
 
-- o3-minio4-mini (tool) gpt-oss-20b gpt-oss-20b gpt-oss-120b gpt-oss-120b (no tool) gpt-oss-120b(tool)gpt-oss-120b(no tool)gpt-oss-20b(tool)gpt-oss-20b(no tool)
+(tool)o3-minio4-mini (tool) gpt-oss-20b gpt-oss-20b gpt-oss-120b gpt-oss-120b (no tool) gpt-oss-120b(tool)gpt-oss-120b(no tool)gpt-oss-20b(tool)gpt-oss-20b(no tool)
 
 0 0 0
 

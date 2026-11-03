@@ -257,6 +257,47 @@ public class MarkdownConverterTests
         Assert.Equal(0, result.Statistics.ListCount);
     }
 
+    [Theory]
+    [InlineData("Dr. Smith arrived on Monday.")]
+    [InlineData("3.14 is the value of pi.")]
+    [InlineData("v1.2 was released in May.")]
+    [InlineData("U.S. policy changed this year.")]
+    [InlineData("e.g. a list of examples follows.")]
+    [InlineData("2024.csv is the file name.")]
+    [InlineData("No. 5 is next in the queue.")]
+    [InlineData("Note) this line starts like a marker.")]
+    public async Task ConvertAsync_ProseThatStartsLikeAMarker_IsLeftAlone(string input)
+    {
+        // Arrange
+        var rawContent = new RawContent { Text = input };
+
+        // Act
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: an abbreviation, a decimal, a version or a file name is text, not a list marker
+        Assert.True(result.IsSuccess);
+        Assert.Contains(input, result.Markdown);
+        Assert.Equal(0, result.Statistics.ListCount);
+    }
+
+    [Theory]
+    [InlineData("[1] First reference", "1. First reference")]
+    [InlineData("12) Twelfth item", "12. Twelfth item")]
+    [InlineData("ii) Second roman item", "- Second roman item")]
+    [InlineData("(b) Second lettered item", "- Second lettered item")]
+    public async Task ConvertAsync_ShortMarkersStillConvert(string input, string expected)
+    {
+        // Arrange
+        var rawContent = new RawContent { Text = input };
+
+        // Act
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Contains(expected, result.Markdown);
+    }
+
     #endregion
 
     #region Table Detection Tests
