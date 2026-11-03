@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A paragraph that starts with a link keeps its link text**: in Markdown, plain-text and HTML input (`<p><a href="u">FileFlux</a> reads ...`), `[FileFlux](https://...) reads` came out as
   `- (https://...) reads` - the link text lost and the paragraph turned into a list item; `[1](...)` became a numbered item. A `]` followed by `(`, `[` or `:` closes a link, a
   reference or a definition, not a list marker. Present in every earlier release; PDF links (Unpdf 0.52.1) make it more likely to be met.
+- **HTML: the word after an inline link or inline code is no longer fused to it**: `Read <a href="u">the docs</a> for more` extracted as `Read [the docs](u)for more` and
+  `Run <code>x</code> first` as `Run `x`first`. The reader wrote every text node followed by a space but left none after a link or inline code. Present in every earlier release.
 
 ### Dependencies
 - Re-pinned third-party package `Unpdf` 0.48.0 -> 0.52.1 (PDF reading; see Changed).

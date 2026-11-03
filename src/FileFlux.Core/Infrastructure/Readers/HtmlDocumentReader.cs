@@ -636,7 +636,8 @@ public partial class HtmlDocumentReader : IDocumentReader
         {
             if (!string.IsNullOrWhiteSpace(href))
             {
-                textBuilder.Append(CultureInfo.InvariantCulture, $"[{linkText}]({href})");
+                // Text nodes are written trimmed with one trailing space; a link written without one fuses with the word after it.
+                textBuilder.Append(CultureInfo.InvariantCulture, $"[{linkText}]({href}) ");
                 linkCount++;
 
                 // 외부 링크 판별 (http/https로 시작하는 경우)
@@ -647,7 +648,7 @@ public partial class HtmlDocumentReader : IDocumentReader
             }
             else
             {
-                textBuilder.Append(linkText);
+                textBuilder.Append(linkText).Append(' ');
             }
         }
     }
@@ -739,7 +740,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     private static void ProcessInlineCode(HtmlNode node, StringBuilder textBuilder, ref bool hasCode)
     {
         var codeText = HtmlEntity.DeEntitize(node.InnerText);
-        textBuilder.Append(CultureInfo.InvariantCulture, $"`{codeText}`");
+        textBuilder.Append(CultureInfo.InvariantCulture, $"`{codeText}` ");
         hasCode = true;
     }
 
