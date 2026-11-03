@@ -158,21 +158,19 @@ Accuracy (%)
 | (Competition Math) (Competition Math) | (PhD Science Questions) |
 | (With Tools) (With Tools) | (Without Tools) |
 
-| | 98.4 | | | | 99.5 | | 97.9 | | 98.7 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | 86.5 | | | | | | |
-| | | | | | | | | | |
+98.4 99.5 97.9 98.7
 
-| | 95.2 | | | | 98.7 | | 96.6 | | 96.0 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | 87.3 | | | | | | |
-| | | | | | | | | | |
+86.5
 
-| | 83.3 | | | | 81.4 | | 80.1 | | |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | 77.0 | | | | | | |
-| | | | | | | | | | 71.5 |
-| | | | | | | | | | |
+95.2 98.7 96.6 96.0
+
+87.3
+
+83.3 81.4 80.1
+
+77.0
+
+71.5
 
 o3 o3 o3
 
@@ -194,19 +192,15 @@ HLE MMLU (Expert-Level Questions) (College-level Exams)
 
 40 10
 
-| | | | | | 17.7 | | 19.0 | | | | 17.3 | | |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | | | | | | | | |
-| | | | 13.4 | | | | | | 14.9 | | | | |
-| | | | | | | | | | | | | | |
-| | | | | | | | | | | | | | 10.9 |
-| | | | | | | | | | | | | | |
+17.7 19.0 17.3
+
+13.4 14.9
+
+10.9
 
 Accuracy (%) Accuracy (%) 20
 
-| | | | 87.0 | | | | | | 85.3 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | | | | |
+87.0 85.3
 
 o3 o3
 
@@ -235,10 +229,9 @@ Codeforces SWE-Bench Verified Tau-Bench Retail (Competition Code) (Software Engi
 
 2500
 
-| | | | | | | | 62.4 | | 60.7 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | 49.3 | | | | | | |
-| | | | | | | | | | |
+62.4 60.7
+
+49.3
 
 60 60
 
@@ -250,19 +243,19 @@ Codeforces SWE-Bench Verified Tau-Bench Retail (Competition Code) (Software Engi
 
 Accuracy (%) Accuracy (%) 20 20 500
 
-| | | | | | 65.6 | | 67.8 | | |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | 57.6 | | | | | | 54.8 |
-| | | | | | | | | | |
+65.6 67.8
+
+57.6 54.8
 
 o3 o3
 
-| | 2706 | | | | 2719 | | 2622 | | | | | | |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | | | | 2463 | | 2516 | | |
-| | | | | | | | | | | | | | 2230 |
-| | | | 2073 | | | | | | | | | | |
-| | | | | | | | | | | | | | |
+2706 2719 2622
+
+2463 2516
+
+2230
+
+2073
 
 o3 o3-minio4-mini o3-minio4-mini
 
@@ -303,21 +296,21 @@ gpt-oss-20b
 
 GPQA Diamond (PhD Science Questions)
 
-| | | | | |
-| --- | --- | --- | --- | --- |
-| | | medium | high | high |
-| | | medium | | |
-| low | | | | |
-| | | | | |
-| low | | | | |
+medium high high
 
-| | | | | high |
-| --- | --- | --- | --- | --- |
-| | medium | | | |
-| low | | | | high |
-| | | medium | | |
-| | | | | |
-| low | | | | |
+medium
+
+low
+
+high
+
+medium
+
+low high
+
+medium
+
+low
 
 | Accuracy (%) | 65 |
 | --- | --- |
@@ -371,28 +364,33 @@ In Figure 4, we observe that the gpt-oss models at reasoning level high perform 
 These results represent a large Pareto improvement in the health performance-cost frontier. Open models may be especially impactful in global health, where privacy and cost constraints can be important. We hope that the release of these models makes health intelligence and reasoning capabilities more widely accessible, supporting the broad distribution of AI’s benefits. Please
 
 
-| HealthBench HealthBench Hard (Realistic Health Conversations) (Challenging Health Conversations) 59.8 57.6 60 31.6 | | (Validated by 2+ Physicians) | | HealthBench Consensus 91.5 | | 92.8 | | 91.1 | | 91.8 | | | | | |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 30.0 | | | | | | | | | | | | 90.0 | | | |
-| 50.1 90 30 | | 88.7 | | | | | | | | | | | | | |
-| 41.8 42.5 40 37.8 | | | | | | | | | | | | | | 82.6 | |
-| 32.0 20 17.5 80 10.8 Score (%) 20 7.9 10 70 4.0 0.0 | | | | | | | | | | | | | | | |
-| 0 0 60 o1 o3 o1 o3 gpt-4o o3-minio4-mini gpt-4o o3-minio4-mini gpt-oss-20b gpt-oss-20b gpt-oss-120b gpt-oss-120b | | gpt-4o | | o1 | | o3 | o3-mini | | o4-mini | gpt-oss-120b | | gpt-oss-20b | | | |
+HealthBench HealthBench Hard (Realistic Health Conversations) (Challenging Health Conversations) 59.8 57.6 60 31.6 (Validated by 2+ Physicians) HealthBench Consensus 91.5 92.8 91.1 91.8
 
-| | | | | | | | | | 50.1 | | | | |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | 41.8 | | | | | | | | | | 42.5 |
-| | | | | | | | 37.8 | | | | | | |
-| | 32.0 | | | | | | | | | | | | |
-| | | | | | | | | | | | | | |
+30.0 90.0
 
-| | | | | | | | | | | | |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | | 17.5 | | | | |
-| | 7.9 | | | | | | | | | | 10.8 |
-| 0.0 | | | | | | | | | | | |
-| | | | | | 4.0 | | | | | | |
-| | | | | | | | | | | | |
+50.1 90 30 88.7
+
+41.8 42.5 40 37.8 82.6
+
+32.0 20 17.5 80 10.8 Score (%) 20 7.9 10 70 4.0 0.0
+
+0 0 60 o1 o3 o1 o3 gpt-4o o3-minio4-mini gpt-4o o3-minio4-mini gpt-oss-20b gpt-oss-20b gpt-oss-120b gpt-oss-120b gpt-4o o1 o3 o3-mini o4-mini gpt-oss-120b gpt-oss-20b
+
+50.1
+
+41.8 42.5
+
+37.8
+
+32.0
+
+17.5
+
+7.9 10.8
+
+0.0
+
+4.0
 
 Figure 4: *Health performance*. The 120b model at reasoning level high performs nearly as well as OpenAI o3 on HealthBench and HealthBench Hard and substantially better than GPT-4o, OpenAI o1, OpenAI o3-mini, and OpenAI o4-mini. The 20b model performs slightly better than OpenAI o1, despite being significantly smaller.
 
@@ -541,9 +539,17 @@ We find gpt-oss-120b and gpt-oss-20b generally perform similarly to OpenAI o4-mi
 
 Table 6: Jailbreak evaluations
 
-### Category gpt-oss-120b gpt-oss-20b OpenAI o4-mini
+**Category gpt-oss-120b gpt-oss-20b OpenAI o4-mini**
 
-illicit/non-violent-crime 0.979 0.960 0.980 prompts violence prompts 0.983 0.979 0.991 abuse/disinformation/hate 0.993 0.982 0.982 prompts sexual-content prompts 0.989 0.970 0.974
+| illicit/non-violent-crime | 0.979 | 0.960 | 0.980 |
+| --- | --- | --- | --- |
+| prompts | | | |
+| violence prompts | 0.983 | 0.979 | 0.991 |
+
+| --- | --- | --- | --- |
+| abuse/disinformation/hate | 0.993 | 0.982 | 0.982 |
+| prompts | | | |
+| sexual-content prompts | 0.989 | 0.970 | 0.974 |
 
 ### 4.3 Instruction Hierarchy
 
@@ -851,12 +857,10 @@ Table 13: Overview of AI Self-Improvement evaluations
 | (N=477) | | ing tasks | just a code repository and issue descrip- |
 | | | | tion? |
 
-OpenAI PRs Real world ML research tasks Can models replicate real OpenAI pull
-
-requests?
-
-| PaperBench Real world ML paper replica- | Can models replicate real, state-of-the- |
+| OpenAI PRs Real world ML research tasks | Can models replicate real OpenAI pull |
 | --- | --- |
+| | requests? |
+| PaperBench Real world ML paper replica- | Can models replicate real, state-of-the- |
 | tion | art AI research papers from scratch? |
 
 #### 5.2.3.1 SWE-bench Verified (N=477)

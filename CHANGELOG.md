@@ -5,6 +5,16 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Breaking** (behaviour): PDF reading moves from Unpdf 0.52.1 to 0.52.2, and some PDF tables now come out as Markdown tables where they were flowing text.
+  A table ruled across only (horizontal rules, no vertical rules; Word draws each such rule as one rectangle per cell) is now read as a table, a header band
+  that does not line up in columns stays in its table, and a chart's axis labels, a diagram's boxes or an equation read as a grid of mostly empty cells are written as one
+  paragraph per row. On 188 table pages of a public document-parsing benchmark, 44 pages came out with no table before and 41 now; the benchmark's own scorer
+  passes 25 more table checks (33 gained, 8 lost; the 8 are tables with narrow gaps between columns in 4 files that now read as fewer columns).
+  Migration: none for code; a consumer that stored PDF chunks keeps the old text until the document is re-indexed.
+
 ## [0.67.0] - 2026-11-03
 
 ### Changed
