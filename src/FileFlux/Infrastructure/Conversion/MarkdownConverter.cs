@@ -441,8 +441,9 @@ public class MarkdownConverter : IMarkdownConverter
             return prefix + "- " + bulletMatch.Groups[1].Value;
         }
 
-        // 숫자/문자 + 괄호 패턴 (1), a), (a) 등)
-        var numberedMatch = Regex.Match(trimmedLine, @"^(?:[\(\[])?([0-9a-zA-Z]+)[)\]\.]\s*(.+)$");
+        // 숫자/문자 + 괄호 패턴 (1), a), (a) 등). A "]" that opens a Markdown link ("](" inline, "][" reference)
+        // or a link reference definition ("]:") closes a link, not a list marker.
+        var numberedMatch = Regex.Match(trimmedLine, @"^(?:[\(\[])?([0-9a-zA-Z]+)(?:[)\.]|\](?![(\[:]))\s*(.+)$");
         if (numberedMatch.Success)
         {
             var indent = originalLine.Length - originalLine.TrimStart().Length;

@@ -220,7 +220,7 @@ Figure 1: *Main capabilities evaluations*. We compare the gpt-oss models at reas
 
 ### 2.3 Tokenizer
 
-Across all training stages, we utilize our o200k\_harmony tokenizer, which we open source in our TikToken library. This is a Byte Pair Encoding (BPE) which extends the o200k tokenizer used for other OpenAI models such as GPT-4o and OpenAI o4-mini with tokens explicitly used for our harmony chat format described in Table 18 and has a total of 201,088 tokens.
+Across all training stages, we utilize our o200k\_harmony tokenizer, which we open source in our [TikToken](https://github.com/openai/tiktoken) library. This is a Byte Pair Encoding (BPE) which extends the o200k tokenizer used for other OpenAI models such as GPT-4o and OpenAI o4-mini with tokens explicitly used for our harmony chat format described in Table 18 and has a total of 201,088 tokens.
 
 ### 2.4 Pretraining
 
@@ -280,7 +280,7 @@ After pre-training, we post-train the models using similar CoT RL techniques as 
 
 For the models’ training, we use a custom chat format known as the harmony chat format. This format provides special tokens to delineate message boundaries and uses keyword arguments (e.g., User and Assistant) to indicate message authors and recipients. We use the same System and Developer message roles that are present in the OpenAI API models. Using these roles, the models follow a role-based information hierarchy to resolve instruction conflicts: System > Developer > User > Assistant > Tool.
 
-The format also introduces "channels" to indicate the intended visibility of each message, e.g., analysis for CoT tokens, commentary for function tool calling and final for answers shown to users. This format enables gpt-oss to provide advanced agentic features including interleaving tool calls within the CoT or providing preambles that outline longer action plans to the user. Our accompanying open-source implementation and guide provides full details on the proper usage of this format–it is critical to deploy our gpt-oss models properly to achieve their best capabilities. For example, in multi-turn conversations the reasoning traces from past assistant turns should be removed. Table 17 and 18 in the Appendix show an example model input and output in the harmony chat format. 2https://github.com/triton-lang/triton/tree/main/python/triton\_kernels
+The format also introduces "channels" to indicate the intended visibility of each message, e.g., analysis for CoT tokens, commentary for function tool calling and final for answers shown to users. This format enables gpt-oss to provide advanced agentic features including interleaving tool calls within the CoT or providing preambles that outline longer action plans to the user. Our accompanying [open-source implementation and guide](https://github.com/openai/harmony) provides full details on the proper usage of this format–it is critical to deploy our gpt-oss models properly to achieve their best capabilities. For example, in multi-turn conversations the reasoning traces from past assistant turns should be removed. Table 17 and 18 in the Appendix show an example model input and output in the harmony chat format. 2[https://github.com/triton-lang/triton/tree/main/python/triton\_kernels](https://github.com/triton-lang/triton/tree/main/python/triton_kernels)
 
 
 100 90 80
@@ -340,7 +340,7 @@ During post-training, we also teach the models to use different agentic tools:
 - A python tool, which allows the model to run code in a stateful Jupyter notebook environment.
 - Arbitrary developer functions, where one can specify function schemas in a Developer message similar to the OpenAI API. The definition of function is done within our harmony format. An example can be found in Table 18. The model can interleave CoT, function calls, function responses, intermediate messages that are shown to users, and final answers.
 
-The models have been trained to support running with and without these tools by specifying so in the system prompt. For each tool, we have provided basic reference harnesses that support the general core functionality. Our open-source implementation provides further details.
+The models have been trained to support running with and without these tools by specifying so in the system prompt. For each tool, we have provided basic reference harnesses that support the general core functionality. Our [open-source implementation](https://github.com/openai/gpt-oss) provides further details.
 
 ### 2.6 Evaluation
 
@@ -459,7 +459,7 @@ Table 3: Evaluations across multiple benchmarks and reasoning levels.
 
 During post-training, we use deliberative alignment\[29\] to teach the models to refuse on a wide range of content (e.g., illicit advice), be robust to jailbreaks, and adhere to the instruction hierarchy\[30\].
 
-In line with our longstanding views on open model weights, we believe that testing conditions for open weight models “would ideally reflect the range of ways that downstream actors can modify the model. One of the most useful properties of open models is that downstream actors can modify the models to expand their initial capabilities and tailor them to the developer’s specific applications. However, this also means that malicious parties could potentially enhance the model’s harmful capabilities. Rigorously assessing an open-weights release’s risks should thus include testing for a reasonable range of ways a malicious party could feasibly modify the model, including by fine-tuning.”
+In line with our [longstanding views on open model weights](https://openai.com/global-affairs/openai-s-comment-to-the-ntia-on-open-model-weights/), we believe that testing conditions for open weight models “would ideally reflect the range of ways that downstream actors can modify the model. One of the most useful properties of open models is that downstream actors can modify the models to expand their initial capabilities and tailor them to the developer’s specific applications. However, this also means that malicious parties could potentially enhance the model’s harmful capabilities. Rigorously assessing an open-weights release’s risks should thus include testing for a reasonable range of ways a malicious party could feasibly modify the model, including by fine-tuning.”
 
 The gpt-oss models are trained to follow OpenAI’s safety policies by default. We ran scalable Preparedness evaluations on gpt-oss-120b, and confirmed that the default model does not reach our
 
@@ -484,7 +484,7 @@ The following evaluations check that the model does not comply with requests for
 We consider several evaluations:
 
 - **Standard Disallowed Content Evaluations**: We report our standard evaluations to test the safety of our models’ outputs on requests for disallowed content. However, our recent models saturate this benchmark (as visible in the results table), and thus no longer provide useful signal for incremental safety progress. To help us benchmark continuing progress, we created the new Production Benchmarks evaluation set. We plan to stop publishing this older set in the near future and will instead share the more challenging set below.
-- **Production Benchmarks**: As introduced with ChatGPT agent, this is a new, more challenging evaluation set with conversations that are more representative of production data, and are thus highly multi-turn and less straightforward than our previous disallowed content evaluations.
+- **Production Benchmarks**: As introduced with [ChatGPT agent](https://openai.com/index/chatgpt-agent-system-card/), this is a new, more challenging evaluation set with conversations that are more representative of production data, and are thus highly multi-turn and less straightforward than our previous disallowed content evaluations.
 
 
 We evaluate completions using LLM-based grading models. We use the metric not\_unsafe, checking that the model did not produce unsafe output according to relevant OpenAI policy.
@@ -529,9 +529,7 @@ Table 5: Production Benchmarks
 | illicit/violent | 0.817 | 0.744 | 0.845 | 0.633 |
 | self-harm/intent | 0.950 | 0.893 | 0.862 | 0.849 |
 
-self- 0.910 harm/instructions
-
-0. 899 0.901 0.735
+self- 0.910 0.899 0.901 0.735 harm/instructions
 
 ### 4.2 Jailbreaks
 
@@ -554,7 +552,7 @@ Model inference providers can enable developers using their inference deployment
 
 end users. This functionality, while useful, could also potentially allow developers to circumvent guardrails in gpt-oss if not handled properly.
 
-To mitigate this issue, we taught the model to adhere to an Instruction Hierarchy4. At a high level, we post-trained the model with our harmony prompt format that uses several roles including: system messages, developer messages, and user messages. We collected examples of these different roles of messages conflicting with each other, and supervised gpt-oss to follow the instructions in the system message over developer messages, and instructions in developer messages over user messages. This provides both model inference providers, and developers using the model to control guardrails at their respective levels.
+To mitigate this issue, we taught the model to adhere to an Instruction Hierarchy4. At a high level, we post-trained the model with our [harmony prompt format](https://github.com/openai/harmony) that uses several roles including: system messages, developer messages, and user messages. We collected examples of these different roles of messages conflicting with each other, and supervised gpt-oss to follow the instructions in the system message over developer messages, and instructions in developer messages over user messages. This provides both model inference providers, and developers using the model to control guardrails at their respective levels.
 
 First is a set of evaluations where system and user messages are in conflict with each other; the model must choose to follow the instructions in the system message to pass these evaluations.
 
@@ -579,7 +577,7 @@ We observed that gpt-oss-120b and gpt-oss-20b generally underperform OpenAI o4-m
 
 ### 4.4 Hallucinated chains of thought
 
-In our recent research, we found that monitoring a reasoning model’s chain of thought can be helpful for detecting misbehavior. We further found that models could learn to hide their thinking while still misbehaving if their CoTs were directly pressured against having “bad thoughts.” More recently, we joined a position paper with a number of other labs arguing that frontier developers should “consider the impact of development decisions on CoT monitorability.”
+In our [recent research](https://openai.com/index/chain-of-thought-monitoring/), we found that monitoring a reasoning model’s chain of thought can be helpful for detecting misbehavior. We further found that models could learn to hide their thinking while still misbehaving if their CoTs were directly pressured against having “bad thoughts.” More recently, we joined a [position paper](https://arxiv.org/abs/2507.11473) with a number of other labs arguing that frontier developers should “consider the impact of development decisions on CoT monitorability.”
 
 In accord with these concerns, we decided not to put any direct optimization pressure on the CoT for either of our two open-weight models. We hope that this gives developers the opportunity to implement CoT monitoring systems in their projects and enables the research community to further study CoT monitorability.
 
@@ -618,14 +616,14 @@ Accuracy on ambiguous 0.87 0.79 0.82 questions Accuracy on disambiguated 0.90 0.
 
 # 5 Preparedness Framework
 
-The Preparedness Framework is OpenAI’s approach to tracking and preparing for frontier capabilities that create new risks of severe harm. The framework commits us to track and
+The [Preparedness Framework](https://cdn.openai.com/pdf/18a02b5d-6b67-4cec-ab64-68cdfbddebcd/preparedness-framework-v2.pdf) is OpenAI’s approach to tracking and preparing for frontier capabilities that create new risks of severe harm. The framework commits us to track and
 
 
 mitigate the risk of severe harm, including by implementing safeguards that sufficiently minimize the risk for highly capable models. Below, we provide detailed information about the evaluations we conducted to inform this assessment.
 
 ## 5.1 Adversarial Training
 
-The gpt-oss models leverage our state-of-art approaches for safety training. During pre-training, we filtered out certain harmful data related to Chemical, Biological, Radiological, and Nuclear (CBRN). During post-training, we used deliberative alignment and the instruction hierarchy to teach the model to refuse unsafe prompts and defend against prompt injections.
+The gpt-oss models leverage our state-of-art approaches for safety training. During pre-training, we filtered out certain harmful data related to Chemical, Biological, Radiological, and Nuclear (CBRN). During post-training, we used [deliberative alignment](https://openai.com/index/deliberative-alignment/) and the [instruction hierarchy](https://arxiv.org/abs/2404.13208) to teach the model to refuse unsafe prompts and defend against prompt injections.
 
 However, malicious actors can fine-tune open weight models, including our gpt-oss models. In order to estimate the effects that such fine-tuning might have on tracked categories of capability under the Preparedness Framework, we created adversarially fine-tuned versions of gpt-oss-120b for the two categories in which we believed there was a plausible chance that adversarial fine-tuning might allow the model to reach High capability under our framework: Biological and Chemical capability and Cyber capability.
 
@@ -696,7 +694,7 @@ All gpt-oss helpful-only variants and competitor models seem to be able to synth
 
 #### 5.2.1.2 Multimodal Troubleshooting Virology
 
-To evaluate models’ ability to troubleshoot wet lab experiments in a multimodal setting, we evaluate models on a set of 350 fully held-out virology troubleshooting questions from SecureBio.
+To evaluate models’ ability to troubleshoot wet lab experiments in a multimodal setting, we evaluate models on a set of 350 fully held-out virology troubleshooting questions from [SecureBio](https://securebio.org/).
 
 Figure 6
 
@@ -863,7 +861,7 @@ requests?
 
 #### 5.2.3.1 SWE-bench Verified (N=477)
 
-SWE-bench Verified \[27\] is the human-validated subset of SWE-bench that more reliably evaluates AI models’ ability to solve real-world software issues. This validated set of tasks fixes certain
+[SWE-bench Verified](https://openai.com/index/introducing-swe-bench-verified/) \[27\] is the human-validated subset of SWE-bench that more reliably evaluates AI models’ ability to solve real-world software issues. This validated set of tasks fixes certain
 
 ![](page27_Im13.png)
 
@@ -903,7 +901,7 @@ The gpt-oss models score only two percentage points lower than OpenAI o4-mini.
 
 #### 5.2.3.3 PaperBench
 
-PaperBench \[35\] evaluates the ability of AI agents to replicate state-of-the-art AI research. Agents must replicate 20 ICML 2024 Spotlight and Oral papers from scratch, including understanding paper contributions, developing a codebase, and successfully executing experiments. For objective evaluation, we develop rubrics that hierarchically decompose each replication task into smaller sub-tasks with clear grading criteria. In total, PaperBench contains 8,316 individually gradable tasks.
+[PaperBench](https://openai.com/index/paperbench/) \[35\] evaluates the ability of AI agents to replicate state-of-the-art AI research. Agents must replicate 20 ICML 2024 Spotlight and Oral papers from scratch, including understanding paper contributions, developing a codebase, and successfully executing experiments. For objective evaluation, we develop rubrics that hierarchically decompose each replication task into smaller sub-tasks with clear grading criteria. In total, PaperBench contains 8,316 individually gradable tasks.
 
 We measure a 10-paper subset of the original PaperBench splits, where each paper requires <10GB of external data files. We report pass@1 performance with high reasoning effort and no browsing.
 
@@ -1018,7 +1016,7 @@ Raso, Hongyu Ren, Kimmy Richardson, David Robinson, Bob Rotsted, Hadi Salman, Su
 
 \[21\] T. Dao, D. Y. Fu, S. Ermon, A. Rudra, and C. Ré, “FlashAttention: Fast and memory-efficient exact attention with IO-awareness,” 2022.
 
-\[22\] OpenAI, “Chowdhury, neil and aung, james and shern, chan jun and jaffe, oliver and sherburn, dane and starace, giulio and mays, evan and dias, rachel and aljubeh, marwan and glaese, mia and jimenez, carlos e and yang, john and ho, leyton and patwardhan, tejal and liu, kevin and madry, aleksander.” https://openai.com/index/ introducing-swe-bench-verified/, 2025. Accessed: 2025-08-04.
+\[22\] OpenAI, “Chowdhury, neil and aung, james and shern, chan jun and jaffe, oliver and sherburn, dane and starace, giulio and mays, evan and dias, rachel and aljubeh, marwan and glaese, mia and jimenez, carlos e and yang, john and ho, leyton and patwardhan, tejal and liu, kevin and madry, aleksander.” [https://openai.com/index/ introducing-swe-bench-verified/](https://openai.com/index/introducing-swe-bench-verified/), 2025. Accessed: 2025-08-04.
 
 \[23\] S. Yao, N. Shinn, P. Razavi, and K. Narasimhan, “*τ* -bench: A benchmark for tool-agent-user interaction in real-world domains,” *arXiv preprint arXiv:2406.12045*, 2024.
 

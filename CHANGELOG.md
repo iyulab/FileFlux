@@ -8,14 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Breaking** (behaviour): PDF reading moves from Unpdf 0.48.0 to 0.52.1, and extracted PDF text changes in three ways. **Hyperlinks now come out as Markdown links**
+  (`[text](https://...)`; a 16-link model card went from plain text to links), so a consumer that chunks or embeds PDF text sees URLs in it. Table rows whose decimals were split
+  across lines (`0. 899`) read whole, and a form row whose label and options were interleaved across columns reads in order. A page set in a fixed-pitch font stays prose
+  (Unpdf 0.50.0 - 0.51.0 rendered it as a single code block). On 18 real PDFs (8 forms, 10 press releases) 16 extractions are
+  byte-identical and 2 differ only by the form-row and heading gains. Migration: strip `[text](url)` to `text` before chunking if URLs are unwanted.
 - **Breaking: CSV/TSV parsing moves to CsvHelper 34.0.0** (a major release that replaced `CsvParser`/`CsvConfiguration` with a new
   `CsvReader`). The extracted tables are unchanged on 56 constructed cases and 86 real CSV/TSV files except for two malformed inputs:
   a quoted field followed by more text keeps its escaped quote (`"x""y"z` reads `x"yz`, was `xyz`), and a U+FEFF at the very start of
   already-decoded text is dropped. Migration: a consumer that references CsvHelper directly alongside FileFlux must move to 34.x
   (the new reader API; `CsvHelper.Configuration` no longer exists).
 
+### Fixed
+- **A paragraph that starts with a link keeps its link text**: in Markdown, plain-text and HTML input (`<p><a href="u">FileFlux</a> reads ...`), `[FileFlux](https://...) reads` came out as
+  `- (https://...) reads` - the link text lost and the paragraph turned into a list item; `[1](...)` became a numbered item. A `]` followed by `(`, `[` or `:` closes a link, a
+  reference or a definition, not a list marker. Present in every earlier release; PDF links (Unpdf 0.52.1) make it more likely to be met.
+
 ### Dependencies
-- Re-pinned third-party package `Undoc` 0.27.0 -> 0.27.1 (Word, Excel, PowerPoint reading): extracts the same text on 21 public Office files. `Unpdf` stays at 0.48.0 for now.
+- Re-pinned third-party package `Unpdf` 0.48.0 -> 0.52.1 (PDF reading; see Changed).
+- Re-pinned third-party package `Undoc` 0.27.0 -> 0.27.1 (Word, Excel, PowerPoint reading): extracts the same text on 21 public Office files.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.136.0 -> 0.137.0, `LMSupply.Core` 0.136.0 -> 0.137.0, `LMSupply.Embedder` 0.136.0 -> 0.137.0, `LMSupply.Generator` 0.136.0 -> 0.137.0, `LMSupply.Ocr` 0.136.0 -> 0.137.0, `LMSupply.Transcriber` 0.136.0 -> 0.137.0. LMSupply 0.137.0 changes the token estimate it falls back to when a local server reports no usage: Korean text now counts about 2.5x more tokens than before, English slightly fewer, digits more.
 - Re-pinned third-party packages: 13 .NET servicing pins (Microsoft.EntityFrameworkCore, Microsoft.Extensions) 10.0.13 -> 10.0.14 (the 10.0.14 security servicing release); `Microsoft.SourceLink.GitHub` 10.0.402 -> 10.0.403; `Markdig` 1.4.2 -> 1.5.0; `Spectre.Console` 0.55.2 -> 0.57.2; `System.CommandLine` 2.0.13 -> 2.0.14.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.137.0 -> 0.138.0, `LMSupply.Core` 0.137.0 -> 0.138.0, `LMSupply.Embedder` 0.137.0 -> 0.138.0, `LMSupply.Generator` 0.137.0 -> 0.138.0, `LMSupply.Ocr` 0.137.0 -> 0.138.0, `LMSupply.Transcriber` 0.137.0 -> 0.138.0.

@@ -238,6 +238,25 @@ public class MarkdownConverterTests
         Assert.Contains(expected, result.Markdown);
     }
 
+    [Theory]
+    [InlineData("[PaperBench](https://example.com/paperbench) evaluates agents.")]
+    [InlineData("[1](https://example.com/one) is a link, not a numbered item.")]
+    [InlineData("[ref][1] is a reference-style link.")]
+    [InlineData("[1]: https://example.com/one is a link reference definition.")]
+    public async Task ConvertAsync_LineStartingWithAMarkdownLink_IsNotAListItem(string input)
+    {
+        // Arrange
+        var rawContent = new RawContent { Text = input };
+
+        // Act
+        var result = await _converter.ConvertAsync(rawContent, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: a link keeps its text; "[word]" followed by "(" is not an alphabetic list marker
+        Assert.True(result.IsSuccess);
+        Assert.Contains(input, result.Markdown);
+        Assert.Equal(0, result.Statistics.ListCount);
+    }
+
     #endregion
 
     #region Table Detection Tests
