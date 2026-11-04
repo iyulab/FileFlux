@@ -16,12 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undoc 0.27.1 -> 0.27.2 (see Fixed).
 
 ### Changed
-- **Breaking** (behaviour): PDF reading moves from Unpdf 0.52.1 to 0.53.0, and some PDF tables now come out as Markdown tables where they were flowing text.
-  A table ruled across only (horizontal rules, no vertical rules; Word draws each such rule as one rectangle per cell) is now read as a table, a header band
+- **Breaking** (behaviour): PDF reading moves from Unpdf 0.52.1 to 0.53.1, and more PDF tables now come out as Markdown tables where they were flowing text.
+  A table ruled across only (horizontal rules, no vertical rules; Word draws each such rule as one rectangle per cell), a table drawn with double rules, records ruled
+  apart inside a frame (a short key with a wrapped description) and a table whose title spans its columns are now read as tables; a header band
   that does not line up in columns stays in its table, and a chart's axis labels, a diagram's boxes or an equation read as a grid of mostly empty cells are written as one
-  paragraph per row. On 188 table pages of a public document-parsing benchmark, 44 pages came out with no table before and 41 now; the benchmark's own scorer
-  passes 25 more table checks (33 gained, 8 lost; the 8 are tables with narrow gaps between columns in 4 files that now read as fewer columns).
+  paragraph per row. A page turned by `/Rotate` is read as it is shown, and a page body set in two columns is no longer read as a table. On 188 table pages of a public
+  document-parsing benchmark, 44 pages came out with no table before and 39 now; across its five non-math sets the benchmark's own scorer goes from 53.4 % to 54.5 %
+  (71 checks gained, 5 lost; the 5 are tables with narrow gaps between columns in 3 files that now read as fewer columns), and 99 of its 845 outputs differ.
   Styled text that contains a link is written as one emphasis around the whole run (`**Read [the docs](url) now**`) instead of separate bold pieces around the link; the words are the same (7 of 845 benchmark PDFs differ, none in any check).
+  The words of a chart or figure (axis labels, bar values) can come out in a different order, and a value that used to be dropped from a chart is kept; the header cell that spans several columns of a table can sit one column over.
   Migration: none for code; a consumer that stored PDF chunks keeps the old text until the document is re-indexed.
 
 ### Fixed

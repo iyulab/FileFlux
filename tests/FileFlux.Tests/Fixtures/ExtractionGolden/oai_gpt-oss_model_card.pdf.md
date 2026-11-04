@@ -296,7 +296,9 @@ gpt-oss-20b
 
 GPQA Diamond (PhD Science Questions)
 
-medium high high
+high
+
+medium high
 
 medium
 
@@ -384,11 +386,13 @@ HealthBench HealthBench Hard (Realistic Health Conversations) (Challenging Healt
 
 32.0
 
+30.0
+
 17.5
 
-7.9 10.8
+10.8
 
-0.0
+0.0 7.9
 
 4.0
 
@@ -402,7 +406,7 @@ To evaluate multilingual capabilities, we used the MMMLU eval \[25\], a professi
 
 Table 2: MMMLU evaluation
 
-| | | gpt-oss-120b | | | gpt-oss-20b | | OpenAI baselines (high) | | |
+| | gpt-oss-120b | | | | gpt-oss-20b | | OpenAI baselines (high) | | |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Language | low | medium | high | low | medium | high | o3-mini | o4-mini | o3 |
 | Arabic | 75.0 | 80.4 | 82.7 | 65.6 | 73.4 | 76.3 | 81.9 | 86.1 | 90.4 |
