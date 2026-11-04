@@ -385,4 +385,31 @@ This document covers:
         // A line feed inside the cell would cut the row in two; the break is kept as <br>, the way a CSV cell is written.
         Assert.Contains("| One<br>Two | Three |", content);
     }
+
+    [Fact]
+    public async Task ExtractAsync_OrderedListThatStartsAtThree_KeepsItsNumbers()
+    {
+        var content = await ReadAsync("3. Alpha\n4. Bravo\n");
+
+        Assert.Contains("3. Alpha\n4. Bravo", content);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_DefinitionList_KeepsTheTermAndItsDefinitions()
+    {
+        var content = await ReadAsync("Yankee\n: Zulu\n: Anton\n\nBruno\n: Cäsar\n");
+
+        // The terms were dropped: only the definitions came out.
+        Assert.Contains("Yankee\n: Zulu\n: Anton", content);
+        Assert.Contains("Bruno\n: Cäsar", content);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_EscapedPipeInATableCell_StaysInsideItsCell()
+    {
+        var content = await ReadAsync("| Victor | Whiskey |\n|---|---|\n| a \\| b | Xray |\n");
+
+        // Written bare, the pipe cut the cell in two and the row grew a third column.
+        Assert.Contains("| a \\| b | Xray |", content);
+    }
 }

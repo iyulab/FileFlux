@@ -1,5 +1,6 @@
 using FileFlux.Core;
 using Markdig;
+using Markdig.Extensions.DefinitionLists;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -244,6 +245,10 @@ public class MarkdownDocumentReader : IDocumentReader
                 ExtractQuoteBlock(quote, content);
                 break;
 
+            case DefinitionList definitions:
+                ExtractDefinitionList(definitions, content);
+                break;
+
             default:
                 // 기타 블록은 기본 렌더링 - Markdig의 기본 텍스트 변환 사용
                 using (var writer = new StringWriter())
@@ -277,7 +282,7 @@ public class MarkdownDocumentReader : IDocumentReader
                 if (cell is TableCell tableCell)
                 {
                     var cellContent = ExtractTableCellContent(tableCell);
-                    content.Append(CultureInfo.InvariantCulture, $"{cellContent.Trim()} | ");
+                    content.Append(CultureInfo.InvariantCulture, $"{EscapeCellPipes(cellContent.Trim())} | ");
                 }
             }
             content.AppendLine();
@@ -302,7 +307,7 @@ public class MarkdownDocumentReader : IDocumentReader
                     if (cell is TableCell tableCell)
                     {
                         var cellContent = ExtractTableCellContent(tableCell);
-                        content.Append(CultureInfo.InvariantCulture, $"{cellContent.Trim()} | ");
+                        content.Append(CultureInfo.InvariantCulture, $"{EscapeCellPipes(cellContent.Trim())} | ");
                     }
                 }
                 content.AppendLine();
@@ -312,6 +317,12 @@ public class MarkdownDocumentReader : IDocumentReader
         // 테이블 종료 마커
         content.AppendLine("<!-- TABLE_END -->");
     }
+
+    /// <summary>
+    /// A literal <c>|</c> in a cell (written <c>\|</c> in the source, which the parser unescapes) goes back out escaped: written
+    /// bare it cuts the cell in two and the row grows a column the header does not have.
+    /// </summary>
+    private static string EscapeCellPipes(string cellText) => cellText.Replace("|", "\\|", StringComparison.Ordinal);
 
     private static void ExtractHeading(HeadingBlock heading, StringBuilder content)
     {
@@ -351,7 +362,8 @@ public class MarkdownDocumentReader : IDocumentReader
     private static void AppendListItems(ListBlock list, StringBuilder content, int depth)
     {
         var indent = new string(' ', depth * 2);
-        var itemIndex = 1;
+        // An ordered list numbers from the number it starts at (`3.` `4.`), as the document wrote it.
+        var itemIndex = list.IsOrdered && int.TryParse(list.OrderedStart, NumberStyles.None, CultureInfo.InvariantCulture, out var start) ? start : 1;
         foreach (var item in list)
         {
             if (item is not ListItemBlock listItem) continue;
@@ -414,6 +426,42 @@ public class MarkdownDocumentReader : IDocumentReader
 
         // 코드 블록 종료 마커
         content.AppendLine("<!-- CODE_END -->");
+    }
+
+    /// <summary>
+    /// A definition list (<c>Term</c> then <c>: definition</c>): the term and every definition are written, the term on its
+    /// own line and each definition after a colon. The terms were dropped when the list fell through to the default renderer.
+    /// </summary>
+    private static void ExtractDefinitionList(DefinitionList definitions, StringBuilder content)
+    {
+        foreach (var item in definitions)
+        {
+            if (item is not DefinitionItem definitionItem) continue;
+
+            foreach (var child in definitionItem)
+            {
+                switch (child)
+                {
+                    case DefinitionTerm term:
+                        content.AppendLine(ExtractInlines(term.Inline));
+                        break;
+
+                    case ParagraphBlock paragraph:
+                        content.AppendLine(CultureInfo.InvariantCulture, $": {ExtractInlines(paragraph.Inline)}");
+                        break;
+
+                    default:
+                        var rendered = new StringBuilder();
+                        ExtractBlock(child, rendered, "");
+                        foreach (var line in rendered.ToString().ReplaceLineEndings("\n").Split('\n'))
+                        {
+                            if (line.Length > 0) content.Append("  ").AppendLine(line);
+                        }
+
+                        break;
+                }
+            }
+        }
     }
 
     private static void ExtractQuoteBlock(QuoteBlock quote, StringBuilder content)

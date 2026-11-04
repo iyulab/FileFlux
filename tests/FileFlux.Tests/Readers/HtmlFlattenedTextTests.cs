@@ -69,6 +69,44 @@ public sealed class HtmlFlattenedTextTests : IDisposable
     }
 
     [Fact]
+    public async Task NestedList_WritesEachItemOnce()
+    {
+        var text = await ExtractAsync("<ul><li>Jakob<ul><li>Kaufmann</li><li>Ludwig</li></ul></li><li>Martha</li></ul>");
+
+        // The items of the inner list were also taken as items of the outer one and written twice.
+        Assert.Equal(1, CountOf(text, "Kaufmann"));
+        Assert.Equal(1, CountOf(text, "Ludwig"));
+        Assert.Contains("Jakob", text);
+        Assert.Contains("Martha", text);
+    }
+
+    [Fact]
+    public async Task NestedOrderedList_NumbersEachListFromOne()
+    {
+        var text = await ExtractAsync("<ol><li>Norbert<ol><li>Otto</li></ol></li><li>Paula</li></ol>");
+
+        Assert.Equal(1, CountOf(text, "Otto"));
+        Assert.Contains("2. Paula", text);
+    }
+
+    [Fact]
+    public async Task TableInsideACell_IsWrittenOnceWithTheCell()
+    {
+        var text = await ExtractAsync("<table><tr><td>Viktor<table><tr><td>Wilhelm</td></tr></table></td><td>Xaver</td></tr></table>");
+
+        Assert.Equal(1, CountOf(text, "Wilhelm"));
+        Assert.Contains("Xaver", text);
+    }
+
+    private static int CountOf(string text, string word)
+    {
+        var count = 0;
+        for (var at = text.IndexOf(word, StringComparison.Ordinal); at >= 0; at = text.IndexOf(word, at + word.Length, StringComparison.Ordinal))
+            count++;
+        return count;
+    }
+
+    [Fact]
     public async Task TableCell_WithInlineMarkupInsideAWord_AddsNoSpace()
     {
         var text = await ExtractAsync("<table><tr><td>un<b>believ</b>able</td><td>x</td></tr></table>");

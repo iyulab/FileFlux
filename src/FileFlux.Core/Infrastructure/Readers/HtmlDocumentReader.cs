@@ -594,7 +594,9 @@ public partial class HtmlDocumentReader : IDocumentReader
         List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, List<ImageInfo> images, int depth, string tagName, CancellationToken cancellationToken)
     {
         var isOrdered = tagName == "ol";
-        var items = node.SelectNodes(".//li");
+        // The list's own items only: ".//li" also matched the items of every nested list, which were then written once as
+        // items of this list (and numbered with it) and again when their own list was processed.
+        var items = node.SelectNodes("./li");
 
         if (items != null)
         {
@@ -637,7 +639,7 @@ public partial class HtmlDocumentReader : IDocumentReader
 
     private static void ProcessTable(HtmlNode node, StringBuilder textBuilder)
     {
-        var caption = node.SelectSingleNode(".//caption");
+        var caption = node.SelectSingleNode("./caption");
         var captionText = caption != null ? FlatText(caption) : "";
 
         if (!string.IsNullOrWhiteSpace(captionText))
@@ -649,7 +651,8 @@ public partial class HtmlDocumentReader : IDocumentReader
             textBuilder.AppendLine("--- TABLE ---");
         }
 
-        var rows = node.SelectNodes(".//tr");
+        // This table's rows (directly or under thead / tbody / tfoot); a table inside a cell is part of that cell's text, not more rows here.
+        var rows = node.SelectNodes("./tr | ./thead/tr | ./tbody/tr | ./tfoot/tr");
         if (rows != null)
         {
             foreach (var row in rows)
