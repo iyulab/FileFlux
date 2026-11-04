@@ -331,6 +331,8 @@ AI backend.
 > which reads as corruption when the file is simply not a workbook. When the content is a format
 > another reader parses, the message names it as `detected_extension` (for example `.pdf`).
 
+> **A non-empty file that read as empty (since the next release)** — when any reader returns no text, no image and no table for a source that has bytes, and has not said why itself, the extraction carries `Hints["extraction_failure_reason"] = "empty_extraction"` and a warning ending in `[empty_extraction]`, so "read but found nothing" is not mistaken for a short document. A reader's own reason (the PDF reasons below) is never overwritten. `EmptyExtraction.Note(rawContent, sourceLength)` applies the same mark for a caller that runs a reader directly.
+
 ## Known Limitations
 
 ### PDF Processing

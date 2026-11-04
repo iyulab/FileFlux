@@ -1,4 +1,5 @@
 using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 
 namespace FileFlux.Domain;
 
@@ -22,7 +23,9 @@ public static class ExtractionWarnings
 
         var warnings = new List<string>(rawContent.Warnings);
 
-        if (fileSize > 0 && string.IsNullOrWhiteSpace(extractedText))
+        // A reader, or EmptyExtraction.Note on the way in, already explained an empty read; this is for text that went empty
+        // afterwards (an extraction that held only embedded images, once they were set aside).
+        if (fileSize > 0 && string.IsNullOrWhiteSpace(extractedText) && !rawContent.Hints.ContainsKey(EmptyExtraction.HintKey))
         {
             warnings.Add(
                 $"No text was extracted (0 characters) from a non-empty file ({fileSize} bytes). " +

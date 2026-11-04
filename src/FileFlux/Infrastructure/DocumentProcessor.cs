@@ -124,6 +124,7 @@ public sealed partial class FluxDocumentProcessor
 
             var rawContent = await reader.ExtractAsync(filePath, null, cancellationToken).ConfigureAwait(false);
             FormatSignature.NoteDeclaredMismatch(rawContent, filePath, detected);
+            EmptyExtraction.Note(rawContent, new FileInfo(filePath).Length);
 
             LogWarnings("Extraction", rawContent.Warnings);
             return rawContent;

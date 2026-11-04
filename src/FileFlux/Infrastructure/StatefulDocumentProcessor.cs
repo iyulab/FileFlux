@@ -259,6 +259,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             ?? throw new UnsupportedFileFormatException(FilePath, $"No reader found for: {FilePath}");
         var raw = await reader.ExtractAsync(FilePath, options, cancellationToken).ConfigureAwait(false);
         FormatSignature.NoteDeclaredMismatch(raw, FilePath, detected);
+        EmptyExtraction.Note(raw, new FileInfo(FilePath).Length);
         return raw;
     }
 
@@ -270,6 +271,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             ?? throw new UnsupportedFileFormatException(_extension, $"No reader found for extension: {_extension}");
         var raw = await reader.ExtractAsync(_stream!, _fileName ?? $"stream{_extension}", options, cancellationToken).ConfigureAwait(false);
         FormatSignature.NoteDeclaredMismatch(raw, _extension, detected);
+        EmptyExtraction.Note(raw, _stream!.CanSeek ? _stream.Length : null);
         return raw;
     }
 
@@ -281,6 +283,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
             ?? throw new UnsupportedFileFormatException(_extension, $"No reader found for extension: {_extension}");
         var raw = await reader.ExtractAsync(stream, _fileName ?? $"content{_extension}", options, cancellationToken).ConfigureAwait(false);
         FormatSignature.NoteDeclaredMismatch(raw, _extension, detected);
+        EmptyExtraction.Note(raw, _content!.Length);
         return raw;
     }
 
