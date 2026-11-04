@@ -171,8 +171,7 @@ public class TextDocumentReader : IDocumentReader
         try
         {
             // 스트림에서 텍스트 읽기
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
-            var text = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+            var text = await ReadStreamTextAsync(stream, cancellationToken).ConfigureAwait(false);
 
             // 기본 구조적 힌트 감지
             var structuralHints = DetectBasicStructuralHints(text, Path.GetExtension(fileName));
@@ -209,68 +208,10 @@ public class TextDocumentReader : IDocumentReader
 
     private static async Task<string> ReadTextWithEncodingDetectionAsync(string filePath, CancellationToken cancellationToken)
     {
-        const int bufferSize = 8192; // 8KB 버퍼 사용
-        var charPool = ArrayPool<char>.Shared;
-        var bytePool = ArrayPool<byte>.Shared;
-
-        var encoding = Encoding.UTF8;
-        var hasBom = false;
-
-        using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, useAsync: true);
-
-        // BOM 감지를 위해 처음 몇 바이트 읽기
-        var bomBuffer = bytePool.Rent(4);
-        try
-        {
-            var bomBytesRead = await fileStream.ReadAsync(bomBuffer.AsMemory(0, 4), cancellationToken).ConfigureAwait(false);
-
-            if (bomBytesRead >= 3 && bomBuffer[0] == 0xEF && bomBuffer[1] == 0xBB && bomBuffer[2] == 0xBF)
-            {
-                hasBom = true;
-                encoding = Encoding.UTF8;
-                // BOM 이후부터 읽기 위해 스트림 위치 조정
-                fileStream.Seek(3, SeekOrigin.Begin);
-            }
-            else
-            {
-                // BOM이 없으면 처음부터 다시 읽기
-                fileStream.Seek(0, SeekOrigin.Begin);
-            }
-        }
-        finally
-        {
-            bytePool.Return(bomBuffer);
-        }
-
-        // 스트리밍 방식으로 텍스트 읽기
-        using var reader = new StreamReader(fileStream, encoding, !hasBom, bufferSize, leaveOpen: false);
-
-        // StringBuilder 풀링을 통한 메모리 효율성
-        var stringBuilder = new StringBuilder();
-        var charBuffer = charPool.Rent(bufferSize);
-
-        try
-        {
-            int charsRead;
-            while ((charsRead = await reader.ReadAsync(charBuffer, 0, charBuffer.Length).ConfigureAwait(false)) > 0)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                stringBuilder.Append(charBuffer, 0, charsRead);
-            }
-
-            return stringBuilder.ToString();
-        }
-        catch (DecoderFallbackException) when (!hasBom && encoding == Encoding.UTF8)
-        {
-            // UTF-8 디코딩 실패 시 시스템 기본 인코딩으로 재시도
-            fileStream.Seek(0, SeekOrigin.Begin);
-            using var fallbackReader = new StreamReader(fileStream, Encoding.Default, false, bufferSize);
-            return await fallbackReader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            charPool.Return(charBuffer);
-        }
+        // Decoded by TextDecoder (byte order mark, strict UTF-8, then CP949): a UTF-8 reader replaces what it cannot decode
+        // with U+FFFD, so a legacy Korean file came out as replacement characters.
+        var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
+        return TextDecoder.Decode(bytes).Text;
     }
 
     /// <summary>
@@ -506,8 +447,7 @@ public class TextDocumentReader : IDocumentReader
             });
 
             // 스트림에서 텍스트 읽기
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
-            var text = await reader.ReadToEndAsync(cancellationToken);
+            var text = await ReadStreamTextAsync(stream, cancellationToken);
 
             // 구조적 힌트 감지
             progressCallback?.Invoke(new ProcessingProgress
@@ -567,26 +507,12 @@ public class TextDocumentReader : IDocumentReader
         }
     }
 
-    /// <summary>
-    /// 바이트 배열을 적절한 인코딩으로 디코딩합니다
-    /// </summary>
-    private static string DecodeTextWithEncoding(byte[] bytes)
-    {
-        // UTF-8 BOM 감지
-        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
-        {
-            return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
-        }
+    private static string DecodeTextWithEncoding(byte[] bytes) => TextDecoder.Decode(bytes).Text;
 
-        // UTF-8로 시도
-        try
-        {
-            return Encoding.UTF8.GetString(bytes);
-        }
-        catch (DecoderFallbackException)
-        {
-            // UTF-8 실패 시 시스템 기본 인코딩 사용
-            return Encoding.Default.GetString(bytes);
-        }
+    private static async Task<string> ReadStreamTextAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+        return TextDecoder.Decode(buffer.ToArray()).Text;
     }
 }

@@ -119,7 +119,7 @@ public partial class HtmlDocumentReader : IDocumentReader
 
         try
         {
-            var htmlContent = await File.ReadAllTextAsync(filePath, cancellationToken);
+            var htmlContent = TextDecoder.Decode(await File.ReadAllBytesAsync(filePath, cancellationToken), declaredCharsetFromContent: true).Text;
             return await Task.Run(() => ExtractHtmlContent(htmlContent, Path.GetFileName(filePath), new FileInfo(filePath), cancellationToken), cancellationToken);
         }
         catch (Exception ex) when (!(ex is FileFluxException) && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
@@ -137,8 +137,9 @@ public partial class HtmlDocumentReader : IDocumentReader
 
         try
         {
-            using var reader = new StreamReader(stream);
-            var htmlContent = await reader.ReadToEndAsync(cancellationToken);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken);
+            var htmlContent = TextDecoder.Decode(buffer.ToArray(), declaredCharsetFromContent: true).Text;
             return await Task.Run(() => ExtractHtmlContentFromStream(htmlContent, fileName, stream, cancellationToken), cancellationToken);
         }
         catch (Exception ex) when (!(ex is FileFluxException) && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))

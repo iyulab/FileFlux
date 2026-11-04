@@ -112,7 +112,7 @@ public class MarkdownDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"Markdown file not found: {filePath}");
 
-        var markdownText = await File.ReadAllTextAsync(filePath, cancellationToken);
+        var markdownText = TextDecoder.Decode(await File.ReadAllBytesAsync(filePath, cancellationToken)).Text;
         var metadata = CreateMetadata(filePath, markdownText);
 
         // Markdig 파이프라인 설정 - 고급 기능 활성화 (테이블 포함)
@@ -143,8 +143,9 @@ public class MarkdownDocumentReader : IDocumentReader
         if (string.IsNullOrWhiteSpace(fileName))
             throw new ArgumentException("File name cannot be null or empty", nameof(fileName));
 
-        using var reader = new StreamReader(stream, leaveOpen: true);
-        var markdownText = await reader.ReadToEndAsync(cancellationToken);
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer, cancellationToken);
+        var markdownText = TextDecoder.Decode(buffer.ToArray()).Text;
         var metadata = CreateStreamMetadata(fileName, markdownText);
 
         // Markdig 파이프라인 설정 - 고급 기능 활성화 (테이블 포함)

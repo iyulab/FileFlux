@@ -291,33 +291,14 @@ public class CsvDocumentReader : IDocumentReader
     }
 
     /// <summary>
-    /// BOM 우선 감지 → strict UTF-8 시도 → 실패 시 CP949(EUC-KR) 폴백.
-    /// 한국 현장의 레거시 Excel CSV 내보내기(CP949)를 업스트림에서 흡수한다.
+    /// Byte order mark, then strict UTF-8, then CP949 (EUC-KR): the legacy Korean Excel CSV export is absorbed here, and the
+    /// text, Markdown and HTML readers share the decoder (<see cref="TextDecoder"/>).
     /// </summary>
     private static (string Text, string EncodingName) DecodeText(byte[] bytes, List<string> warnings)
     {
-        // UTF-8 BOM
-        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
-            return (Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3), "utf-8-bom");
-
-        // UTF-16 LE/BE BOM
-        if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
-            return (Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2), "utf-16le");
-        if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
-            return (Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2), "utf-16be");
-
-        // Strict UTF-8 (ASCII is a valid subset)
-        var strictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
-        try
-        {
-            return (strictUtf8.GetString(bytes), "utf-8");
-        }
-        catch (DecoderFallbackException)
-        {
-            // Not valid UTF-8 - fall back to CP949 (EUC-KR superset, legacy Korean exports)
-            var cp949 = Encoding.GetEncoding(949);
+        var decoded = TextDecoder.Decode(bytes);
+        if (decoded.EncodingName == "cp949")
             warnings.Add("File is not valid UTF-8; decoded with CP949 (EUC-KR) fallback.");
-            return (cp949.GetString(bytes), "cp949");
-        }
+        return decoded;
     }
 }
