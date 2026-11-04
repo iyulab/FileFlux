@@ -334,4 +334,55 @@ This document covers:
         // Assert
         Assert.Contains("[the site](https://example.com/page)", result.Text);
     }
+
+
+    private async Task<string> ReadAsync(string markdown)
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(markdown));
+        var result = await _reader.ExtractAsync(stream, "test.md", cancellationToken: TestContext.Current.CancellationToken);
+        return result.Text;
+    }
+
+    [Fact]
+    public async Task ExtractAsync_NestedList_KeepsEveryLevelIndentedUnderItsParent()
+    {
+        var content = await ReadAsync("- Mike\n  - November\n    - Oscar\n- Papa\n");
+
+        // A nested list is part of its item: its words were dropped, only the top level survived.
+        Assert.Contains("• Mike\n  • November\n    • Oscar\n• Papa", content);
+        // One pair of markers for the whole list, not one per level.
+        Assert.Equal(1, content.Split("<!-- LIST_START:UNORDERED -->").Length - 1);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_ListItemWithMoreBlocks_KeepsTheirText()
+    {
+        var content = await ReadAsync("1. First\n\n   Second paragraph of the first.\n\n   ```\n   code under the bullet\n   ```\n\n   > quoted under the bullet\n2. Next\n");
+
+        Assert.Contains("1. First", content);
+        Assert.Contains("Second paragraph of the first.", content);
+        Assert.Contains("code under the bullet", content);
+        Assert.Contains("quoted under the bullet", content);
+        Assert.Contains("2. Next", content);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_InlineHtmlBreak_SeparatesTheWordsAroundIt()
+    {
+        var content = await ReadAsync("Golf<br>Hotel and India<br/>Juliet and Kilo<BR />Lima\n");
+
+        Assert.DoesNotContain("GolfHotel", content);
+        Assert.DoesNotContain("IndiaJuliet", content);
+        Assert.DoesNotContain("KiloLima", content);
+        Assert.Matches(@"Golf\s*\n\s*Hotel", content);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_HtmlBreakInATableCell_StaysInTheRow()
+    {
+        var content = await ReadAsync("| A | B |\n|---|---|\n| One<br>Two | Three |\n");
+
+        // A line feed inside the cell would cut the row in two; the break is kept as <br>, the way a CSV cell is written.
+        Assert.Contains("| One<br>Two | Three |", content);
+    }
 }

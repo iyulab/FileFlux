@@ -6,6 +6,7 @@ using Markdig.Syntax.Inlines;
 using Markdig.Renderers;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.IO;
 
 namespace FileFlux.Core.Infrastructure.Readers;
@@ -336,27 +337,61 @@ public class MarkdownDocumentReader : IDocumentReader
         var listType = list.IsOrdered ? "ORDERED" : "UNORDERED";
         content.AppendLine(CultureInfo.InvariantCulture, $"<!-- LIST_START:{listType} -->");
 
-        var itemIndex = 1;
-        foreach (var item in list)
-        {
-            if (item is ListItemBlock listItem)
-            {
-                var bullet = list.IsOrdered ? $"{itemIndex++}. " : "• ";
-                content.Append(bullet);
-
-                foreach (var block in listItem)
-                {
-                    if (block is ParagraphBlock para)
-                    {
-                        var itemText = ExtractInlines(para.Inline);
-                        content.AppendLine(itemText);
-                    }
-                }
-            }
-        }
+        AppendListItems(list, content, depth: 0);
 
         // 리스트 종료 마커
         content.AppendLine(CultureInfo.InvariantCulture, $"<!-- LIST_END:{listType} -->");
+    }
+
+    /// <summary>
+    /// Writes the items of a list. An item holds blocks, not just one paragraph: a nested list, a second paragraph, a code
+    /// block or a quote under a bullet are part of that item, and each is written (indented under the bullet) rather than
+    /// dropped. Only the outermost list carries the LIST_START / LIST_END markers.
+    /// </summary>
+    private static void AppendListItems(ListBlock list, StringBuilder content, int depth)
+    {
+        var indent = new string(' ', depth * 2);
+        var itemIndex = 1;
+        foreach (var item in list)
+        {
+            if (item is not ListItemBlock listItem) continue;
+
+            var bullet = list.IsOrdered ? $"{itemIndex++}. " : "• ";
+            content.Append(indent).Append(bullet);
+
+            var first = true;
+            foreach (var block in listItem)
+            {
+                if (block is ParagraphBlock para)
+                {
+                    var itemText = ExtractInlines(para.Inline);
+                    content.AppendLine(first ? itemText : $"{indent}  {itemText}");
+                }
+                else
+                {
+                    // The bullet stands alone on its line when the item opens with a nested list, a code block or a quote.
+                    if (first) content.AppendLine();
+
+                    if (block is ListBlock nested)
+                    {
+                        AppendListItems(nested, content, depth + 1);
+                    }
+                    else
+                    {
+                        var rendered = new StringBuilder();
+                        ExtractBlock(block, rendered, "");
+                        foreach (var line in rendered.ToString().ReplaceLineEndings("\n").Split('\n'))
+                        {
+                            if (line.Length > 0) content.Append(indent).Append("  ").AppendLine(line);
+                        }
+                    }
+                }
+
+                first = false;
+            }
+
+            if (first) content.AppendLine(); // an empty item still ends its line
+        }
     }
 
     private static void ExtractCodeBlock(CodeBlock codeBlock, StringBuilder content)
@@ -405,7 +440,7 @@ public class MarkdownDocumentReader : IDocumentReader
         {
             if (block is ParagraphBlock paragraph)
             {
-                var content = ExtractInlines(paragraph.Inline);
+                var content = ExtractInlines(paragraph.Inline, htmlBreak: "<br>");
                 text.Append(content);
             }
         }
@@ -415,16 +450,18 @@ public class MarkdownDocumentReader : IDocumentReader
     /// <summary>
     /// 인라인 요소들(링크, 강조, 이미지 등)에서 텍스트 추출
     /// </summary>
-    private static string ExtractInlines(ContainerInline? inline)
+    private static string ExtractInlines(ContainerInline? inline, string htmlBreak = "  \n")
     {
         if (inline == null) return string.Empty;
 
         var text = new StringBuilder();
-        ExtractInlinesRecursive(inline, text);
+        ExtractInlinesRecursive(inline, text, htmlBreak);
         return text.ToString();
     }
 
-    private static void ExtractInlinesRecursive(ContainerInline container, StringBuilder text)
+    private static readonly Regex HtmlBreakTag = new(@"^<br\s*/?>$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+    private static void ExtractInlinesRecursive(ContainerInline container, StringBuilder text, string htmlBreak)
     {
         foreach (var inline in container)
         {
@@ -439,16 +476,21 @@ public class MarkdownDocumentReader : IDocumentReader
                     text.Append(lineBreak.IsHard ? "  \n" : "\n");
                     break;
 
+                case HtmlInline html:
+                    // Inline HTML tags are markup, not words - but <br> is a line break: without it the words around it fuse.
+                    if (HtmlBreakTag.IsMatch(html.Tag)) text.Append(htmlBreak);
+                    break;
+
                 case EmphasisInline emphasis:
                     var emphasisText = new StringBuilder();
-                    ExtractInlinesRecursive(emphasis, emphasisText);
+                    ExtractInlinesRecursive(emphasis, emphasisText, htmlBreak);
                     var marker = emphasis.DelimiterChar == '*' ? "**" : "__";
                     text.Append(CultureInfo.InvariantCulture, $"{marker}{emphasisText}{marker}");
                     break;
 
                 case LinkInline link:
                     var linkText = new StringBuilder();
-                    ExtractInlinesRecursive(link, linkText);
+                    ExtractInlinesRecursive(link, linkText, htmlBreak);
                     var label = linkText.ToString();
                     if (link.IsImage)
                     {
@@ -473,14 +515,14 @@ public class MarkdownDocumentReader : IDocumentReader
                     break;
 
                 case ContainerInline containerInline:
-                    ExtractInlinesRecursive(containerInline, text);
+                    ExtractInlinesRecursive(containerInline, text, htmlBreak);
                     break;
 
                 default:
                     // 기타 인라인 요소들
                     if (inline is ContainerInline otherContainer)
                     {
-                        ExtractInlinesRecursive(otherContainer, text);
+                        ExtractInlinesRecursive(otherContainer, text, htmlBreak);
                     }
                     break;
             }

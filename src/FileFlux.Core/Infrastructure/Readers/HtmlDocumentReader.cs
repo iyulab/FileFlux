@@ -525,10 +525,52 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
     }
 
+    /// <summary>Elements whose edges (or, for <c>br</c>, whose place) separate the words around them.</summary>
+    private static readonly HashSet<string> WordSeparatingElements = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "br", "p", "div", "li", "ul", "ol", "dl", "dt", "dd", "tr", "td", "th", "table", "blockquote", "pre", "hr",
+        "h1", "h2", "h3", "h4", "h5", "h6", "section", "article", "header", "footer", "figure", "figcaption",
+    };
+
+    /// <summary>
+    /// The text of an element flattened to one string (a heading, a table cell, a link, a caption). <c>InnerText</c> joins the
+    /// text nodes with nothing between them, so <c>Anna&lt;br&gt;Berta</c> or two paragraphs in one cell fused into one word;
+    /// a line break or the edge of a block element now counts as a space, and inline markup (<c>b</c>, <c>span</c>) still does not.
+    /// </summary>
+    private static string FlatText(HtmlNode node)
+    {
+        var builder = new StringBuilder();
+        AppendFlatText(node, builder);
+        return HtmlEntity.DeEntitize(builder.ToString()).Trim();
+    }
+
+    private static void AppendFlatText(HtmlNode node, StringBuilder builder)
+    {
+        foreach (var child in node.ChildNodes)
+        {
+            if (child.NodeType == HtmlNodeType.Text)
+            {
+                builder.Append(child.InnerText);
+            }
+            else if (child.NodeType == HtmlNodeType.Element)
+            {
+                var separates = WordSeparatingElements.Contains(child.Name);
+                if (separates) AppendSeparator(builder);
+                AppendFlatText(child, builder);
+                if (separates) AppendSeparator(builder);
+            }
+        }
+    }
+
+    private static void AppendSeparator(StringBuilder builder)
+    {
+        if (builder.Length > 0 && !char.IsWhiteSpace(builder[^1])) builder.Append(' ');
+    }
+
     private static void ProcessHeading(HtmlNode node, StringBuilder textBuilder, string tagName)
     {
         var level = int.Parse(tagName.AsSpan(1), CultureInfo.InvariantCulture); // h1 -> 1, h2 -> 2, etc.
-        var headingText = HtmlEntity.DeEntitize(node.InnerText).Trim();
+        var headingText = FlatText(node);
 
         if (!string.IsNullOrWhiteSpace(headingText))
         {
@@ -596,7 +638,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     private static void ProcessTable(HtmlNode node, StringBuilder textBuilder)
     {
         var caption = node.SelectSingleNode(".//caption");
-        var captionText = caption != null ? HtmlEntity.DeEntitize(caption.InnerText).Trim() : "";
+        var captionText = caption != null ? FlatText(caption) : "";
 
         if (!string.IsNullOrWhiteSpace(captionText))
         {
@@ -615,7 +657,7 @@ public partial class HtmlDocumentReader : IDocumentReader
                 var cells = row.SelectNodes("./th | ./td");
                 if (cells != null)
                 {
-                    var cellTexts = cells.Select(cell => HtmlEntity.DeEntitize(cell.InnerText).Trim()).ToList();
+                    var cellTexts = cells.Select(FlatText).ToList();
                     if (cellTexts.Any(c => !string.IsNullOrWhiteSpace(c)))
                     {
                         textBuilder.AppendLine(string.Join(" | ", cellTexts));
@@ -630,7 +672,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     private static void ProcessLink(HtmlNode node, StringBuilder textBuilder, ref int linkCount, List<string> externalLinks)
     {
         var href = node.GetAttributeValue("href", "");
-        var linkText = HtmlEntity.DeEntitize(node.InnerText).Trim();
+        var linkText = FlatText(node);
 
         if (!string.IsNullOrWhiteSpace(linkText))
         {
@@ -803,7 +845,7 @@ public partial class HtmlDocumentReader : IDocumentReader
         var captionNode = node.SelectSingleNode(".//figcaption");
         if (captionNode != null)
         {
-            var captionText = HtmlEntity.DeEntitize(captionNode.InnerText).Trim();
+            var captionText = FlatText(captionNode);
             if (!string.IsNullOrWhiteSpace(captionText))
             {
                 textBuilder.AppendLine(CultureInfo.InvariantCulture, $"*Figure: {captionText}*");
