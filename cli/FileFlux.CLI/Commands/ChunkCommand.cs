@@ -454,7 +454,8 @@ public class ChunkCommand : Command
                 SkippedImageCount = skippedImageCount,
                 AIProvider = enableAI ? aiProvider : null,
                 ImagesDirectory = extractImages ? dirs.Images : null,
-                OutputDirectory = dirs.Base
+                OutputDirectory = dirs.Base,
+                Warnings = ExtractionWarnings.Collect(rawContent, new FileInfo(input).Length, contentToChunk.Text)
             };
 
             var result = new ChunkingResult
@@ -506,6 +507,7 @@ public class ChunkCommand : Command
                     table.AddRow("Enriched chunks", $"{enrichedCount} ({enrichedCount * 100 / chunks.Length}%)");
 
                 AnsiConsole.Write(table);
+                WarningDisplay.Write(extraction.Warnings);
             }
         }
         catch (Exception ex)

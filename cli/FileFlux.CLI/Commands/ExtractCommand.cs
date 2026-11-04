@@ -219,6 +219,7 @@ public class ExtractCommand : Command
                     table.AddRow("AI analyzed", result.Images.Count(i => !string.IsNullOrEmpty(i.AIDescription)).ToString(CultureInfo.InvariantCulture));
 
                 AnsiConsole.Write(table);
+                WarningDisplay.Write(result.Warnings);
             }
         }
         catch (Exception ex)

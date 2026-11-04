@@ -219,6 +219,12 @@ public class ExtractionResult
     /// Output directory path
     /// </summary>
     public string? OutputDirectory { get; set; }
+
+    /// <summary>
+    /// Notes from the extraction: what the reader reported, and a note when a non-empty file produced no text
+    /// (see <see cref="ExtractionWarnings.Collect"/>). Written to <c>info.json</c> as <c>warnings</c> only when not empty.
+    /// </summary>
+    public List<string> Warnings { get; set; } = [];
 }
 
 /// <summary>

@@ -266,6 +266,8 @@ Solar panels convert light into electricity. ...
 }
 ```
 
+`warnings`(문자열 배열)는 리더가 남긴 경고와, 비어 있지 않은 파일에서 0자가 추출됐다는 안내가 있을 때만 들어간다. 같은 내용이 명령 끝에 `Warning:` 줄로도 출력된다(`--quiet` 에서는 출력하지 않고 `info.json` 에만 남는다). 종료 코드는 그대로 성공이다.
+
 ## 지원 형식
 
 CLI 는 FileFlux 라이브러리가 읽는 형식을 그대로 읽는다 — 목록은 [FileFlux README 의 지원 형식 표](../../README.md)를 본다.

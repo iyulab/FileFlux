@@ -106,7 +106,8 @@ public sealed partial class FluxDocumentProcessor
             SkippedImageCount = skippedCount,
             AIProvider = outputOptions.EnableAI ? "configured" : null,
             ImagesDirectory = outputOptions.ExtractImages ? imagesDir : null,
-            OutputDirectory = outputDirectory
+            OutputDirectory = outputDirectory,
+            Warnings = ExtractionWarnings.Collect(rawContent, new FileInfo(filePath).Length, processedText)
         };
 
         // Write output
@@ -200,7 +201,8 @@ public sealed partial class FluxDocumentProcessor
             SkippedImageCount = skippedCount,
             AIProvider = outputOptions.EnableAI ? "configured" : null,
             ImagesDirectory = outputOptions.ExtractImages ? chunkImagesDir : null,
-            OutputDirectory = outputDirectory
+            OutputDirectory = outputDirectory,
+            Warnings = ExtractionWarnings.Collect(rawContent, new FileInfo(filePath).Length, processedText)
         };
 
         var result = new ChunkingResult

@@ -675,7 +675,8 @@ public class ProcessCommand : Command
                 SkippedImageCount = skippedImageCount,
                 AIProvider = enableAI ? aiProvider : null,
                 ImagesDirectory = extractImages ? dirs.Images : null,
-                OutputDirectory = dirs.Base
+                OutputDirectory = dirs.Base,
+                Warnings = ExtractionWarnings.Collect(rawContent, new FileInfo(input).Length, refinedContent.Text)
             };
 
             var result = new ChunkingResult
@@ -733,6 +734,7 @@ public class ProcessCommand : Command
                 };
 
                 AnsiConsole.Write(summaryPanel);
+                WarningDisplay.Write(extraction.Warnings);
             }
         }
         catch (Exception ex)

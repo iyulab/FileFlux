@@ -190,9 +190,19 @@ public class FileSystemOutputWriter : IOutputWriter
             } : null,
             ["processedAt"] = metadata.ProcessedAt.ToString("o")
         };
+        AddWarnings(data, result.Warnings);
 
         var json = data.ToJsonString(JsonOptions);
         await File.WriteAllTextAsync(infoPath, json, Utf8NoBom, cancellationToken);
+    }
+
+    // "warnings" is written only when there is something to say, so the info.json of a clean extraction is unchanged.
+    private static void AddWarnings(JsonObject data, List<string> warnings)
+    {
+        if (warnings.Count > 0)
+        {
+            data["warnings"] = new JsonArray(warnings.Select(w => (JsonNode?)w).ToArray());
+        }
     }
 
     private static async Task WriteChunksAsync(
@@ -323,6 +333,7 @@ public class FileSystemOutputWriter : IOutputWriter
             } : null,
             ["processedAt"] = metadata.ProcessedAt.ToString("o")
         };
+        AddWarnings(data, result.Extraction.Warnings);
 
         var json = data.ToJsonString(JsonOptions);
         await File.WriteAllTextAsync(infoPath, json, Utf8NoBom, cancellationToken);

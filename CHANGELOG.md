@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`fileflux extract` / `chunk` / `process` show the reader's notes and a note for a file that gave no text.** A non-empty file that produced 0 characters (a workbook or document in a layout the reader does not understand, a blank page) printed "Extracted successfully" with a table row of zero and nothing else; `RawContent.Warnings` was never shown. The notes now print as `Warning:` lines under the result and are written to `info.json` as a `warnings` array (only when there is something to say, so the `info.json` of a clean run is unchanged). The exit code is still success.
+  Library: `ExtractionResult.Warnings` carries them from `ExtractToDirectoryAsync` / `ChunkToDirectoryAsync`; `ExtractionWarnings.Collect(rawContent, fileSize, text)` builds the list for a caller that runs its own pipeline.
+
 ### Dependencies
 - Undoc 0.27.1 -> 0.27.2 (see Fixed).
 
