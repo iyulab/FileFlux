@@ -446,27 +446,12 @@ public partial class RuleBasedMetadataExtractor
     }
 
     /// <summary>
-    /// Simple language detection.
+    /// The document language from the shared detector: script ratios for Korean, Japanese and Chinese (so one Hangul word or one kanji
+    /// does not decide), a statistical identifier for the Latin and Cyrillic languages. "unknown" when it cannot tell - never a guess of English.
     /// </summary>
     private static string DetectLanguage(string content)
     {
-        if (string.IsNullOrWhiteSpace(content))
-            return "unknown";
-
-        // Korean
-        if (content.Any(c => c >= 0xAC00 && c <= 0xD7AF))
-            return "ko";
-
-        // Chinese
-        if (content.Any(c => c >= 0x4E00 && c <= 0x9FFF))
-            return "zh";
-
-        // Japanese
-        if (content.Any(c => (c >= 0x3040 && c <= 0x309F) || (c >= 0x30A0 && c <= 0x30FF)))
-            return "ja";
-
-        // Default to English
-        return "en";
+        return string.IsNullOrWhiteSpace(content) ? "unknown" : LanguageDetector.Detect(content).Language;
     }
 
     /// <summary>

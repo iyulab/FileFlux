@@ -105,7 +105,7 @@ public class RuleBasedMetadataExtractorTests
     [Fact]
     public async Task ExtractAsync_General_DetectsLanguage_Japanese()
     {
-        // Use only hiragana/katakana to avoid CJK kanji matching Chinese first
+        // Kana only; Japanese with kanji is covered in RuleBasedMetadataExtractorLanguageTests
         var content = "これはてすとです。ひらがなだけのてきすとです。カタカナもあります。";
 
         var result = await _extractor.ExtractAsync(content, MetadataSchema.General, TestContext.Current.CancellationToken);
