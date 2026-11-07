@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 - Undoc 0.27.1 -> 0.27.3 (see Fixed).
+- Re-pinned third-party packages: `Markdig` 1.5.1 -> 1.6.0, `Unpdf` 0.53.1 -> 0.54.0.
 
 ### Changed
 - **Breaking** (behaviour): PDF reading moves from Unpdf 0.52.1 to 0.53.1, and more PDF tables now come out as Markdown tables where they were flowing text.
