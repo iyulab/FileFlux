@@ -375,7 +375,7 @@ public class ExcelDocumentReader : IDocumentReader
     {
         var images = new List<ImageInfo>();
         var sheets = UndocImageResources.SectionsOfResources(doc);
-        foreach (var (resourceId, altText) in UndocImageResources.Shown(doc))
+        foreach (var (resourceId, altText, referenceName) in UndocImageResources.Shown(doc))
         {
             var resourceData = doc.GetResourceData(resourceId);
             if (resourceData is not { Length: > 0 })
@@ -391,6 +391,7 @@ public class ExcelDocumentReader : IDocumentReader
                 PageNumbers = sheets.TryGetValue(resourceId, out var shownOn) ? shownOn : []
             };
             ImageAltText.Attach(image, altText);
+            UndocImageResources.AttachReference(image, referenceName);
             images.Add(image);
         }
 

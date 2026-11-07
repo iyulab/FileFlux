@@ -262,7 +262,7 @@ public class PowerPointDocumentReader : IDocumentReader
         // Extract embedded resources (images)
         var resources = UndocImageResources.Shown(doc);
         var slides = UndocImageResources.SectionsOfResources(doc);
-        foreach (var (resourceId, altText) in resources)
+        foreach (var (resourceId, altText, referenceName) in resources)
         {
             var resourceData = doc.GetResourceData(resourceId);
             if (resourceData != null)
@@ -278,6 +278,7 @@ public class PowerPointDocumentReader : IDocumentReader
                     PageNumbers = slides.TryGetValue(resourceId, out var shownOn) ? shownOn : []
                 };
                 ImageAltText.Attach(imageInfo, altText);
+                UndocImageResources.AttachReference(imageInfo, referenceName);
                 extractedImages.Add(imageInfo);
             }
         }
@@ -346,7 +347,7 @@ public class PowerPointDocumentReader : IDocumentReader
         // Extract embedded resources (images)
         var resources = UndocImageResources.Shown(doc);
         var slides = UndocImageResources.SectionsOfResources(doc);
-        foreach (var (resourceId, altText) in resources)
+        foreach (var (resourceId, altText, referenceName) in resources)
         {
             var resourceData = doc.GetResourceData(resourceId);
             if (resourceData != null)
@@ -362,6 +363,7 @@ public class PowerPointDocumentReader : IDocumentReader
                     PageNumbers = slides.TryGetValue(resourceId, out var shownOn) ? shownOn : []
                 };
                 ImageAltText.Attach(imageInfo, altText);
+                UndocImageResources.AttachReference(imageInfo, referenceName);
                 extractedImages.Add(imageInfo);
             }
         }

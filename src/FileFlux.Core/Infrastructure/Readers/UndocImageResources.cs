@@ -4,9 +4,10 @@ using Undoc;
 namespace FileFlux.Core.Infrastructure.Readers;
 
 /// <summary>
-/// An image an Undoc document shows: its resource id and the alt text of the picture that shows it (if any).
+/// An image an Undoc document shows: its resource id, the alt text of the picture that shows it (if any), and the
+/// file name Undoc's Markdown refers to it by (the media part's name - <c>image3.png</c> - which is not the id).
 /// </summary>
-internal readonly record struct UndocImageResource(string Id, string? AltText);
+internal readonly record struct UndocImageResource(string Id, string? AltText, string? FileName);
 
 /// <summary>
 /// The resources of an Undoc document that are images the document shows. Undoc lists more than that: audio, video
@@ -25,9 +26,24 @@ internal static class UndocImageResources
     {
         foreach (var id in doc.GetResourceIds())
         {
-            if (TryRead(doc, id, out var altText))
-                yield return new UndocImageResource(id, altText);
+            if (TryRead(doc, id, out var altText, out var fileName))
+                yield return new UndocImageResource(id, altText, fileName);
         }
+    }
+
+    /// <summary>The <see cref="ImageInfo.Properties"/> key holding the name the extracted text refers to the image by.</summary>
+    public const string ReferenceNameProperty = "reference_name";
+
+    /// <summary>
+    /// Records on the image the name the extracted Markdown refers to it by (<c>![alt](image3.png)</c>). That name is the
+    /// media part's file name and the image's <see cref="ImageInfo.Id"/> is the resource id (<c>rId11</c>) - two names for
+    /// one picture, and nothing else connects them. A consumer that stores the image under its id maps a reference in the
+    /// text to the stored file through this value.
+    /// </summary>
+    public static void AttachReference(ImageInfo image, string? fileName)
+    {
+        if (!string.IsNullOrWhiteSpace(fileName))
+            image.Properties[ReferenceNameProperty] = fileName;
     }
 
     /// <summary>
@@ -91,9 +107,10 @@ internal static class UndocImageResources
     private static bool IsImageReference(JsonProperty property) =>
         property.NameEquals("resource_id") || property.NameEquals("marker_image") || property.NameEquals("background_image");
 
-    private static bool TryRead(UndocDocument doc, string id, out string? altText)
+    private static bool TryRead(UndocDocument doc, string id, out string? altText, out string? fileName)
     {
         altText = null;
+        fileName = null;
         try
         {
             using var info = doc.GetResourceInfo(id);
@@ -103,6 +120,9 @@ internal static class UndocImageResources
             var root = info.RootElement;
             if (!IsUnsetOr(root, "type", "image") || !IsUnsetOr(root, "role", "primary"))
                 return false;
+
+            if (root.TryGetProperty("filename", out var file) && file.ValueKind == JsonValueKind.String)
+                fileName = file.GetString();
 
             if (root.TryGetProperty("alt_text", out var alt) && alt.ValueKind == JsonValueKind.String)
             {

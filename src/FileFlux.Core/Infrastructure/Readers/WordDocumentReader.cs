@@ -249,7 +249,7 @@ public partial class WordDocumentReader : IDocumentReader
 
         // Extract embedded resources (images)
         var resources = UndocImageResources.Shown(doc);
-        foreach (var (resourceId, altText) in resources)
+        foreach (var (resourceId, altText, referenceName) in resources)
         {
             var resourceData = doc.GetResourceData(resourceId);
             if (resourceData != null)
@@ -263,6 +263,7 @@ public partial class WordDocumentReader : IDocumentReader
                     SourceUrl = $"embedded:{resourceId}"
                 };
                 ImageAltText.Attach(imageInfo, altText);
+                UndocImageResources.AttachReference(imageInfo, referenceName);
                 extractedImages.Add(imageInfo);
             }
         }
@@ -338,7 +339,7 @@ public partial class WordDocumentReader : IDocumentReader
 
         // Extract embedded resources (images)
         var resources = UndocImageResources.Shown(doc);
-        foreach (var (resourceId, altText) in resources)
+        foreach (var (resourceId, altText, referenceName) in resources)
         {
             var resourceData = doc.GetResourceData(resourceId);
             if (resourceData != null)
@@ -352,6 +353,7 @@ public partial class WordDocumentReader : IDocumentReader
                     SourceUrl = $"embedded:{resourceId}"
                 };
                 ImageAltText.Attach(imageInfo, altText);
+                UndocImageResources.AttachReference(imageInfo, referenceName);
                 extractedImages.Add(imageInfo);
             }
         }

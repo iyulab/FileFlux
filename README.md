@@ -305,6 +305,11 @@ AI backend.
 > automatically generated»; a Korean one is also recognized by its «…이(가) 표시된 사진» template) stays out of the body
 > and is exposed as `ImageInfo.Properties["generated_alt_text"]`, without the disclaimer.
 
+> **A picture's name in the text is not its `ImageInfo.Id`.** The Markdown of Word, PowerPoint and Excel refers to a picture by the
+> media part's file name (`![](image3.png)`) while `ImageInfo.Id` is the resource id (`rId11`). The name the text uses is
+> `ImageInfo.Properties["reference_name"]` (`image3.png`), so a consumer that stores images under their id maps a reference in the text to the
+> stored file by that value (it is absent when the reader has no such name).
+
 > **The name is a claim, the content decides (since 0.35.0)** — when a file's name selects the wrong
 > reader, or none, reader selection consults the content: a PDF (`%PDF-` header), an OOXML
 > package (`.docx` / `.xlsx` / `.pptx`, told apart by the package's part folders), an HWPX
