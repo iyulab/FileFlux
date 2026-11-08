@@ -5,7 +5,7 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.68.0] - 2026-11-09
 
 ### Added
 - **`ImageInfo.Properties["reference_name"]` names the picture the way the extracted text does.** The Markdown of a Word, PowerPoint or Excel file refers to a picture by the media part's file name (`![](image3.png)`) while `ImageInfo.Id` is the resource id (`rId11`), and nothing connected the two: a consumer that stores the image under its id could not find the file a reference names. Every reference in a Word document's text now matches the `reference_name` of exactly one image (PowerPoint and Excel set the same key from the same source); the text itself is unchanged.
