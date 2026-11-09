@@ -2,7 +2,7 @@ name: 📦 NuGet Package Build & Publish
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
     paths:
       - 'Directory.Build.props'
   workflow_dispatch:
@@ -21,11 +21,19 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+# Nothing by default; every job below asks for what it needs.
+permissions: {}
+
+# The push to nuget.org is not made here. This workflow packs, uploads the packages as an artifact and asks the organization's
+# central publisher (iyulab/nuget-publish) to push them; that repository holds the only trusted-publishing policy and checks this
+# repository, this workflow file and the package ids against an allowlist. No NuGet credential lives here.
 jobs:
   detect-version:
     name: 🔍 Detect Version Changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.extract-version.outputs.version }}
     steps:
@@ -41,11 +49,11 @@ jobs:
           echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-  publish:
-    name: 📦 Build & Publish
+  pack:
+    name: 📦 Build & Pack
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # tag + GitHub release
+      contents: read
     timeout-minutes: 20
     needs: detect-version
     steps:
@@ -84,29 +92,35 @@ jobs:
           done
           [ "$missing" -eq 0 ]
 
-      - name: 🚀 Publish to NuGet.org
-        run: |
-          dotnet nuget push nupkg/*.nupkg \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      # Only .nupkg files, as before (the old push used `--no-symbols`); the central publisher pushes every .snupkg it finds.
+      - name: 📤 Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: nupkg/*.nupkg
+          if-no-files-found: error
+          retention-days: 1
 
-      - name: 🏷️ Create Git Tag
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          TAG="v${{ needs.detect-version.outputs.version }}"
-          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists on origin (e.g. from a prior partial run) — skipping."
-          else
-            git tag "$TAG"
-            git push origin "$TAG"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Asks the central publisher to push the packages and waits for its answer: this job succeeds only when they are on nuget.org.
+  # Until the repository is on the publisher's allowlist the call is refused and the jobs after it do not run.
+  publish:
+    name: 🚀 Publish to NuGet.org
+    needs: pack
+    uses: iyulab/nuget-publish/.github/workflows/request.yml@2166748abf716fb58855228f65fc6b8f78c2780f # main
+    permissions: {}
+    secrets: inherit
+
+  # The tag and the GitHub release exist only for a version that reached nuget.org (`gh release create` makes the tag).
+  release:
+    name: 🏷️ GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: publish
+    permissions:
+      contents: write   # tag + GitHub release
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v5
 
       # Release notes = this version's CHANGELOG.md section. Every iyulab publish workflow carries this awk program
       # verbatim; change it in all of them or in none.
