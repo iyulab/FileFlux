@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking: a language hint the speech model does not decode now throws.** `LMSupplyTranscriberService` and `LMSupplyTranscriberOptions.Language` pass the hint to LMSupply 0.140.0, which checks it: an ISO 639-1 code, an English name (`"korean"`) or a code with a region (`"ko-KR"`) becomes the code; `null`, empty or white space mean *identify the language*; any other value (`"xx"`, `"kor"`), or a code the chosen model does not transcribe, throws an `ArgumentException` listing the accepted codes. Before, such a value was dropped, the model chose a language of its own and `AudioTranscript.Language` echoed the wrong code. Migration: pass `null` for automatic detection.
+
 ### Dependencies
 - Re-pinned sibling package(s) `FluxImprover` 0.23.0 -> 0.24.0, `FluxImprover.LMSupply` 0.23.0 -> 0.24.0.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.139.0 -> 0.140.0, `LMSupply.Core` 0.139.0 -> 0.140.0, `LMSupply.Embedder` 0.139.0 -> 0.140.0, `LMSupply.Generator` 0.139.0 -> 0.140.0, `LMSupply.Ocr` 0.139.0 -> 0.140.0, `LMSupply.Transcriber` 0.139.0 -> 0.140.0.
