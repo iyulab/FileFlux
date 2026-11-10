@@ -61,7 +61,7 @@
   </ItemGroup>
   <!-- xUnit v3 / Microsoft.Testing.Platform -->
   <ItemGroup Label="Testing Framework">
-    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.2" />
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
