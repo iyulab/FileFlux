@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A text, Markdown, HTML or CSV file saved as UTF-16 without a byte order mark is read as text.** It used to come out with a NUL between every character (NUL is valid UTF-8, so the strict UTF-8 step accepted it) or, for a Korean-only file, as garbage; no warning was given. The shared decoder now recognises UTF-16 (either byte order) by its NULs when there is no byte order mark; a file with a byte order mark, UTF-8 and CP949 are read as before.
+
 ### Changed
 - **Breaking: a language hint the speech model does not decode now throws.** `LMSupplyTranscriberService` and `LMSupplyTranscriberOptions.Language` pass the hint to LMSupply 0.140.0, which checks it: an ISO 639-1 code, an English name (`"korean"`) or a code with a region (`"ko-KR"`) becomes the code; `null`, empty or white space mean *identify the language*; any other value (`"xx"`, `"kor"`), or a code the chosen model does not transcribe, throws an `ArgumentException` listing the accepted codes. Before, such a value was dropped, the model chose a language of its own and `AudioTranscript.Language` echoed the wrong code. Migration: pass `null` for automatic detection.
 

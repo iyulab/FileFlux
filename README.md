@@ -295,7 +295,7 @@ AI backend.
 | Markdown | .md | Built-in | Structure preservation |
 | HTML | .html, .htm | Built-in | Web content extraction |
 | CSV/TSV | .csv, .tsv | Built-in (CsvHelper) | Header-aware markdown table serialization; UTF-8/BOM + CP949 (EUC-KR) fallback decoding |
-| Text | .txt, .json | Built-in | Basic text processing |
+| Text | .txt, .json | Built-in | Basic text processing; text, Markdown, HTML and CSV share one decoder: byte order mark (UTF-8/16/32), UTF-16 without one (recognised by its NULs), strict UTF-8, the page's declared charset (HTML), then CP949 (EUC-KR) |
 | Audio | .wav, .mp3 | `IAudioToTextService` (e.g. `AddLMSupplyTranscriber()`) | Speech as text, one paragraph per segment (speaker-labelled when the service separates speakers); chunks carry `Location.StartTime`/`EndTime`. Unsupported when no service is registered |
 
 > **Picture alt text is content only when an author wrote it** (Word, PowerPoint, Excel, HWP) — that text reaches the

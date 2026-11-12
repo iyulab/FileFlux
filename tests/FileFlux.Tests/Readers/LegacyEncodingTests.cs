@@ -8,7 +8,8 @@ namespace FileFlux.Tests.Readers;
 /// <summary>
 /// A text, Markdown or HTML file saved in a legacy code page keeps its characters. The readers decoded every file as UTF-8
 /// with the replacement fallback, so a CP949 / EUC-KR file (older Korean exports and web pages) came out as a run of U+FFFD
-/// with no error; the CSV reader alone had the CP949 fallback.
+/// with no error; the CSV reader alone had the CP949 fallback. UTF-16 saved without a byte order mark is recognised by its
+/// NULs (before, it came out as NUL-interleaved text, because NUL is valid UTF-8).
 /// </summary>
 public sealed class LegacyEncodingTests : IDisposable
 {
@@ -42,6 +43,78 @@ public sealed class LegacyEncodingTests : IDisposable
     }
 
     private static byte[] Cp949(string text) => Encoding.GetEncoding(949).GetBytes(text);
+
+    private const string MixedUtf16Text = "Quarterly report\n\n안녕하세요 문서처리입니다. 분기 매출은 12억 원이었습니다.\n\nSecond paragraph, 2026-11-13.";
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PlainText_Utf16WithoutBom_IsReadAsText(bool bigEndian)
+    {
+        var bytes = new UnicodeEncoding(bigEndian, byteOrderMark: false).GetBytes(MixedUtf16Text);
+
+        var text = await ExtractAsync("utf16.txt", bytes);
+
+        Assert.Contains("Quarterly report", text);
+        Assert.Contains("안녕하세요 문서처리입니다.", text);
+        Assert.DoesNotContain('\0', text);
+        Assert.DoesNotContain('�', text);
+    }
+
+    [Fact]
+    public async Task Markdown_Utf16WithoutBom_IsReadAsText()
+    {
+        var bytes = new UnicodeEncoding(bigEndian: false, byteOrderMark: false).GetBytes("# 제목\n\nPlain ASCII line, 12345.\n");
+
+        var text = await ExtractAsync("utf16.md", bytes);
+
+        Assert.Contains("제목", text);
+        Assert.Contains("Plain ASCII line, 12345.", text);
+        Assert.DoesNotContain('\0', text);
+    }
+
+    [Fact]
+    public async Task PlainText_Utf16WithoutBom_WithAHangulSyllableWhoseLowByteIsZero_IsStillReadAsUtf16()
+    {
+        // U+AC00 is 00 AC / AC 00: a NUL on the other parity than the ASCII characters' NULs (twice here, against dozens of ASCII ones).
+        var bytes = new UnicodeEncoding(bigEndian: false, byteOrderMark: false).GetBytes("Report no. 2026-11-13: 가 문서 abc 가나다 text line\n");
+
+        var text = await ExtractAsync("utf16-ac00.txt", bytes);
+
+        Assert.Contains("가나다", text);
+        Assert.DoesNotContain('\0', text);
+    }
+
+    [Fact]
+    public async Task PlainText_Utf16WithBom_StillWinsOverTheNulPattern()
+    {
+        var bytes = new UnicodeEncoding(bigEndian: false, byteOrderMark: true).GetPreamble()
+            .Concat(new UnicodeEncoding(bigEndian: false, byteOrderMark: false).GetBytes("with a mark\n")).ToArray();
+
+        var text = await ExtractAsync("utf16-bom.txt", bytes);
+
+        Assert.Contains("with a mark", text);
+        Assert.DoesNotContain('\0', text);
+    }
+
+    [Fact]
+    public async Task PlainText_Utf8WithNoNulBytes_IsUnchangedByTheUtf16Check()
+    {
+        var text = await ExtractAsync("utf8.txt", Encoding.UTF8.GetBytes($"{Hello} {Document}\nplain ASCII"));
+
+        Assert.Contains($"{Hello} {Document}", text);
+    }
+
+    [Fact]
+    public async Task PlainText_WithOneStrayNulByte_IsNotTakenForUtf16()
+    {
+        // Fewer than two NULs say nothing about UTF-16: the file stays UTF-8.
+        var bytes = Encoding.UTF8.GetBytes("one stray NUL here:\0 and the rest is ordinary UTF-8 text.\n");
+
+        var text = await ExtractAsync("stray-nul.txt", bytes);
+
+        Assert.Contains("and the rest is ordinary UTF-8 text.", text);
+    }
 
     [Fact]
     public async Task PlainText_SavedAsCp949_KeepsItsKorean()
