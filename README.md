@@ -20,7 +20,7 @@ FileFlux is a .NET library that transforms various document formats into optimiz
 - **Interface-Driven AI**: Define AI service interfaces, implement with your preferred provider
 - **Document Graph**: Inter-chunk relationship tracking with sequential, hierarchical, and semantic edges
 - **Structural Metadata**: HeadingPath, page numbers, ContextDependency scores for enhanced RAG
-- **Language Detection**: Automatic language detection using NTextCat
+- **Language Detection**: Automatic language detection using NTextCat (Hangul/Kana/Han by script); text too short to tell apart (a few words) is `unknown` rather than a guess, and the confidence rises with the evidence (a sentence is about 0.6, a paragraph 0.8-0.97)
 - **Document Metadata Extraction** (standalone service, not a pipeline stage): `AIMetadataEnricher` — `EnrichAsync(content, MetadataSchema)` returns topics, keywords, a description and schema-specific fields (General, ProductManual, TechnicalDoc) through your `IDocumentAnalysisService`, with a rule-based fallback and a content cache. Construct it with a `RuleBasedMetadataExtractor` and an `IMemoryCache` and call it on the text you want described
 - **IEnrichedChunk Interface**: Standardized interface for RAG system integration
 - **Extensible Architecture**: Interface-based design for easy customization

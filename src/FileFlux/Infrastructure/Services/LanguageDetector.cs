@@ -84,13 +84,17 @@ public static class LanguageDetector
             // Get sample text for detection (first 10000 chars is usually enough)
             var sampleText = text.Length > 10000 ? text.Substring(0, 10000) : text;
 
-            var languages = _identifier.Value.Identify(sampleText);
+            var languages = _identifier.Value.Identify(sampleText).Take(2).ToList();
             var topLanguage = languages.FirstOrDefault();
 
             if (topLanguage == null)
                 return ("unknown", 0.0);
 
-            // Calculate confidence based on distance from second best
+            // A best candidate that is not measurably better than the second is a guess, and a guess is reported as
+            // "unknown" rather than as a label (short text: "Invoice" -> pt, "Importo totale: 42,00 EUR" -> pt).
+            if (RelativeMargin(languages) < MinRelativeMargin)
+                return ("unknown", 0.0);
+
             var confidence = CalculateConfidence(languages);
             var languageCode = NormalizeLanguageCode(topLanguage.Item1.Iso639_2T);
 
@@ -238,17 +242,32 @@ public static class LanguageDetector
         if (langList.Count == 1)
             return 0.95; // Only one language detected = high confidence
 
-        // Calculate relative confidence based on score difference
-        var firstScore = langList[0].Item2;
-        var secondScore = langList[1].Item2;
-
-        // Lower score is better in NTextCat
-        // Large difference = high confidence
-        var scoreDifference = secondScore - firstScore;
-        var confidence = Math.Min(0.99, 0.5 + (scoreDifference / (firstScore + 0.0001)) * 0.5);
+        // NTextCat scores are distances (lower is better) that sit near 4000 for every candidate, so the best-vs-second gap
+        // relative to the best is tiny: about 0.002 or less for a few words, 0.004-0.01 for a sentence, 0.01-0.025 for a
+        // paragraph (measured over seven Latin-script languages). The old scale (0.5 + gap * 0.5) therefore answered
+        // 0.50-0.51 for everything; this one spends the observed range, so a clear answer is told from a coin flip and
+        // IsLanguage's default 0.6 is reachable by a sentence-length text.
+        var confidence = Math.Min(0.99, 0.5 + RelativeMargin(langList) * MarginToConfidence);
 
         return Math.Round(Math.Max(0.1, confidence), 4);
     }
+
+    /// <summary>Best-vs-second distance gap relative to the best (infinite with a single candidate).</summary>
+    private static double RelativeMargin(List<Tuple<LanguageInfo, double>> languages)
+    {
+        if (languages.Count < 2)
+            return double.PositiveInfinity;
+
+        var first = languages[0].Item2;
+        return (languages[1].Item2 - first) / (first + 0.0001);
+    }
+
+    // Below this relative margin the best candidate is not told apart from the second: every wrong label measured (a one-word
+    // line, a number-bearing price line) sat at 0.0012 or less, and every sentence of 42+ characters at 0.0043 or more.
+    private const double MinRelativeMargin = 0.002;
+
+    // 0.5 at no margin, ~0.6 at a margin of 0.004 (a short sentence), ~0.97 at 0.019 (a paragraph).
+    private const double MarginToConfidence = 25.0;
 
     /// <summary>
     /// Normalize language codes to ISO 639-1 (2-letter) format

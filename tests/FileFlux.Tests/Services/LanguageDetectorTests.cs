@@ -101,4 +101,61 @@ public class LanguageDetectorTests
         Assert.Equal("en", language);
         Assert.True(confidence > 0.5);
     }
+
+    // NTextCat scores are distances near 4000 for every candidate; for a few words the best and second best are tied or
+    // one apart, and the old reading labelled such text anyway ("Invoice" -> pt). A guess is "unknown", not a label.
+    [Theory]
+    [InlineData("Invoice")]
+    [InlineData("Factuur")]
+    [InlineData("Total due: 42.00 EUR Invoice 2026-1113")]
+    [InlineData("Importo totale: 42,00 EUR")]
+    [InlineData("Montant total : 42,00 EUR")]
+    public void Detect_AFragmentWithNoMargin_IsUnknownNotAGuess(string text)
+    {
+        var (language, confidence) = LanguageDetector.Detect(text);
+
+        Assert.Equal("unknown", language);
+        Assert.Equal(0.0, confidence);
+    }
+
+    // A sentence of 50-65 characters in each Latin-script language keeps its label, with a confidence that says it is not a
+    // coin flip (the old scale answered 0.50-0.51 for everything).
+    [Theory]
+    [InlineData("en", "Please send me the signed contract by Friday morning.")]
+    [InlineData("de", "Der Umsatz ist im letzten Quartal in jeder Region gewachsen.")]
+    [InlineData("fr", "Le chiffre d'affaires a augmenté dans chaque région ce trimestre.")]
+    [InlineData("es", "Los ingresos crecieron en todas las regiones el trimestre pasado.")]
+    [InlineData("it", "Il fatturato è cresciuto in ogni regione nell'ultimo trimestre.")]
+    [InlineData("pt", "Por favor envie-me o contrato assinado até sexta-feira de manhã.")]
+    [InlineData("nl", "De omzet is vorig kwartaal in elke regio gegroeid.")]
+    public void Detect_ASentence_KeepsItsLabelWithARealConfidence(string expected, string text)
+    {
+        var (language, confidence) = LanguageDetector.Detect(text);
+
+        Assert.Equal(expected, language);
+        Assert.True(confidence >= 0.6, $"Confidence {confidence} should be >= 0.6 for a sentence");
+    }
+
+    [Fact]
+    public void Detect_ConfidenceGrowsWithTheEvidence()
+    {
+        var sentence = LanguageDetector.Detect("This is a sample English text for testing language detection.");
+        var paragraph = LanguageDetector.Detect(
+            "The quarterly review shows revenue grew in every region and we plan to hire two more engineers next quarter.");
+
+        Assert.Equal("en", sentence.Language);
+        Assert.Equal("en", paragraph.Language);
+        Assert.True(paragraph.Confidence > sentence.Confidence + 0.1,
+            $"paragraph {paragraph.Confidence} should be clearly above sentence {sentence.Confidence}");
+    }
+
+    // The documented default threshold (0.6) was unreachable for any Latin-script text before the confidence was calibrated.
+    [Fact]
+    public void IsLanguage_DefaultThreshold_IsReachableForALatinSentence()
+    {
+        const string german = "Dies ist ein deutscher Text zum Testen der Spracherkennung.";
+
+        Assert.True(LanguageDetector.IsLanguage(german, "de"));
+        Assert.False(LanguageDetector.IsLanguage(german, "en"));
+    }
 }
