@@ -70,6 +70,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDocumentReader, HwpDocumentReader>();
         // Audio reads through IAudioToTextService; with none registered the reader claims no file.
         services.AddTransient<IDocumentReader>(sp => new AudioDocumentReader(sp.GetService<IAudioToTextService>()));
+        // A picture file reads through IImageToTextService; with none registered the reader claims no file.
+        services.AddTransient<IDocumentReader>(sp => new ImageDocumentReader(sp.GetService<IImageToTextService>()));
 
         // Language profile for multilingual support (always Singleton - thread-safe)
         services.AddSingleton<ILanguageProfileProvider, DefaultLanguageProfileProvider>();
@@ -277,7 +279,7 @@ public static class ServiceCollectionExtensions
         typeof(TextDocumentReader), typeof(MarkdownDocumentReader), typeof(HtmlDocumentReader), typeof(CsvDocumentReader),
         typeof(MultiModalPdfDocumentReader), typeof(MultiModalPowerPointDocumentReader), typeof(MultiModalWordDocumentReader),
         typeof(MultiModalExcelDocumentReader), typeof(HwpDocumentReader),
-        typeof(AudioDocumentReader),
+        typeof(AudioDocumentReader), typeof(ImageDocumentReader),
     };
 
     private static IEnumerable<IDocumentReader> BuiltInReadersFirst(IEnumerable<IDocumentReader> readers)

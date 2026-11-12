@@ -45,7 +45,8 @@ public interface IImageToTextService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 지원하는 이미지 형식 목록
+    /// 지원하는 이미지 형식 목록 — 점은 있어도 없어도, 대소문자도 무관하다("png" · ".PNG"). 그림 파일 리더
+    /// (<c>ImageDocumentReader</c>)는 이 목록과 자신이 아는 그림 확장자의 교집합만 읽는다.
     /// </summary>
     IEnumerable<string> SupportedImageFormats { get; }
 

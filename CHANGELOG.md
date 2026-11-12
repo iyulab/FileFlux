@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **A picture file (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`, `.tif`, `.tiff`) is read through the registered `IImageToTextService`.** `ImageDocumentReader` (registered by `AddFileFlux`) turns what the service returns as text into the document, so a photographed receipt or a scanned page saved as an image becomes searchable like the PDF that holds the same scan. It claims only the picture extensions the service lists in `SupportedImageFormats` (compared with or without a leading dot, any case) and none when no service is registered, so a consumer without one keeps «no reader» for pictures — `AddLMSupplyOcr()` reads no TIFF, so with it `.tif`/`.tiff` stay unsupported. A read that found no text carries `Hints["extraction_failure_reason"] = "no_text_in_image"` and a warning; a service that answers with an error message is a failed read (`Status = Failed`, error code `image_read_failed`); a service that throws propagates. The supported extensions can be re-read at any time (`IDocumentReaderFactory.GetAllReaders()`; a DI-less `DocumentReaderFactory` takes `RegisterReader(new ImageDocumentReader(service))` and `GetSupportedExtensions()` changes at once).
+
 ### Fixed
 - **A text, Markdown, HTML or CSV file saved as UTF-16 without a byte order mark is read as text.** It used to come out with a NUL between every character (NUL is valid UTF-8, so the strict UTF-8 step accepted it) or, for a Korean-only file, as garbage; no warning was given. The shared decoder now recognises UTF-16 (either byte order) by its NULs when there is no byte order mark; a file with a byte order mark, UTF-8 and CP949 are read as before.
 

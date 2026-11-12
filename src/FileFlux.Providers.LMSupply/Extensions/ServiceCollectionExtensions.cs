@@ -48,7 +48,9 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Registers an <see cref="IImageToTextService"/> backed by a local LMSupply ONNX OCR pipeline —
-    /// best for scanned documents and text-bearing images. For photo/visual descriptions, see
+    /// best for scanned documents and text-bearing images; with it registered, picture files
+    /// (<c>.png</c> <c>.jpg</c> <c>.jpeg</c> <c>.webp</c> <c>.bmp</c> <c>.gif</c>; the OCR decoder reads no TIFF)
+    /// become readable documents. For photo/visual descriptions, see
     /// <see cref="AddLMSupplyCaptioner"/>. FileFlux's <c>IImageToTextService</c> is a single-registration
     /// interface, so pick whichever capability matches your image content (both cannot be registered
     /// at once through this method pair).

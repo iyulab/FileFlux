@@ -219,7 +219,7 @@ FileFlux defines AI service interfaces - consumer applications provide implement
 | Interface | Purpose | Example Implementations |
 |-----------|---------|------------------------|
 | `IDocumentAnalysisService` | Text generation, intelligent chunking. Override `GenerateAsync(prompt, GenerationSettings, ct)` so `LlmRefineOptions`/`ParsingOptions` `Temperature`/`MaxTokens` reach your model, and throw `GenerationTruncatedException` (or, from a service on the shared completion port, its base `Flux.Abstractions.TextCompletionTruncatedException`) when the model stops at the token limit so a cut-off rewrite is never adopted. Set `ProviderInfo.MaxContextLength` and the refiner will not send a pass that cannot fit | OpenAI, Anthropic, LMSupply |
-| `IImageToTextService` | Image captioning, OCR. An implementation that calls a vision model can take its prompt from `ImageExtractionPromptBuilder.BuildPrompt(options)`, which asks the model to answer `EXTRACTION_FAILED: <reason>` when it cannot read the image — the marker the PDF reader recognises | OpenAI Vision, LMSupply Captioner/OCR |
+| `IImageToTextService` | Image captioning, OCR; also makes picture files readable (0.69.0+, see the Picture row of the format table; none registered = pictures unsupported). An implementation that calls a vision model can take its prompt from `ImageExtractionPromptBuilder.BuildPrompt(options)`, which asks the model to answer `EXTRACTION_FAILED: <reason>` when it cannot read the image — the marker the PDF reader recognises | OpenAI Vision, LMSupply Captioner/OCR |
 | `IAudioToTextService` | Speech transcription — makes audio files readable (0.30.0+); without one, audio is unsupported | LMSupply Transcriber |
 | `IEmbeddingGenerator<string, Embedding<float>>` (Microsoft.Extensions.AI) | Embeddings for `Semantic` chunking — `AddFileFlux()` hands the container's generator to FluxCurator as its `IEmbedder` (see [Chunking Strategies](#chunking-strategies)). FileFlux has no embedding interface of its own (since 0.64.0) | OpenAI, Azure OpenAI, Ollama, IronHive, LMSupply Embedder |
 
@@ -265,7 +265,7 @@ var services = new ServiceCollection();
 
 services.AddLMSupplyDocumentAnalysis();          // "default": LMSupply picks a GGUF model for this host
 services.AddLMSupplyEmbedding("default");        // the container's IEmbeddingGenerator; also the embedder of Semantic chunking
-services.AddLMSupplyCaptioner();   // or AddLMSupplyOcr() for scanned/text-bearing images
+services.AddLMSupplyCaptioner();   // or AddLMSupplyOcr() for scanned/text-bearing images; the registered one also makes .png/.jpg/... files readable
 services.AddLMSupplyTranscriber(); // .wav/.mp3 become readable; chunks carry Location.StartTime/EndTime
 // services.AddLMSupplyTranscriber(configure: o => { o.Diarize = true; o.NumSpeakers = 3; }); // label who said what
 
@@ -296,6 +296,7 @@ AI backend.
 | HTML | .html, .htm | Built-in | Web content extraction |
 | CSV/TSV | .csv, .tsv | Built-in (CsvHelper) | Header-aware markdown table serialization; UTF-8/BOM + CP949 (EUC-KR) fallback decoding |
 | Text | .txt, .json | Built-in | Basic text processing; text, Markdown, HTML and CSV share one decoder: byte order mark (UTF-8/16/32), UTF-16 without one (recognised by its NULs), strict UTF-8, the page's declared charset (HTML), then CP949 (EUC-KR) |
+| Picture | .png, .jpg, .jpeg, .webp, .bmp, .gif, .tif, .tiff — only the ones the registered service reads | `IImageToTextService` (e.g. `AddLMSupplyOcr()`) | The service's text is the document (a photographed receipt or a scanned page saved as an image). The claimed extensions are the intersection with the service's `SupportedImageFormats` (with or without a leading dot, any case) — `AddLMSupplyOcr()` reads no TIFF, so with it `.tif`/`.tiff` stay unsupported; with no service registered pictures stay unsupported. An empty read reports `Hints["extraction_failure_reason"] = "no_text_in_image"`; a service that answers with an error message is a failed read (`Status = Failed`, error code `image_read_failed`). A consumer that wants OCR text and a caption composes them in its own `IImageToTextService`. To see the current list: `IDocumentReaderFactory.GetAllReaders()` (each reader's `SupportedExtensions` is evaluated on every call); a DI-less `DocumentReaderFactory` takes `RegisterReader(new ImageDocumentReader(service))` and `GetSupportedExtensions()` changes at once |
 | Audio | .wav, .mp3 | `IAudioToTextService` (e.g. `AddLMSupplyTranscriber()`) | Speech as text, one paragraph per segment (speaker-labelled when the service separates speakers); chunks carry `Location.StartTime`/`EndTime`. Unsupported when no service is registered |
 
 > **Picture alt text is content only when an author wrote it** (Word, PowerPoint, Excel, HWP) — that text reaches the
