@@ -125,6 +125,7 @@ public class ImageProcessor
                         }
                         var aiResult = await imageToTextService.ExtractTextAsync(
                             imageInfo.Data, null, cancellationToken).ConfigureAwait(false);
+                        ImageToTextCancellation.ThrowIfCancelledBehindError(aiResult, cancellationToken);
                         processedImage.AIDescription = aiResult.ExtractedText;
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
@@ -277,6 +278,7 @@ public class ImageProcessor
                         }
                         var aiResult = await imageToTextService.ExtractTextAsync(
                             imageBytes, null, cancellationToken).ConfigureAwait(false);
+                        ImageToTextCancellation.ThrowIfCancelledBehindError(aiResult, cancellationToken);
                         processedImage.AIDescription = aiResult.ExtractedText;
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)

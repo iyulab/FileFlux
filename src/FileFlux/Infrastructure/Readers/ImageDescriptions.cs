@@ -217,6 +217,7 @@ internal static class ImageDescriptions
                 };
 
                 var result = await imageToTextService.ExtractTextAsync(imageBytes, options, cancellationToken).ConfigureAwait(false);
+                ImageToTextCancellation.ThrowIfCancelledBehindError(result, cancellationToken);
                 if (!string.IsNullOrWhiteSpace(result.ExtractedText))
                     results.Add((result, image));
             }

@@ -587,6 +587,7 @@ public sealed partial class FluxDocumentProcessor
                         ExtractStructure = true
                     },
                     cancellationToken).ConfigureAwait(false);
+                ImageToTextCancellation.ThrowIfCancelledBehindError(extractionResult, cancellationToken);
 
                 if (!string.IsNullOrWhiteSpace(extractionResult.ExtractedText))
                 {

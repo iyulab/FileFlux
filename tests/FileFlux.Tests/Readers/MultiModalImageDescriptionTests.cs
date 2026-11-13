@@ -335,6 +335,49 @@ public class MultiModalImageDescriptionTests
         }
     }
 
+    // The call is cancelled while the service works on the only picture of the workbook, and the service (an adapter that
+    // answers every exception with an error message) answers it with one: with no further picture the loop's own check never
+    // runs, so only the result check can tell this was a cancellation.
+    [Fact]
+    public async Task ACancelledCall_AnsweredWithAnErrorMessage_IsACancellation_EvenOnTheLastPicture()
+    {
+        using var cts = new CancellationTokenSource();
+        var path = await FixtureAsync("xlsx");
+        try
+        {
+            var reader = Reader("xlsx", new CancelsThenAnswersWithAnError(cts));
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => reader.ExtractAsync(path, cancellationToken: cts.Token));
+        }
+        finally
+        {
+            DeleteIfGenerated("xlsx", path);
+        }
+    }
+
+    private sealed class CancelsThenAnswersWithAnError(CancellationTokenSource source) : IImageToTextService
+    {
+        public IEnumerable<string> SupportedImageFormats => ["png", "jpeg", "gif"];
+
+        public string ProviderName => "CancelsThenErrors";
+
+        public Task<ImageToTextResult> ExtractTextAsync(
+            byte[] imageData, ImageToTextOptions? options = null, CancellationToken cancellationToken = default)
+        {
+            source.Cancel();
+            return Task.FromResult(new ImageToTextResult { ErrorMessage = "The operation was canceled." });
+        }
+
+        public Task<ImageToTextResult> ExtractTextAsync(
+            Stream imageStream, ImageToTextOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<ImageToTextResult> ExtractTextAsync(
+            string imagePath, ImageToTextOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
     private sealed class CountingImageToTextService : IImageToTextService
     {
         private int _calls;

@@ -139,6 +139,69 @@ public sealed class ImageDocumentReaderTests : IDisposable
         Assert.Equal(ImageDocumentReader.ReadFailed, raw.Hints[EmptyExtraction.HintKey]);
     }
 
+    // A service adapter that catches every exception and answers with an error message (the shape consumers write around an
+    // OCR engine, so a bad picture does not throw) also catches the cancellation of the call.
+    private sealed class ErrorOnAnyFailureService : IImageToTextService
+    {
+        public IEnumerable<string> SupportedImageFormats => [".png"];
+        public string ProviderName => "catch-all";
+
+        private static async Task<ImageToTextResult> Read(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+                return new ImageToTextResult { ExtractedText = "never" };
+            }
+            catch (Exception ex)
+            {
+                return new ImageToTextResult { ErrorMessage = ex.Message };
+            }
+        }
+
+        public Task<ImageToTextResult> ExtractTextAsync(byte[] imageData, ImageToTextOptions? options = null, CancellationToken cancellationToken = default) =>
+            Read(cancellationToken);
+
+        public Task<ImageToTextResult> ExtractTextAsync(Stream imageStream, ImageToTextOptions? options = null, CancellationToken cancellationToken = default) =>
+            Read(cancellationToken);
+
+        public Task<ImageToTextResult> ExtractTextAsync(string imagePath, ImageToTextOptions? options = null, CancellationToken cancellationToken = default) =>
+            Read(cancellationToken);
+    }
+
+    [Fact]
+    public async Task Extract_ACancelledCallIsACancellation_EvenWhenTheServiceAnswersItWithAnErrorMessage()
+    {
+        var reader = new ImageDocumentReader(new ErrorOnAnyFailureService());
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => reader.ExtractAsync(_png, cancellationToken: cts.Token));
+    }
+
+    [Fact]
+    public async Task Extract_FromAStream_ACancelledCallIsACancellation()
+    {
+        var reader = new ImageDocumentReader(new ErrorOnAnyFailureService());
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        await using var stream = File.OpenRead(_png);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => reader.ExtractAsync(stream, "receipt.png", cancellationToken: cts.Token));
+    }
+
+    [Fact]
+    public async Task Extract_AnErrorWithoutACancellation_IsStillAFailedRead()
+    {
+        // The control: the same error answer on a call nobody cancelled is a failed read, not an exception.
+        var reader = new ImageDocumentReader(new FakeImageService([".png"], () => new ImageToTextResult { ErrorMessage = "decoder failed" }));
+        using var cts = new CancellationTokenSource();
+
+        var raw = await reader.ExtractAsync(_png, cancellationToken: cts.Token);
+
+        Assert.Equal(ProcessingStatus.Failed, raw.Status);
+    }
+
     [Fact]
     public async Task Extract_AServiceExceptionPropagates()
     {

@@ -12,8 +12,8 @@ namespace FileFlux.Infrastructure.Readers;
 /// <remarks>
 /// A read that found no text is not an empty success: the extraction carries
 /// <see cref="EmptyExtraction.HintKey"/> = <see cref="NoTextInImage"/>. A service that answers with an error message is a
-/// failed read (<see cref="ProcessingStatus.Failed"/>, <see cref="ReadFailed"/>); a service that throws propagates, as
-/// the audio reader's does. The service is the single registered <see cref="IImageToTextService"/>, so a consumer that
+/// failed read (<see cref="ProcessingStatus.Failed"/>, <see cref="ReadFailed"/>) unless the caller's token was cancelled, which is
+/// a cancellation; a service that throws propagates, as the audio reader's does. The service is the single registered <see cref="IImageToTextService"/>, so a consumer that
 /// wants OCR text and a caption composes them in its own service — the port has one text result.
 /// </remarks>
 public sealed class ImageDocumentReader : IDocumentReader
@@ -81,6 +81,7 @@ public sealed class ImageDocumentReader : IDocumentReader
         if (!info.Exists)
             throw new FileNotFoundException($"Image file not found: {filePath}");
         var result = await Service().ExtractTextAsync(filePath, ReadOptions(), cancellationToken).ConfigureAwait(false);
+        ImageToTextCancellation.ThrowIfCancelledBehindError(result, cancellationToken);
         return ToRawContent(result, FileInfoOf(info));
     }
 
@@ -90,6 +91,7 @@ public sealed class ImageDocumentReader : IDocumentReader
         ArgumentNullException.ThrowIfNull(stream);
         var file = StreamInfoOf(stream, fileName);
         var result = await Service().ExtractTextAsync(stream, ReadOptions(), cancellationToken).ConfigureAwait(false);
+        ImageToTextCancellation.ThrowIfCancelledBehindError(result, cancellationToken);
         return ToRawContent(result, file);
     }
 

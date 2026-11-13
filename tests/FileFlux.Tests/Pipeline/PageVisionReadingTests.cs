@@ -179,6 +179,39 @@ public class PageVisionReadingTests
         Assert.Contains(content.Warnings, w => w.Contains("Page 2", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ACancelledCall_IsACancellation_WhenTheServiceAnswersItWithAnErrorMessage()
+    {
+        // An adapter that turns every exception into an error message also turns the caller's cancellation into one; the
+        // pages must not all come back «failed» from a call nobody is waiting for any more.
+        var content = ThreePages();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var act = () => PageVisionReading.ApplyAsync(content, new PageReadingOptions { SelectPages = _ => true }, Render([]),
+            new ErrorOnCancelReader(), cts.Token);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(act);
+    }
+
+    private sealed class ErrorOnCancelReader : IImageToTextService
+    {
+        public IEnumerable<string> SupportedImageFormats => ["png"];
+
+        public string ProviderName => "ErrorOnCancel";
+
+        public Task<ImageToTextResult> ExtractTextAsync(byte[] imageData, ImageToTextOptions? options = null, CancellationToken cancellationToken = default)
+            => Task.FromResult(cancellationToken.IsCancellationRequested
+                ? new ImageToTextResult { ErrorMessage = "The operation was canceled." }
+                : new ImageToTextResult { ExtractedText = "read" });
+
+        public Task<ImageToTextResult> ExtractTextAsync(Stream imageStream, ImageToTextOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<ImageToTextResult> ExtractTextAsync(string imagePath, ImageToTextOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
     private sealed class FixedReader(string text, string? error = null) : IImageToTextService
     {
         public IEnumerable<string> SupportedImageFormats => ["png"];

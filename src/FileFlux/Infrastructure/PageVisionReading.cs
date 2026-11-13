@@ -75,6 +75,8 @@ internal static class PageVisionReading
                     image.Png,
                     new ImageToTextOptions { ImageTypeHint = "document", ExtractStructure = true },
                     cancellationToken).ConfigureAwait(false);
+                // A cancelled call answered with an error message is a cancellation, not a failed page.
+                ImageToTextCancellation.ThrowIfCancelledBehindError(result, cancellationToken);
                 read = string.IsNullOrEmpty(result.ErrorMessage) ? result.ExtractedText?.Trim() : null;
                 if (read is null)
                 {
