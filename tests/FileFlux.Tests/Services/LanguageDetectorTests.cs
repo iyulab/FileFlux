@@ -73,6 +73,48 @@ public class LanguageDetectorTests
         Assert.Equal("en", results[0].Language);
     }
 
+    // The candidate list is a distribution: confidences sum to 1, ordered best first. NTextCat distances sit near 4000 for
+    // every candidate, so normalising their inverses answered about 0.33 for each of three candidates whatever the text.
+    [Theory]
+    [InlineData("The quarterly review shows revenue grew in every region and we plan to hire two more engineers next quarter.", "en")]
+    [InlineData("Der Umsatz ist im letzten Quartal in jeder Region gewachsen und wir planen zwei weitere Ingenieure einzustellen.", "de")]
+    public void DetectMultiple_AParagraph_IsOneClearAnswerAndASmallTail(string text, string expected)
+    {
+        var results = LanguageDetector.DetectMultiple(text, 3);
+
+        Assert.Equal(expected, results[0].Language);
+        Assert.True(results[0].Confidence >= 0.8, $"top confidence {results[0].Confidence} should be >= 0.8 for a paragraph");
+        Assert.InRange(results.Sum(r => r.Confidence), 0.999, 1.001);
+        Assert.Equal(results.OrderByDescending(r => r.Confidence).Select(r => r.Language), results.Select(r => r.Language));
+    }
+
+    [Fact]
+    public void DetectMultiple_AFragmentWithNoMargin_DoesNotPretendToKnow()
+    {
+        var results = LanguageDetector.DetectMultiple("Invoice", 3);
+
+        Assert.True(results[0].Confidence < 0.6, $"top confidence {results[0].Confidence} should say it is close to a coin flip");
+        Assert.InRange(results.Sum(r => r.Confidence), 0.999, 1.001);
+    }
+
+    [Fact]
+    public void DetectMultiple_AKoreanText_IsKorean_NotNTextCatsGuessOverLatinProfiles()
+    {
+        var results = LanguageDetector.DetectMultiple("이것은 한국어 텍스트 샘플입니다. 언어 감지 테스트를 위한 것입니다.", 3);
+
+        var only = Assert.Single(results);
+        Assert.Equal("ko", only.Language);
+        Assert.True(only.Confidence >= 0.6);
+    }
+
+    [Fact]
+    public void DetectMultiple_AgreesWithDetectOnTheTopLanguage()
+    {
+        const string text = "Los ingresos crecieron en todas las regiones el trimestre pasado.";
+
+        Assert.Equal(LanguageDetector.Detect(text).Language, LanguageDetector.DetectMultiple(text, 3)[0].Language);
+    }
+
     [Theory]
     [InlineData("Hello world, this is a test.", "en", true)]
     [InlineData("Hello world, this is a test.", "ko", false)]

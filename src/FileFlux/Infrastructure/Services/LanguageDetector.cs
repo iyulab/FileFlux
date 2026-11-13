@@ -183,6 +183,12 @@ public static class LanguageDetector
     /// <summary>
     /// Detect language with detailed results for multilingual documents
     /// </summary>
+    /// <remarks>
+    /// The list is a distribution over the best candidates, best first, and its confidences sum to 1: one clear answer is
+    /// near 1 with a small tail, text that does not tell its candidates apart (a few words) is spread about evenly. A text
+    /// that is Korean, Japanese or Chinese by script is answered by that one language, as <see cref="Detect"/> does - the
+    /// Latin-script profiles have nothing to say about it.
+    /// </remarks>
     /// <param name="text">Text to analyze</param>
     /// <param name="topN">Number of top languages to return</param>
     /// <returns>List of (language code, confidence) tuples</returns>
@@ -190,6 +196,10 @@ public static class LanguageDetector
     {
         if (string.IsNullOrWhiteSpace(text))
             return new List<(string, double)> { ("unknown", 0.0) };
+
+        var cjkResult = DetectCJKLanguage(text);
+        if (cjkResult.Language != "unknown")
+            return new List<(string, double)> { cjkResult };
 
         try
         {
@@ -202,15 +212,16 @@ public static class LanguageDetector
             if (languages.Count == 0)
                 return new List<(string, double)> { ("unknown", 0.0) };
 
-            var results = new List<(string Language, double Confidence)>();
-            var totalScore = languages.Sum(l => 1.0 / (l.Item2 + 0.0001));
+            // NTextCat scores are distances (lower is better) near 4000 for every candidate, so their inverses are all about
+            // equal; what separates candidates is the gap to the best, relative to the best (see CalculateConfidence). Each
+            // candidate is weighted by how far behind the best it is and the weights are normalised.
+            var best = languages[0].Item2;
+            var weights = languages.Select(l => Math.Exp(-DistanceGapToWeight * (l.Item2 - best) / (best + 0.0001))).ToList();
+            var totalWeight = weights.Sum();
 
-            foreach (var lang in languages)
-            {
-                var normalizedScore = (1.0 / (lang.Item2 + 0.0001)) / totalScore;
-                var languageCode = NormalizeLanguageCode(lang.Item1.Iso639_2T);
-                results.Add((languageCode, Math.Round(normalizedScore, 4)));
-            }
+            var results = new List<(string Language, double Confidence)>();
+            for (var i = 0; i < languages.Count; i++)
+                results.Add((NormalizeLanguageCode(languages[i].Item1.Iso639_2T), Math.Round(weights[i] / totalWeight, 4)));
 
             return results;
         }
@@ -268,6 +279,10 @@ public static class LanguageDetector
 
     // 0.5 at no margin, ~0.6 at a margin of 0.004 (a short sentence), ~0.97 at 0.019 (a paragraph).
     private const double MarginToConfidence = 25.0;
+
+    // DetectMultiple weights a candidate by exp(-180 x its relative gap to the best): the second candidate of a paragraph
+    // (gap ~0.019) gets ~3 % against ~97 % for the best, the second of a short sentence (gap ~0.004) about half of the best's.
+    private const double DistanceGapToWeight = 180.0;
 
     /// <summary>
     /// Normalize language codes to ISO 639-1 (2-letter) format
