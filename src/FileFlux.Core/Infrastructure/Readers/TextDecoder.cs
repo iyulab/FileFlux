@@ -7,7 +7,7 @@ namespace FileFlux.Core.Infrastructure.Readers;
 /// Turns the bytes of a text file into a string without losing characters. The readers used to hand the stream to a UTF-8
 /// reader, whose default is to replace every byte it cannot decode with U+FFFD: a legacy Korean file saved as CP949 / EUC-KR
 /// (older .txt, .md and web pages) came out as a run of replacement characters, with no error. The order is: a byte order
-/// mark, then UTF-16 saved without one (recognised by its NULs, see <see cref="TryDetectUtf16WithoutBom"/>), then strict UTF-8 (ASCII
+/// mark, then UTF-32 and UTF-16 saved without one (recognised by their NULs, see <see cref="TryDetectUtf32WithoutBom"/> and <see cref="TryDetectUtf16WithoutBom"/>), then strict UTF-8 (ASCII
 /// is a subset), then the charset the document itself declares (HTML), then CP949.
 /// </summary>
 internal static class TextDecoder
@@ -37,6 +37,14 @@ internal static class TextDecoder
         if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
             return (Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2), "utf-16be");
 
+        // UTF-32 saved without a byte order mark (rare): see TryDetectUtf32WithoutBom.
+        if (TryDetectUtf32WithoutBom(bytes, out var utf32BigEndian))
+        {
+            return utf32BigEndian
+                ? (new UTF32Encoding(bigEndian: true, byteOrderMark: false).GetString(bytes), "utf-32be")
+                : (new UTF32Encoding(bigEndian: false, byteOrderMark: false).GetString(bytes), "utf-32le");
+        }
+
         // UTF-16 saved without a byte order mark (some Windows tools and database exports): ASCII characters make every other byte a
         // NUL, which is valid UTF-8, so the strict decode below would accept it and hand every reader NUL-interleaved text.
         if (TryDetectUtf16WithoutBom(bytes, out var bigEndian))
@@ -60,6 +68,31 @@ internal static class TextDecoder
             return (declared.GetString(bytes), declared.WebName);
 
         return (Encoding.GetEncoding(949).GetString(bytes), "cp949");
+    }
+
+    /// <summary>
+    /// A code point is at most U+10FFFF, so every UTF-32 character has its highest byte 0 and the next one at most 0x10 -
+    /// the last two bytes of a little-endian character, the first two of a big-endian one - and a file of ASCII text is three
+    /// NULs in four. UTF-8 and CP949 text has no NUL, so a file in which <em>every</em> character has that shape is UTF-32.
+    /// </summary>
+    private static bool TryDetectUtf32WithoutBom(byte[] bytes, out bool bigEndian)
+    {
+        bigEndian = false;
+        if (bytes.Length < 8 || bytes.Length % 4 != 0) return false;
+
+        var quads = Math.Min(bytes.Length, 8192) / 4;
+        int little = 0, big = 0;
+        for (var q = 0; q < quads; q++)
+        {
+            var o = q * 4;
+            if (bytes[o + 3] == 0 && bytes[o + 2] <= 0x10) little++;
+            if (bytes[o] == 0 && bytes[o + 1] <= 0x10) big++;
+        }
+
+        // Both shapes at once (a file of NULs) say nothing about the order.
+        if (little == quads && big != quads) return true;
+        if (big == quads && little != quads) { bigEndian = true; return true; }
+        return false;
     }
 
     /// <summary>

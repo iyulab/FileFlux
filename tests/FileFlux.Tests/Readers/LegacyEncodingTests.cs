@@ -85,6 +85,64 @@ public sealed class LegacyEncodingTests : IDisposable
         Assert.DoesNotContain('\0', text);
     }
 
+    // UTF-32 saved without a byte order mark: every BMP character has two zero bytes in the same position of its four, so a file
+    // of ASCII text is three NULs in four - NUL is valid UTF-8, and the file used to come out NUL-interleaved like UTF-16 once did.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PlainText_Utf32WithoutBom_IsReadAsText(bool bigEndian)
+    {
+        var bytes = new UTF32Encoding(bigEndian, byteOrderMark: false).GetBytes(MixedUtf16Text);
+
+        var text = await ExtractAsync("utf32.txt", bytes);
+
+        Assert.Contains("Quarterly report", text);
+        Assert.Contains("안녕하세요 문서처리입니다.", text);
+        Assert.DoesNotContain('\0', text);
+    }
+
+    [Fact]
+    public async Task PlainText_Utf32WithoutBom_WithACharacterOutsideTheBasicPlane_IsStillReadAsUtf32()
+    {
+        var bytes = new UTF32Encoding(bigEndian: false, byteOrderMark: false).GetBytes("Plain text with an emoji \U0001F600 and more ASCII after it.\n");
+
+        var text = await ExtractAsync("utf32-astral.txt", bytes);
+
+        Assert.Contains("and more ASCII after it.", text);
+        Assert.DoesNotContain('\0', text);
+    }
+
+    [Fact]
+    public async Task PlainText_Utf32WithBom_StillReads()
+    {
+        var bytes = new UTF32Encoding(bigEndian: false, byteOrderMark: true).GetPreamble()
+            .Concat(new UTF32Encoding(bigEndian: false, byteOrderMark: false).GetBytes("with a mark\n")).ToArray();
+
+        var text = await ExtractAsync("utf32-bom.txt", bytes);
+
+        Assert.Contains("with a mark", text);
+        Assert.DoesNotContain('\0', text);
+    }
+
+    // An HTML page saved as UTF-16 keeps the <meta charset> it was written with (often "utf-8"): the bytes, not the label, decide.
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task Html_Utf16_WithAMetaCharsetThatSaysUtf8_IsReadByItsBytes(bool bigEndian, bool withBom)
+    {
+        var html = $"<html><head><meta charset=\"utf-8\"></head><body><p>{Hello}</p><p>{Document}</p><p>Plain ASCII paragraph.</p></body></html>";
+        var encoding = new UnicodeEncoding(bigEndian, byteOrderMark: false);
+        var bytes = (withBom ? encoding.GetPreamble() : []).Concat(encoding.GetBytes(html)).ToArray();
+
+        var text = await ExtractAsync("utf16.html", bytes);
+
+        Assert.Contains(Hello, text);
+        Assert.Contains(Document, text);
+        Assert.Contains("Plain ASCII paragraph.", text);
+        Assert.DoesNotContain('\0', text);
+    }
+
     [Fact]
     public async Task PlainText_Utf16WithBom_StillWinsOverTheNulPattern()
     {
