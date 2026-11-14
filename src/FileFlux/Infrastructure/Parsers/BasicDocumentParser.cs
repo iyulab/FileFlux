@@ -131,6 +131,9 @@ public partial class BasicDocumentParser : IDocumentParser
         foreach (var section in sections)
         {
             section.Content = shield.RestorePresent(section.Content);
+            // The offsets were taken in the shielded text: they are offsets in the reader's text again.
+            section.Start = shield.ToOriginalOffset(section.Start);
+            section.End = shield.ToOriginalOffset(section.End);
             RestoreSectionContent(section.Children, shield);
         }
     }

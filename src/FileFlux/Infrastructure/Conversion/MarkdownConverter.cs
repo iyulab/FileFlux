@@ -129,7 +129,9 @@ public class MarkdownConverter : IMarkdownConverter
         // Only text without any heading gets headings inferred from casing.
         var inferHeadingsFromCase = !Regex.IsMatch(text, @"^#{1,6}\s", RegexOptions.Multiline);
 
-        bool inCodeBlock = false;
+        // A fenced block is found by its fence (any fence character and length; a longer fence is closed only by an equal or
+        // longer one), not by toggling on every line that starts with three backticks or tildes.
+        var fenced = options.DetectCodeBlocks ? MarkdownFences.LineMask(lines) : null;
         bool inTable = false;
         var tableBuffer = new List<string>();
 
@@ -138,16 +140,8 @@ public class MarkdownConverter : IMarkdownConverter
             var line = lines[i];
             var trimmedLine = line.Trim();
 
-            // 코드 블록 감지
-            if (options.DetectCodeBlocks && IsCodeBlockMarker(trimmedLine))
-            {
-                inCodeBlock = !inCodeBlock;
-                sb.AppendLine(line);
-                if (!inCodeBlock) stats.CodeBlockCount++;
-                continue;
-            }
-
-            if (inCodeBlock)
+            // 코드 블록 감지 — a block is copied as written
+            if (fenced is not null && fenced[i])
             {
                 sb.AppendLine(line);
                 continue;
@@ -227,6 +221,11 @@ public class MarkdownConverter : IMarkdownConverter
             OutputTable(sb, tableBuffer, stats);
         }
 
+        if (fenced is not null)
+        {
+            stats.CodeBlockCount += MarkdownFences.FindRanges(string.Join('\n', lines), includeUnclosed: false).Count;
+        }
+
         return sb.ToString();
     }
 
@@ -304,11 +303,6 @@ public class MarkdownConverter : IMarkdownConverter
     }
 
     #region Heuristic Detection Methods
-
-    private static bool IsCodeBlockMarker(string line)
-    {
-        return line.StartsWith("```") || line.StartsWith("~~~");
-    }
 
     private static bool IsTableLine(string line)
     {
@@ -527,8 +521,8 @@ public class MarkdownConverter : IMarkdownConverter
         // 먼저 \r\n을 \n으로 통일
         var normalized = markdown.Replace("\r\n", "\n");
 
-        // 연속된 빈 줄을 2개로 제한
-        normalized = Regex.Replace(normalized, @"\n{3,}", "\n\n");
+        // 연속된 빈 줄을 2개로 제한 (blank lines inside a fenced code block are the code's own)
+        normalized = MarkdownFences.Shielded(normalized, text => Regex.Replace(text, @"\n{3,}", "\n\n"));
 
         // 헤딩 앞뒤에 빈 줄 보장 (never inside a fenced code block: a «#» line there is code)
         normalized = MarkdownFences.Shielded(normalized, EnsureBlankLinesAroundHeadings);

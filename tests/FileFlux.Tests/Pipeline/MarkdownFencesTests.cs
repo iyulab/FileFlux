@@ -164,6 +164,69 @@ public sealed class MarkdownFencesTests
     }
 
     [Fact]
+    public void A_closing_fence_indented_more_than_three_columns_deeper_than_the_opening_is_code_not_the_end()
+    {
+        const string text = "```md\n    ```\n# x\n    ```\n```\nprose\n";
+
+        Assert.Equal(["```md\n    ```\n# x\n    ```\n```\n"], Fenced(text));
+    }
+
+    [Fact]
+    public void A_bare_line_of_four_or_more_tildes_is_a_separator_not_a_fence_for_a_text_step()
+    {
+        // «~~~~~» banners (an ASCII rule) pair up as a «fence» by CommonMark; a text step must still see the prose between.
+        const string text = "~~~~~~\nSection A\n~~~~~~\nSection B\n~~~~~~\n";
+
+        Assert.True(MarkdownFences.Shield(text).IsEmpty);
+        Assert.Equal("[" + text + "]", MarkdownFences.Shielded(text, source => "[" + source + "]"));
+    }
+
+    [Fact]
+    public void A_step_that_removes_html_comments_does_not_cost_the_blocks_their_place()
+    {
+        // The placeholder is not markup: a cleaner of <!-- comments --> leaves it alone and the step is not skipped.
+        const string text = "<!-- note -->prose\n```\ncode <!-- kept -->\n```\n";
+
+        var result = MarkdownFences.Shielded(text, source => System.Text.RegularExpressions.Regex.Replace(source, "<!--.*?-->", string.Empty));
+
+        Assert.Equal("prose\n```\ncode <!-- kept -->\n```\n", result);
+    }
+
+    [Fact]
+    public void A_step_that_glues_the_placeholder_to_the_prose_does_not_glue_the_fence_to_it()
+    {
+        const string text = "Intro\n\n```sh\nls\n```\n\nOutro\n";
+
+        var result = MarkdownFences.Shielded(text, source => source.Replace("\n", " ", StringComparison.Ordinal));
+
+        Assert.Contains("\n```sh\nls\n```\n", result, StringComparison.Ordinal);
+        Assert.StartsWith("Intro ", result, StringComparison.Ordinal);
+        Assert.Contains("Outro", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_text_that_already_holds_the_placeholder_delimiters_is_not_shielded()
+    {
+        const string text = "private use  here\n```\ncode\n```\n";
+
+        Assert.True(MarkdownFences.Shield(text).IsEmpty);
+    }
+
+    [Fact]
+    public void Offsets_and_lines_of_the_shielded_text_map_back_to_the_original()
+    {
+        // The block is five lines (opening fence, two code lines, closing fence is the fifth) and one placeholder line in the shield.
+        const string text = "ab\n```\nx\ny\n```\ncd\n";
+        var shield = MarkdownFences.Shield(text);
+        var shieldedC = shield.Text.IndexOf("cd", StringComparison.Ordinal);
+
+        Assert.Equal(text.IndexOf("cd", StringComparison.Ordinal), shield.ToOriginalOffset(shieldedC));
+        Assert.Equal(text.IndexOf('a', StringComparison.Ordinal), shield.ToOriginalOffset(shield.Text.IndexOf('a', StringComparison.Ordinal)));
+        Assert.Equal(1, shield.ToOriginalLine(1));
+        Assert.Equal(5, shield.ToOriginalLine(2));
+    }
+
+    [Fact]
     public void A_heading_chunk_starting_where_the_previous_section_ends_belongs_to_the_next_section_only()
     {
         const string text = "# A\n\nfirst\n\n## B\n\nsecond\n\n## C\n\nthird\n";

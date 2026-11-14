@@ -420,7 +420,7 @@ public sealed partial class FluxDocumentProcessor
             // Korean document patterns
             @"^#\s*댓글\s*$",
             @"^-\s*댓글\s*\d+\s*개\s*$",
-            @"^(주)|(주식회사)\s*\S+$",  // Company name as header
+            @"^(?:\(주\)|주식회사)\s*\S+$",  // Company name as header: "(주) X" or "주식회사 X" (the old pattern's first alternative matched any line starting with 주)
 
             // Repeated separator patterns (often headers/footers)
             @"^[-_=]{3,}\s*$",

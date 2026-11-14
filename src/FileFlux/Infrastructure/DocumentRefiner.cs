@@ -85,7 +85,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
             // This improves structure for technical documents with numbered sections
             if (options.BuildSections)
             {
-                refinedText = DemoteTableOfContentsHeadings(refinedText);
+                refinedText = MarkdownFences.Shielded(refinedText, DemoteTableOfContentsHeadings);
                 refinedText = ConvertNumberedSectionsToHeadings(refinedText);
             }
 

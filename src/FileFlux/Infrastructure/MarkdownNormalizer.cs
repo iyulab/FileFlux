@@ -88,6 +88,12 @@ public partial class MarkdownNormalizer : IMarkdownNormalizer
         // Count headings after normalization
         stats.HeadingsFound = lines.Count(l => HeadingPattern().IsMatch(l));
 
+        // The phases numbered the shielded lines: report the lines of the text the caller passed in.
+        foreach (var action in actions)
+        {
+            action.LineNumber = shield.ToOriginalLine(action.LineNumber - 1) + 1;
+        }
+
         return new NormalizationResult
         {
             // A phase that removed a placeholder cannot be undone around it: the text is then left as it was.

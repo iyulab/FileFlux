@@ -428,7 +428,8 @@ public class MarkdownDocumentReader : IDocumentReader
         // inside a Markdown document) stays inside its block.
         var code = codeBlock.Lines.ToString();
         var fence = new string('`', Math.Max(3, LongestBacktickRun(code) + 1));
-        var info = codeBlock is FencedCodeBlock fenced ? fenced.Info ?? "" : "";
+        // (A backtick fence's info string holds no backtick: one from a tilde fence would turn the opening line into text.)
+        var info = codeBlock is FencedCodeBlock fenced ? (fenced.Info ?? "").Replace("`", string.Empty, StringComparison.Ordinal) : "";
 
         content.AppendLine(CultureInfo.InvariantCulture, $"{fence}{info}");
         content.AppendLine(code);
