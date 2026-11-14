@@ -144,11 +144,15 @@ public sealed class MarkdownFencesTests
     }
 
     [Fact]
-    public void An_unclosed_fence_at_the_end_of_a_text_is_shielded_and_restored_too()
+    public void An_unclosed_fence_is_left_to_a_text_step_but_still_counts_as_a_block_for_the_headings()
     {
+        // A text step is a heuristic over text of any origin: a line of tildes is as often a separator as a fence, so an
+        // unclosed fence does not hide the rest of the document from it. The heading scan keeps the CommonMark reading.
         const string text = "  prose  \n```\n  code without a closing fence";
 
-        Assert.Equal("prose\n```\n  code without a closing fence", MarkdownFences.Shielded(text, TidyLines));
+        Assert.Equal("prose\n```\ncode without a closing fence", MarkdownFences.Shielded(text, TidyLines));
+        Assert.Single(MarkdownFences.FindRanges(text));
+        Assert.Empty(MarkdownFences.FindRanges(text, includeUnclosed: false));
     }
 
     [Fact]

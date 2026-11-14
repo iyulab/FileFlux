@@ -17,9 +17,12 @@ internal static class MarkdownFences
 {
     /// <summary>
     /// The character ranges of the fenced blocks, each from the start of its opening fence line to the end of its
-    /// closing fence line (to the end of the text when the fence is never closed). Ordered and disjoint.
+    /// closing fence line; a fence that is never closed runs to the end of the text (CommonMark) unless
+    /// <paramref name="includeUnclosed"/> is false. Ordered and disjoint.
     /// </summary>
-    internal static List<(int Start, int End)> FindRanges(string text)
+    /// <param name="text">The Markdown text.</param>
+    /// <param name="includeUnclosed">Whether an unclosed fence counts as a block to the end of the text.</param>
+    internal static List<(int Start, int End)> FindRanges(string text, bool includeUnclosed = true)
     {
         var ranges = new List<(int Start, int End)>();
         var state = new FenceState();
@@ -45,7 +48,7 @@ internal static class MarkdownFences
             position = lineEnd;
         }
 
-        if (state.IsOpen)
+        if (state.IsOpen && includeUnclosed)
             ranges.Add((fenceStart, text.Length));
 
         return ranges;
@@ -56,7 +59,8 @@ internal static class MarkdownFences
     /// with every fenced block hidden from it: each block, fence lines included, is replaced by one inert placeholder
     /// line for the step and put back exactly as written afterwards. A step that tidies prose - trims lines, drops a line
     /// that repeats, collapses blank lines, takes a lone number for a page number - never touches code, and the step still
-    /// sees one continuous text (a line repeated across the blocks is counted as before). If the step removed a
+    /// sees one continuous text (a line repeated across the blocks is counted as before). Only a closed fence is a block
+    /// here (an unclosed one is left to the step: a tilde line is as often a separator as a fence). If the step removed a
     /// placeholder, the blocks cannot be put back in place and the text is returned unchanged: a skipped step is better
     /// than lost code. A text with no fence goes to the step as it is.
     /// </summary>
@@ -75,7 +79,9 @@ internal static class MarkdownFences
     /// </summary>
     internal static FenceShield Shield(string text)
     {
-        var ranges = FindRanges(text);
+        // Only a closed fence is hidden: a text-level step is a heuristic over text of any origin, and a line of tildes
+        // ("~~~~~", an ASCII separator a refiner turns into a rule) must not hand the whole rest of the document to code.
+        var ranges = FindRanges(text, includeUnclosed: false);
         if (ranges.Count == 0)
             return new FenceShield(text, []);
 
