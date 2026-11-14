@@ -407,23 +407,32 @@ public class MarkdownDocumentReader : IDocumentReader
         }
     }
 
+    private static int LongestBacktickRun(string text)
+    {
+        int longest = 0, run = 0;
+        foreach (var c in text)
+        {
+            run = c == '`' ? run + 1 : 0;
+            longest = Math.Max(longest, run);
+        }
+
+        return longest;
+    }
+
     private static void ExtractCodeBlock(CodeBlock codeBlock, StringBuilder content)
     {
         // 코드 블록 시작 마커
         content.AppendLine("<!-- CODE_START -->");
 
-        if (codeBlock is FencedCodeBlock fenced)
-        {
-            content.AppendLine(CultureInfo.InvariantCulture, $"```{fenced.Info ?? ""}");
-            content.AppendLine(fenced.Lines.ToString());
-            content.AppendLine("```");
-        }
-        else
-        {
-            content.AppendLine("```");
-            content.AppendLine(codeBlock.Lines.ToString());
-            content.AppendLine("```");
-        }
+        // The fence is longer than any run of backticks in the code, so a sample that shows a fence (a Markdown example
+        // inside a Markdown document) stays inside its block.
+        var code = codeBlock.Lines.ToString();
+        var fence = new string('`', Math.Max(3, LongestBacktickRun(code) + 1));
+        var info = codeBlock is FencedCodeBlock fenced ? fenced.Info ?? "" : "";
+
+        content.AppendLine(CultureInfo.InvariantCulture, $"{fence}{info}");
+        content.AppendLine(code);
+        content.AppendLine(fence);
 
         // 코드 블록 종료 마커
         content.AppendLine("<!-- CODE_END -->");

@@ -255,20 +255,22 @@ public sealed partial class FluxDocumentProcessor
                 }
             }
 
-            // Stage 3: Document-level refinement (FileFlux-specific)
+            // Stage 3: Document-level refinement (FileFlux-specific). Each step cleans the document's text, never a
+            // fenced code block: a line of code that looks like a page number, a separator or a repeated header is
+            // code, and a fence line is Markdown syntax that must stay for the block to stay a block.
             // Remove artificial paragraph headings (# Paragraph N)
-            refinedText = RemoveArtificialParagraphHeadings(refinedText);
+            refinedText = MarkdownFences.MapOutside(refinedText, RemoveArtificialParagraphHeadings);
 
             // Remove image placeholders like [그림], [Figure], [Image] (only if not processing images)
             if (!options.ProcessImagesToText)
             {
-                refinedText = RemoveImagePlaceholders(refinedText);
+                refinedText = MarkdownFences.MapOutside(refinedText, RemoveImagePlaceholders);
             }
 
             // Clean whitespace
             if (options.CleanWhitespace)
             {
-                refinedText = CleanWhitespace(refinedText);
+                refinedText = MarkdownFences.MapOutside(refinedText, CleanWhitespace);
             }
 
             // Remove headers/footers patterns
@@ -280,16 +282,16 @@ public sealed partial class FluxDocumentProcessor
             // Remove page numbers
             if (options.RemovePageNumbers)
             {
-                refinedText = RemovePageNumbers(refinedText);
+                refinedText = MarkdownFences.MapOutside(refinedText, RemovePageNumbers);
             }
 
             // Remove TOC noise (dot/dash leaders)
-            refinedText = RemoveTocNoise(refinedText);
+            refinedText = MarkdownFences.MapOutside(refinedText, RemoveTocNoise);
 
             // Restructure headings
             if (options.RestructureHeadings)
             {
-                refinedText = RestructureHeadings(refinedText);
+                refinedText = MarkdownFences.MapOutside(refinedText, RestructureHeadings);
             }
 
             // Stage 4: Text-level refinement (delegated to FluxCurator)
@@ -370,8 +372,11 @@ public sealed partial class FluxDocumentProcessor
     {
         var lines = text.Split('\n').ToList();
         var result = new List<string>();
+        // A fenced code block is not page furniture: its lines are never removed, and a line repeated inside code
+        // ("END", the closing fence itself) is not counted as a repeated header either.
+        var fenced = MarkdownFences.LineMask(lines);
         // How often each line occurs: a running header repeats on every page, a label or an acronym on its own line does not.
-        var occurrences = lines.Select(l => l.Trim()).Where(l => l.Length > 0)
+        var occurrences = lines.Where((_, i) => !fenced[i]).Select(l => l.Trim()).Where(l => l.Length > 0)
             .GroupBy(l => l, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
 
         for (int i = 0; i < lines.Count; i++)
@@ -379,7 +384,7 @@ public sealed partial class FluxDocumentProcessor
             var line = lines[i].Trim();
 
             // Skip common header/footer patterns
-            if (IsHeaderFooterLine(line, occurrences.GetValueOrDefault(line)))
+            if (!fenced[i] && IsHeaderFooterLine(line, occurrences.GetValueOrDefault(line)))
                 continue;
 
             result.Add(lines[i]);
@@ -449,7 +454,11 @@ public sealed partial class FluxDocumentProcessor
         // A short all-caps line that repeats (a company name or title at the top of every page). Once only, it is the
         // document's own text — a heading, a WARNING, an acronym — and removing it deleted content: a two-page document
         // whose pages said PAGE ONE and PAGE TWO came out empty.
-        if (occurrences >= MinRepeatedHeaderOccurrences && line.Length < 20 && line.All(c => !char.IsLetter(c) || char.IsUpper(c)) && !line.Any(char.IsDigit) && line.Length > 2)
+        // It is text: a line with no letter at all (a Markdown rule, a code fence) and a structural marker comment
+        // (<!-- CODE_END -->) repeat because the document is built from them, not because a page repeats them.
+        if (occurrences >= MinRepeatedHeaderOccurrences && line.Length < 20 && line.Any(char.IsLetter)
+            && !line.StartsWith("<!--", StringComparison.Ordinal)
+            && line.All(c => !char.IsLetter(c) || char.IsUpper(c)) && !line.Any(char.IsDigit) && line.Length > 2)
             return true;
 
         return false;

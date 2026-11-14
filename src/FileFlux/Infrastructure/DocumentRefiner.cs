@@ -293,18 +293,12 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
     {
         var lines = text.Split('\n');
         var matches = new (int Level, string Marker, string Title)?[lines.Length];
-        var inFence = false;
+        var fenced = MarkdownFences.LineMask(lines);
         for (var i = 0; i < lines.Length; i++)
         {
-            var line = lines[i].TrimEnd('\r');
-            if (line.TrimStart().StartsWith("```", StringComparison.Ordinal))
+            if (!fenced[i])
             {
-                inFence = !inFence;
-                continue;
-            }
-            if (!inFence)
-            {
-                matches[i] = MatchNumberedMarker(line);
+                matches[i] = MatchNumberedMarker(lines[i].TrimEnd('\r'));
             }
         }
 

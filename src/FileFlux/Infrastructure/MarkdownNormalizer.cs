@@ -81,7 +81,8 @@ public partial class MarkdownNormalizer : IMarkdownNormalizer
         }
 
         // Count headings after normalization
-        stats.HeadingsFound = lines.Count(l => HeadingPattern().IsMatch(l));
+        var fencedAfter = MarkdownFences.LineMask(lines);
+        stats.HeadingsFound = lines.Where((_, i) => !fencedAfter[i]).Count(l => HeadingPattern().IsMatch(l));
 
         return new NormalizationResult
         {
@@ -101,8 +102,11 @@ public partial class MarkdownNormalizer : IMarkdownNormalizer
         List<NormalizationAction> actions,
         NormalizationStats stats)
     {
+        var fenced = MarkdownFences.LineMask(lines);
         for (int i = 0; i < lines.Count; i++)
         {
+            if (fenced[i]) continue; // a «#» line in a fenced code block is code, not a heading
+
             var match = HeadingPattern().Match(lines[i]);
             if (!match.Success) continue;
 
@@ -139,8 +143,12 @@ public partial class MarkdownNormalizer : IMarkdownNormalizer
         List<NormalizationAction> actions,
         NormalizationStats stats)
     {
+        // Lines are removed from the end, so the mask stays valid for every index still to be visited.
+        var fenced = MarkdownFences.LineMask(lines);
         for (int i = lines.Count - 1; i >= 0; i--)
         {
+            if (fenced[i]) continue; // a lone «#» in a fenced code block is code, not an empty heading
+
             var line = lines[i];
 
             // Check for empty heading pattern
@@ -189,9 +197,12 @@ public partial class MarkdownNormalizer : IMarkdownNormalizer
     {
         int lastLevel = 0;
         bool isFirstHeading = true;
+        var fenced = MarkdownFences.LineMask(lines);
 
         for (int i = 0; i < lines.Count; i++)
         {
+            if (fenced[i]) continue; // a «#» line in a fenced code block is code, not a heading
+
             var match = HeadingPattern().Match(lines[i]);
             if (!match.Success) continue;
 

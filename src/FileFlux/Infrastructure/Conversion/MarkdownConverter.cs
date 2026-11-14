@@ -515,6 +515,13 @@ public class MarkdownConverter : IMarkdownConverter
 
     #region Post-processing
 
+    private static string EnsureBlankLinesAroundHeadings(string text)
+    {
+        text = Regex.Replace(text, @"([^\n])\n(#{1,6}\s)", "$1\n\n$2");
+        // (anchored to the start of a line: "C# daily", "Ticket # 5" and a table cell "| # x |" are not headings)
+        return Regex.Replace(text, @"(?m)^(#{1,6}\s[^\n]+)\n([^\n#])", "$1\n\n$2");
+    }
+
     private static string NormalizeWhitespace(string markdown)
     {
         // 먼저 \r\n을 \n으로 통일
@@ -523,16 +530,47 @@ public class MarkdownConverter : IMarkdownConverter
         // 연속된 빈 줄을 2개로 제한
         normalized = Regex.Replace(normalized, @"\n{3,}", "\n\n");
 
-        // 헤딩 앞뒤에 빈 줄 보장
-        normalized = Regex.Replace(normalized, @"([^\n])\n(#{1,6}\s)", "$1\n\n$2");
-        // (anchored to the start of a line: "C# daily", "Ticket # 5" and a table cell "| # x |" are not headings)
-        normalized = Regex.Replace(normalized, @"(?m)^(#{1,6}\s[^\n]+)\n([^\n#])", "$1\n\n$2");
+        // 헤딩 앞뒤에 빈 줄 보장 (never inside a fenced code block: a «#» line there is code)
+        normalized = MarkdownFences.MapOutside(normalized, EnsureBlankLinesAroundHeadings);
 
         // 코드 블록 앞뒤에 빈 줄 보장
-        normalized = Regex.Replace(normalized, @"([^\n])\n(```)", "$1\n\n$2");
-        normalized = Regex.Replace(normalized, @"(?m)^([ \t]*```)\n([^\n])", "$1\n\n$2");
+        normalized = EnsureBlankLinesAroundFences(normalized);
 
         return normalized.Trim();
+    }
+
+    /// <summary>
+    /// A blank line before each fenced block and after it - outside the block: the block's own lines, its closing fence
+    /// included, are left as written (a blank line before the closing fence is a line of the code).
+    /// </summary>
+    private static string EnsureBlankLinesAroundFences(string text)
+    {
+        var ranges = MarkdownFences.FindRanges(text);
+        if (ranges.Count == 0)
+        {
+            return text;
+        }
+
+        var result = new StringBuilder(text.Length + (ranges.Count * 2));
+        var position = 0;
+        foreach (var (start, end) in ranges)
+        {
+            result.Append(text, position, start - position);
+            if (start > 0 && !(result.Length >= 2 && result[^1] == '\n' && result[^2] == '\n'))
+            {
+                result.Append('\n');
+            }
+
+            result.Append(text, start, end - start);
+            if (end < text.Length && text[end] != '\n')
+            {
+                result.Append('\n');
+            }
+
+            position = end;
+        }
+
+        return result.Append(text, position, text.Length - position).ToString();
     }
 
     #endregion

@@ -24,6 +24,7 @@ internal static partial class SectionPathCalculator
     /// falls inside its parent "# Root", which is required for a hierarchical HeadingPath.
     /// </summary>
     /// <remarks>
+    /// Lines inside a fenced code block are never headings (<see cref="MarkdownFences"/>).
     /// A heading that a reader introduced with a structural marker (<c>&lt;!-- HEADING_START:H2 --&gt;</c> on the line
     /// before) starts at that marker: a chunk that begins at the marker begins the section, so its heading path names
     /// the heading it opens with rather than only the enclosing one.
@@ -31,7 +32,9 @@ internal static partial class SectionPathCalculator
     internal static List<Section> BuildSections(string text)
     {
         var sections = new List<Section>();
-        var matches = HeadingRegex().Matches(text);
+        // A «#» line inside a fenced code block is code (a shell comment), not a heading.
+        var fences = MarkdownFences.FindRanges(text);
+        var matches = HeadingRegex().Matches(text).Where(match => !MarkdownFences.Contains(fences, match.Index)).ToList();
         var starts = new int[matches.Count];
         for (int i = 0; i < matches.Count; i++)
             starts[i] = SectionStart(text, matches[i].Index);
@@ -106,12 +109,13 @@ internal static partial class SectionPathCalculator
     /// <summary>
     /// Calculates the heading path (outermost → innermost) of the sections containing
     /// <paramref name="startChar"/>. Section offsets must refer to the same text the
-    /// chunk offsets refer to.
+    /// chunk offsets refer to. A section ends where the next heading of its level starts, so a chunk that starts at
+    /// that heading belongs to the next section only.
     /// </summary>
     internal static List<string> CalculateHeadingPath(List<Section> flatSections, int startChar, int endChar)
     {
         var containingSections = flatSections
-            .Where(s => s.Start <= startChar && s.End >= startChar && !string.IsNullOrEmpty(s.Title))
+            .Where(s => s.Start <= startChar && startChar < s.End && !string.IsNullOrEmpty(s.Title))
             .OrderBy(s => s.Level)
             .ThenBy(s => s.Start)
             .ToList();
