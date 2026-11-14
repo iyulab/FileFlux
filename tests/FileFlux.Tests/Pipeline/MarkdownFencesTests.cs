@@ -99,30 +99,64 @@ public sealed class MarkdownFencesTests
         Assert.Equal([false, true, true, true, false, true, true], MarkdownFences.LineMask(lines));
     }
 
+    private static string TidyLines(string text) =>
+        string.Join("\n", text.Split('\n').Select(line => line.Trim()));
+
     [Fact]
-    public void MapOutside_transforms_only_the_text_between_fences()
+    public void A_shielded_step_never_sees_the_code_of_a_block_and_the_block_comes_back_as_written()
     {
-        const string text = "a\n```\nb\n```\nc\n";
+        // The step trims every line - prose is tidied, the indentation, blank lines and trailing spaces of code are code.
+        const string text = "  prose one  \n```python\n    deep\n\n\nEND  \nEND\n```\n  prose two  \n";
 
-        var result = MarkdownFences.MapOutside(text, segment => segment.ToUpperInvariant());
+        var result = MarkdownFences.Shielded(text, TidyLines);
 
-        Assert.Equal("A\n```\nb\n```\nC\n", result);
+        Assert.Equal("prose one\n```python\n    deep\n\n\nEND  \nEND\n```\nprose two\n", result);
     }
 
     [Fact]
-    public void MapOutside_keeps_the_whitespace_where_a_segment_meets_a_fence_even_for_a_transform_that_trims()
+    public void A_shielded_step_still_sees_one_continuous_text_around_the_blocks()
     {
-        const string text = "a\n\n```\nb\n```\n\nc\n";
+        // A line that repeats across the blocks is counted over the whole text, not once per stretch of prose.
+        const string text = "page header\n```\nx\n```\npage header\n```\ny\n```\npage header\n";
 
-        var result = MarkdownFences.MapOutside(text, segment => segment.Trim());
+        var result = MarkdownFences.Shielded(text, source =>
+        {
+            var lines = source.Split('\n');
+            var repeated = lines.GroupBy(l => l).Where(g => g.Key.Length > 0 && g.Count() >= 3).Select(g => g.Key).ToHashSet();
+            return string.Join("\n", lines.Where(l => !repeated.Contains(l)));
+        });
 
-        Assert.Equal("a\n\n```\nb\n```\n\nc", result);
+        Assert.Equal("```\nx\n```\n```\ny\n```\n", result);
     }
 
     [Fact]
-    public void MapOutside_transforms_a_text_without_a_fence_as_a_whole()
+    public void A_shielded_step_that_removes_a_placeholder_leaves_the_text_unchanged()
     {
-        Assert.Equal("[ a ]", MarkdownFences.MapOutside(" a ", segment => "[" + segment + "]"));
+        const string text = "prose\n```\ncode\n```\nprose\n";
+
+        Assert.Equal(text, MarkdownFences.Shielded(text, _ => "everything gone"));
+    }
+
+    [Fact]
+    public void A_text_without_a_fence_goes_to_the_shielded_step_as_it_is()
+    {
+        Assert.Equal("[ a ]", MarkdownFences.Shielded(" a ", text => "[" + text + "]"));
+    }
+
+    [Fact]
+    public void An_unclosed_fence_at_the_end_of_a_text_is_shielded_and_restored_too()
+    {
+        const string text = "  prose  \n```\n  code without a closing fence";
+
+        Assert.Equal("prose\n```\n  code without a closing fence", MarkdownFences.Shielded(text, TidyLines));
+    }
+
+    [Fact]
+    public void Windows_line_endings_around_a_shielded_block_survive()
+    {
+        const string text = "a\r\n```\r\n  b\r\n```\r\nc\r\n";
+
+        Assert.Equal(text, MarkdownFences.Shielded(text, source => source));
     }
 
     [Fact]

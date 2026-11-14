@@ -531,7 +531,7 @@ public class MarkdownConverter : IMarkdownConverter
         normalized = Regex.Replace(normalized, @"\n{3,}", "\n\n");
 
         // 헤딩 앞뒤에 빈 줄 보장 (never inside a fenced code block: a «#» line there is code)
-        normalized = MarkdownFences.MapOutside(normalized, EnsureBlankLinesAroundHeadings);
+        normalized = MarkdownFences.Shielded(normalized, EnsureBlankLinesAroundHeadings);
 
         // 코드 블록 앞뒤에 빈 줄 보장
         normalized = EnsureBlankLinesAroundFences(normalized);

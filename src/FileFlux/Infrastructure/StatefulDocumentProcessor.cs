@@ -360,7 +360,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         // Step 1: Clean noise
         if (options.CleanNoise)
         {
-            refinedText = CleanContent(refinedText);
+            refinedText = MarkdownFences.Shielded(refinedText, CleanContent);
         }
 
         // Step 2: Convert to markdown if converter available
@@ -392,7 +392,7 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
 
         // Step 4: Text-level refinement via FluxCurator (Standard includes token optimization)
         var textRefineOptions = FluxCurator.Core.Domain.TextRefineOptions.Standard;
-        refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
+        refinedText = MarkdownFences.Shielded(refinedText, text => _textRefiner.Refine(text, textRefineOptions));
         (refinedText, var spans) = SourceSpanMarkers.Extract(refinedText, raw.Spans);
 
         // Build sections from text

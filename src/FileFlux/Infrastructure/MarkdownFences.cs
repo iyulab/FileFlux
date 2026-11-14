@@ -52,43 +52,93 @@ internal static class MarkdownFences
     }
 
     /// <summary>
-    /// Applies <paramref name="transform"/> to the text between the fenced blocks and leaves every fenced block (fence
-    /// lines included) exactly as it is. The segments the transform sees are whole lines, so a line-based rule behaves
-    /// the same as it would on the whole text. The whitespace where a segment meets a fence is kept as it was: a
-    /// transform that trims its input must not glue the fence to the line before or after it. A text with no fence is
-    /// transformed whole.
+    /// Runs a text-level <paramref name="step"/> (a cleaner, a normalizer, a deduplicator) over <paramref name="text"/>
+    /// with every fenced block hidden from it: each block, fence lines included, is replaced by one inert placeholder
+    /// line for the step and put back exactly as written afterwards. A step that tidies prose - trims lines, drops a line
+    /// that repeats, collapses blank lines, takes a lone number for a page number - never touches code, and the step still
+    /// sees one continuous text (a line repeated across the blocks is counted as before). If the step removed a
+    /// placeholder, the blocks cannot be put back in place and the text is returned unchanged: a skipped step is better
+    /// than lost code. A text with no fence goes to the step as it is.
     /// </summary>
-    internal static string MapOutside(string text, Func<string, string> transform)
+    internal static string Shielded(string text, Func<string, string> step)
+    {
+        var shield = Shield(text);
+        if (shield.IsEmpty)
+            return step(text);
+
+        return shield.Restore(step(shield.Text)) ?? text;
+    }
+
+    /// <summary>
+    /// Replaces each fenced block of <paramref name="text"/> by a placeholder line; <see cref="FenceShield.Restore"/> puts the
+    /// blocks back into the (processed) text.
+    /// </summary>
+    internal static FenceShield Shield(string text)
     {
         var ranges = FindRanges(text);
         if (ranges.Count == 0)
-            return transform(text);
+            return new FenceShield(text, []);
 
-        var result = new StringBuilder(text.Length);
+        var nonce = Guid.NewGuid().ToString("N");
+        var shielded = new StringBuilder(text.Length);
+        var blocks = new List<(string Placeholder, string Block)>(ranges.Count);
         var position = 0;
         foreach (var (start, end) in ranges)
         {
-            if (start > position)
-                result.Append(Transform(text.Substring(position, start - position), keepLeading: position > 0, keepTrailing: true, transform));
+            shielded.Append(text, position, start - position);
 
-            result.Append(text, start, end - start);
+            // The line ending stays in the text, so the placeholder is a line of its own like the block was.
+            var endingLength = text[start..end] switch
+            {
+                var block when block.EndsWith("\r\n", StringComparison.Ordinal) => 2,
+                var block when block.EndsWith('\n') => 1,
+                _ => 0,
+            };
+            var placeholder = $"<!-- fenced-block {nonce} {blocks.Count} -->";
+            blocks.Add((placeholder, text.Substring(start, end - start - endingLength)));
+            shielded.Append(placeholder).Append(text, end - endingLength, endingLength);
             position = end;
         }
 
-        if (position < text.Length)
-            result.Append(Transform(text.Substring(position), keepLeading: true, keepTrailing: false, transform));
-
-        return result.ToString();
+        shielded.Append(text, position, text.Length - position);
+        return new FenceShield(shielded.ToString(), blocks);
     }
 
-    private static string Transform(string segment, bool keepLeading, bool keepTrailing, Func<string, string> transform)
+    /// <summary>A text with its fenced blocks replaced by placeholder lines (<see cref="Shield"/>).</summary>
+    internal sealed class FenceShield(string text, List<(string Placeholder, string Block)> blocks)
     {
-        var leadingLength = keepLeading ? segment.Length - segment.TrimStart().Length : 0;
-        var core = segment[leadingLength..];
-        var trailingLength = keepTrailing ? core.Length - core.TrimEnd().Length : 0;
-        core = core[..^trailingLength];
+        /// <summary>The text with a placeholder line where each fenced block was.</summary>
+        internal string Text { get; } = text;
 
-        return segment[..leadingLength] + transform(core) + segment[^trailingLength..];
+        /// <summary>Whether the text had no fenced block (nothing is hidden).</summary>
+        internal bool IsEmpty => blocks.Count == 0;
+
+        /// <summary>
+        /// <paramref name="processed"/> (the text after a step) with every block put back in place of its placeholder, or
+        /// null when the step removed a placeholder.
+        /// </summary>
+        internal string? Restore(string processed)
+        {
+            foreach (var (placeholder, _) in blocks)
+            {
+                if (!processed.Contains(placeholder, StringComparison.Ordinal))
+                    return null;
+            }
+
+            return RestorePresent(processed);
+        }
+
+        /// <summary>
+        /// <paramref name="part"/> (a piece of the shielded text, e.g. one section) with the blocks whose placeholder it
+        /// holds put back; a placeholder it does not hold is not needed.
+        /// </summary>
+        internal string RestorePresent(string part)
+        {
+            foreach (var (placeholder, block) in blocks)
+                part = part.Replace(placeholder, block, StringComparison.Ordinal);
+
+            return part;
+        }
     }
 
     /// <summary>

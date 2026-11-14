@@ -64,7 +64,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
             // Step 1: Clean noise (headers, footers, page numbers)
             if (options.CleanNoise)
             {
-                refinedText = CleanDocumentNoise(refinedText);
+                refinedText = MarkdownFences.Shielded(refinedText, CleanDocumentNoise);
 
                 // Apply PDF-specific header/footer filtering if enabled
                 if (options.FilterPdfHeaderFooter && IsPdfDocument(raw))
@@ -76,7 +76,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
                         RepetitionThreshold = options.PdfHeaderFooterThreshold,
                         MinPageCount = 3
                     });
-                    refinedText = pdfFilter.Filter(refinedText, pageCount);
+                    refinedText = MarkdownFences.Shielded(refinedText, text => pdfFilter.Filter(text, pageCount));
                     LogAppliedPdfFilter(_logger, pageCount);
                 }
             }
@@ -143,12 +143,12 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
 
             // Step 4: Text-level refinement via FluxCurator TextRefiner (Standard includes token optimization)
             var textRefineOptions = FluxCuratorTextRefineOptions.Standard;
-            refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
+            refinedText = MarkdownFences.Shielded(refinedText, text => _textRefiner.Refine(text, textRefineOptions));
 
             // Step 5: Normalize whitespace
             if (options.NormalizeWhitespace)
             {
-                refinedText = NormalizeWhitespace(refinedText);
+                refinedText = MarkdownFences.Shielded(refinedText, NormalizeWhitespace);
             }
 
             // Read the span markers back as offsets over the final text, and remove them.

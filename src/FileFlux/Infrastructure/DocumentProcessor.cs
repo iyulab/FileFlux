@@ -259,45 +259,45 @@ public sealed partial class FluxDocumentProcessor
             // fenced code block: a line of code that looks like a page number, a separator or a repeated header is
             // code, and a fence line is Markdown syntax that must stay for the block to stay a block.
             // Remove artificial paragraph headings (# Paragraph N)
-            refinedText = MarkdownFences.MapOutside(refinedText, RemoveArtificialParagraphHeadings);
+            refinedText = MarkdownFences.Shielded(refinedText, RemoveArtificialParagraphHeadings);
 
             // Remove image placeholders like [그림], [Figure], [Image] (only if not processing images)
             if (!options.ProcessImagesToText)
             {
-                refinedText = MarkdownFences.MapOutside(refinedText, RemoveImagePlaceholders);
+                refinedText = MarkdownFences.Shielded(refinedText, RemoveImagePlaceholders);
             }
 
             // Clean whitespace
             if (options.CleanWhitespace)
             {
-                refinedText = MarkdownFences.MapOutside(refinedText, CleanWhitespace);
+                refinedText = MarkdownFences.Shielded(refinedText, CleanWhitespace);
             }
 
             // Remove headers/footers patterns
             if (options.RemoveHeadersFooters)
             {
-                refinedText = RemoveHeadersFooters(refinedText);
+                refinedText = MarkdownFences.Shielded(refinedText, RemoveHeadersFooters);
             }
 
             // Remove page numbers
             if (options.RemovePageNumbers)
             {
-                refinedText = MarkdownFences.MapOutside(refinedText, RemovePageNumbers);
+                refinedText = MarkdownFences.Shielded(refinedText, RemovePageNumbers);
             }
 
             // Remove TOC noise (dot/dash leaders)
-            refinedText = MarkdownFences.MapOutside(refinedText, RemoveTocNoise);
+            refinedText = MarkdownFences.Shielded(refinedText, RemoveTocNoise);
 
             // Restructure headings
             if (options.RestructureHeadings)
             {
-                refinedText = MarkdownFences.MapOutside(refinedText, RestructureHeadings);
+                refinedText = MarkdownFences.Shielded(refinedText, RestructureHeadings);
             }
 
             // Stage 4: Text-level refinement (delegated to FluxCurator)
             // Handles: empty bullets, duplicate lines, custom patterns, etc.
             var textRefineOptions = MapTextRefinementPreset(options.TextRefinementPreset);
-            refinedText = _textRefiner.Refine(refinedText, textRefineOptions);
+            refinedText = MarkdownFences.Shielded(refinedText, text => _textRefiner.Refine(text, textRefineOptions));
             (refinedText, var spans) = SourceSpanMarkers.Extract(refinedText, parsed.Spans);
 
             // Create refined content
@@ -372,11 +372,8 @@ public sealed partial class FluxDocumentProcessor
     {
         var lines = text.Split('\n').ToList();
         var result = new List<string>();
-        // A fenced code block is not page furniture: its lines are never removed, and a line repeated inside code
-        // ("END", the closing fence itself) is not counted as a repeated header either.
-        var fenced = MarkdownFences.LineMask(lines);
         // How often each line occurs: a running header repeats on every page, a label or an acronym on its own line does not.
-        var occurrences = lines.Where((_, i) => !fenced[i]).Select(l => l.Trim()).Where(l => l.Length > 0)
+        var occurrences = lines.Select(l => l.Trim()).Where(l => l.Length > 0)
             .GroupBy(l => l, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
 
         for (int i = 0; i < lines.Count; i++)
@@ -384,7 +381,7 @@ public sealed partial class FluxDocumentProcessor
             var line = lines[i].Trim();
 
             // Skip common header/footer patterns
-            if (!fenced[i] && IsHeaderFooterLine(line, occurrences.GetValueOrDefault(line)))
+            if (IsHeaderFooterLine(line, occurrences.GetValueOrDefault(line)))
                 continue;
 
             result.Add(lines[i]);

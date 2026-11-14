@@ -41,7 +41,8 @@ public static partial class FluxCuratorChunkAdapter
         }
 
         var stripped = InternalMarkerRegex().Replace(content, string.Empty);
-        stripped = ExcessBlankLinesRegex().Replace(stripped, "\n\n");
+        // Blank lines inside a fenced code block are the code's own.
+        stripped = MarkdownFences.Shielded(stripped, text => ExcessBlankLinesRegex().Replace(text, "\n\n"));
         return stripped.Trim();
     }
 

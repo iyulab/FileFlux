@@ -90,8 +90,13 @@ public partial class BasicDocumentParser : IDocumentParser
         // 문서 유형 추론
         var documentType = InferType(rawContent);
 
-        // 섹션 분할
-        var sections = ExtractSections(text, hints);
+        // 섹션 분할 — a fenced code block is not prose: the splitting below cuts at blank lines and trims each piece, and
+        // the formatted text joins the pieces with one blank line, which would cut a block at its own blank lines and
+        // strip the indentation of a line that follows one. The blocks stay out of it (one placeholder line each).
+        var shield = MarkdownFences.Shield(text);
+        var sections = ExtractSections(shield.Text, hints);
+        var shieldedText = FormatStructuredText(sections);
+        RestoreSectionContent(sections, shield);
 
         // 기본 메타데이터 생성 — DocumentParsingOptions.ExtractMetadata 가 false 면 빈 메타데이터(카운트·제목·언어 없음)
         // (0.24.2 이전에는 이 옵션을 읽는 코드가 없어 항상 생성됐다).
@@ -106,7 +111,8 @@ public partial class BasicDocumentParser : IDocumentParser
         // 간단한 요약 (첫 번째 문단 또는 제목)
         var summary = GenerateBasicSummary(text, sections);
 
-        var formattedText = FormatStructuredText(sections);
+        // A placeholder the formatting lost cannot be put back in place: the text then stays as the reader wrote it.
+        var formattedText = shield.Restore(shieldedText) ?? text;
 
         return new RefinedContent
         {
@@ -118,6 +124,15 @@ public partial class BasicDocumentParser : IDocumentParser
             Sections = sections,
             Quality = CalculateQualityMetrics(text, sections, false)
         };
+    }
+
+    private static void RestoreSectionContent(List<Section> sections, MarkdownFences.FenceShield shield)
+    {
+        foreach (var section in sections)
+        {
+            section.Content = shield.RestorePresent(section.Content);
+            RestoreSectionContent(section.Children, shield);
+        }
     }
 
     /// <summary>
