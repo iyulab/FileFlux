@@ -814,8 +814,10 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
         else
         {
-            // pre 태그만 있는 경우
-            AppendFencedCode(textBuilder, HtmlEntity.DeEntitize(node.InnerText), language: "");
+            // pre 태그만 있는 경우 — a line break right after the <pre> start tag is not content (HTML parsing rules; browsers drop it)
+            var preText = HtmlEntity.DeEntitize(node.InnerText);
+            preText = preText.StartsWith("\r\n", StringComparison.Ordinal) ? preText[2..] : preText.StartsWith('\n') ? preText[1..] : preText;
+            AppendFencedCode(textBuilder, preText, language: "");
         }
     }
 

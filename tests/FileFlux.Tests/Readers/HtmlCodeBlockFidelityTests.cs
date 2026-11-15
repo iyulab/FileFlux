@@ -48,6 +48,26 @@ public sealed class HtmlCodeBlockFidelityTests
         Assert.Contains("```\na = 1\nb = 2\n```\n", text, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("<pre>\na = 1\nb = 2</pre>")]
+    [InlineData("<pre>\r\na = 1\r\nb = 2</pre>")]
+    public async Task The_line_break_right_after_a_pre_start_tag_is_not_part_of_the_code(string block)
+    {
+        var text = await ReadAsync(block);
+
+        Assert.Contains("```\na = 1\nb = 2\n```\n", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("```\n\na = 1", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_line_break_that_starts_the_code_element_inside_pre_stays()
+    {
+        // Only a line break immediately after <pre> is dropped (HTML parsing rules); inside <code> it is content.
+        var text = await ReadAsync("<pre><code>\na = 1</code></pre>");
+
+        Assert.Contains("```\n\na = 1\n```\n", text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_code_block_that_holds_a_fence_line_is_written_with_a_longer_fence()
     {
