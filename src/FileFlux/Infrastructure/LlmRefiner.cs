@@ -196,13 +196,21 @@ public sealed partial class LlmRefiner : ILlmRefiner
     /// failed call keep the text and are recorded as failures, with a note in <see cref="LlmRefinementInfo.Warnings"/>.
     /// </summary>
     private async Task<(string Text, bool Improved, int Tokens)> RunPassAsync(
-        string pass, string prompt, string text, GenerationSettings settings, Func<string, bool> accept,
+        string pass, string prompt, string text, MarkdownFences.FenceShield shield, GenerationSettings settings, Func<string, bool> accept,
         Action<ILogger, Exception> logFailed, PassLog log, CancellationToken cancellationToken)
     {
+        // Code that cannot be hidden without ambiguity is not sent at all.
+        if (shield.UnsafeToSend)
+        {
+            log.Failed(pass, LlmRefinementPass.CodeBlockLost, $"{pass}: the text holds fenced code that cannot be hidden from the model without ambiguity (it already holds a code block marker or a private-use delimiter); the pass was not sent so that no code is lost");
+            return (text, false, 0);
+        }
+
         string result;
         try
         {
-            result = await GenerateBoundedAsync(prompt, text, settings, cancellationToken).ConfigureAwait(false);
+            // The model is sent the shielded text (a fenced block is one marker line) and the output budget is sized from it.
+            result = await GenerateBoundedAsync(prompt, shield.ModelText, settings, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -217,9 +225,34 @@ public sealed partial class LlmRefiner : ILlmRefiner
             return (text, false, EstimateTokens(prompt));
         }
 
-        var improved = result != text && accept(result);
+        // Put the code back exactly as it was written. An answer that lost a marker cannot be put back in place: the pass is
+        // not applied, because a skipped pass is better than lost code.
+        var restored = shield.IsEmpty ? result : shield.RestoreModelAnswer(result);
+        if (restored is null)
+        {
+            log.Failed(pass, LlmRefinementPass.CodeBlockLost, $"{pass}: the answer lost, repeated or moved a code block marker; the pass was not applied so that no code is lost");
+            return (text, false, EstimateTokens(prompt));
+        }
+
+        var improved = restored != text && accept(result);
         log.Passes.Add(new LlmRefinementPass(pass) { Outcome = improved ? LlmRefinementPassOutcome.Applied : LlmRefinementPassOutcome.Kept });
-        return (improved ? result : text, improved, EstimateTokens(prompt));
+        return (improved ? restored : text, improved, EstimateTokens(prompt));
+    }
+
+    /// <summary>
+    /// <paramref name="context"/> with the rule for the code-block markers added when the text has fenced blocks: they are
+    /// hidden from the model (a model that is told to join broken lines, fix look-alike characters or drop duplicates rewrote
+    /// code with the same instructions it follows for prose), and the model must hand each marker back untouched.
+    /// <paramref name="context"/> itself when nothing is hidden, so a text without a fence is sent the prompt it always was.
+    /// </summary>
+    private static string WithCodeRule(string context, MarkdownFences.FenceShield shield)
+    {
+        if (shield.IsEmpty)
+            return context;
+
+        const string rule = "- A line that holds only a marker such as [[code-block 0]] stands for a code block: keep every such line exactly as it is, " +
+                            "once and in the same order, on a line of its own, and apply none of the rules above to it";
+        return context.Length == 0 ? rule : context + "\n" + rule;
     }
 
     private static string FailureReason(Exception ex) => ex switch
@@ -283,8 +316,10 @@ public sealed partial class LlmRefiner : ILlmRefiner
         if (_textCompletionService == null)
             return (text, false, 0);
 
-        // Only process if there are potential broken sentences
-        if (!HasPotentialBrokenSentences(text))
+        // Only process if there are potential broken sentences - in the prose: a line of code that ends in a letter above a
+        // line that starts with one is no broken sentence.
+        var shield = MarkdownFences.Shield(text);
+        if (!HasPotentialBrokenSentences(shield.Text))
         {
             log.NotNeeded("RestoreSentences");
             return (text, false, 0);
@@ -299,15 +334,15 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Preserve actual paragraph breaks (double newlines)
             - Keep headings and bullet points separate
             - Do not add or remove content, only fix line breaks
-            {context}
+            {WithCodeRule(context, shield)}
 
             Text:
-            {text}
+            {shield.ModelText}
 
             Return only the fixed text without any explanation.
             """;
 
-        return await RunPassAsync("RestoreSentences", prompt, text, settings, static _ => true, LogRestoreSentencesFailed, log, cancellationToken).ConfigureAwait(false);
+        return await RunPassAsync("RestoreSentences", prompt, text, shield, settings, static _ => true, LogRestoreSentencesFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -319,8 +354,9 @@ public sealed partial class LlmRefiner : ILlmRefiner
         if (_textCompletionService == null)
             return (text, false, 0);
 
-        // Only process if text is long enough to potentially have noise
-        if (text.Length < 500)
+        // Only process if the prose is long enough to potentially have noise (code is not noise)
+        var shield = MarkdownFences.Shield(text);
+        if (shield.Text.Length < 500)
         {
             log.NotNeeded("RemoveNoise");
             return (text, false, 0);
@@ -342,15 +378,15 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Do not summarize or rephrase content
             - Only remove clearly irrelevant sections
             {FormattingRule(preserveFormatting)}
-            {context}
+            {WithCodeRule(context, shield)}
 
             Text:
-            {text}
+            {shield.ModelText}
 
             Return only the cleaned text without any explanation.
             """;
 
-        return await RunPassAsync("RemoveNoise", prompt, text, settings, result => result.Length < text.Length * 0.95, LogRemoveNoiseFailed, log, cancellationToken).ConfigureAwait(false);
+        return await RunPassAsync("RemoveNoise", prompt, text, shield, settings, result => result.Length < shield.ModelText.Length * 0.95, LogRemoveNoiseFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -362,8 +398,10 @@ public sealed partial class LlmRefiner : ILlmRefiner
         if (_textCompletionService == null)
             return (text, false, 0);
 
-        // Only process if there are potential OCR errors
-        if (!HasPotentialOcrErrors(text))
+        // Only process if there are potential OCR errors - in the prose: `100`, `O0` and `rn` are everyday code, and the
+        // pass rewrote `O0` to `00` in a code block when it was sent one.
+        var shield = MarkdownFences.Shield(text);
+        if (!HasPotentialOcrErrors(shield.Text))
         {
             log.NotNeeded("CorrectOcrErrors");
             return (text, false, 0);
@@ -385,15 +423,15 @@ public sealed partial class LlmRefiner : ILlmRefiner
             {FormattingRule(preserveFormatting)}
             - Do not change the meaning of content
             - Keep technical terms and proper nouns as-is unless clearly wrong
-            {context}
+            {WithCodeRule(context, shield)}
 
             Text:
-            {text}
+            {shield.ModelText}
 
             Return only the corrected text without any explanation.
             """;
 
-        return await RunPassAsync("CorrectOcrErrors", prompt, text, settings, static _ => true, LogCorrectOcrFailed, log, cancellationToken).ConfigureAwait(false);
+        return await RunPassAsync("CorrectOcrErrors", prompt, text, shield, settings, static _ => true, LogCorrectOcrFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -405,8 +443,9 @@ public sealed partial class LlmRefiner : ILlmRefiner
         if (_textCompletionService == null)
             return (text, false, 0);
 
-        // Only process if there are headings to restructure
-        if (!HasHeadings(text))
+        // Only process if there are headings to restructure - a `# comment` line of a code block is no heading
+        var shield = MarkdownFences.Shield(text);
+        if (!HasHeadings(shield.Text))
         {
             log.NotNeeded("RestructureSections");
             return (text, false, 0);
@@ -427,15 +466,15 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Keep the same number of sections
             - Do not merge or remove sections
             {FormattingRule(preserveFormatting)}
-            {context}
+            {WithCodeRule(context, shield)}
 
             Text:
-            {text}
+            {shield.ModelText}
 
             Return only the restructured text without any explanation.
             """;
 
-        return await RunPassAsync("RestructureSections", prompt, text, settings, static _ => true, LogRestructureSectionsFailed, log, cancellationToken).ConfigureAwait(false);
+        return await RunPassAsync("RestructureSections", prompt, text, shield, settings, static _ => true, LogRestructureSectionsFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -447,8 +486,9 @@ public sealed partial class LlmRefiner : ILlmRefiner
         if (_textCompletionService == null)
             return (text, false, 0);
 
-        // Only process if text is long enough to potentially have duplicates
-        if (text.Length < 1000)
+        // Only process if the prose is long enough to potentially have duplicates (two functions that look alike are not duplicates)
+        var shield = MarkdownFences.Shield(text);
+        if (shield.Text.Length < 1000)
         {
             log.NotNeeded("MergeDuplicates");
             return (text, false, 0);
@@ -467,15 +507,15 @@ public sealed partial class LlmRefiner : ILlmRefiner
             - Keep the better-written version of duplicates
             - Maintain document structure
             - Do not summarize content
-            {context}
+            {WithCodeRule(context, shield)}
 
             Text:
-            {text}
+            {shield.ModelText}
 
             Return only the deduplicated text without any explanation.
             """;
 
-        return await RunPassAsync("MergeDuplicates", prompt, text, settings, result => result.Length < text.Length * 0.95, LogMergeDuplicatesFailed, log, cancellationToken).ConfigureAwait(false);
+        return await RunPassAsync("MergeDuplicates", prompt, text, shield, settings, result => result.Length < shield.ModelText.Length * 0.95, LogMergeDuplicatesFailed, log, cancellationToken).ConfigureAwait(false);
     }
 
     // Helper methods

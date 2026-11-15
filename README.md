@@ -194,8 +194,11 @@ Coverage finds each of the page's words in the output however it is spaced, so j
 text. The page spans are re-expressed over the result, so chunks still carry their pages. `Result.LlmRefined.Pages`
 lists every page's outcome (`Refined` / `Native` / `Rejected` / `Skipped`), its reason, both coverage views
 (`NativeCoverage`, and `TokenCoverage` by whitespace-separated words), the refiner's `Passes` (`LlmRefinementPass`:
-`NotNeeded` / `Kept` / `Applied` / `Failed` with `truncated` · `context_too_small` · `empty_output` · `error`) and its
-`Notes`. A `Native` page says why the model did not change it: `no_pass_needed` (no call was made) or `passes_failed`
+`NotNeeded` / `Kept` / `Applied` / `Failed` with `truncated` · `context_too_small` · `empty_output` · `code_block_lost` ·
+`error`) and its `Notes`. A closed fenced code block is never sent to the model: each is one marker line in the text the
+model sees and comes back exactly as written; an answer that loses, repeats, moves or wraps a marker is not applied
+(`code_block_lost`), and neither is a text that already holds a marker line of its own (a fence that is never closed on the
+page or text sent is not a block). A `Native` page says why the model did not change it: `no_pass_needed` (no call was made) or `passes_failed`
 (every call failed) — no reason means the model kept the page.
 `SelectPages` picks pages from the reader's page record (`RawContent.Quality.Pages`).
 

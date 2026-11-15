@@ -226,6 +226,27 @@ public sealed class MarkdownFencesTests
         Assert.Equal(5, shield.ToOriginalLine(2));
     }
 
+    /// <summary>
+    /// A text with more than ten fenced blocks: the placeholder of block 10 and up has more than one digit, and a placeholder
+    /// that cannot be read back leaves its block out of the text (the step is then skipped, and a section keeps the marker).
+    /// </summary>
+    [Theory]
+    [InlineData(2)]
+    [InlineData(10)]
+    [InlineData(11)]
+    [InlineData(123)]
+    public void Every_block_of_a_text_comes_back_whatever_their_number(int count)
+    {
+        var text = string.Join("\n\nprose\n\n", Enumerable.Range(0, count).Select(i => "```text\nblock " + i + "\n```")) + "\n";
+
+        var shield = MarkdownFences.Shield(text);
+
+        Assert.Equal(count, shield.Text.Split('\n').Count(line => line.Length > 0 && char.GetUnicodeCategory(line[0]) == System.Globalization.UnicodeCategory.PrivateUse));
+        Assert.Equal(text, shield.Restore(shield.Text));
+        Assert.Equal(text, MarkdownFences.Shielded(text, source => source));
+        Assert.Equal(text, shield.RestorePresent(shield.Text));
+    }
+
     [Fact]
     public void A_heading_chunk_starting_where_the_previous_section_ends_belongs_to_the_next_section_only()
     {

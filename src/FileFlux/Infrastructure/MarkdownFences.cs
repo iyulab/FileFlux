@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace FileFlux.Infrastructure;
 
@@ -15,7 +16,7 @@ namespace FileFlux.Infrastructure;
 /// text. The opening's indentation is not limited to three spaces — a fence inside a list item sits at the item's content
 /// indent.
 /// </remarks>
-internal static class MarkdownFences
+internal static partial class MarkdownFences
 {
     // The placeholder of a hidden block: private-use delimiters around a short label, so no cleaning pattern for markup
     // (an HTML-comment remover), whitespace or repeated characters (the index digits are separated) rewrites it.
@@ -88,9 +89,10 @@ internal static class MarkdownFences
     /// </summary>
     internal static FenceShield Shield(string text)
     {
-        // A text that already holds the placeholder delimiters cannot be shielded unambiguously: nothing is hidden.
+        // A text that already holds the placeholder delimiters cannot be shielded unambiguously: nothing is hidden. A model
+        // must not be sent such a text with fenced code in it (UnsafeToSend).
         if (text.Contains(PlaceholderStart, StringComparison.Ordinal) || text.Contains(PlaceholderEnd, StringComparison.Ordinal))
-            return new FenceShield(text, []);
+            return new FenceShield(text, [], unsafeToSend: FindRanges(text, includeUnclosed: false).Any(range => !IsSeparatorBanner(text, range)));
 
         var ranges = FindRanges(text, includeUnclosed: false).Where(range => !IsSeparatorBanner(text, range)).ToList();
         if (ranges.Count == 0)
@@ -121,11 +123,18 @@ internal static class MarkdownFences
         }
 
         shielded.Append(text, position, text.Length - position);
-        return new FenceShield(shielded.ToString(), blocks);
+        var shieldedText = shielded.ToString();
+        // A line that looks like a model marker outside the blocks (a page about this library) could not be told from one.
+        return new FenceShield(shieldedText, blocks, unsafeToSend: ModelMarker().IsMatch(shieldedText));
     }
 
+    [GeneratedRegex(@"\[\[code-block (\d+)\]\]", RegexOptions.CultureInvariant)]
+    private static partial Regex ModelMarker();
+
+    private static string ModelMarkerText(int index) => $"[[code-block {index.ToString(CultureInfo.InvariantCulture)}]]";
+
     private static string Placeholder(int index) =>
-        PlaceholderStart + PlaceholderLabel + string.Join('x', index.ToString(CultureInfo.InvariantCulture)) + PlaceholderEnd;
+        PlaceholderStart + PlaceholderLabel + string.Join('x', index.ToString(CultureInfo.InvariantCulture).AsEnumerable()) + PlaceholderEnd;
 
     private static int CountNewlines(string text, int start, int end)
     {
@@ -157,17 +166,91 @@ internal static class MarkdownFences
     {
         private readonly List<FencedBlock> _blocks;
 
-        internal FenceShield(string text, List<FencedBlock> blocks)
+        internal FenceShield(string text, List<FencedBlock> blocks, bool unsafeToSend = false)
         {
             Text = text;
             _blocks = blocks;
+            UnsafeToSend = unsafeToSend;
         }
 
         /// <summary>The text with a placeholder line where each fenced block was.</summary>
         internal string Text { get; }
 
+        /// <summary>
+        /// Whether the text holds fenced code that cannot be hidden from a language model without ambiguity: it already holds
+        /// the placeholder's private-use delimiters (nothing was hidden) or a <c>[[code-block N]]</c> line of its own (the
+        /// markers of <see cref="ModelText"/> could not be told from it). Such a text is not sent to a model.
+        /// </summary>
+        internal bool UnsafeToSend { get; }
+
         /// <summary>Whether nothing is hidden (the text had no fenced block).</summary>
         internal bool IsEmpty => _blocks.Count == 0;
+
+        /// <summary>
+        /// <see cref="Text"/> for a language model: each marker written as <c>[[code-block N]]</c>. The private-use delimiters of
+        /// the placeholder are not seen by a model — measured with a local model, which answered every one as a backtick fence
+        /// (<c>```fenced0```</c>) — while a marker of plain characters comes back as it was sent.
+        /// </summary>
+        internal string ModelText => _modelText ??= BuildModelText();
+
+        private string? _modelText;
+
+        private string BuildModelText()
+        {
+            var text = Text;
+            for (var i = 0; i < _blocks.Count; i++)
+                text = text.Replace(Placeholder(i), ModelMarkerText(i), StringComparison.Ordinal);
+
+            return text;
+        }
+
+        /// <summary>
+        /// A model's answer to <see cref="ModelText"/> with every block put back, or null when the answer does not carry each
+        /// marker exactly once and in the order it was sent: a marker the model dropped loses a block, one it repeated would put
+        /// the block in twice and one it moved would reorder the code — the rule-based steps never do that, a model might.
+        /// </summary>
+        internal string? RestoreModelAnswer(string answer)
+        {
+            var markers = ModelMarker().Matches(answer);
+            if (markers.Count != _blocks.Count)
+                return null;
+
+            for (var i = 0; i < markers.Count; i++)
+            {
+                if (!int.TryParse(markers[i].Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var index) || index != i)
+                    return null;
+            }
+
+            // Each marker is a line of its own - spaces around it are the model's, not the block's: a marker a model wrapped in
+            // backticks or set in a sentence would leave stray characters next to the block. The line becomes the placeholder.
+            var rebuilt = new StringBuilder(answer.Length);
+            var position = 0;
+            foreach (Match marker in markers)
+            {
+                var lineStart = marker.Index == 0 ? 0 : answer.LastIndexOf('\n', marker.Index - 1) + 1;
+                var next = answer.IndexOf('\n', marker.Index + marker.Length);
+                var lineEnd = next < 0 ? answer.Length : next;
+                if (lineEnd > marker.Index + marker.Length && answer[lineEnd - 1] == '\r')
+                    lineEnd--;
+                if (!string.IsNullOrWhiteSpace(answer[lineStart..marker.Index]) || !string.IsNullOrWhiteSpace(answer[(marker.Index + marker.Length)..lineEnd]))
+                    return null;
+
+                rebuilt.Append(answer, position, lineStart - position).Append(Placeholder(int.Parse(marker.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture)));
+                position = lineEnd;
+            }
+
+            rebuilt.Append(answer, position, answer.Length - position);
+            var restored = Restore(rebuilt.ToString());
+            if (restored is null)
+                return null;
+
+            // The code in the restored text is the code that was hidden, block for block: a model that wrapped a marker in a
+            // fence pair of its own, or added a fence, changed what the text reads as code.
+            return Shield(restored).BlockTexts.SequenceEqual(BlockTexts) ? restored : null;
+        }
+
+        /// <summary>The text of each hidden block, in order.</summary>
+        internal IReadOnlyList<string> BlockTexts => _blocks.ConvertAll(block => block.Text);
 
         /// <summary>
         /// <paramref name="processed"/> (the text after a step) with every block put back in place of its placeholder, or

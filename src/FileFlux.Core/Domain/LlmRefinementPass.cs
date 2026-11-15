@@ -34,6 +34,13 @@ public sealed record LlmRefinementPass(string Name)
     /// <summary>The model returned no text.</summary>
     public const string EmptyOutput = "empty_output";
 
+    /// <summary>
+    /// The model's answer lost, repeated or moved a code block marker (or set one inside a line), so the code could not be put
+    /// back as it was written - or the text holds fenced code that cannot be hidden from the model without ambiguity and was not
+    /// sent; the text was kept.
+    /// </summary>
+    public const string CodeBlockLost = "code_block_lost";
+
     /// <summary>The call failed for another reason (see <see cref="Detail"/>).</summary>
     public const string Error = "error";
 
