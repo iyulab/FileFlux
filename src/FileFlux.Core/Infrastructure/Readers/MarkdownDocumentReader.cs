@@ -393,10 +393,7 @@ public class MarkdownDocumentReader : IDocumentReader
                     {
                         var rendered = new StringBuilder();
                         ExtractBlock(block, rendered, "");
-                        foreach (var line in rendered.ToString().ReplaceLineEndings("\n").Split('\n'))
-                        {
-                            if (line.Length > 0) content.Append(indent).Append("  ").AppendLine(line);
-                        }
+                        AppendNested(rendered.ToString(), content, indent + "  ", string.Empty);
                     }
                 }
 
@@ -422,7 +419,7 @@ public class MarkdownDocumentReader : IDocumentReader
     private static void ExtractCodeBlock(CodeBlock codeBlock, StringBuilder content)
     {
         // 코드 블록 시작 마커
-        content.AppendLine("<!-- CODE_START -->");
+        content.AppendLine(CodeStartMarker);
 
         // The fence is longer than any run of backticks in the code, so a sample that shows a fence (a Markdown example
         // inside a Markdown document) stays inside its block.
@@ -436,7 +433,7 @@ public class MarkdownDocumentReader : IDocumentReader
         content.AppendLine(fence);
 
         // 코드 블록 종료 마커
-        content.AppendLine("<!-- CODE_END -->");
+        content.AppendLine(CodeEndMarker);
     }
 
     /// <summary>
@@ -464,11 +461,7 @@ public class MarkdownDocumentReader : IDocumentReader
                     default:
                         var rendered = new StringBuilder();
                         ExtractBlock(child, rendered, "");
-                        foreach (var line in rendered.ToString().ReplaceLineEndings("\n").Split('\n'))
-                        {
-                            if (line.Length > 0) content.Append("  ").AppendLine(line);
-                        }
-
+                        AppendNested(rendered.ToString(), content, "  ", string.Empty);
                         break;
                 }
             }
@@ -481,11 +474,33 @@ public class MarkdownDocumentReader : IDocumentReader
         {
             var quoteContent = new StringBuilder();
             ExtractBlock(block, quoteContent, "");
-            var lines = quoteContent.ToString().ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var line in lines)
-            {
-                content.AppendLine(CultureInfo.InvariantCulture, $"> {line}");
-            }
+            AppendNested(quoteContent.ToString(), content, "> ", ">");
+        }
+    }
+
+    private const string CodeStartMarker = "<!-- CODE_START -->";
+    private const string CodeEndMarker = "<!-- CODE_END -->";
+
+    /// <summary>
+    /// Writes a block that was rendered on its own (a code block, a table, a quote) under a list item, a definition or a quote:
+    /// each line carries <paramref name="prefix"/>. The blank lines between blocks are dropped, but a blank line inside a code
+    /// block (between its CODE_START and CODE_END markers) is the code's own and is kept, as <paramref name="blankLine"/>.
+    /// </summary>
+    private static void AppendNested(string rendered, StringBuilder content, string prefix, string blankLine)
+    {
+        var inCode = false;
+        foreach (var line in rendered.ReplaceLineEndings("\n").Split('\n'))
+        {
+            if (line == CodeStartMarker)
+                inCode = true;
+
+            if (line.Length > 0)
+                content.Append(prefix).AppendLine(line);
+            else if (inCode)
+                content.AppendLine(blankLine);
+
+            if (line == CodeEndMarker)
+                inCode = false;
         }
     }
 

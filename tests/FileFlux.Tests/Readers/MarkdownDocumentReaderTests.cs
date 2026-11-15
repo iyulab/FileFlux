@@ -412,4 +412,37 @@ This document covers:
         // Written bare, the pipe cut the cell in two and the row grew a third column.
         Assert.Contains("| a \\| b | Xray |", content);
     }
+
+    [Fact]
+    public async Task ExtractAsync_CodeBlockUnderAListItem_KeepsItsBlankLines()
+    {
+        var content = await ReadAsync("1. Install\n\n   ```bash\n   first\n\n\n   second\n   ```\n\n2. Next\n");
+
+        Assert.Contains("  ```bash\n  first\n\n\n  second\n  ```", content);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_CodeBlockUnderANestedListItem_KeepsItsBlankLines()
+    {
+        var content = await ReadAsync("- outer\n  - inner\n\n    ```text\n    a\n\n    b\n    ```\n");
+
+        Assert.Contains("    ```text\n    a\n\n    b\n    ```", content);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_CodeBlockInAQuote_KeepsItsBlankLines()
+    {
+        var content = await ReadAsync("> ```text\n> a\n>\n> b\n> ```\n");
+
+        Assert.Contains("> ```text\n> a\n>\n> b\n> ```", content);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_BlankLinesBetweenBlocksUnderAListItem_AreStillDropped()
+    {
+        var content = await ReadAsync("1. First\n\n   Second paragraph.\n\n   > quoted\n\n2. Next\n");
+
+        Assert.DoesNotContain("\n\n  Second paragraph.", content);
+        Assert.DoesNotContain("\n\n  > quoted", content);
+    }
 }
