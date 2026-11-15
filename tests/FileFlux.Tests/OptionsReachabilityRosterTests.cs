@@ -44,7 +44,7 @@ public class OptionsReachabilityRosterTests
         //   (no reader filled RawContent.Tables/Blocks then; since 0.41.0 readers fill Tables from parser structure). ExtractImages/MaxImageSize wired 0.24.2 (ImageExtractionPolicy).
         // GraphBuildOptions.IncludeReferenceEdges A (three edge builders, none for Reference) — removed.
         // LlmRefineOptions: VerboseLogging A — removed. CustomInstructions/DocumentType/TargetLanguage are CONTRACT
-        //   members: FluxIndex.Integrations.FileFlux's LlmRefinerAdapter (an ILlmRefiner) reads all three into its prompt;
+        //   members: a consumer's own ILlmRefiner may read them (FluxIndex carried one that did, and removed it as dead code);
         //   this repository's own LlmRefiner did not (D) — wired in 0.25.0 (ContextRules). MaxTokens/Temperature wired 0.25.0.
         // MetadataEnrichmentOptions.EnableAdaptiveSampling A — removed (ExtractionStrategy is the sampling knob).
         // ParsingOptions.Extra A — removed. RefineOptions.LlmModel/MaxLlmTokens A (DocumentRefiner calls no LLM) — removed.
