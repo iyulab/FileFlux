@@ -33,7 +33,14 @@ public static partial class FluxCuratorChunkAdapter
     /// Removes internal structural markers from chunk content. Returns the cleaned text with
     /// collapsed blank lines and trimmed edges. Safe to call on already-clean content (no-op).
     /// </summary>
-    internal static string StripInternalMarkers(string content)
+    internal static string StripInternalMarkers(string content) => StripInternalMarkers(content, cutFence: false);
+
+    /// <summary>
+    /// <see cref="StripInternalMarkers(string)"/> for a chunk whose position in the text it was cut from is known:
+    /// <paramref name="cutFence"/> is true when the chunk is part of a fenced block that a chunk boundary cut - which the
+    /// text alone cannot tell for a piece from the middle of a block (it holds no fence line at all).
+    /// </summary>
+    internal static string StripInternalMarkers(string content, bool cutFence)
     {
         if (string.IsNullOrEmpty(content) || !content.Contains("<!--", StringComparison.Ordinal))
         {
@@ -44,7 +51,7 @@ public static partial class FluxCuratorChunkAdapter
         // A block larger than a chunk is cut across two of them, and then neither part is a closed fence to hide (the head has
         // an unclosed one, the tail starts with a closing fence that reads as an opening one): such a chunk loses only
         // FileFlux's own structural markers - any other comment and the blank lines may be the code's.
-        if (HasCutFence(content))
+        if (cutFence || HasCutFence(content))
         {
             // A marker on a line of its own goes with its line break; a leading space is the code's indentation.
             var withoutMarkers = StructuralMarkerRegex().Replace(StructuralMarkerLineRegex().Replace(content, string.Empty), string.Empty);
@@ -55,6 +62,30 @@ public static partial class FluxCuratorChunkAdapter
             content,
             text => ExcessBlankLinesRegex().Replace(InternalMarkerRegex().Replace(text, string.Empty), "\n\n"));
         return stripped.Trim();
+    }
+
+    /// <summary>The fenced blocks of the text the chunks were cut from (empty when there is none), for <see cref="IsPartOfCutFence"/>.</summary>
+    internal static IReadOnlyList<(int Start, int End)> FenceRanges(string? text) =>
+        string.IsNullOrEmpty(text) ? [] : MarkdownFences.FindRanges(text, includeUnclosed: true);
+
+    /// <summary>
+    /// Whether the chunk (its own span, and the overlap taken from the previous chunk in front of it) touches a fenced block
+    /// without containing it whole: it is the head, the tail or a middle piece of a block a chunk boundary cut.
+    /// </summary>
+    internal static bool IsPartOfCutFence(IReadOnlyList<(int Start, int End)> fenceRanges, FluxCuratorChunk chunk)
+    {
+        if (fenceRanges.Count == 0)
+            return false;
+
+        var start = Math.Max(0, chunk.Location.StartPosition - (chunk.Metadata.OverlapFromPrevious?.Length ?? 0));
+        var end = chunk.Location.EndPosition;
+        foreach (var (fenceStart, fenceEnd) in fenceRanges)
+        {
+            if (fenceStart < end && start < fenceEnd && !(start <= fenceStart && fenceEnd <= end))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -69,8 +100,14 @@ public static partial class FluxCuratorChunkAdapter
         return all.Count != closed.Count || FenceLine().Count(content) % 2 == 1;
     }
 
-    // FileFlux's own structural markers: NAME_START / NAME_END (optionally :ARG), a table note and a source-span marker.
-    private const string StructuralMarker = @"<!--\s*(?:[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_(?:START|END)(?::[A-Za-z0-9_]+)?|table:[^\r\n]*?|ffspan:\d+)\s*-->";
+    // FileFlux's own structural markers, the closed set the readers and the normalizer write: NAME_START / NAME_END (optionally
+    // :ARG) for the names CODE, HEADING, LIST, TABLE, IMAGE and the three image sections of the Office readers, the three
+    // table notes of the normalizer, and the source-span marker. A comment of a user's own that has the same shape
+    // (<!-- FOOTER_END -->, <!-- table: users -->) is not one of them.
+    private const string StructuralMarker =
+        @"<!--\s*(?:(?:CODE|HEADING|LIST|TABLE|IMAGE|DOCUMENT_IMAGES|PRESENTATION_IMAGES|SPREADSHEET_IMAGES)_(?:START|END)(?::[A-Za-z0-9_]+)?"
+        + @"|table:\s*(?:No data rows in table|Column count varies[^\r\n]*?|Complex table structure[^\r\n]*?)"
+        + @"|ffspan:\d+)\s*-->";
 
     [GeneratedRegex(StructuralMarker)]
     private static partial Regex StructuralMarkerRegex();
@@ -110,14 +147,24 @@ public static partial class FluxCuratorChunkAdapter
     public static DocumentChunk ToFileFluxChunk(
         this FluxCuratorChunk source,
         Guid? parsedId = null,
-        Guid? rawId = null)
+        Guid? rawId = null) => ToFileFluxChunk(source, parsedId, rawId, fenceRanges: []);
+
+    /// <summary>
+    /// <see cref="ToFileFluxChunk(FluxCuratorChunk, Guid?, Guid?)"/> with the fenced blocks of the text the chunk was cut
+    /// from (<see cref="FenceRanges"/>), so a piece of a block cut across chunks keeps its code as it is.
+    /// </summary>
+    internal static DocumentChunk ToFileFluxChunk(
+        FluxCuratorChunk source,
+        Guid? parsedId,
+        Guid? rawId,
+        IReadOnlyList<(int Start, int End)> fenceRanges)
     {
         ArgumentNullException.ThrowIfNull(source);
 
         // Lift the heading level from the structural marker before it is stripped (no info loss),
         // then remove all internal markers so consumers receive clean content.
         var headingLevel = TryExtractHeadingLevel(source.Content);
-        var cleanContent = StripInternalMarkers(source.Content);
+        var cleanContent = StripInternalMarkers(source.Content, IsPartOfCutFence(fenceRanges, source));
 
         var chunk = new DocumentChunk
         {
@@ -206,6 +253,17 @@ public static partial class FluxCuratorChunkAdapter
         Guid? rawId = null)
     {
         return sources.Select(s => s.ToFileFluxChunk(parsedId, rawId)).ToList();
+    }
+
+    /// <summary><see cref="ToFileFluxChunks(IEnumerable{FluxCuratorChunk}, Guid?, Guid?)"/> for chunks cut from <paramref name="sourceText"/>.</summary>
+    internal static IReadOnlyList<DocumentChunk> ToFileFluxChunks(
+        IEnumerable<FluxCuratorChunk> sources,
+        Guid? parsedId,
+        Guid? rawId,
+        string sourceText)
+    {
+        var fenceRanges = FenceRanges(sourceText);
+        return sources.Select(s => ToFileFluxChunk(s, parsedId, rawId, fenceRanges)).ToList();
     }
 
     /// <summary>

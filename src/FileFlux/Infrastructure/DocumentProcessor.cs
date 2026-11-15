@@ -661,7 +661,7 @@ public sealed partial class FluxDocumentProcessor
             // Convert to FileFlux chunks
             var parsedId = Guid.NewGuid();
             var rawId = Guid.NewGuid();
-            var chunks = fcChunks.ToFileFluxChunks(parsedId, rawId);
+            var chunks = FluxCuratorChunkAdapter.ToFileFluxChunks(fcChunks, parsedId, rawId, parsed.Text);
 
             // Enrich with document metadata, heading paths and source pages/times
             EnrichChunksWithMetadata(chunks, parsed);

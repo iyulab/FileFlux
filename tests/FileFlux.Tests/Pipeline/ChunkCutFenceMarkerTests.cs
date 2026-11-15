@@ -1,4 +1,6 @@
+using FileFlux.Core;
 using FileFlux.Infrastructure.Adapters;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FileFlux.Tests.Pipeline;
 
@@ -63,13 +65,104 @@ public sealed class ChunkCutFenceMarkerTests
     [InlineData("<!-- TABLE_START -->")]
     [InlineData("<!-- IMAGE_START:IMG_3 -->")]
     [InlineData("<!-- DOCUMENT_IMAGES_END -->")]
-    [InlineData("<!-- table: too wide to keep as a table -->")]
+    [InlineData("<!-- table: No data rows in table -->")]
+    [InlineData("<!-- table: Column count varies from 2 to 5 (variance: 3, max allowed: 2) -->")]
+    [InlineData("<!-- table: Complex table structure (missing separator) -->")]
+    [InlineData("<!-- PRESENTATION_IMAGES_START -->")]
+    [InlineData("<!-- SPREADSHEET_IMAGES_END -->")]
     [InlineData("<!--ffspan:7-->")]
     public void Every_structural_marker_is_removed_from_a_part_of_a_cut_block_too(string marker)
     {
         var clean = Strip("```text\nline\n" + marker + "\nline two");
 
         Assert.Equal("```text\nline\nline two", clean);
+    }
+
+    [Theory]
+    [InlineData("<!-- MAIN_CONTENT_START -->")]
+    [InlineData("<!-- FOOTER_END -->")]
+    [InlineData("<!-- table: users -->")]
+    [InlineData("<!-- SECTION_END -->")]
+    public void A_comment_of_the_codes_own_with_the_shape_of_a_marker_is_kept_in_a_cut_block(string comment)
+    {
+        var clean = Strip("```html\n<body>\n" + comment + "\n<div/>");
+
+        Assert.Equal("```html\n<body>\n" + comment + "\n<div/>", clean);
+    }
+
+    [Fact]
+    public async Task A_long_code_block_keeps_every_comment_and_blank_line_through_the_default_path_in_every_piece()
+    {
+        // A block of ~120 lines is cut into several chunks at the small chunk size below: head, middle pieces and tail.
+        var code = string.Join("\n", Enumerable.Range(0, 40).Select(i =>
+            "  <!-- note " + i.ToString("000", System.Globalization.CultureInfo.InvariantCulture) + " -->\n  <Item Id=\"" + i + "\" />\n"));
+        var text = "# Sample\n\nBefore the code.\n\n```xml\n<Root>\n" + code + "</Root>\n```\n\nAfter the code.\n";
+        var path = Path.Combine(Path.GetTempPath(), "fileflux-cutblock-" + Guid.NewGuid().ToString("N") + ".md");
+        await File.WriteAllTextAsync(path, text, TestContext.Current.CancellationToken);
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddFileFlux();
+            await using var provider = services.BuildServiceProvider();
+            await using var processor = provider.GetRequiredService<IDocumentProcessorFactory>().Create(path);
+
+            await processor.ExtractAsync(cancellationToken: TestContext.Current.CancellationToken);
+            await processor.RefineAsync(cancellationToken: TestContext.Current.CancellationToken);
+            await processor.ChunkAsync(new ChunkingOptions { MaxChunkSize = 120, MinChunkSize = 20, OverlapSize = 20 }, TestContext.Current.CancellationToken);
+
+            var chunks = processor.Result.Chunks!;
+            var stream = string.Join('\n', chunks.Select(chunk => chunk.Content));
+
+            Assert.True(chunks.Count >= 4, "the block must be cut into head, middle and tail pieces (" + chunks.Count + " chunks)");
+            for (var i = 0; i < 40; i++)
+                Assert.Contains("<!-- note " + i.ToString("000", System.Globalization.CultureInfo.InvariantCulture) + " -->", stream, StringComparison.Ordinal);
+            Assert.DoesNotContain("CODE_START", stream, StringComparison.Ordinal);
+            Assert.DoesNotContain("CODE_END", stream, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void A_piece_from_the_middle_of_a_block_is_kept_when_the_chunk_position_says_it_is_inside_a_fence()
+    {
+        // A block cut into three chunks: the middle one has no fence line, so only its position can tell.
+        const string whole = "Intro\n\n```xml\n<A />\n  <!-- keep me -->\n\n\n  <B />\n  <C />\n```\n\nOutro\n";
+        const string middle = "  <!-- keep me -->\n\n\n  <B />";
+        var start = whole.IndexOf(middle, StringComparison.Ordinal);
+        var ranges = FluxCuratorChunkAdapter.FenceRanges(whole);
+        var chunk = new FluxCurator.Core.Domain.DocumentChunk
+        {
+            Content = middle,
+            Location = new FluxCurator.Core.Domain.ChunkLocation { StartPosition = start, EndPosition = start + middle.Length },
+        };
+
+        Assert.True(FluxCuratorChunkAdapter.IsPartOfCutFence(ranges, chunk));
+        Assert.Equal(middle, FluxCuratorChunkAdapter.StripInternalMarkers(middle, cutFence: true));
+        // Without the position the text alone cannot tell, and the middle piece is cleaned like prose (the old behaviour).
+        Assert.NotEqual(middle, FluxCuratorChunkAdapter.StripInternalMarkers(middle));
+    }
+
+    [Fact]
+    public void A_chunk_that_holds_a_block_whole_or_lies_outside_every_block_is_not_a_cut_piece()
+    {
+        const string whole = "Intro\n\n```xml\n<A />\n```\n\nOutro\n";
+        var ranges = FluxCuratorChunkAdapter.FenceRanges(whole);
+        var holdsWhole = new FluxCurator.Core.Domain.DocumentChunk
+        {
+            Content = whole,
+            Location = new FluxCurator.Core.Domain.ChunkLocation { StartPosition = 0, EndPosition = whole.Length },
+        };
+        var outside = new FluxCurator.Core.Domain.DocumentChunk
+        {
+            Content = "Outro",
+            Location = new FluxCurator.Core.Domain.ChunkLocation { StartPosition = whole.IndexOf("Outro", StringComparison.Ordinal), EndPosition = whole.Length },
+        };
+
+        Assert.False(FluxCuratorChunkAdapter.IsPartOfCutFence(ranges, holdsWhole));
+        Assert.False(FluxCuratorChunkAdapter.IsPartOfCutFence(ranges, outside));
     }
 
     [Fact]

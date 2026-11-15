@@ -211,6 +211,10 @@ internal static partial class MarkdownFences
         /// </summary>
         internal string? RestoreModelAnswer(string answer)
         {
+            // Nothing was hidden from such a text (or its markers cannot be told from the text): no answer can be vouched for.
+            if (UnsafeToSend)
+                return null;
+
             var markers = ModelMarker().Matches(answer);
             if (markers.Count != _blocks.Count)
                 return null;

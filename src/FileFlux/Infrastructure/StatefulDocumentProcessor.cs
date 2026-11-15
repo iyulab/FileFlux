@@ -1088,6 +1088,20 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
     /// at all, and neither carried the language the chunker segmented with, so every chunk reported the default "en".
     /// The heading level is lifted before the structural markers are stripped (no information lost).
     /// </summary>
+    // The fenced blocks of the refined text, found once for all the chunks cut from it (not once per chunk).
+    private (string Text, IReadOnlyList<(int Start, int End)> Ranges)? _fenceRanges;
+
+    private IReadOnlyList<(int Start, int End)> FenceRangesOf(string text)
+    {
+        if (_fenceRanges is not { } cached || !ReferenceEquals(cached.Text, text))
+        {
+            cached = (text, FluxCuratorChunkAdapter.FenceRanges(text));
+            _fenceRanges = cached;
+        }
+
+        return cached.Ranges;
+    }
+
     private FileFlux.Core.DocumentChunk ToChunk(
         FluxCurator.Core.Domain.DocumentChunk fc,
         int index,
@@ -1114,7 +1128,8 @@ public sealed partial class StatefulDocumentProcessor : IDocumentProcessor
         var chunk = new FileFlux.Core.DocumentChunk
         {
             RawId = Result.Raw!.Id,
-            Content = FluxCuratorChunkAdapter.StripInternalMarkers(fc.Content),
+            Content = FluxCuratorChunkAdapter.StripInternalMarkers(
+                fc.Content, FluxCuratorChunkAdapter.IsPartOfCutFence(FenceRangesOf(refined.Text), fc)),
             ChunkIndex = index,
             Tokens = fc.Metadata.EstimatedTokenCount,
             Strategy = strategyName,
