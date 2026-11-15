@@ -808,30 +808,40 @@ public partial class HtmlDocumentReader : IDocumentReader
                 }
             }
 
-            var codeText = HtmlEntity.DeEntitize(codeNode.InnerText);
-
-            if (!string.IsNullOrWhiteSpace(language))
-            {
-                textBuilder.AppendLine(CultureInfo.InvariantCulture, $"```{language}");
-            }
-            else
-            {
-                textBuilder.AppendLine("```");
-            }
-
-            textBuilder.AppendLine(codeText);
-            textBuilder.AppendLine("```");
+            AppendFencedCode(textBuilder, HtmlEntity.DeEntitize(codeNode.InnerText), language);
 
             hasCode = true;
         }
         else
         {
             // pre 태그만 있는 경우
-            var preText = HtmlEntity.DeEntitize(node.InnerText);
-            textBuilder.AppendLine("```");
-            textBuilder.AppendLine(preText);
-            textBuilder.AppendLine("```");
+            AppendFencedCode(textBuilder, HtmlEntity.DeEntitize(node.InnerText), language: "");
         }
+    }
+
+    /// <summary>
+    /// Writes <paramref name="code"/> as a fenced block with the code as it was written: the line break that ends the code is
+    /// the one before the closing fence (not one more empty line), and the fence is longer than any run of backticks that
+    /// starts a line of the code, so a fence line inside the code (a Markdown sample) cannot close the block.
+    /// </summary>
+    private static void AppendFencedCode(StringBuilder textBuilder, string code, string language)
+    {
+        var body = code.EndsWith("\r\n", StringComparison.Ordinal) ? code[..^2] : code.EndsWith('\n') ? code[..^1] : code;
+        var longestRun = 0;
+        foreach (var line in body.Split('\n'))
+        {
+            var trimmed = line.TrimStart(' ', '\t');
+            var run = 0;
+            while (run < trimmed.Length && trimmed[run] == '`')
+                run++;
+
+            longestRun = Math.Max(longestRun, run);
+        }
+
+        var fence = new string('`', Math.Max(3, longestRun + 1));
+        textBuilder.AppendLine(string.IsNullOrWhiteSpace(language) ? fence : fence + language);
+        textBuilder.AppendLine(body);
+        textBuilder.AppendLine(fence);
     }
 
     private static void ProcessFigure(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
