@@ -41,11 +41,47 @@ public static partial class FluxCuratorChunkAdapter
         }
 
         // A fenced code block is the code's own: an HTML comment in it (a sample page) and its blank lines stay.
+        // A block larger than a chunk is cut across two of them, and then neither part is a closed fence to hide (the head has
+        // an unclosed one, the tail starts with a closing fence that reads as an opening one): such a chunk loses only
+        // FileFlux's own structural markers - any other comment and the blank lines may be the code's.
+        if (HasCutFence(content))
+        {
+            // A marker on a line of its own goes with its line break; a leading space is the code's indentation.
+            var withoutMarkers = StructuralMarkerRegex().Replace(StructuralMarkerLineRegex().Replace(content, string.Empty), string.Empty);
+            return withoutMarkers.TrimEnd().TrimStart('\r', '\n');
+        }
+
         var stripped = MarkdownFences.Shielded(
             content,
             text => ExcessBlankLinesRegex().Replace(InternalMarkerRegex().Replace(text, string.Empty), "\n\n"));
         return stripped.Trim();
     }
+
+    /// <summary>
+    /// Whether the chunk text may hold part of a fenced block cut by a chunk boundary: a fence that is never closed, or an odd
+    /// number of fence lines (a closing fence at the start pairs with the next fence line and leaves one open or pairs with
+    /// the closing fence of the next block). It errs towards true - the cost of a false positive is a kept comment.
+    /// </summary>
+    private static bool HasCutFence(string content)
+    {
+        var all = MarkdownFences.FindRanges(content, includeUnclosed: true);
+        var closed = MarkdownFences.FindRanges(content, includeUnclosed: false);
+        return all.Count != closed.Count || FenceLine().Count(content) % 2 == 1;
+    }
+
+    // FileFlux's own structural markers: NAME_START / NAME_END (optionally :ARG), a table note and a source-span marker.
+    private const string StructuralMarker = @"<!--\s*(?:[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_(?:START|END)(?::[A-Za-z0-9_]+)?|table:[^\r\n]*?|ffspan:\d+)\s*-->";
+
+    [GeneratedRegex(StructuralMarker)]
+    private static partial Regex StructuralMarkerRegex();
+
+    // The same marker alone on its line, with the line break that ends the line.
+    [GeneratedRegex(@"^[ \t]*" + StructuralMarker + @"[ \t]*(?:\r?\n|$)", RegexOptions.Multiline)]
+    private static partial Regex StructuralMarkerLineRegex();
+
+    // A line that opens or closes a fence: three or more backticks or tildes after at most the indentation.
+    [GeneratedRegex(@"^[ \t]*(?:`{3,}|~{3,})", RegexOptions.Multiline)]
+    private static partial Regex FenceLine();
 
     /// <summary>
     /// Extracts the markdown heading level (1-6) from the chunk's first HEADING_START marker,
