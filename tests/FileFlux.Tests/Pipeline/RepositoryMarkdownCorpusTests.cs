@@ -33,8 +33,23 @@ public sealed partial class RepositoryMarkdownCorpusTests
                 data.Add(Path.GetRelativePath(root, file).Replace('\\', '/'));
         }
 
+        // A larger corpus on request: a text file of absolute paths (one per line) named by CorpusListVariable - a local drive
+        // over documents that live outside this repository. Unset, the corpus is this repository's own documents.
+        var list = Environment.GetEnvironmentVariable(CorpusListVariable);
+        if (!string.IsNullOrWhiteSpace(list) && File.Exists(list))
+        {
+            foreach (var line in File.ReadAllLines(list).Select(l => l.Trim()).Where(l => l.Length > 0).Distinct(StringComparer.Ordinal))
+            {
+                if (Path.IsPathRooted(line) && File.Exists(line) && Blocks(File.ReadAllText(line)).Count > 0)
+                    data.Add(line.Replace('\\', '/'));
+            }
+        }
+
         return data;
     }
+
+    /// <summary>The environment variable naming a text file of absolute Markdown paths that join the corpus.</summary>
+    public const string CorpusListVariable = "FILEFLUX_CORPUS_LIST";
 
     [Theory]
     [MemberData(nameof(Documents))]
