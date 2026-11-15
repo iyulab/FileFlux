@@ -353,7 +353,42 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
         => title.Length is > 0 and <= MaxNumberedTitleLength
            && title[^1] is not ('.' or '。' or ',' or ';')
            && !char.IsLower(title.FirstOrDefault(char.IsLetter))
+           && !HasSentenceBreak(title)
            && !IsTableOfContentsEntry(title);
+
+    /// <summary>
+    /// Whether the text holds a sentence end followed by more words («… 한다. 추천의 근거는 …»): a title is one phrase, so a
+    /// line of two sentences is a clause of a paragraph that happens to start with a number («③ …»). A full stop followed by a
+    /// digit or a symbol («Fig. 3 Results», «v2. 1 Setup») is not a break.
+    /// </summary>
+    private static readonly System.Buffers.SearchValues<char> LatinLettersAndDot =
+        System.Buffers.SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.");
+
+    private static bool HasSentenceBreak(string text)
+    {
+        foreach (Match match in SentenceBreak().Matches(text))
+        {
+            // A short Latin token before the full stop is an abbreviation («vs.», «e.g.», «Fig.», «etc.», «Dr.»), not the end of
+            // a sentence: «Closed vs. open model refusal comparison» is one title.
+            if (text[match.Index] == '.')
+            {
+                var start = match.Index;
+                while (start > 0 && !char.IsWhiteSpace(text[start - 1]))
+                    start--;
+
+                var token = text.AsSpan(start, match.Index - start);
+                if (token.Length <= 3 && !token.IsEmpty && token.IndexOfAnyExcept(LatinLettersAndDot) < 0)
+                    continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    [GeneratedRegex(@"[.!?。！？][""'”’」』)\]]*\s+\p{L}")]
+    private static partial Regex SentenceBreak();
 
     /// <summary>
     /// Whether a line is a table-of-contents entry: a title followed by a dot leader and, usually, the page number

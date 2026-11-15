@@ -54,6 +54,35 @@ public class NumberedSectionHeadingTests
     }
 
     [Fact]
+    public void A_Circled_Number_Line_Of_Two_Sentences_Is_A_Clause_Not_A_Title()
+    {
+        // A paragraph hard-wrapped so that the third point starts a line (the first two sit inline in the line above, so
+        // there is no run of numbered lines): the line is short and does not end in a full stop, but it holds two
+        // sentences - a title is one phrase.
+        var text = "옵션이 여럿일 때 ① 근본적 해결 ② 정석적인 방법\n③ 기술부채를 남기지 않는 방법을 우선한다. 추천의 근거는 정석 부합\n비교이고, 변경이 적은 쪽이 아니다.";
+
+        var result = DocumentRefiner.ConvertNumberedSectionsToHeadings(text);
+
+        Assert.DoesNotContain("#", result, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Introduction", true)]
+    [InlineData("개요", true)]
+    [InlineData("Fig. 3 Results", true)]
+    [InlineData("Closed vs. open model refusal comparison", true)]
+    [InlineData("Sizes, e.g. small and large models", true)]
+    [InlineData("Dr. Smith and the committee", true)]
+    [InlineData("Version 2.0 release notes", true)]
+    [InlineData("It is done. Then it was said", false)]
+    [InlineData("한다. 추천의 근거는", false)]
+    [InlineData("Is it done? Yes it is", false)]
+    public void A_Title_Is_One_Phrase(string title, bool expected)
+    {
+        Assert.Equal(expected, DocumentRefiner.IsTitleShaped(title));
+    }
+
+    [Fact]
     public void A_Numbered_Title_After_A_List_Is_Still_Promoted()
     {
         var text = "<!-- LIST_START:ORDERED -->\n1. One\n  detail.\n<!-- LIST_END:ORDERED -->\n\n2. 범위\n적용 범위는 다음과 같다.\n";
