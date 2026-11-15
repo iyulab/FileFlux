@@ -1,6 +1,7 @@
 using FileFlux.Core;
 using Markdig;
 using Markdig.Extensions.DefinitionLists;
+using Markdig.Extensions.GenericAttributes;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -115,13 +116,8 @@ public class MarkdownDocumentReader : IDocumentReader
         var markdownText = TextDecoder.Decode(await File.ReadAllBytesAsync(filePath, cancellationToken)).Text;
         var metadata = CreateMetadata(filePath, markdownText);
 
-        // Markdig 파이프라인 설정 - 고급 기능 활성화 (테이블 포함)
-        var pipeline = new MarkdownPipelineBuilder()
-            .UseAdvancedExtensions()  // 테이블을 포함한 모든 고급 확장 기능
-            .Build();
-
         // Markdown 문서 파싱
-        var document = Markdown.Parse(markdownText, pipeline);
+        var document = Markdown.Parse(markdownText, Pipeline);
 
         // 구조적 콘텐츠 추출
         var structuredContent = ExtractStructuredContent(document, markdownText);
@@ -148,13 +144,8 @@ public class MarkdownDocumentReader : IDocumentReader
         var markdownText = TextDecoder.Decode(buffer.ToArray()).Text;
         var metadata = CreateStreamMetadata(fileName, markdownText);
 
-        // Markdig 파이프라인 설정 - 고급 기능 활성화 (테이블 포함)
-        var pipeline = new MarkdownPipelineBuilder()
-            .UseAdvancedExtensions()  // 테이블을 포함한 모든 고급 확장 기능
-            .Build();
-
         // Markdown 문서 파싱
-        var document = Markdown.Parse(markdownText, pipeline);
+        var document = Markdown.Parse(markdownText, Pipeline);
 
         // 구조적 콘텐츠 추출
         var structuredContent = ExtractStructuredContent(document, markdownText);
@@ -165,6 +156,21 @@ public class MarkdownDocumentReader : IDocumentReader
             File = metadata,
             ReaderType = ReaderType
         };
+    }
+
+    /// <summary>
+    /// The Markdig pipeline: every advanced extension (tables included) except generic attributes. That extension reads a
+    /// <c>{...}</c> in a heading line as an attribute list and takes it out of the text - the reader uses no attributes, and an API
+    /// document's headings carry braces in inline code (<c>### Options `{...}`</c>, <c>### GET /messages/{id}</c>), which came out
+    /// as «Options `».
+    /// </summary>
+    private static readonly MarkdownPipeline Pipeline = CreatePipeline();
+
+    private static MarkdownPipeline CreatePipeline()
+    {
+        var builder = new MarkdownPipelineBuilder().UseAdvancedExtensions();
+        builder.Extensions.TryRemove<GenericAttributesExtension>();
+        return builder.Build();
     }
 
     private static SourceFileInfo CreateMetadata(string filePath, string content)

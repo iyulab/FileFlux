@@ -437,6 +437,34 @@ This document covers:
         Assert.Contains("> ```text\n> a\n>\n> b\n> ```", content);
     }
 
+    [Theory]
+    [InlineData("### Options `{...}`", "### Options `{...}`")]
+    [InlineData("### Message status — `GET /messages/{id}`", "### Message status — `GET /messages/{id}`")]
+    [InlineData("## Route {id} and {name}", "## Route {id} and {name}")]
+    public async Task ExtractAsync_HeadingWithBraces_KeepsThemInItsText(string heading, string expected)
+    {
+        var content = await ReadAsync($"# Guide\n\n{heading}\n\nBody of the section.\n");
+
+        Assert.Contains(expected + "\n", content);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_ParagraphWithBracedPlaceholders_KeepsThemInItsText()
+    {
+        var content = await ReadAsync("Call GET /messages/{id} to read one, or use the `{name}` form and the {kind} syntax.\n");
+
+        Assert.Contains("Call GET /messages/{id} to read one, or use the `{name}` form and the {kind} syntax.", content);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_AttributeListInAHeading_IsTextNotMarkup()
+    {
+        // The reader uses no attributes; a `{#id}` stays in the heading as the document wrote it.
+        var content = await ReadAsync("# Guide\n\n## Install {#install}\n\nBody.\n");
+
+        Assert.Contains("## Install {#install}\n", content);
+    }
+
     [Fact]
     public async Task ExtractAsync_BlankLinesBetweenBlocksUnderAListItem_AreStillDropped()
     {
