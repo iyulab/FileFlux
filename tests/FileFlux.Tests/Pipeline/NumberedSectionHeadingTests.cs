@@ -30,6 +30,42 @@ public class NumberedSectionHeadingTests
         Assert.Equal(["References"], refined.Sections.Select(s => s.Title));
     }
 
+    [Theory]
+    [InlineData(":")]
+    [InlineData(",")]
+    [InlineData(";")]
+    public void A_Numbered_Line_That_Continues_A_Line_Ending_In_A_Clause_Mark_Is_No_Title(string mark)
+    {
+        // A paragraph wrapped at a column: the line that happens to start with «(1)» continues the sentence above it - a title
+        // starts a block, and a line that ends with a colon, comma or semicolon has not ended its sentence.
+        var text = string.Join('\n',
+            "# Policy",
+            "",
+            "The reopening trigger is" + mark,
+            "(1) The server is exposed to an untrusted network (third-party clients)",
+            "and the case is reported, or (2) a review names a concrete weakness.");
+
+        var converted = DocumentRefiner.ConvertNumberedSectionsToHeadings(text);
+
+        Assert.DoesNotContain("### (1)", converted, StringComparison.Ordinal);
+        Assert.Contains("\n(1) The server is exposed", converted, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_Numbered_Title_After_A_Finished_Sentence_Is_Still_A_Title()
+    {
+        var text = string.Join('\n',
+            "# Policy",
+            "",
+            "Introduction paragraph that ends here.",
+            "(1) Reopening trigger",
+            "The trigger is a consumer that exposes the server to an untrusted network.");
+
+        var converted = DocumentRefiner.ConvertNumberedSectionsToHeadings(text);
+
+        Assert.Contains("### (1) Reopening trigger", converted, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Numbered_Items_Inside_The_Readers_List_Markers_Are_Items_Not_Titles()
     {

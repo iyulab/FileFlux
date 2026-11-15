@@ -316,7 +316,7 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
         for (var i = 0; i < lines.Length; i++)
         {
             if (matches[i] is not { } numbered || !IsTitleShaped(numbered.Title) || IsInNumberedRun(lines, matches, i)
-                || !IsFollowedByBody(lines, i))
+                || !IsFollowedByBody(lines, i) || ContinuesPreviousLine(lines, i))
             {
                 continue;
             }
@@ -326,6 +326,20 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
         }
 
         return string.Join('\n', lines);
+    }
+
+    /// <summary>
+    /// Whether the line directly above (no blank line between) has not finished its sentence: it ends with a colon, comma or
+    /// semicolon. A paragraph wrapped at a column puts a «(1) …» at the start of a line without making it a title - a title
+    /// starts a block - and a line that introduces an enumeration (a colon) is followed by its items, not by a section.
+    /// </summary>
+    private static bool ContinuesPreviousLine(string[] lines, int index)
+    {
+        if (index == 0)
+            return false;
+
+        var previous = lines[index - 1].TrimEnd();
+        return previous.Length > 0 && previous[^1] is ':' or ',' or ';' or '：' or '，' or '；';
     }
 
     private static (int Level, string Marker, string Title)? MatchNumberedMarker(string line)
