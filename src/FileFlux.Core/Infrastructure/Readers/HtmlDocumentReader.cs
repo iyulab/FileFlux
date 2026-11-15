@@ -119,7 +119,7 @@ public partial class HtmlDocumentReader : IDocumentReader
 
         try
         {
-            var htmlContent = TextDecoder.Decode(await File.ReadAllBytesAsync(filePath, cancellationToken), declaredCharsetFromContent: true).Text;
+            var htmlContent = TextDecoder.Decode(await SourceFile.ReadAllBytesAsync(filePath, cancellationToken), declaredCharsetFromContent: true).Text;
             return await Task.Run(() => ExtractHtmlContent(htmlContent, Path.GetFileName(filePath), new FileInfo(filePath), cancellationToken), cancellationToken);
         }
         catch (Exception ex) when (!(ex is FileFluxException) && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))

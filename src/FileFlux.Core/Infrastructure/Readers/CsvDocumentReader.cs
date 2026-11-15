@@ -124,7 +124,7 @@ public class CsvDocumentReader : IDocumentReader
         try
         {
             var fileInfo = new FileInfo(filePath);
-            var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var bytes = await SourceFile.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
 
             var extraction = ExtractTable(bytes, Path.GetExtension(filePath).ToLowerInvariant());
 

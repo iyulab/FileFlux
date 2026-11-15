@@ -113,7 +113,7 @@ public class MarkdownDocumentReader : IDocumentReader
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"Markdown file not found: {filePath}");
 
-        var markdownText = TextDecoder.Decode(await File.ReadAllBytesAsync(filePath, cancellationToken)).Text;
+        var markdownText = TextDecoder.Decode(await SourceFile.ReadAllBytesAsync(filePath, cancellationToken)).Text;
         var metadata = CreateMetadata(filePath, markdownText);
 
         // Markdown 문서 파싱

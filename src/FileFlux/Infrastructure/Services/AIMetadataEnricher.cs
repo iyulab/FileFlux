@@ -1,4 +1,5 @@
 using FileFlux.Core;
+using FileFlux.Core.Infrastructure.Readers;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
@@ -264,7 +265,7 @@ public partial class AIMetadataEnricher : IMetadataEnricher
         }
 
         using var sha256 = SHA256.Create();
-        using var stream = File.OpenRead(filePath);
+        using var stream = SourceFile.OpenRead(filePath);
         var hashBytes = sha256.ComputeHash(stream);
         var fileHash = Convert.ToBase64String(hashBytes);
 

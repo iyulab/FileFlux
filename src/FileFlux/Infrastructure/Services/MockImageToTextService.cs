@@ -1,5 +1,6 @@
 #if DEBUG
 using FileFlux;
+using FileFlux.Core.Infrastructure.Readers;
 using System.Drawing;
 
 namespace FileFlux.Infrastructure.Services;
@@ -69,7 +70,7 @@ public class MockImageToTextService : IImageToTextService
         if (!File.Exists(imagePath))
             throw new FileNotFoundException($"Image file not found: {imagePath}");
 
-        var imageData = await File.ReadAllBytesAsync(imagePath, cancellationToken);
+        var imageData = await SourceFile.ReadAllBytesAsync(imagePath, cancellationToken);
         return await ExtractTextAsync(imageData, options, cancellationToken);
     }
 

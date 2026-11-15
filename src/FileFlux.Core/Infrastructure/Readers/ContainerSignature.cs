@@ -61,8 +61,7 @@ public static class ContainerSignature
     {
         try
         {
-            using var stream = new FileStream(
-                filePath, FileMode.Open, FileAccess.Read, FileShare.Read, ProbeLength, FileOptions.SequentialScan);
+            using var stream = SourceFile.Open(filePath, ProbeLength, FileOptions.SequentialScan);
             Span<byte> prefix = stackalloc byte[ProbeLength];
             var read = stream.ReadAtLeast(prefix, ProbeLength, throwOnEndOfStream: false);
             return Detect(prefix[..read]);

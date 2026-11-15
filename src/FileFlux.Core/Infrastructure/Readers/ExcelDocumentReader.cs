@@ -263,7 +263,7 @@ public class ExcelDocumentReader : IDocumentReader
         // looking like an ordinary container mismatch. It is a more specific condition with a different remedy. A
         // workbook protected the 97-2003 way carries no such stream; the parser reports that one as encrypted.
         if (container == OfficeContainer.CompoundFile)
-            CompoundFileEncryption.ThrowIfEncrypted(File.ReadAllBytes(filePath), FileNameHelper.ExtractSafeFileName(fileInfo));
+            CompoundFileEncryption.ThrowIfEncrypted(SourceFile.ReadAllBytes(filePath), FileNameHelper.ExtractSafeFileName(fileInfo));
 
         var warnings = new List<string>();
         var structuralHints = new Dictionary<string, object>();

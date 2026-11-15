@@ -74,8 +74,7 @@ public static class FormatSignature
     {
         try
         {
-            using var stream = new FileStream(
-                filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.RandomAccess);
+            using var stream = SourceFile.Open(filePath, 4096, FileOptions.RandomAccess);
             return DetectSeekable(stream);
         }
         catch (IOException)

@@ -210,7 +210,7 @@ public class TextDocumentReader : IDocumentReader
     {
         // Decoded by TextDecoder (byte order mark, strict UTF-8, then CP949): a UTF-8 reader replaces what it cannot decode
         // with U+FFFD, so a legacy Korean file came out as replacement characters.
-        var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var bytes = await SourceFile.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
         return TextDecoder.Decode(bytes).Text;
     }
 
@@ -306,7 +306,7 @@ public class TextDocumentReader : IDocumentReader
             var buffer = new byte[bufferSize];
             var allBytes = new List<byte>();
 
-            using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, useAsync: true);
+            using var fileStream = SourceFile.Open(filePath, bufferSize, FileOptions.Asynchronous);
 
             int totalRead = 0;
             int bytesRead;
