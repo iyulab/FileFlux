@@ -31,6 +31,41 @@ public class NumberedSectionHeadingTests
     }
 
     [Fact]
+    public void Numbered_Items_Inside_The_Readers_List_Markers_Are_Items_Not_Titles()
+    {
+        // The Markdown reader writes an item with its detail lines under it: no run of consecutive numbered lines, so the
+        // run rule alone does not keep the items from looking like numbered sections.
+        var text = string.Join('\n',
+            "# Steps",
+            "",
+            "<!-- LIST_START:ORDERED -->",
+            "1. Send the browser to the endpoint",
+            "  and wait for the redirect back.",
+            "",
+            "2. Show the consent screen",
+            "  with the requested scopes.",
+            "<!-- LIST_END:ORDERED -->");
+
+        var result = DocumentRefiner.ConvertNumberedSectionsToHeadings(text);
+
+        Assert.DoesNotContain("## 1.", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("## 2.", result, StringComparison.Ordinal);
+        Assert.Contains("\n1. Send the browser to the endpoint\n", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_Numbered_Title_After_A_List_Is_Still_Promoted()
+    {
+        var text = "<!-- LIST_START:ORDERED -->\n1. One\n  detail.\n<!-- LIST_END:ORDERED -->\n\n2. 범위\n적용 범위는 다음과 같다.\n";
+
+        var result = DocumentRefiner.ConvertNumberedSectionsToHeadings(text);
+
+        Assert.Contains("1. One", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("## 1.", result, StringComparison.Ordinal);
+        Assert.Contains("# 2. 범위", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Numbered_Sections_Separated_By_Body_Text_Become_Headings()
     {
         // The shape the promotion exists for: plain text whose sections are numbered lines.

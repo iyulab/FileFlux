@@ -294,9 +294,20 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
         var lines = text.Split('\n');
         var matches = new (int Level, string Marker, string Title)?[lines.Length];
         var fenced = MarkdownFences.LineMask(lines);
+        var inList = false;
         for (var i = 0; i < lines.Length; i++)
         {
-            if (!fenced[i])
+            // A reader that knows the structure (the Markdown reader) wraps every list in LIST_START / LIST_END markers: a
+            // numbered line inside is an item the document wrote as an item, never a section title to promote - each item
+            // of «1. open the page» with a detail line under it would otherwise become a heading of its own.
+            if (!fenced[i] && lines[i].StartsWith("<!-- LIST_START", StringComparison.Ordinal))
+                inList = true;
+
+            var listLine = inList;
+            if (!fenced[i] && lines[i].StartsWith("<!-- LIST_END", StringComparison.Ordinal))
+                inList = false;
+
+            if (!fenced[i] && !listLine)
             {
                 matches[i] = MatchNumberedMarker(lines[i].TrimEnd('\r'));
             }
