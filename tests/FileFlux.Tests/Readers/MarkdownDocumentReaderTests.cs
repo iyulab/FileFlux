@@ -466,6 +466,33 @@ This document covers:
     }
 
     [Fact]
+    public async Task ExtractAsync_CodeBlockInAListInsideAQuote_KeepsItsBlankLines()
+    {
+        // The inner list writes the markers already indented; the quote re-indents the whole: the state follows the fences.
+        var content = await ReadAsync("> - step\n>\n>   ```text\n>   a\n>\n>   b\n>   ```\n");
+
+        Assert.Contains(">   a\n>\n>   b\n", content.Replace("\r\n", "\n", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExtractAsync_CodeBodyShowingTheEndMarker_DoesNotEndTheBlockEarly()
+    {
+        // Documentation that shows this reader's own marker: the blank line after it is still the code's.
+        var content = await ReadAsync("1. Step\n\n   ```text\n   <!-- CODE_END -->\n\n   after\n   ```\n");
+
+        Assert.Contains("  <!-- CODE_END -->\n\n  after\n", content.Replace("\r\n", "\n", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExtractAsync_BraceAttributeAfterAnImageOrLink_StaysAsText()
+    {
+        var content = await ReadAsync("![alt](a.png){width=50%} and [x](https://example.org/u){target=_blank}\n");
+
+        Assert.Contains("{width=50%}", content);
+        Assert.Contains("{target=_blank}", content);
+    }
+
+    [Fact]
     public async Task ExtractAsync_BlankLinesBetweenBlocksUnderAListItem_AreStillDropped()
     {
         var content = await ReadAsync("1. First\n\n   Second paragraph.\n\n   > quoted\n\n2. Next\n");

@@ -494,20 +494,45 @@ public class MarkdownDocumentReader : IDocumentReader
     /// </summary>
     private static void AppendNested(string rendered, StringBuilder content, string prefix, string blankLine)
     {
-        var inCode = false;
+        // CODE_START, the opening fence, the code, the closing fence, CODE_END. The state follows the fences, not the markers
+        // alone: a block nested one level down arrives already indented (the markers are compared trimmed), and a code body that
+        // shows the marker text cannot end the block early - the writer makes the fence longer than any backtick run in the body,
+        // so only the real closing fence is a line of backticks at least as long as the opening one.
+        var state = CodeState.Outside;
+        var fenceLength = 0;
         foreach (var line in rendered.ReplaceLineEndings("\n").Split('\n'))
         {
-            if (line == CodeStartMarker)
-                inCode = true;
+            var trimmed = line.Trim();
+            var closesBlock = false;
+            switch (state)
+            {
+                case CodeState.Outside when trimmed == CodeStartMarker:
+                    state = CodeState.BeforeFence;
+                    break;
+                case CodeState.BeforeFence:
+                    fenceLength = trimmed.Length - trimmed.TrimStart('`').Length;
+                    state = CodeState.Inside;
+                    break;
+                case CodeState.Inside when trimmed.Length >= fenceLength && trimmed.Length > 0 && trimmed.AsSpan().IndexOfAnyExcept('`') < 0:
+                    closesBlock = true;
+                    break;
+            }
 
             if (line.Length > 0)
                 content.Append(prefix).AppendLine(line);
-            else if (inCode)
+            else if (state == CodeState.Inside)
                 content.AppendLine(blankLine);
 
-            if (line == CodeEndMarker)
-                inCode = false;
+            if (closesBlock)
+                state = CodeState.Outside;
         }
+    }
+
+    private enum CodeState
+    {
+        Outside,
+        BeforeFence,
+        Inside,
     }
 
     /// <summary>

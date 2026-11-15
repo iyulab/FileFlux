@@ -358,26 +358,22 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
 
     /// <summary>
     /// Whether the text holds a sentence end followed by more words («… 한다. 추천의 근거는 …»): a title is one phrase, so a
-    /// line of two sentences is a clause of a paragraph that happens to start with a number («③ …»). A full stop followed by a
-    /// digit or a symbol («Fig. 3 Results», «v2. 1 Setup») is not a break.
+    /// line of two sentences is a clause of a paragraph that happens to start with a number («③ …»). A full stop that belongs
+    /// to an abbreviation or a number is not a break («Closed vs. open models», «Section 3. Scope», «Dept. of Energy»,
+    /// «J.R.R. Tolkien»). A stop after a short Latin word that really ends a sentence («Remove the cap. Pour …») is missed on
+    /// purpose: telling it from an abbreviation needs a dictionary.
     /// </summary>
-    private static readonly System.Buffers.SearchValues<char> LatinLettersAndDot =
-        System.Buffers.SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.");
-
     private static bool HasSentenceBreak(string text)
     {
         foreach (Match match in SentenceBreak().Matches(text))
         {
-            // A short Latin token before the full stop is an abbreviation («vs.», «e.g.», «Fig.», «etc.», «Dr.»), not the end of
-            // a sentence: «Closed vs. open model refusal comparison» is one title.
             if (text[match.Index] == '.')
             {
                 var start = match.Index;
                 while (start > 0 && !char.IsWhiteSpace(text[start - 1]))
                     start--;
 
-                var token = text.AsSpan(start, match.Index - start);
-                if (token.Length <= 3 && !token.IsEmpty && token.IndexOfAnyExcept(LatinLettersAndDot) < 0)
+                if (IsAbbreviationOrNumber(text.AsSpan(start, match.Index - start)))
                     continue;
             }
 
@@ -385,6 +381,40 @@ public sealed partial class DocumentRefiner : IDocumentRefiner
         }
 
         return false;
+    }
+
+    private static readonly System.Buffers.SearchValues<char> AbbreviationChars =
+        System.Buffers.SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.&");
+
+    private static readonly HashSet<string> Abbreviations = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "dept", "univ", "corp", "prof", "assoc", "approx", "ph.d", "inc", "ltd", "vol", "fig", "eq", "ref", "tel",
+    };
+
+    /// <summary>The token in front of a full stop: a number («3», «2.1», «v2»), a short Latin word (≤ 3 letters: «vs», «e.g», «Fig», «Dr», «Q&amp;A»), a listed abbreviation or an initialism («J.R.R», «U.S.A»).</summary>
+    private static bool IsAbbreviationOrNumber(ReadOnlySpan<char> token)
+    {
+        token = token.TrimStart("([{\"'“‘");
+        if (token.IsEmpty)
+            return false;
+
+        if (token.IndexOfAnyInRange('0', '9') >= 0)
+            return true;
+
+        if (token.IndexOfAnyExcept(AbbreviationChars) >= 0)
+            return false;
+
+        if (token.Length <= 3 || Abbreviations.Contains(token.ToString()))
+            return true;
+
+        // An initialism: single letters separated by dots.
+        for (var i = 0; i < token.Length; i++)
+        {
+            if ((i % 2 == 0) == (token[i] == '.'))
+                return false;
+        }
+
+        return true;
     }
 
     [GeneratedRegex(@"[.!?。！？][""'”’」』)\]]*\s+\p{L}")]
