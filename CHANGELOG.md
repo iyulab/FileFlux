@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.140.0 -> 0.141.0, `LMSupply.Core` 0.140.0 -> 0.141.0, `LMSupply.Embedder` 0.140.0 -> 0.141.0, `LMSupply.Generator` 0.140.0 -> 0.141.0, `LMSupply.Ocr` 0.140.0 -> 0.141.0, `LMSupply.Transcriber` 0.140.0 -> 0.141.0.
 - Re-pinned sibling package(s) `FluxImprover` 0.24.0 -> 0.24.1, `FluxImprover.LMSupply` 0.24.0 -> 0.24.1.
 - Re-pinned sibling package(s) `LMSupply.Captioner` 0.141.0 -> 0.142.0, `LMSupply.Core` 0.141.0 -> 0.142.0, `LMSupply.Embedder` 0.141.0 -> 0.142.0, `LMSupply.Generator` 0.141.0 -> 0.142.0, `LMSupply.Ocr` 0.141.0 -> 0.142.0, `LMSupply.Transcriber` 0.141.0 -> 0.142.0.
+- Re-pinned sibling package(s) `FluxCurator` 0.19.0 -> 0.20.0, `LMSupply.Captioner` 0.142.0 -> 0.143.0, `LMSupply.Core` 0.142.0 -> 0.143.0, `LMSupply.Embedder` 0.142.0 -> 0.143.0, `LMSupply.Generator` 0.142.0 -> 0.143.0, `LMSupply.Ocr` 0.142.0 -> 0.143.0, `LMSupply.Transcriber` 0.142.0 -> 0.143.0.
 
 ## [0.68.0] - 2026-11-09
 
