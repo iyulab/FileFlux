@@ -13,7 +13,10 @@ public class TextDocumentReader : IDocumentReader
 {
     // .json: DocumentType.Json is advertised in the enum; JSON is a plain-text format,
     // so text extraction is faithful (no structure loss unlike tabular formats).
-    public IEnumerable<string> SupportedExtensions => new[] { ".txt", ".md", ".tmp", ".json" };
+    // .tmp is deliberately absent: it names an application's scratch file or an unfinished write,
+    // not a document format, and a consumer that builds its "can be memorized" set from the readers'
+    // extensions must not pick such files up.
+    public IEnumerable<string> SupportedExtensions => new[] { ".txt", ".md", ".json" };
 
     public string ReaderType => "TextReader";
     private static readonly string[] separator = new[] { "\n\n", "\r\n\r\n" };
@@ -226,7 +229,6 @@ public class TextDocumentReader : IDocumentReader
         {
             ".md" => "markdown",
             ".txt" => "plain_text",
-            ".tmp" => "plain_text",
             _ => "unknown"
         };
 

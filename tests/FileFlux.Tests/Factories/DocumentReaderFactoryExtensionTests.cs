@@ -37,14 +37,16 @@ public class DocumentReaderFactoryExtensionTests
             ".md",      // Markdown
             ".markdown", // Markdown
             ".html",    // HTML
-            ".htm",     // HTML
-            ".tmp"      // Temporary text files
+            ".htm"      // HTML
         };
 
         foreach (var expectedExt in expectedExtensions)
         {
             Assert.Contains(expectedExt, supportedExtensions);
         }
+
+        // A scratch / unfinished-write name is no document format: no reader claims it by default.
+        Assert.DoesNotContain(".tmp", supportedExtensions);
 
         _output.WriteLine($"지원하는 확장자 목록 ({supportedExtensions.Count}개):");
         foreach (var ext in supportedExtensions)
@@ -65,6 +67,7 @@ public class DocumentReaderFactoryExtensionTests
     [InlineData(".json", true)]   // 0.12.0: TextDocumentReader 라우팅
     [InlineData(".csv", true)]    // 0.12.0: CsvDocumentReader
     [InlineData(".tsv", true)]    // 0.12.0: CsvDocumentReader
+    [InlineData(".tmp", false)]   // scratch file name: not a document format
     [InlineData(".xml", false)]   // XML은 지원하지 않음
     [InlineData("", false)]       // 빈 문자열
     [InlineData(null, false)]     // null
@@ -116,9 +119,10 @@ public class DocumentReaderFactoryExtensionTests
             { ".md", "MarkdownReader" },
             { ".markdown", "MarkdownReader" },
             { ".html", "HtmlReader" },
-            { ".htm", "HtmlReader" },
-            { ".tmp", "TextReader" }
+            { ".htm", "HtmlReader" }
         };
+
+        Assert.False(mapping.ContainsKey(".tmp"), "'.tmp' is no document format and must not be mapped to a reader.");
 
         foreach (var expectedMapping in expectedMappings)
         {
