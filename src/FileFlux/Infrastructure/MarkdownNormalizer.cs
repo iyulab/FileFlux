@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using FileFlux.Core;
+using FluxCurator.Core.Infrastructure.Refining;
 
 namespace FileFlux.Infrastructure;
 

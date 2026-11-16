@@ -1,4 +1,5 @@
 using FileFlux.Core;
+using FluxCurator.Core.Infrastructure.Refining;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 using System.Text.RegularExpressions;

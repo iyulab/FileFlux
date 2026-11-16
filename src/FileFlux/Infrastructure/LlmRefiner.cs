@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using FileFlux.Core;
 using FluxCurator.Core.Infrastructure.Languages;
+using FluxCurator.Core.Infrastructure.Refining;
 using Microsoft.Extensions.Logging;
 
 namespace FileFlux.Infrastructure;

@@ -3,6 +3,7 @@ namespace FileFlux.Infrastructure.Adapters;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using FileFlux.Core;
+using FluxCurator.Core.Infrastructure.Refining;
 using FluxCuratorChunk = FluxCurator.Core.Domain.DocumentChunk;
 using FluxCuratorMetadata = FluxCurator.Core.Domain.ChunkMetadata;
 using FluxCuratorLocation = FluxCurator.Core.Domain.ChunkLocation;

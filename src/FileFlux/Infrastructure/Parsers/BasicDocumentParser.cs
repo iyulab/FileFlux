@@ -2,6 +2,7 @@ using FileFlux;
 using FileFlux.Core;
 using FileFlux.Infrastructure.Adapters;
 using FileFlux.Infrastructure.Services;
+using FluxCurator.Core.Infrastructure.Refining;
 using System.Text.RegularExpressions;
 using System.Globalization;
 
