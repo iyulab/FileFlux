@@ -145,62 +145,45 @@ Both models have a residual stream dimension of 2880, applying root mean square 
 **Attention:** Following GPT-3, attention blocks alternate between banded window and fully dense patterns \[10\]\[11\], where the bandwidth is 128 tokens. Each layer has 64 query heads of dimension 64, and uses Grouped Query Attention (GQA \[12\]\[13\]) with 8 key-value heads. We apply rotary position embeddings \[14\] and extend the context length of dense layers to 131,072 tokens using YaRN \[15\]. Each attention head has a learned bias in the denominator of the softmax, similar to off-by-one attention and attention sinks \[16\]\[17\], which enables the attention mechanism to pay no attention to any tokens. 1Our SwiGLU implementation is unconventional, including clamping and a residual connection.
 
 
-100 80 60
+| AIME 2024 AIME 2025 | GPQA Diamond |
+| --- | --- |
+| (Competition Math) (Competition Math) (PhD Science Questions) | |
+| (With Tools) (With Tools) | (Without Tools) |
+| 98.7 96.6 96.0 98.4 99.5 97.9 98.7 | |
+| 100 95.2 | |
+| 87.3 86.5 | |
+| 83.3 | 81.4 80.1 |
+| 80 | 77.0 |
+
+60
 
 Accuracy (%)
 
-40
-
-20
-
-| AIME 2024 AIME 2025 | GPQA Diamond |
-| --- | --- |
-| (Competition Math) (Competition Math) | (PhD Science Questions) |
-| (With Tools) (With Tools) | (Without Tools) |
-
-98.4 99.5 97.9 98.7
-
-86.5
-
-95.2 98.7 96.6 96.0
-
-87.3
-
-83.3 81.4 80.1
-
-77.0
+40 20 0
 
 71.5
 
-o3 o3 o3
+| * * | |
+| --- | --- |
+| o3 o3 | o3 |
+| o3-mini o4-mini o3-mini o4-mini | o3-minio4-mini |
+| gpt-oss-120b gpt-oss-20b gpt-oss-120b gpt-oss-20b | gpt-oss-120b gpt-oss-20b |
+| HLE | MMLU |
+| (Expert-Level Questions) (College-level Exams) | |
+| 30 93.4 | 93.0 90.0 |
+| 87.0 | 85.3 |
 
-o3-minio4-mini o3-minio4-mini o3-minio4-mini gpt-oss-20b gpt-oss-20b gpt-oss-20b
+24.9 80
 
-gpt-oss-120b gpt-oss-120b gpt-oss-120b
+19.0 20 17.7 17.3 60
 
-0
+14.9 13.4
 
-HLE MMLU (Expert-Level Questions) (College-level Exams)
+10.9 40
 
-93.4 93.0
-
-30 90.0 24.9
-
-80
-
-20 60
-
-40 10
-
-17.7 19.0 17.3
-
-13.4 14.9
-
-10.9
+10
 
 Accuracy (%) Accuracy (%) 20
-
-87.0 85.3
 
 o3 o3
 
@@ -225,41 +208,53 @@ Across all training stages, we utilize our o200k\_harmony tokenizer, which we op
 
 Codeforces SWE-Bench Verified Tau-Bench Retail (Competition Code) (Software Engineering) (Function Calling)
 
-70.4 69.1 68.1
+70.4
 
-2500
+2706 2719 69.1 68.1 67.8
 
-62.4 60.7
+2622 65.6 2463 2516 62.4
 
-49.3
+2500 60.7
 
-60 60
+57.6
 
-2000
-
-40 40 Elo 1500
-
-1000
-
-Accuracy (%) Accuracy (%) 20 20 500
-
-65.6 67.8
-
-57.6 54.8
-
-o3 o3
-
-2706 2719 2622
-
-2463 2516
-
-2230
+2230 60 60 54.8
 
 2073
 
-o3 o3-minio4-mini o3-minio4-mini
+49.3
 
-(tool)o3-minio4-mini (tool) gpt-oss-20b gpt-oss-20b gpt-oss-120b gpt-oss-120b (no tool) gpt-oss-120b(tool)gpt-oss-120b(no tool)gpt-oss-20b(tool)gpt-oss-20b(no tool)
+2000
+
+40 40
+
+Elo
+
+1500
+
+1000
+
+Accuracy (%) Accuracy (%)
+
+20 20
+
+500
+
+o3 o3
+
+o3
+
+o3-minio4-mini o3-minio4-mini
+
+(tool)o3-minio4-mini
+
+(tool)
+
+gpt-oss-20b gpt-oss-20b
+
+gpt-oss-120b gpt-oss-120b
+
+(no tool) gpt-oss-120b(tool)gpt-oss-120b(no tool)gpt-oss-20b(tool)gpt-oss-20b(no tool)
 
 0 0 0
 
@@ -276,19 +271,21 @@ For the models’ training, we use a custom chat format known as the harmony cha
 The format also introduces "channels" to indicate the intended visibility of each message, e.g., analysis for CoT tokens, commentary for function tool calling and final for answers shown to users. This format enables gpt-oss to provide advanced agentic features including interleaving tool calls within the CoT or providing preambles that outline longer action plans to the user. Our accompanying [open-source implementation and guide](https://github.com/openai/harmony) provides full details on the proper usage of this format–it is critical to deploy our gpt-oss models properly to achieve their best capabilities. For example, in multi-turn conversations the reasoning traces from past assistant turns should be removed. Table 17 and 18 in the Appendix show an example model input and output in the harmony chat format. 2[https://github.com/triton-lang/triton/tree/main/python/triton\_kernels](https://github.com/triton-lang/triton/tree/main/python/triton_kernels)
 
 
-100 90 80
+100 90
 
-70
+80
 
 gpt-oss-120b
 
 AIME 2025 (Competition Math)
 
-85
+high
 
-80
+medium high medium
 
-75
+low
+
+85 80 75
 
 70
 
@@ -298,25 +295,17 @@ GPQA Diamond (PhD Science Questions)
 
 high
 
-medium high
-
 medium
-
-low
 
 high
 
-medium
-
-low high
-
-medium
-
 low
 
-| Accuracy (%) | 65 |
+| 70 | medium |
 | --- | --- |
+| Accuracy (%) | 65 |
 | 60 | 60 |
+| low | low |
 | 50 | 55 |
 | 2 k 4 k 8 k 16 k | 2 k 4 k 8 k 16 k 32 k |
 | COT + Answer length (tokens) | COT + Answer length (tokens) |
@@ -366,35 +355,31 @@ In Figure 4, we observe that the gpt-oss models at reasoning level high perform 
 These results represent a large Pareto improvement in the health performance-cost frontier. Open models may be especially impactful in global health, where privacy and cost constraints can be important. We hope that the release of these models makes health intelligence and reasoning capabilities more widely accessible, supporting the broad distribution of AI’s benefits. Please
 
 
-HealthBench HealthBench Hard (Realistic Health Conversations) (Challenging Health Conversations) 59.8 57.6 60 31.6 (Validated by 2+ Physicians) HealthBench Consensus 91.5 92.8 91.1 91.8
+HealthBench HealthBench Hard HealthBench Consensus (Realistic Health Conversations) (Challenging Health Conversations) (Validated by 2+ Physicians) 59.8
 
-30.0 90.0
+57.6 92.8 60 31.6 91.5 91.1 91.8
 
-50.1 90 30 88.7
+30.0 90.0 50.1 30 90 88.7
 
-41.8 42.5 40 37.8 82.6
+41.8 42.5 82.6 37.8
 
-32.0 20 17.5 80 10.8 Score (%) 20 7.9 10 70 4.0 0.0
+40 32.0 20 17.5 80
 
-0 0 60 o1 o3 o1 o3 gpt-4o o3-minio4-mini gpt-4o o3-minio4-mini gpt-oss-20b gpt-oss-20b gpt-oss-120b gpt-oss-120b gpt-4o o1 o3 o3-mini o4-mini gpt-oss-120b gpt-oss-20b
+10.8 20 Score (%)
 
-50.1
-
-41.8 42.5
-
-37.8
-
-32.0
-
-30.0
-
-17.5
-
-10.8
-
-0.0 7.9
+10 7.9 70
 
 4.0
+
+0.0
+
+o1 o3 o1 o3 o1 o3
+
+gpt-4o gpt-4o gpt-4o o3-minio4-mini o3-minio4-mini o3-minio4-mini
+
+gpt-oss-20b gpt-oss-20b gpt-oss-20b gpt-oss-120b gpt-oss-120b gpt-oss-120b
+
+0 0 60
 
 Figure 4: *Health performance*. The 120b model at reasoning level high performs nearly as well as OpenAI o3 on HealthBench and HealthBench Hard and substantially better than GPT-4o, OpenAI o1, OpenAI o3-mini, and OpenAI o4-mini. The 20b model performs slightly better than OpenAI o1, despite being significantly smaller.
 
@@ -620,9 +605,13 @@ We evaluated gpt-oss-120b and gpt-oss-20b on the BBQ evaluation \[32\]. Overall,
 
 Table 10: BBQ evaluation
 
-### Metric (higher is better) gpt-oss-120b gpt-oss-20b OpenAI o4-mini
+| Metric (higher is better) | gpt-oss-120b | gpt-oss-20b | OpenAI o4-mini |
+| --- | --- | --- | --- |
+| Accuracy on ambiguous | 0.87 | 0.79 | 0.82 |
+| questions | | | |
+| Accuracy on disambiguated | 0.90 | 0.89 | 0.95 |
 
-Accuracy on ambiguous 0.87 0.79 0.82 questions Accuracy on disambiguated 0.90 0.89 0.95 questions
+questions
 
 # 5 Preparedness Framework
 

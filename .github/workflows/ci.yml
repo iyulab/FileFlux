@@ -35,7 +35,15 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Two images on purpose: the readers load native libraries (Undoc, Unpdf, Unhwp) that were built against a
+    # glibc, and a consumer runs on an older one than the newest runner. 'ubuntu-latest' is 26.04 (glibc 2.43) since
+    # 2026-11, so a native that needs 2.43 loaded there and passed while it could not load on Ubuntu 24.04 (2.39).
+    # The 24.04 leg is what catches that.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
     steps:

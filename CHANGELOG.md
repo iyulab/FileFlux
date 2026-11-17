@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **No change in behavior: the fenced-code scan comes from `FluxCurator.Core` instead of an internal copy.** The 472-line internal `MarkdownFences` is removed; the readers and chunkers call the public `MarkdownFences` of `FluxCurator.Core` (0.20.0, already the pinned floor), so a scan fix is made once.
 
+### Fixed
+- **Word and PDF files can be read again on Ubuntu 24.04 and other Linux systems with glibc older than 2.43.** 0.69.0 (and 0.68.0 for Word) pinned `Undoc` 0.27.3 and `Unpdf` 0.54.0, whose `linux-x64` native libraries need glibc 2.43; on a glibc 2.39 system (Ubuntu 24.04, the .NET SDK images) every `.docx`, `.pptx` and `.pdf` failed with `Unable to load shared library 'undoc'` / `'unpdf'` (`GLIBC_2.43 not found`). Both packages are re-pinned to builds that need glibc 2.35 (`Undoc` 0.28.0, `Unpdf` 0.55.0). The CI now also runs on Ubuntu 24.04, where such a library fails to load.
+- **Breaking by observation: Word and PowerPoint text changes with `Undoc` 0.28.0 - re-index stored Office documents.** Bullet and list paragraphs of a presentation are written as `- ` list items instead of plain paragraphs, the same bullets inside a Word table cell are `- ` items after the `<br>`, and shapes of a slide are listed in a different order in a file with pictures. Over 20 public Office files 3 changed this way; the rest are identical. A PDF read with `Unpdf` 0.55.0 differs in 4 of 19 public files (a form table's header cells, two press releases, and the bar-chart page of a model card, whose axis and bar labels come out as grid rows instead of loose lines); the HWP / PDF agreement over the public set is the same within 0.004.
+
+### Dependencies
+- `Undoc` 0.27.3 -> 0.28.0, `Unpdf` 0.54.0 -> 0.55.0 (see Fixed).
+
 ## [0.69.0] - 2026-11-16
 
 ### Added
