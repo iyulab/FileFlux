@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Breaking (by observation): the paragraphs of an HTML page are separated by a blank line, and a list item that holds a paragraph keeps its text on the marker's line.** `<p>` elements (and `div` / `section` / `article` blocks that hold text of their own) were written one line apart, which Markdown reads as one paragraph and the paragraph-aware chunkers treat as one: a page of `<p>` elements was cut in the middle of a paragraph, where the same text as Markdown is cut between two. A `<li><p>text</p></li>` was written as a bare marker (`-`) with its text on the next line. Migration: re-index stored HTML documents; chunk boundaries and, for such pages, chunk text change. Paragraphs inside a list item, table cell or definition are not separated further.
 
+- **Breaking (by observation): a definition list (`dl`) of an HTML page is written as one line per term, `Term: definition`.** The terms and definitions were run together on one line (`Term A Definition of A. Term B Definition of B.`), so which definition belongs to which term was lost. Several terms in a row share the definitions after them (`Term C, Term D: ...`); several definitions of one term are joined; a term with no definition stays as it is. Migration: re-index stored HTML documents that use `dl`.
+
 ## [0.70.0] - 2026-11-17
 
 ### Changed

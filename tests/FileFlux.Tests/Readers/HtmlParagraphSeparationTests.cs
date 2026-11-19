@@ -88,6 +88,30 @@ public sealed class HtmlParagraphSeparationTests : IDisposable
     }
 
     [Fact]
+    public async Task DefinitionList_WritesOneLinePerTerm_WithItsDefinitions()
+    {
+        var text = await ExtractAsync(
+            "<p>Before.</p><dl><dt>Term A</dt><dd>Definition of A.</dd><dt>Term B</dt><dd>First.</dd><dd>Second.</dd><dt>Term C</dt><dt>Term D</dt><dd>Shared.</dd></dl><p>After.</p>");
+
+        var lines = Lines(text);
+        Assert.Contains("Term A: Definition of A.", lines);
+        Assert.Contains("Term B: First. Second.", lines);
+        Assert.Contains("Term C, Term D: Shared.", lines);
+        // set apart from the paragraphs around it
+        var first = Array.IndexOf(lines, "Term A: Definition of A.");
+        Assert.Equal("", lines[first - 1]);
+        Assert.Equal("", lines[Array.IndexOf(lines, "Term C, Term D: Shared.") + 1]);
+    }
+
+    [Fact]
+    public async Task DefinitionList_WithoutDefinitions_KeepsTheTerm()
+    {
+        var text = await ExtractAsync("<dl><dt>Lonely term</dt></dl>");
+
+        Assert.Contains("Lonely term", Lines(text));
+    }
+
+    [Fact]
     public async Task ParagraphPage_IsChunkedBetweenParagraphs_NotInsideOne()
     {
         var paragraphs = Enumerable.Range(1, 24)

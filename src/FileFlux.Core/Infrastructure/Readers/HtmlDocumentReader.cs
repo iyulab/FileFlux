@@ -495,6 +495,12 @@ public partial class HtmlDocumentReader : IDocumentReader
                 tableCount++;
                 break;
 
+            case "dl":
+                EnsureBlankLine(textBuilder);
+                ProcessDefinitionList(node, textBuilder);
+                EnsureBlankLine(textBuilder);
+                break;
+
             case "a":
                 ProcessLink(node, textBuilder, ref linkCount, externalLinks);
                 break;
@@ -743,6 +749,83 @@ public partial class HtmlDocumentReader : IDocumentReader
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// A definition list as one line per term: <c>Term: definition</c>. The terms and definitions were run together on one line
+    /// (<c>Term A Definition of A. Term B Definition of B.</c>), so which definition belongs to which term was lost. Several
+    /// terms in a row share the definitions after them (<c>Term C, Term D: ...</c>); a term with no definition stays as it is.
+    /// </summary>
+    private static void ProcessDefinitionList(HtmlNode node, StringBuilder textBuilder)
+    {
+        string? term = null;
+        var definitions = new List<string>();
+
+        void Flush()
+        {
+            if (term is null && definitions.Count == 0)
+            {
+                return;
+            }
+
+            var joined = new StringBuilder();
+            foreach (var definition in definitions)
+            {
+                if (joined.Length > 0)
+                {
+                    joined.Append(joined[^1] is '.' or '!' or '?' ? " " : "; ");
+                }
+
+                joined.Append(definition);
+            }
+
+            textBuilder.AppendLine(term is null ? joined.ToString() : joined.Length == 0 ? term : $"{term}: {joined}");
+            term = null;
+            definitions.Clear();
+        }
+
+        void Visit(HtmlNode parent)
+        {
+            foreach (var child in parent.ChildNodes)
+            {
+                if (child.NodeType != HtmlNodeType.Element)
+                {
+                    continue;
+                }
+
+                switch (child.Name.ToLowerInvariant())
+                {
+                    case "dt":
+                        var termText = FlatText(child);
+                        if (string.IsNullOrWhiteSpace(termText))
+                        {
+                            break;
+                        }
+
+                        if (definitions.Count > 0)
+                        {
+                            Flush();
+                        }
+
+                        term = term is null ? termText : $"{term}, {termText}";
+                        break;
+                    case "dd":
+                        var definitionText = FlatText(child);
+                        if (!string.IsNullOrWhiteSpace(definitionText))
+                        {
+                            definitions.Add(definitionText);
+                        }
+
+                        break;
+                    case "div":
+                        Visit(child); // HTML allows a div around each dt / dd group
+                        break;
+                }
+            }
+        }
+
+        Visit(node);
+        Flush();
     }
 
     private static void ProcessTable(HtmlNode node, StringBuilder textBuilder)
