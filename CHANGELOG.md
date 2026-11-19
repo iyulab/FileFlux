@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking (by observation): a `blockquote` of an HTML page keeps its quote marker.** The quoted paragraphs were written as plain paragraphs, so a quotation read as the author's own text. Each line of a quote is now prefixed with `> ` (an empty line with `>`; a nested quote doubles it), and the paragraphs inside are separated by a `>` line. A code block inside a quote keeps its fence and indentation at column zero (the fence scan that spares code from the refiner does not look through a quote marker). Migration: re-index stored HTML documents that use `blockquote`.
 
+### Dependencies
+- Re-pinned third-party packages: `Microsoft.Testing.Extensions.HangDump` 2.5.2 -> 2.5.3.
+
 ## [0.70.0] - 2026-11-17
 
 ### Changed
