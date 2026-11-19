@@ -495,6 +495,10 @@ public partial class HtmlDocumentReader : IDocumentReader
                 tableCount++;
                 break;
 
+            case "blockquote":
+                ProcessBlockquote(node, textBuilder, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, depth, cancellationToken);
+                break;
+
             case "dl":
                 EnsureBlankLine(textBuilder);
                 ProcessDefinitionList(node, textBuilder);
@@ -562,7 +566,7 @@ public partial class HtmlDocumentReader : IDocumentReader
     /// </summary>
     private static bool IsParagraphLike(HtmlNode node, string tagName)
     {
-        var holdsText = tagName == "p"
+        var holdsText = tagName is "p" or "blockquote"
             || (TextContainerBlocks.Contains(tagName)
                 && node.ChildNodes.Any(c => c.NodeType == HtmlNodeType.Text && !string.IsNullOrWhiteSpace(c.InnerText)));
         if (!holdsText)
@@ -749,6 +753,73 @@ public partial class HtmlDocumentReader : IDocumentReader
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// A quotation keeps its quote marker: each line outside a code fence is prefixed with <c>&gt; </c> (an empty line with
+    /// <c>&gt;</c>), so the quoted paragraphs read as a quotation and not as the author's own text. Lines inside a code fence stay
+    /// at column zero - the fence scan that spares code from the refiner does not look through a quote marker, so a prefixed
+    /// fence would lose its indentation.
+    /// </summary>
+    private static void ProcessBlockquote(HtmlNode node, StringBuilder textBuilder, Dictionary<string, object> structuralHints,
+        ref int listCount, ref int tableCount, ref int imageCount, ref int linkCount,
+        List<string> codeLanguages, List<string> externalLinks, ref bool hasCode, List<ImageInfo> images, int depth, CancellationToken cancellationToken)
+    {
+        var inner = new StringBuilder();
+        foreach (var childNode in node.ChildNodes)
+        {
+            TraverseNode(childNode, inner, structuralHints, ref listCount, ref tableCount, ref imageCount, ref linkCount, codeLanguages, externalLinks, ref hasCode, images, cancellationToken, depth + 1);
+        }
+
+        var quoted = inner.ToString().Replace("\r\n", "\n").Trim('\n', ' ');
+        if (quoted.Length == 0)
+        {
+            return;
+        }
+
+        string? openFence = null;
+        foreach (var rawLine in quoted.Split('\n'))
+        {
+            var line = rawLine.TrimEnd();
+            var fence = FenceMarker(line);
+            if (openFence is not null)
+            {
+                textBuilder.AppendLine(rawLine);
+                if (fence is not null && fence[0] == openFence[0] && fence.Length >= openFence.Length && line.TrimStart().Length == fence.Length)
+                {
+                    openFence = null;
+                }
+
+                continue;
+            }
+
+            if (fence is not null)
+            {
+                openFence = fence;
+                textBuilder.AppendLine(rawLine);
+                continue;
+            }
+
+            textBuilder.AppendLine(line.Length == 0 ? ">" : $"> {line}");
+        }
+    }
+
+    /// <summary>The run of backticks or tildes (three or more) that opens or closes a fence on this line, or null.</summary>
+    private static string? FenceMarker(string line)
+    {
+        var trimmed = line.TrimStart();
+        if (trimmed.Length < 3 || (trimmed[0] != '`' && trimmed[0] != '~'))
+        {
+            return null;
+        }
+
+        var length = 0;
+        while (length < trimmed.Length && trimmed[length] == trimmed[0])
+        {
+            length++;
+        }
+
+        return length >= 3 ? new string(trimmed[0], length) : null;
     }
 
     /// <summary>

@@ -104,6 +104,43 @@ public sealed class HtmlParagraphSeparationTests : IDisposable
     }
 
     [Fact]
+    public async Task Blockquote_KeepsItsQuoteMarker_AndSeparatesItsParagraphs()
+    {
+        var text = await ExtractAsync("<p>Before.</p><blockquote><p>Quoted one.</p><p>Quoted two.</p></blockquote><p>After.</p>");
+
+        var lines = Lines(text);
+        var one = Array.IndexOf(lines, "> Quoted one.");
+        Assert.True(one >= 0, "the quoted paragraph carries the quote marker");
+        Assert.Equal(">", lines[one + 1]);
+        Assert.Equal("> Quoted two.", lines[one + 2]);
+        Assert.Equal("", lines[one - 1]);
+        Assert.Equal("", lines[one + 3]);
+        Assert.Equal("After.", lines[one + 4]);
+    }
+
+    [Fact]
+    public async Task Blockquote_AroundACodeBlock_KeepsTheFenceAndItsIndentation()
+    {
+        await using var processor = await OpenAsync("quote-code.html", "<html><body><blockquote><p>Run this:</p><pre>first\n    indented\nlast</pre></blockquote></body></html>");
+
+        await processor.ProcessAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        var chunk = string.Join("\n", processor.Result.Select(c => c.Content)).Replace("\r\n", "\n");
+        Assert.Contains("> Run this:", chunk);
+        Assert.Contains("```\nfirst\n    indented\nlast\n```", chunk);
+    }
+
+    [Fact]
+    public async Task NestedBlockquote_DoublesTheMarker()
+    {
+        var text = await ExtractAsync("<blockquote><p>Outer.</p><blockquote><p>Inner.</p></blockquote></blockquote>");
+
+        var lines = Lines(text);
+        Assert.Contains("> Outer.", lines);
+        Assert.Contains("> > Inner.", lines);
+    }
+
+    [Fact]
     public async Task DefinitionList_WithoutDefinitions_KeepsTheTerm()
     {
         var text = await ExtractAsync("<dl><dt>Lonely term</dt></dl>");

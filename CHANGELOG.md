@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking (by observation): a definition list (`dl`) of an HTML page is written as one line per term, `Term: definition`.** The terms and definitions were run together on one line (`Term A Definition of A. Term B Definition of B.`), so which definition belongs to which term was lost. Several terms in a row share the definitions after them (`Term C, Term D: ...`); several definitions of one term are joined; a term with no definition stays as it is. Migration: re-index stored HTML documents that use `dl`.
 
+- **Breaking (by observation): a `blockquote` of an HTML page keeps its quote marker.** The quoted paragraphs were written as plain paragraphs, so a quotation read as the author's own text. Each line of a quote is now prefixed with `> ` (an empty line with `>`; a nested quote doubles it), and the paragraphs inside are separated by a `>` line. A code block inside a quote keeps its fence and indentation at column zero (the fence scan that spares code from the refiner does not look through a quote marker). Migration: re-index stored HTML documents that use `blockquote`.
+
 ## [0.70.0] - 2026-11-17
 
 ### Changed
