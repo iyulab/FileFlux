@@ -5,6 +5,11 @@ All notable changes to FileFlux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Breaking (by observation): the paragraphs of an HTML page are separated by a blank line, and a list item that holds a paragraph keeps its text on the marker's line.** `<p>` elements (and `div` / `section` / `article` blocks that hold text of their own) were written one line apart, which Markdown reads as one paragraph and the paragraph-aware chunkers treat as one: a page of `<p>` elements was cut in the middle of a paragraph, where the same text as Markdown is cut between two. A `<li><p>text</p></li>` was written as a bare marker (`-`) with its text on the next line. Migration: re-index stored HTML documents; chunk boundaries and, for such pages, chunk text change. Paragraphs inside a list item, table cell or definition are not separated further.
+
 ## [0.70.0] - 2026-11-17
 
 ### Changed

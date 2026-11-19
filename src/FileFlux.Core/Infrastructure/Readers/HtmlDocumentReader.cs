@@ -454,8 +454,17 @@ public partial class HtmlDocumentReader : IDocumentReader
         // 스킵할 요소들
         if (IsSkippedElement(tagName)) return;
 
-        // 블록 레벨 요소 전 줄바꿈
-        if (IsBlockElement(tagName) && textBuilder.Length > 0 && !textBuilder.ToString().EndsWith('\n'))
+        // Paragraphs are separated by a blank line, as in Markdown: a single line break between two <p> elements reads as one
+        // paragraph and the paragraph-aware chunkers cut inside it. A paragraph inside a list item, table cell or definition stays
+        // with the item (its words are joined by the item), so only a stand-alone paragraph gets the blank line.
+        var paragraphLike = IsParagraphLike(node, tagName);
+
+        // 블록 레벨 요소 전 줄바꿈 (a block child directly after a list marker stays on the marker's line)
+        if (paragraphLike && textBuilder.Length > 0)
+        {
+            EnsureBlankLine(textBuilder);
+        }
+        else if (IsBlockElement(tagName) && textBuilder.Length > 0 && !EndsWithNewline(textBuilder) && !EndsWithListMarker(textBuilder))
         {
             textBuilder.AppendLine();
         }
@@ -520,10 +529,108 @@ public partial class HtmlDocumentReader : IDocumentReader
         }
 
         // 블록 레벨 요소 후 줄바꿈
-        if (IsBlockElement(tagName))
+        if (paragraphLike)
         {
+            EnsureBlankLine(textBuilder);
+        }
+        else if (IsBlockElement(tagName) && TrailingLineEnds(textBuilder) < 2)
+        {
+            // A container that closes right after a blank line (its last child was a paragraph) adds nothing more.
             textBuilder.AppendLine();
         }
+    }
+
+    private static readonly HashSet<string> TextContainerBlocks = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "div", "section", "article", "aside", "main", "header", "footer", "figcaption",
+    };
+
+    private static readonly HashSet<string> TightContainers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "li", "td", "th", "dd", "dt",
+    };
+
+    /// <summary>
+    /// A paragraph, or a container that holds text of its own (a <c>div</c> written as a paragraph), outside a list item, table
+    /// cell or definition - the blocks whose neighbours are separated by a blank line.
+    /// </summary>
+    private static bool IsParagraphLike(HtmlNode node, string tagName)
+    {
+        var holdsText = tagName == "p"
+            || (TextContainerBlocks.Contains(tagName)
+                && node.ChildNodes.Any(c => c.NodeType == HtmlNodeType.Text && !string.IsNullOrWhiteSpace(c.InnerText)));
+        if (!holdsText)
+        {
+            return false;
+        }
+
+        for (var parent = node.ParentNode; parent is not null; parent = parent.ParentNode)
+        {
+            if (TightContainers.Contains(parent.Name))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool EndsWithNewline(StringBuilder builder) => builder.Length > 0 && builder[^1] == '\n';
+
+    /// <summary>The current line holds nothing but a list marker (<c>- </c> or <c>3. </c>, indented or not).</summary>
+    private static bool EndsWithListMarker(StringBuilder builder)
+    {
+        var end = builder.Length;
+        var start = end;
+        while (start > 0 && builder[start - 1] != '\n')
+        {
+            start--;
+        }
+
+        var line = builder.ToString(start, end - start).Trim();
+        if (line == "-")
+        {
+            return true;
+        }
+
+        return line.Length >= 2 && line[^1] == '.' && line[..^1].All(char.IsAsciiDigit);
+    }
+
+    /// <summary>Ends the current block so that exactly one blank line (no more) separates it from what follows.</summary>
+    private static void EnsureBlankLine(StringBuilder builder)
+    {
+        while (builder.Length > 0 && builder[^1] == ' ')
+        {
+            builder.Length--;
+        }
+
+        if (builder.Length == 0)
+        {
+            return;
+        }
+
+        for (var newlines = TrailingLineEnds(builder); newlines < 2; newlines++)
+        {
+            builder.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// How many line ends close the text. <c>AppendLine</c> writes the platform's line ending (CR LF on Windows), so line ends
+    /// are counted, not <c>'\n'</c> characters in a row.
+    /// </summary>
+    private static int TrailingLineEnds(StringBuilder builder)
+    {
+        var count = 0;
+        for (var i = builder.Length - 1; i >= 0 && (builder[i] == '\n' || builder[i] == '\r'); i--)
+        {
+            if (builder[i] == '\n')
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /// <summary>Elements whose edges (or, for <c>br</c>, whose place) separate the words around them.</summary>
