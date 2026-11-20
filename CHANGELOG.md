@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 - Re-pinned third-party packages: `Microsoft.Testing.Extensions.HangDump` 2.5.2 -> 2.5.3.
+- Re-pinned third-party packages: `CsvHelper` 34.0.0 -> 34.1.0.
 
 ## [0.70.0] - 2026-11-17
 
