@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-pinned third-party packages: `Microsoft.Testing.Extensions.HangDump` 2.5.2 -> 2.5.3.
 - Re-pinned third-party packages: `CsvHelper` 34.0.0 -> 34.1.0.
 - Re-pinned third-party packages: `Unhwp` 0.23.1 -> 0.24.0.
+- Re-pinned sibling package(s) `FluxImprover` 0.24.1 -> 0.25.0, `FluxImprover.LMSupply` 0.24.1 -> 0.25.0.
 
 ## [0.70.0] - 2026-11-17
 
